@@ -508,6 +508,31 @@ rule from the start.
     would otherwise strand the desktop with no cursor. `/test/fire`, `/test/fire/stop`,
     `/effect/fire` and the menu item **Fire Cursor 🔥** fire it silently.
 
+- **💘 Spiral hearts** (tile #42 `42_saxophone.mp3` → `spiral-hearts` / `spiral-hearts/stop`,
+  `showSpiralHearts`): **the cursor becomes a pulsing red heart** for the length of the clip
+  (the real pointer is hidden — it is the first member of the hidden-cursor family the
+  chainsaw and the minigun reticle later joined, and like them it lives *outside*
+  `activeEffects` so `stopAllActiveEffects` tears it down explicitly), and hearts peel off it
+  at **6/s** and spiral up and off the top of the screen. Each riser gets its own net
+  sideways drift, a sine wobble laid over the rise, a rotation wobble and a 3.2…4.5 s life.
+  Every pending spawn is a cancellable `DispatchWorkItem`, so an explicit stop silences the
+  emission instead of letting hearts keep appearing for the rest of the clip's length.
+  Not to be confused with **💓 Heartbeat** (tile #13), which is a lens on a screen capture
+  and shares nothing with this.
+  - **A riser is a CLONE of the pulsing heart (2026-09-11).** It is born at the cursor
+    heart's glyph size, at **the exact scale the pulse happens to be at on that frame**
+    (read off `presentation()` — the model layer knows nothing about where an in-flight
+    animation has got to), at its position, and **fully opaque**. It used to be a random
+    44…80 pt glyph that popped 0.6 → 1.5 while fading up from transparent over the first
+    0.08 s, which read as hearts *appearing near* the cursor rather than peeling off it. The
+    size variety survived by accident: 86.4 pt across the 0.8…1.35 beat spans the same range
+    the random one did. The fade **out** at the top of the rise is untouched — a heart still
+    has to leave.
+  - **The pulsing heart is 0.8× its old size** (`heartCursorFontSize`, 108 × 0.8). The pulse
+    is a `transform.scale` animation, so shrinking the glyph leaves the rhythm (0.45 s,
+    autoreversed) and the amplitude *ratio* (0.8 ↔ 1.35) exactly as they were. The constant
+    is `static` precisely because the risers are clones of it: one number, not two that drift.
+
 - **💕 Love hands** (tile #41 `41_love_hearts.mp3` → `love-hands` / `love-hands/stop`,
   `showLoveHands`): two hands (`love_hand_left.png` / `love_hand_right.png` from
   `EffectsConfig.assetsDir`, square halves at aspect 0.5) slide in from the left and right

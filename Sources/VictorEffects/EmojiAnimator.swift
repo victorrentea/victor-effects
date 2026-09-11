@@ -4956,11 +4956,13 @@ class EmojiAnimator {
                 // missing from assetsDir falls back to the dog.
                 var companion: CALayer?
                 if HeartbeatCompanion.next() == .cat {
-                    companion = HeartbeatCatCorner.makeLayer(bounds: bounds)
+                    // `anchor` is the cursor as it was when the effect started,
+                    // before the capture — which is exactly the "decide once at
+                    // start" the cat's corner wants.
+                    companion = HeartbeatCatCorner.makeLayer(bounds: bounds,
+                                                             cursorX: anchor.x * bounds.width)
                     if companion == nil {
                         overlayInfo("💓 \(HeartbeatCatCorner.assetName) not in \(EffectsConfig.shared.assetsDir.path) — falling back to the 🐶")
-                    } else {
-                        overlayInfo("💓 companion: 🐱 corner cat")
                     }
                 }
                 if let cat = companion {
@@ -5743,13 +5745,35 @@ class EmojiAnimator {
         }
     }
 
+    /// The pulsing cursor heart's scale **at this instant of its beat**, read off
+    /// the presentation layer (the model layer knows nothing about where an
+    /// in-flight animation has got to). 1.0 when there is no cursor heart, which
+    /// is the case for `/effect/spiral-hearts` fired straight from the menu.
+    private func heartCursorLiveScale() -> CGFloat {
+        guard let presented = _heartCursorLayer?.presentation() else { return 1.0 }
+        let t = CATransform3DGetAffineTransform(presented.transform)
+        let scale = sqrt(abs(t.a * t.d - t.b * t.c))
+        return scale > 0.01 ? scale : 1.0
+    }
+
     private func spawnSpiralHeart(into container: CALayer) {
         let bounds = hostLayer.bounds
-        let fontSize: CGFloat = CGFloat.random(in: 44...80)
+        // A heart that floats up is a CLONE of the pulsing cursor heart, not a
+        // new heart of its own: same glyph size, and it is born at the exact
+        // scale the pulse happens to be at on that frame. It used to be a random
+        // 44…80 pt glyph that popped from 0.6 to 1.5 while fading up from
+        // transparent — which read as hearts *appearing near* the cursor rather
+        // than peeling off it. (The two ranges happen to overlap: the cursor
+        // heart's 86.4 pt across a 0.8…1.35 beat spans the same sizes the random
+        // range used to, so the variety survived the change.)
+        let fontSize = Self.heartCursorFontSize
+        let birthScale = heartCursorLiveScale()
         // The layer box must be taller than the glyph or CATextLayer clips the
         // heart's bottom tip (the emoji line box is ~1.18× the font size).
-        let box = fontSize * 1.2
-        let origin = mousePointInHostLayer()  // spawn where the cursor currently is
+        let box = fontSize * Self.heartCursorBoxRatio
+        // …and it rises from where the pulsing heart actually is, which is the
+        // presentation position when there is one and the cursor otherwise.
+        let origin = _heartCursorLayer?.presentation()?.position ?? mousePointInHostLayer()
         let duration = Double.random(in: 3.2...4.5)
 
         let layer = CATextLayer()
@@ -5790,15 +5814,14 @@ class EmojiAnimator {
         pathAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
         animations.append(pathAnim)
 
-        // Pop in at the cursor, then grow 50% larger before/while it lifts off.
-        let grow = CAKeyframeAnimation(keyPath: "transform.scale")
-        grow.values = [0.6, 1.5, 1.5]
-        grow.keyTimes = [0.0, 0.18, 1.0]
-        grow.timingFunctions = [
-            CAMediaTimingFunction(name: .easeOut),
-            CAMediaTimingFunction(name: .linear),
-        ]
-        animations.append(grow)
+        // Held at the scale it was born at — no pop-in. The 0.6 → 1.5 grow this
+        // replaces was the other half of "a new heart appears": it made the
+        // clone visibly smaller than the heart it came off for the first 0.18 s.
+        let hold = CAKeyframeAnimation(keyPath: "transform.scale")
+        hold.values = [birthScale, birthScale]
+        hold.keyTimes = [0.0, 1.0]
+        hold.timingFunctions = [CAMediaTimingFunction(name: .linear)]
+        animations.append(hold)
 
         // Slight rotation wobble — adds to the spiral feel.
         let rotate = CABasicAnimation(keyPath: "transform.rotation")
@@ -5809,10 +5832,13 @@ class EmojiAnimator {
         rotate.duration = Double.random(in: 0.5...0.9)
         animations.append(rotate)
 
-        // Quick fade-in at the cursor, hold, then fade out as it nears the top.
+        // Fully opaque from frame one — it IS the pulsing heart, and a thing that
+        // detaches from something solid cannot start out see-through. Only the
+        // fade OUT survives (it was `[0, 1, 1, 0]` over `[0, 0.08, 0.55, 1]`),
+        // because a heart still has to leave at the top of its rise.
         let fade = CAKeyframeAnimation(keyPath: "opacity")
-        fade.values = [0.0, 1.0, 1.0, 0.0]
-        fade.keyTimes = [0.0, 0.08, 0.55, 1.0]
+        fade.values = [1.0, 1.0, 0.0]
+        fade.keyTimes = [0.0, 0.55, 1.0]
         animations.append(fade)
 
         let group = CAAnimationGroup()
@@ -6113,6 +6139,19 @@ class EmojiAnimator {
 
     private static func armBackgroundCursorHiding() { _ = _backgroundCursorHidingArmed }
 
+    /// Glyph size of the pulsing cursor heart: 108 (itself 2× the original)
+    /// **× 0.8** since 2026-09-11 — Victor wanted it smaller without losing the
+    /// beat. The pulse is a `transform.scale` animation, so shrinking the glyph
+    /// leaves both the rhythm (0.45 s, autoreversed) and the amplitude *ratio*
+    /// (0.8 ↔ 1.35) exactly as they were.
+    ///
+    /// It is `static` because the hearts that float up are **clones of it**
+    /// (`spawnSpiralHeart`) and there must be one number, not two that drift.
+    static let heartCursorFontSize: CGFloat = 108 * 0.8
+    /// Headroom around the glyph so the heart's bottom tip isn't clipped — the
+    /// emoji line box is ~1.18× the font size.
+    static let heartCursorBoxRatio: CGFloat = 1.2
+
     /// Float a pulsing red heart centred ON the mouse cursor for `seconds`,
     /// hiding the real system cursor so only the heart marks the pointer.
     /// Re-calling while active just extends the deadline.
@@ -6120,8 +6159,8 @@ class EmojiAnimator {
         _heartCursorActiveUntil = CACurrentMediaTime() + seconds
         guard _heartCursorLayer == nil else { return }  // already running; deadline extended above
 
-        let size: CGFloat = 108      // 2× the original cursor heart
-        let box = size * 1.2         // headroom so the heart's bottom tip isn't clipped
+        let size = Self.heartCursorFontSize
+        let box = size * Self.heartCursorBoxRatio
         let heart = CATextLayer()
         heart.string = "❤️"
         heart.fontSize = size
@@ -8962,6 +9001,22 @@ class EmojiAnimator {
 
     /// What is on screen right now, for `GET /state`. Read-only and cheap — a
     /// diagnostic, not a control surface.
+    // MARK: - 🔁 Sketch arrow (tile #71 "One more time")
+
+    /// The replay arrow from #71's artwork, drawn onto the desktop in cyan as if
+    /// a marker were sketching it. The geometry, the three overlapping passes
+    /// and the whole timeline live in `SketchArrow.swift`; here it only gets
+    /// hung on the host layer and tracked, so it self-terminates at
+    /// `SketchArrow.totalDuration` (the clip's own length) and `stop-all` clears
+    /// it like any other effect. Not a toggle: re-firing redraws it.
+    func showSketchArrow() {
+        _ = cancelIfRunning("sketch-arrow")
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        guard let layer = SketchArrow.makeLayer(in: hostLayer.bounds, scale: scale) else { return }
+        hostLayer.addSublayer(layer)
+        trackEffect("sketch-arrow", layer: layer, duration: SketchArrow.totalDuration)
+    }
+
     var activeEffectNames: [String] { activeEffects.keys.sorted() }
 
     // MARK: - Stop all active effects (called when tablet stops any sound)
