@@ -201,7 +201,14 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // without this app in it and no obvious way in short of the "+" button
         // and a trip through /Applications. Asking registers it.
         let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        _ = AXIsProcessTrustedWithOptions(options)
+        if !AXIsProcessTrustedWithOptions(options) {
+            // Asking is a no-op once it has been denied — macOS never puts the
+            // dialog up a second time. Say so here too, because this row is
+            // where someone lands when the launch prompt did nothing.
+            effectsInfo("🔐 Accessibility still not granted. If no dialog appeared it was denied before: "
+                + "tick Victor Effects in the pane that is about to open, or clear the denial with "
+                + "`tccutil reset Accessibility ro.victorrentea.victor-effects` and restart the app.")
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
             NSWorkspace.shared.open(url)

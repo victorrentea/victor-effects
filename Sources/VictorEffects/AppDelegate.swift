@@ -26,12 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = EffectsConfig.shared   // logs what it loaded
 
-        // Accessibility: check, never prompt. The prompt is a modal the user
-        // cannot answer usefully at launch, and the tap retries every 30 s
-        // anyway. Screen Recording DOES prompt: the effects that distort what is
-        // on screen silently capture wallpaper without it, which looks like a
-        // bug rather than a missing permission.
-        requestScreenRecordingPermissions(promptUser: true)
+        // Both grants are asked for ONCE, here, before anything needs them.
+        requestPermissionsAtLaunch()
 
         guard !NSScreen.screens.isEmpty else { fatalError("No screens available") }
         overlayPanel = OverlayPanel(screen: Screens.overlayScreen() ?? NSScreen.screens[0])
@@ -122,20 +118,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Permissions
 
-    private func requestScreenRecordingPermissions(promptUser: Bool) {
+    /// Ask for **both** grants once, at launch, with the prompting calls.
+    ///
+    /// Accessibility used to be checked quietly here, on the argument that a
+    /// modal at login is one nobody can usefully answer. The argument is wrong
+    /// in the only way that matters: **the prompting call is also the
+    /// registration**. An app that has only ever called `AXIsProcessTrusted()`
+    /// is not a privacy client at all, so System Settings shows a list without
+    /// it in it, and "grant Accessibility" becomes a trip through `+` and
+    /// /Applications that nobody completes. `AXIsProcessTrustedWithOptions`
+    /// puts the row in the pane; the dialog is the side effect, not the point.
+    ///
+    /// Once per launch, never in the 30 s retry: the retry asks quietly
+    /// (`tap.start()` → `AXIsProcessTrusted()`), so a grant that arrives a
+    /// minute later still installs the tap without a restart, and a denial does
+    /// not turn into a dialog every half minute.
+    private func requestPermissionsAtLaunch() {
+        // --- Accessibility (the one CGEventTap: ⌃W, the crack, right ⌘) ---
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let axTrusted = AXIsProcessTrustedWithOptions(options)
+        effectsInfo(axTrusted
+            ? "🔐 Accessibility: granted"
+            : "🔐 Accessibility: NOT granted — asked, so the app is now listed in "
+              + "System Settings → Privacy & Security → Accessibility")
+
+        // --- Screen Recording (the effects that distort what is on screen) ---
         // CGPreflightScreenCaptureAccess correctly returns false when permission
         // is not granted. (CGDisplayCreateImage always succeeds but captures
-        // only the desktop wallpaper when denied — a silent wrong answer.)
-        if CGPreflightScreenCaptureAccess() { return }
-        effectsInfo("⚠️ Screen Recording not granted (System Settings → Privacy & Security → Screen Recording)")
-        guard promptUser else { return }
-        CGRequestScreenCaptureAccess()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if !CGPreflightScreenCaptureAccess() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+        // only the desktop wallpaper when denied — a silent wrong answer, which
+        // is why this one is worth a line in the log on every launch.)
+        let capture = CGPreflightScreenCaptureAccess()
+        effectsInfo("🔐 Screen Recording (CGPreflightScreenCaptureAccess): \(capture ? "granted" : "NOT granted")")
+        if !capture {
+            CGRequestScreenCaptureAccess()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if !CGPreflightScreenCaptureAccess() {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+                    }
                 }
             }
+        }
+
+        // The failure mode that cost a day: **macOS asks once.** After a "Don't
+        // Allow" (or a dialog dismissed at login), the row sits in TCC with
+        // auth_value 0 and every later `CGRequestScreenCaptureAccess()` and
+        // prompting `AXIsProcessTrustedWithOptions` is a silent no-op — no
+        // dialog, no error, nothing in the pane moving. The only ways out are a
+        // human ticking the box or `tccutil reset`, so the log says both rather
+        // than leaving a person to rediscover it.
+        if !axTrusted || !capture {
+            effectsInfo("🔐 No dialog? Then it was denied before, and macOS never asks twice. "
+                + "Tick the row by hand in System Settings, or clear the denial with: "
+                + "tccutil reset Accessibility ro.victorrentea.victor-effects ; "
+                + "tccutil reset ScreenCapture ro.victorrentea.victor-effects")
         }
     }
 
