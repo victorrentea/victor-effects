@@ -102,6 +102,13 @@ enum SoundEffectMap {
         // and already hold the screen capture when it starts. Driven from the
         // routed /sound/play path (onSoundPlay); mapping the press too would
         // double-trigger it.
+        // 25_dark_door.mp3 is NOT here either, for the FBI knock's reason: the
+        // first of its seven knocks is 24ms into the clip, so the visual must
+        // both own the audio and already hold the screen capture when it starts.
+        // Driven from the routed /sound/play path (onSoundPlay); mapping the
+        // press too would double-trigger it. (Until 2026-09-11 the tile was
+        // mentioned NOWHERE in the app and simply played a clip over an
+        // untouched desktop.)
         // 51_beethoven.mp3 is NOT here, for the heartbeat's reason: the motif is
         // six hits 0.11s apart inside the clip, and the screen has to lunge ON
         // each of them. Driven from the routed /sound/play path (onSoundPlay),

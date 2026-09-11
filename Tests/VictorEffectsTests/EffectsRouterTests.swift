@@ -30,6 +30,13 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/effect/iris"), .effect("iris"))
     }
 
+    func testRouteCrtShutdownTestAndEffectEndpoints() {
+        // 📺 The tail of game-over, addressable alone so it can be rehearsed
+        // without the picture and the 1.6 s clip in front of it.
+        XCTAssertEqual(route("/test/crt-shutdown"), .effect("crt-shutdown"))
+        XCTAssertEqual(route("/effect/crt-shutdown"), .effect("crt-shutdown"))
+    }
+
     func testRouteElephantTestAndEffectEndpoints() {
         // 🐘 is a toggle, so the alias has a /stop twin.
         XCTAssertEqual(route("/test/elephant"), .effect("elephant"))

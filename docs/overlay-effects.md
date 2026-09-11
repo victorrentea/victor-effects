@@ -276,6 +276,50 @@ rule from the start.
   instead of being wiped + restarted. `/test/iris` and `/effect/iris` call
   `showIrisClose` directly.
 
+- **💀 Game over → 📺 CRT shutdown** (tile #59 `59_game_over.mp3` → `game-over` /
+  `game-over/stop`, `showGameOver` + `showCrtShutdown`/`CrtShutdown.swift`): the
+  picture first — a 70% black backdrop with the GAME OVER art centred at 70% of
+  the screen width, held for **exactly the clip's length** (read off
+  `59_game_over.mp3`, ~1.6 s; 2.0 s if the file is missing, deliberately short so
+  an absent sound cannot leave a long black screen) and then removed abruptly, no
+  fade. The tablet's `/sound/stopped` → `game-over/stop` is the polite end and is
+  **not** the authoritative one (`stopGameOver` only clears 0.5 s later, if it
+  arrives at all) — `trackEffect` is.
+  **Then the desktop switches off like an old cathode-ray television.** Two black
+  rectangles come in from the top and the bottom edge over **0.7 s** (`.easeIn`),
+  leaving the middle transparent while they close, until only a **10 pt white
+  line** is left across the screen; it **holds 0.15 s**, then collapses from both
+  ends towards the centre over **0.4 s** (`.easeIn`), leaving a white dot that
+  flashes out over 0.18 s. 0.2 s of black, then the whole thing **fades away over
+  0.45 s** and the desktop is back — **2.08 s** end to end
+  (`CrtShutdown.totalDuration`, which is what `trackEffect` is given, so it
+  self-terminates like everything else).
+  The mechanics are the **iris's, reused**: plain `CALayer`s on `hostLayer`, one
+  `CABasicAnimation` per phase on a single `CACurrentMediaTime()` clock via
+  `beginTime`, `fillMode`/`isRemovedOnCompletion = false` so a finished phase
+  holds its end state while the next runs, and the same gentle opacity fade
+  `cancelIris` uses to give the screen back. Only the shape differs: a rectangle
+  closing from two edges instead of a circle closing from the corners. Each
+  shutter is a **full-screen-sized** black layer parked off-screen that slides
+  exactly half a screen, so the two meet on the middle with no seam to align; the
+  white line is drawn **on top** of them (not in a gap) and collapses via
+  `transform.scale.x` → 0, which pulls both ends in at once.
+  **Arming, and what cancels it.** The close is scheduled from `showGameOver` for
+  the same deadline at which `trackEffect` drops the GAME OVER layer — queued
+  second, so it runs second and the shutters start on the frame the picture
+  leaves. It cannot check `activeEffects` to see whether the run is still alive
+  (that entry is gone by then either way), so it carries an epoch,
+  `_crtArmEpoch`, bumped both by `showGameOver` and by `stopAllActiveEffects`.
+  A `/effect/stop-all` during the picture — what a preempting tile press and a
+  non-restartable re-tap both send — therefore cancels the pending close, and a
+  stop-all *during* the close clears it through the normal `activeEffects` loop.
+  `game-over/stop` deliberately does **not** disarm it: that message arrives
+  precisely because the sound ended, which is the moment the tube is meant to
+  close. Unlike the iris the effect is **inside `activeEffects`** (it is not a
+  toggle — nothing needs to survive stop-all), so `GET /state` lists it as
+  `crt-shutdown` while it runs. `/test/crt-shutdown` and `/effect/crt-shutdown`
+  fire the closing alone.
+
 - **🙅 Wasn't me** (tile #76 `76_sfx_118.mp3` → `wasnt-me`, `showWasntMe`): a 3D hand
   wagging its index finger "no-no", parked in the **bottom-left (SW) quarter** of the desktop
   for exactly as long as the clip runs, then fading out on its own over the last 0.8 s. The
@@ -726,6 +770,42 @@ rule from the start.
   The overlay's life also stopped overrunning the audio: it was pinned at 3.3 s against a
   1.95 s clip, so the desktop sat frozen under a silent screenshot for 1.35 s. It now
   reads the clip's real length and fades out on its last 0.3 s.
+
+- **🚪 Dark door** (tile #25 `25_dark_door.mp3` → `dark-door`, `showDarkDoor`): the built-in
+  Retina is captured and then **punched IN on each of the seven knocks**, each punch holding
+  its new level until the next one takes it further — 1.09× compounding seven times to
+  **1.83×** — then holding under the door's decay and fading out on the clip's last 0.3 s.
+  This is the difference from the FBI knock next door, which *shoves* the screen 7 % and
+  lets it straight back on every bang: here the knocks **accumulate**, so the desktop is
+  walked in on rather than rattled, which is what "zoom it in FBI-style" actually means.
+  Each punch overshoots its new level by 3 % and settles onto it over 85 ms — without the
+  overshoot seven compounding steps read as one smooth ramp instead of seven separate hits —
+  and, as everywhere else here, **the peak lands on the knock**, not the start of the rise.
+  - **Until 2026-09-11 this tile did nothing at all.** `25_dark_door.mp3` was mentioned
+    **nowhere** in the app: not in `SoundEffectMap`, not in `onSoundPlay`, not in the effect
+    switch. The tile played its clip over an untouched desktop, which is exactly what it
+    looked like.
+  - **The onsets were measured, not guessed**, the same way the FBI knock's were: decode to
+    mono 22 kHz, one-pole 500 Hz low-pass (a knock is a low thump; the door's rattle sits
+    above it), RMS envelope in **2 ms** windows, then walk *back* from each peak to where the
+    envelope first exceeds **8 % of that peak** — that edge is the attack. Run against
+    `64_fbi.mp3` the same procedure reproduces its committed 0.022 / 0.227 to the
+    millisecond, which is the only reason these are trusted. They are
+    **0.024 / 0.224 / 0.416 / 0.596 / 0.784 / 0.964 / 1.160** — metronomic, 0.18…0.20 s
+    apart, in a 1.477 s clip that is silent past ~1.35 s. `darkDoorKnockOnsets` carries the
+    method in its doc comment: **re-cutting the clip means re-measuring it.**
+  - **It owns its audio and the audio waits for the capture** — the FBI knock's bargain, for
+    the FBI knock's reason: the first knock is **24 ms** in, sooner than any `screencapture`
+    can return, so starting the sound at press time would spend it on an empty overlay. It is
+    therefore driven from the routed **`/sound/play`** path and deliberately **absent from
+    `SoundEffectMap`** (the press path would double-trigger it). A contents-less layer is
+    tracked up front so a second tap debounces and a `stop-all` still reaches it;
+    `darkDoorCaptureAllowance` (0.9 s) covers the slide.
+  - **It needs Screen Recording.** Without the grant `screencapture` returns the wallpaper or
+    nothing, the punch-ins have nothing to punch, and the clip plays over a live desktop —
+    indistinguishable from the old do-nothing behaviour. The failure is logged rather than
+    silent (`🚪 dark door: screen capture failed…`), because that is the one thing about this
+    effect nobody can tell by looking.
 
 - **🎼 Beethoven's Fifth** (tile #51 `51_beethoven.mp3`, `showBeethoven`): the Retina is
   captured and then **lunges at the room three times on the three eighth notes**, each

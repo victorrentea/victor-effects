@@ -84,6 +84,7 @@ final class EffectsRouter {
         "/test/coffee": "coffee",
         "/test/coffee/pop": "coffee/pop",
         "/test/iris": "iris",
+        "/test/crt-shutdown": "crt-shutdown",
         "/test/snow": "snow",
         "/test/snow/stop": "snow/stop",
         "/test/elephant": "elephant",

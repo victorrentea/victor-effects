@@ -3980,6 +3980,14 @@ class EmojiAnimator {
 
     // MARK: - Game Over overlay
 
+    // 📺 Bumped by every game-over start AND by stopAllActiveEffects, so the
+    // pending "now close the tube" hop below can tell whether the run it belongs
+    // to is still the current one. It cannot ask activeEffects: the CRT is armed
+    // for the exact deadline at which trackEffect drops the game-over layer, and
+    // that cleanup is queued first, so by the time the arm runs the entry is
+    // gone whether the run ended naturally or was cut short.
+    private var _crtArmEpoch = 0
+
     // The overlay never plays its own sound — the tablet owns the audio
     // (59_game_over.mp3, routed). Per project principle: Mac overlays are silent.
     func showGameOver() {
@@ -4025,6 +4033,38 @@ class EmojiAnimator {
             container.addSublayer(imgLayer)
         }
         // Overlay disappears abruptly via trackEffect after duration — no fade
+        // …and the screen it leaves behind closes like an old CRT being switched
+        // off (CrtShutdown). Armed on the SAME deadline as the trackEffect
+        // cleanup above — which was queued first, so it runs first: the GAME OVER
+        // picture is gone on the frame the shutters start moving, one continuous
+        // gesture instead of two overlays taking turns. The epoch is the guard: a
+        // /effect/stop-all (which is what a preempting tile press and a
+        // non-restartable re-tap both send) bumps it and this hop does nothing.
+        // Note `game-over/stop` deliberately does NOT disarm it — that message
+        // arrives from the client *because* the sound just ended, i.e. at exactly
+        // the moment the tube is supposed to close.
+        _crtArmEpoch &+= 1
+        let crtEpoch = _crtArmEpoch
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self = self, self._crtArmEpoch == crtEpoch else { return }
+            self.showCrtShutdown()
+        }
+    }
+
+    // MARK: - 📺 CRT shutdown (the tail of game-over, and /test/crt-shutdown alone)
+
+    /// Two black shutters close the screen from the top and bottom edges onto a
+    /// white line, which then collapses sideways into a dot. The whole thing is
+    /// built by `CrtShutdown` (see `CrtShutdown.swift` for the shape and the
+    /// timings); here it only gets hung on the host layer and tracked, so it
+    /// self-terminates at `CrtShutdown.totalDuration` and `stop-all` clears it
+    /// like any other effect. Not a toggle: re-firing restarts it.
+    func showCrtShutdown() {
+        _ = cancelIfRunning("crt-shutdown")
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        guard let layer = CrtShutdown.makeLayer(in: hostLayer.bounds, scale: scale) else { return }
+        hostLayer.addSublayer(layer)
+        trackEffect("crt-shutdown", layer: layer, duration: CrtShutdown.totalDuration)
     }
 
     // MARK: - Fail overlay (a stamp from assetsDir, centered)
@@ -6511,6 +6551,163 @@ class EmojiAnimator {
         imgLayer.add(fadeOut, forKey: "fadeOut")
     }
 
+    // MARK: - 🚪 Dark door (tile #25) — the desktop is punched IN on every knock
+
+    /// The seven knocks in `25_dark_door.mp3`, in seconds from the first sample.
+    ///
+    /// **How they were measured** (2026-09-11), the same way the FBI knock's
+    /// onsets were: decode to mono 22 kHz, run a one-pole 500 Hz low-pass (a
+    /// knock is a low thump; the room tone and the door's rattle sit above it),
+    /// take the RMS envelope in 2 ms windows, then for each peak walk *back* to
+    /// where the envelope first exceeds 8 % of that peak — that edge is the
+    /// attack, and it is what the ear calls "the knock". Run against `64_fbi.mp3`
+    /// the same procedure reproduces its committed 0.022 / 0.227 to the
+    /// millisecond, which is why these are trusted.
+    ///
+    /// The spacing is metronomic — 0.18…0.20 s, no rubato — and the clip is
+    /// 1.477 s long with nothing but decay after the last knock (silence from
+    /// ~1.35 s). **Re-cutting the clip means re-measuring these.**
+    private static let darkDoorKnockOnsets: [Double] = [0.024, 0.224, 0.416, 0.596,
+                                                        0.784, 0.964, 1.160]
+
+    /// Each knock punches the capture in by this much **on top of the last one**
+    /// — the difference between this and the FBI knock, whose every bang shoves
+    /// the screen and lets it straight back. Seven compounding steps of 1.09
+    /// land on 1.83×, which is as far in as a 16:10 capture can go before the
+    /// desktop stops being recognisable as itself.
+    private static let darkDoorPunchStep: CGFloat = 1.09
+    /// A punch overshoots its new level and settles back onto it. Without this
+    /// the steps read as a smooth ramp rather than seven separate hits.
+    private static let darkDoorPunchOvershoot: CGFloat = 1.03
+    /// Fast in (peaking ON the knock, the heartbeat's lesson), slower to settle.
+    private static let darkDoorPunchRise: Double = 0.045
+    private static let darkDoorPunchSettle: Double = 0.085
+    /// As `fbiCaptureAllowance`: the whole timeline slides by however long the
+    /// `screencapture` subprocess took, because the audio waits for it.
+    private static let darkDoorCaptureAllowance: Double = 0.9
+
+    /// 🚪 A screenshot of the desktop is zoomed in FBI-style: seven successive
+    /// punch-ins, one on each knock, each one holding its new level until the
+    /// next knock takes it further.
+    ///
+    /// Tile #25 did nothing at all before 2026-09-11 — `25_dark_door.mp3` was
+    /// simply not mentioned anywhere in the app, so the tile played a clip over
+    /// an untouched desktop.
+    ///
+    /// Like the FBI knock (and the heartbeat, and the microwave) **this owns its
+    /// own audio**: the first knock is 24 ms into the clip, far sooner than a
+    /// capture can return, so the sound is started in the capture's completion
+    /// and both halves hang off one `clock0`. That is also why the tile stays
+    /// out of `SoundEffectMap` — the press path would double-trigger it.
+    ///
+    /// Returns the full length incl. any Bluetooth compensation, which
+    /// `onSoundPlay` reports back to the tablet as `durationMs`.
+    @discardableResult
+    func showDarkDoor(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
+        _ = cancelIfRunning("dark-door", sound: playSound ? "25_dark_door.mp3" : nil)
+
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return 0 }
+
+        var clipLength: Double = 1.477
+        if let soundURL = SoundManager.shared.soundURL(for: "25_dark_door.mp3") {
+            let d = AVURLAsset(url: soundURL).duration
+            if d.isNumeric, CMTimeGetSeconds(d) > 0 { clipLength = CMTimeGetSeconds(d) }
+        }
+        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+
+        // Tracked (and contents-less, i.e. invisible) before the capture goes
+        // out, so a second tap is debounced and a stop-all reaches this even
+        // while the subprocess is still running. The FBI knock's pattern.
+        let imgLayer = CALayer()
+        imgLayer.frame = bounds
+        hostLayer.addSublayer(imgLayer)
+        trackEffect("dark-door", layer: imgLayer,
+                    duration: btComp + clipLength + Self.darkDoorCaptureAllowance,
+                    sound: playSound ? "25_dark_door.mp3" : nil)
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let screenshot = Self.captureBuiltInDisplay()
+            DispatchQueue.main.async {
+                guard let self = self,
+                      self.activeEffects["dark-door"] === imgLayer else { return }
+                self.startDarkDoor(imgLayer: imgLayer, screenshot: screenshot,
+                                   clipLength: clipLength, btComp: btComp,
+                                   playSound: playSound, volume: volume)
+            }
+        }
+
+        return btComp + clipLength
+    }
+
+    /// Called the instant the capture is back: start the audio, stamp the clock
+    /// both halves hang off, and hand CoreAnimation the whole punch sequence with
+    /// an absolute `beginTime` so the render server places every step on the
+    /// exact frame (an `asyncAfter` per knock puts main-thread jitter on screen).
+    private func startDarkDoor(imgLayer: CALayer, screenshot: CGImage?,
+                               clipLength: Double, btComp: Double,
+                               playSound: Bool, volume: Float?) {
+        // Sound first, then the clock — nothing slow may run between them.
+        if playSound { _ = SoundManager.shared.playTabletSound("25_dark_door.mp3", volume: volume) }
+        let clock0 = CACurrentMediaTime() + btComp
+
+        guard let screenshot = screenshot else {
+            overlayError("🚪 dark door: screen capture failed (Screen Recording not granted?) — the clip plays over an untouched desktop")
+            return
+        }
+        imgLayer.contents = screenshot
+        imgLayer.contentsGravity = .resizeAspectFill
+
+        // One keyframe animation for all seven knocks so they cannot drift
+        // apart. Each knock RAISES the resting level instead of returning to 1 —
+        // that cumulation is what makes it a zoom rather than a shudder.
+        var times: [Double] = [0]
+        var values: [CGFloat] = [1.0]
+        var timings: [CAMediaTimingFunction] = []
+        var level: CGFloat = 1.0
+        for onset in Self.darkDoorKnockOnsets {
+            let previous = level
+            level *= Self.darkDoorPunchStep
+            // Clamped so a knock can never start before the clip does, and never
+            // before the previous knock has finished settling.
+            let start = max(times.last ?? 0, onset - Self.darkDoorPunchRise)
+            if start > (times.last ?? 0) {
+                times.append(start); values.append(previous)          // holding the last level
+                timings.append(CAMediaTimingFunction(name: .linear))
+            }
+            times.append(onset); values.append(level * Self.darkDoorPunchOvershoot)
+            timings.append(CAMediaTimingFunction(name: .easeOut))     // the punch
+            times.append(onset + Self.darkDoorPunchSettle); values.append(level)
+            timings.append(CAMediaTimingFunction(name: .easeIn))      // settling onto it
+        }
+        // Hold the final level for the rest of the clip — the desktop stays
+        // punched in under the door's decay instead of snapping back on silence.
+        if let last = times.last, clipLength > last {
+            times.append(clipLength); values.append(level)
+            timings.append(CAMediaTimingFunction(name: .linear))
+        }
+        guard let span = times.last, span > 0 else { return }
+
+        let punches = CAKeyframeAnimation(keyPath: "transform.scale")
+        punches.values = values.map { NSNumber(value: Double($0)) }
+        punches.keyTimes = times.map { NSNumber(value: $0 / span) }
+        punches.timingFunctions = timings
+        punches.duration = span
+        punches.beginTime = clock0         // absolute, in CoreAnimation's own clock
+        punches.fillMode = .forwards
+        punches.isRemovedOnCompletion = false
+        imgLayer.add(punches, forKey: "darkDoorPunches")
+
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.beginTime = clock0 + clipLength - 0.3
+        fadeOut.fromValue = 1.0; fadeOut.toValue = 0.0
+        fadeOut.duration = 0.3
+        fadeOut.fillMode = .forwards; fadeOut.isRemovedOnCompletion = false
+        imgLayer.add(fadeOut, forKey: "fadeOut")
+
+        overlayInfo("🚪 dark door: capture up, \(Self.darkDoorKnockOnsets.count) punch-ins to \(String(format: "%.2f", level))×")
+    }
+
     // MARK: - 🎼 Beethoven's Fifth (the screen zooms on the motif — sound #51)
 
     /// The two "da-da-da-DUM" phrases of `51_beethoven.mp3`, in seconds from the
@@ -8786,6 +8983,12 @@ class EmojiAnimator {
         // eating clicks in the top-left corner of the screen forever.
         peekHitPanel?.dismiss()
         peekHitPanel = nil
+        // 📺 A running CRT shutdown IS in activeEffects and dies in the loop
+        // below; what the loop cannot reach is one that game-over has ARMED but
+        // not started yet. Bumping the epoch cancels that pending start, so a
+        // stop-all during the GAME OVER picture means no tube closing a second
+        // later over whatever the next tile put on screen.
+        _crtArmEpoch &+= 1
         for (_, layer) in activeEffects {
             layer.removeAllAnimations()
             layer.removeFromSuperlayer()

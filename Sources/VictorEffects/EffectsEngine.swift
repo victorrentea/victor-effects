@@ -160,6 +160,7 @@ final class EffectsEngine {
         case "bullet-holes":  animator.showBulletHoles(playSound: false)
         case "phone-ring":    animator.showPhoneRing(playSound: false)
         case "fbi-knock":     animator.showFbiKnock(playSound: false)
+        case "dark-door":     animator.showDarkDoor(playSound: false)
         // Beethoven owns its audio for the same reason the microwave does — the
         // cue is INSIDE the clip — so unlike every other silent effect this one
         // is fired WITH sound.
@@ -194,6 +195,9 @@ final class EffectsEngine {
         case "phoenix":       animator.showPhoenix()
         case "money":         animator.showMoneyRise()
         case "iris":          animator.showIrisClose()
+        // 📺 The tail of game-over, addressable on its own so the closing can be
+        // rehearsed without sitting through the picture and the clip first.
+        case "crt-shutdown":  animator.showCrtShutdown()
         case "minion":        animator.showMinion()
         case "elephant":      animator.showElephant()
         case "elephant/stop": animator.stopElephant()
@@ -357,6 +361,14 @@ final class EffectsEngine {
         // Tile #64 (🚪 FBI): the screen lurches on each bang, the first 22 ms in.
         if name == "64_fbi.mp3" {
             let duration = animator.showFbiKnock(playSound: true, volume: volume)
+            guard duration > 0 else { return nil }
+            return remember(Int(duration * 1000))
+        }
+        // Tile #25 (🚪 dark door): the desktop is punched in on each of the
+        // seven knocks, the first 24 ms in — so the visual must already hold the
+        // capture when the audio starts, and therefore owns it.
+        if name == "25_dark_door.mp3" {
+            let duration = animator.showDarkDoor(playSound: true, volume: volume)
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }
