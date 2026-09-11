@@ -29,7 +29,7 @@ available to decide when a looping effect should end.
 Everything is drawn as `CALayer`s on `OverlayPanel`'s `hostLayer` — one
 click-through, all-spaces panel covering `Screens.overlayScreen()` (the
 built-in display by default, see `EffectsConfig.overlayScreen`). Bitmaps and
-gif frames come from `Bundle.module`; the five large/licensed ones come from
+gif frames come from `Bundle.module`; the six large/licensed ones come from
 `EffectsConfig.assetsDir` via `assetURL(_:)` and the effect quietly does
 nothing when they are absent. Audio comes from `EffectsConfig.soundsDir`
 (`docs/sound-routing.md`) — **no soundboard mp3 is in this repo**.
