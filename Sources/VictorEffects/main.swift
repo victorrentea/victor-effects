@@ -22,6 +22,51 @@ func redirectLogsIfNeeded() {
 }
 redirectLogsIfNeeded()
 
+// --- Launch identity: LaunchServices, never our own path ---
+// **macOS keys a privacy grant to a bundle identifier only for a process it
+// launched itself.** A process that starts its own Mach-O is filed by PATH
+// instead — a second, unrelated privacy client that happens to share a name,
+// wearing the generic `exec` icon macOS gives an unbundled binary. Ticking its
+// box in System Settings grants that row and not this app, and the feature stays
+// dead with a checkbox next to its name still on. `start.sh` therefore `exec`s
+// `open`; this is the backstop for the other way in, which is a person running
+// `.../Contents/MacOS/Victor Effects` from a shell to watch the log on stdout.
+//
+// It runs before the pid-file takeover below, so a stray direct launch never
+// stands the healthy instance down on its way to being relaunched properly.
+//
+// A `swift build` binary is left alone: it lives in `.build`, not inside a
+// `.app`, so it has no bundle identity to be mistaken for, and every test and
+// `swift run` works exactly as before. `VICTOR_EFFECTS_ALLOW_DIRECT=1` overrides.
+func relaunchThroughLaunchServicesIfNeeded() {
+    guard ProcessInfo.processInfo.environment["VICTOR_EFFECTS_ALLOW_DIRECT"] == nil else { return }
+    // launchd is pid 1 and is the parent of everything LaunchServices starts. A
+    // shell that ran the binary is still sitting there as the parent instead.
+    guard getppid() != 1 else { return }
+    let bundleURL = Bundle.main.bundleURL
+    guard bundleURL.pathExtension == "app" else { return }
+
+    effectsInfo("⚠️ Started by path from a shell — macOS would file this as a SECOND privacy "
+        + "client keyed by the path (the duplicate row with the generic exec icon in System "
+        + "Settings). Relaunching through `open`. Set VICTOR_EFFECTS_ALLOW_DIRECT=1 to stay here.")
+
+    let relaunch = Process()
+    relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+    // `-n` keeps the meaning of the gesture: someone asked for an instance to
+    // start, and the pid-file takeover stands any older one down exactly as it
+    // did when the binary was run directly.
+    relaunch.arguments = ["-n", "-a", bundleURL.path, "--args"] + CommandLine.arguments.dropFirst()
+    do {
+        try relaunch.run()
+    } catch {
+        // Better a duplicate privacy row than an app that refuses to start.
+        effectsError("Could not relaunch through `open` (\(error)) — carrying on here.")
+        return
+    }
+    exit(0)
+}
+relaunchThroughLaunchServicesIfNeeded()
+
 // --- PID lock file: ensure only one instance runs at a time ---
 let pidFilePath = "/tmp/VictorEffects.pid"
 let myPid = getpid()
