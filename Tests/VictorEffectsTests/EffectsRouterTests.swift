@@ -66,6 +66,23 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/sound/stopped/37_rainbow.mp3"), .soundStopped("37_rainbow.mp3"))
     }
 
+    func testSoundEffectsListIsTheStarBadgeSource() {
+        // The tablet draws its ⭐ corner badge from this list, so the route must
+        // not be swallowed by the "/sound/<something>/<file>" prefixes around it.
+        XCTAssertEqual(route("/sound/effects"), .soundEffects)
+
+        // Every starred sound must be a real tile asset, and the three kinds of
+        // desktop visual must all be in: press-mapped (explosion), driven from
+        // the routed play path (heartbeat), and the siren's alarm overlay.
+        let starred = SoundEffectMap.visualAssets
+        XCTAssertTrue(starred.contains("03_explosion.mp3"))
+        XCTAssertTrue(starred.contains("13_heartbeat.mp3"))
+        XCTAssertTrue(starred.contains(SoundboardPress.sirenAsset))
+        // Tile 52 (saw) lost its animation and keeps only the sound — no star.
+        XCTAssertFalse(starred.contains("52_saw.mp3"))
+        XCTAssertFalse(starred.contains("01_baby.mp3"))
+    }
+
     func testSoundStopExactStillDistinctFromStopped() {
         // "/sound/stop" preempts playback; it must NOT be parsed as a
         // "/sound/stopped/<file>" report with an empty filename.

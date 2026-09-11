@@ -39,6 +39,7 @@ press cannot drift apart.
 | `GET /sound/volume/<pct>` | `ok` | player level, not system volume |
 | `GET /sound/stop` | `ok` | fades over `interruptFade` |
 | `GET /sound/pressed/<file>` | `ok`, or `no-effect` | `SoundEffectMap.pressEffect` → `runEffect` |
+| `GET /sound/effects` | `{"assets":["03_explosion.mp3",…]}` | Every sound whose tile ALSO does something on the desktop (`SoundEffectMap.visualAssets`: press-mapped + play-path visuals + the siren). The tablet polls it once a minute and draws the ⭐ corner badge from it, so the mapping stays owned here alone |
 | `GET /sound/stopped/<file>` | `ok`, or `no-effect` | `SoundEffectMap.stopEffect` → `runEffect` |
 | `GET /bt-compensation` | `{"ms":N,"maxMs":1200}` | |
 | `GET /bt-compensation/<ms>` | `{"ok":true,"ms":<applied>}` | clamped `0…1200` |

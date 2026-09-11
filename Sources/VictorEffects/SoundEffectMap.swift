@@ -148,6 +148,33 @@ enum SoundEffectMap {
         "11_fire.mp3":           "fire/stop",
     ]
 
+    /// Sounds whose desktop visual is driven from the routed `/sound/play` path
+    /// (`EffectsEngine.playSound`) instead of the press path, because their cue
+    /// sits at a fixed offset INSIDE the clip and a separately-clocked visual
+    /// slides off it. They are deliberately absent from [onPress] (mapping them
+    /// there would double-trigger), but from the room's point of view they are
+    /// exactly as visual as the rest — so [visualAssets] has to list them by
+    /// hand. Keep in step with the special cases in `EffectsEngine.playSound`.
+    static let playPathVisuals: Set<String> = [
+        "23_radar.mp3",       // 🛰️ sonar (owns its beep-synced audio)
+        "53_rain.mp3",        // 💸 money rise
+        "61_dinner.mp3",      // ⏲️ microwave door on the BING, 2.695 s in
+        "13_heartbeat.mp3",   // 💓 zoom peaking on each measured onset
+        "64_fbi.mp3",         // 🚪 lurch on each bang, the first 22 ms in
+        "25_dark_door.mp3",   // 🚪 punch-in on each of seven knocks
+        "51_beethoven.mp3",   // 🎼 six hits 0.11 s apart
+    ]
+
+    /// Every sound that makes something happen ON THE DESKTOP when its tile is
+    /// pressed — the press-mapped effects, the play-path ones above, and the
+    /// siren's alarm overlay. Served as `GET /sound/effects` so the tablet can
+    /// draw its ⭐ corner badge without a second copy of this table: the Mac
+    /// stays the single owner of "which tile is also a desktop effect", exactly
+    /// as it owns the mapping itself.
+    static var visualAssets: Set<String> {
+        Set(onPress.keys).union(playPathVisuals).union([SoundboardPress.sirenAsset])
+    }
+
     /// The effect name a pressed sound should start, or nil if the sound has no
     /// paired visual.
     static func pressEffect(for soundFile: String) -> String? { onPress[soundFile] }
