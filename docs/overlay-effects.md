@@ -1081,10 +1081,27 @@ rule from the start.
   decal. The boil begins only at pen-up — a line still being drawn must not
   squirm. The wobble is seeded and pure, so the variants are a *fixed* set and
   the line breathes instead of shimmering.
-  **Size and lifetime.** The glyph's own box (ring + the barb flung out left +
+  **Size and placement.** The glyph's own box (ring + the barb flung out left +
   the point) is **0.75 of the screen height**, centred as a box — centring the
   *ring* would hang the drawing right of the middle, because the long barb sticks
-  out on the left. It lives `SketchArrow.totalDuration` = **13.56 s**, the clip's
+  out on the left. The box is **derived from the geometry, not typed**: it was
+  four hand-measured numbers until a screenshot of the real overlay was measured
+  against the screen and came back 0.756 of the height with the ink 5 pt above
+  centre, the box being 0.017 R short at the top.
+  Vertically it then drops by **half the menu bar's height** (`visibleDrop`).
+  Dead centre of the *panel* is not the middle of the screen you can *see*: on
+  that same screenshot a frame-centred glyph left **94 pt of desktop above it and
+  141 below**, which is what "it sits too high" was. Only the menu bar counts —
+  `visibleFrame` also moves with the Dock, and a drawing that jumped whenever the
+  Dock unhid would be a worse bug than being 20 pt off while it is up.
+  The whole container runs at **0.5 opacity**: it is an overlay on a desktop
+  somebody is still working on, and at full strength a glyph this size stops
+  being an annotation over the screen and becomes a screen of its own. The
+  per-pass alphas are untouched underneath, so the three passes keep their
+  relationship; the closing fade starts from that same 0.5, or the dissolve would
+  open with the drawing jumping to full strength.
+
+  **Lifetime.** It lives `SketchArrow.totalDuration` = **13.56 s**, the clip's
   length (`afinfo`), with the 0.8 s dissolve *inside* that window, so the layer
   `trackEffect` removes is already invisible when it goes — the self-termination
   rule with nothing owed to any client. Silent on this side: the clip plays down

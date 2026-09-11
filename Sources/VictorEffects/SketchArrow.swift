@@ -62,15 +62,41 @@ enum SketchArrow {
     /// Stroke width as a fraction of R — a quarter of the radius, which is what
     /// makes the artwork read as a marker glyph rather than a diagram.
     static let strokeRatio: CGFloat = 0.247
+    /// The head is drawn a touch finer than the ring, as it is in the artwork.
+    static let barbWidthRatio: CGFloat = 0.92
 
-    /// The whole glyph's box in normalised units, **stroke included**: the ring
-    /// plus the outer barb (which is what makes it wider than tall) plus the
+    /// The whole glyph's box in normalised units, **stroke included** — the ring,
+    /// the outer barb (which is what makes the glyph wider than tall) and the
     /// point. Used for both the scale and the centring, so "three quarters of
     /// the screen" means the drawing, not the circle it is built on.
-    static let glyphBounds = CGRect(x: -1.374, y: -1.124, width: 2.498, height: 2.251)
+    ///
+    /// **Derived, not typed.** It was four hand-measured numbers until a
+    /// screenshot of the real overlay was measured against the screen: the box
+    /// was 0.017 R short at the top, which put the ink 5 px above centre and made
+    /// it 0.756 of the screen instead of 0.75. Small, but there is no reason to
+    /// carry a second, less accurate copy of numbers the geometry already knows.
+    /// The extremes: the ring's own 0°/180°/270° all fall inside the swept range
+    /// (the gap is at the top), so three sides are the ring; the top is the outer
+    /// barb's far end, which reaches higher than the ring ever does.
+    static let glyphBounds: CGRect = {
+        let half = strokeRatio / 2
+        let barbHalf = half * barbWidthRatio
+        let xMin = min(-1 - half, barbOuter.x - barbHalf)
+        let xMax = 1 + half
+        let yMin = -1 - half
+        let yMax = max(sin(headAngle) + half, max(apex.y, barbOuter.y) + barbHalf)
+        return CGRect(x: xMin, y: yMin, width: xMax - xMin, height: yMax - yMin)
+    }()
 
     /// How much of the screen's height the glyph's box fills.
     static let heightFraction: CGFloat = 0.75
+
+    /// The whole drawing is **half transparent**: it is an overlay on a desktop
+    /// somebody is still working on, and at full strength a glyph this size stops
+    /// being an annotation over the screen and becomes a screen of its own. The
+    /// per-pass alphas underneath are untouched — this halves the composite, so
+    /// the three passes keep their relationship to each other.
+    static let overallOpacity: Float = 0.5
 
     // MARK: - Timing
 
@@ -171,20 +197,24 @@ enum SketchArrow {
 
     /// The container, with every stroke and every animation already on it, or
     /// nil for bounds nothing can be drawn in.
-    static func makeLayer(in bounds: CGRect, scale: CGFloat) -> CALayer? {
+    ///
+    /// `topInset` is the strip along the top of `bounds` that is not desktop —
+    /// the menu bar. See `visibleDrop(topInset:)` for why it moves the drawing.
+    static func makeLayer(in bounds: CGRect, topInset: CGFloat = 0, scale: CGFloat) -> CALayer? {
         guard bounds.width > 1, bounds.height > 1 else { return nil }
 
         let r = bounds.height * heightFraction / glyphBounds.height
-        // Centre the GLYPH's box on the screen, not the ring's: the outer barb
-        // sticks out to the left, and centring the ring would hang the whole
-        // drawing to the right of the middle.
+        // Centre the GLYPH's box, not the ring's: the outer barb sticks out to
+        // the left, and centring the ring would hang the whole drawing to the
+        // right of the middle.
         let centre = CGPoint(x: bounds.midX - r * glyphBounds.midX,
-                             y: bounds.midY - r * glyphBounds.midY)
+                             y: bounds.midY - visibleDrop(topInset: topInset) - r * glyphBounds.midY)
         let lineW = r * strokeRatio
 
         let container = CALayer()
         container.frame = bounds
         container.contentsScale = scale
+        container.opacity = overallOpacity
 
         let t0 = CACurrentMediaTime()
 
@@ -209,10 +239,10 @@ enum SketchArrow {
             container.addSublayer(stroked(ring, pass: pass, width: lineW * pass.widthRatio, scale: scale,
                                          begin: ringStart, duration: ringDraw * pass.speed,
                                          boilAt: t0 + drawDuration))
-            container.addSublayer(stroked(outer, pass: pass, width: lineW * pass.widthRatio * 0.92, scale: scale,
+            container.addSublayer(stroked(outer, pass: pass, width: lineW * pass.widthRatio * barbWidthRatio, scale: scale,
                                          begin: headStart, duration: barbDraw * pass.speed,
                                          boilAt: t0 + drawDuration))
-            container.addSublayer(stroked(inner, pass: pass, width: lineW * pass.widthRatio * 0.92, scale: scale,
+            container.addSublayer(stroked(inner, pass: pass, width: lineW * pass.widthRatio * barbWidthRatio, scale: scale,
                                          begin: headStart + barbGap, duration: barbDraw * pass.speed,
                                          boilAt: t0 + drawDuration))
         }
@@ -220,7 +250,7 @@ enum SketchArrow {
         // The whole drawing dissolves inside its own lifetime, so the layer the
         // caller removes at `totalDuration` is already invisible when it goes.
         let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = 1
+        fade.fromValue = overallOpacity
         fade.toValue = 0
         fade.beginTime = t0 + totalDuration - fadeOut
         fade.duration = fadeOut
@@ -229,6 +259,22 @@ enum SketchArrow {
         container.add(fade, forKey: "fade")
 
         return container
+    }
+
+    /// How far **down** from the frame's middle the drawing is placed, in points.
+    ///
+    /// Dead centre of the *frame* is not the middle of the *screen you can see*:
+    /// the menu bar's strip is not desktop, so a frame-centred glyph measured off
+    /// a real screenshot left **94 pt of desktop above it and 141 below** — which
+    /// is exactly the "it sits too high" that is being fixed here. Half the menu
+    /// bar's height equalises the two.
+    ///
+    /// Only the menu bar, deliberately: `visibleFrame` also moves with the Dock,
+    /// and a drawing that jumped whenever the Dock came out of hiding would be a
+    /// worse bug than being 20 pt off while it is up. The menu bar is always
+    /// there and always the same height.
+    static func visibleDrop(topInset: CGFloat) -> CGFloat {
+        max(0, min(topInset, 80)) / 2
     }
 
     /// One pass over one stroke: a shape layer whose `strokeEnd` is the pen.

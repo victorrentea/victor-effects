@@ -98,35 +98,85 @@ final class SketchArrowTests: XCTestCase {
         XCTAssertEqual(angle, SketchArrow.headAngle, accuracy: 0.06)
     }
 
-    /// The declared glyph box really contains the glyph, stroke included — it is
-    /// what both the scale and the centring are computed from, so a box that
-    /// lied would push part of the drawing off screen.
-    func testDeclaredGlyphBoundsContainEveryStroke() {
+    /// The glyph box really contains the glyph, stroke included — it is what both
+    /// the scale and the centring are computed from, so a box that lied would
+    /// scale the drawing wrong and put it off centre. It did: four hand-measured
+    /// numbers were 0.017 R short at the top, which is why it is derived now.
+    func testGlyphBoundsContainEveryStrokeAndHugThem() {
         let half = SketchArrow.strokeRatio / 2
-        var pts = SketchArrow.ringPoints(seed: 11, wobble: 0.012, samples: 400)
-        pts += SketchArrow.barbPoints(to: SketchArrow.barbOuter, seed: 11, wobble: 0.012)
-        pts += SketchArrow.barbPoints(to: SketchArrow.barbInner, seed: 11, wobble: 0.012)
-        for p in pts {
-            XCTAssertGreaterThanOrEqual(p.x + half, SketchArrow.glyphBounds.minX - 0.001)
-            XCTAssertLessThanOrEqual(p.x - half, SketchArrow.glyphBounds.maxX + 0.001)
-            XCTAssertGreaterThanOrEqual(p.y + half, SketchArrow.glyphBounds.minY - 0.001)
-            XCTAssertLessThanOrEqual(p.y - half, SketchArrow.glyphBounds.maxY + 0.001)
+        let barbHalf = half * SketchArrow.barbWidthRatio
+        var pts = SketchArrow.ringPoints(seed: 11, wobble: 0, samples: 720).map { ($0, half) }
+        pts += SketchArrow.barbPoints(to: SketchArrow.barbOuter, seed: 11, wobble: 0).map { ($0, barbHalf) }
+        pts += SketchArrow.barbPoints(to: SketchArrow.barbInner, seed: 11, wobble: 0).map { ($0, barbHalf) }
+        let box = SketchArrow.glyphBounds
+        for (p, w) in pts {
+            XCTAssertGreaterThanOrEqual(p.x + w, box.minX - 0.001)
+            XCTAssertLessThanOrEqual(p.x - w, box.maxX + 0.001)
+            XCTAssertGreaterThanOrEqual(p.y + w, box.minY - 0.001)
+            XCTAssertLessThanOrEqual(p.y - w, box.maxY + 0.001)
         }
+        // …and it hugs them: every side is touched, so the box cannot quietly
+        // grow and shrink the drawing with it.
+        XCTAssertEqual(pts.map { $0.0.y - $0.1 }.min() ?? 0, box.minY, accuracy: 0.002)
+        XCTAssertEqual(pts.map { $0.0.y + $0.1 }.max() ?? 0, box.maxY, accuracy: 0.002)
+        XCTAssertEqual(pts.map { $0.0.x - $0.1 }.min() ?? 0, box.minX, accuracy: 0.002)
+        XCTAssertEqual(pts.map { $0.0.x + $0.1 }.max() ?? 0, box.maxX, accuracy: 0.002)
     }
 
     // MARK: - On a screen
 
     /// Three quarters of the screen's height, centred — the two things asked of
-    /// it that a reader cannot check in the geometry above.
+    /// it that a reader cannot check in the geometry above. Tight tolerances on
+    /// purpose: this is the assertion that would have caught the drawing coming
+    /// out at 0.756 of the screen and 5 pt high.
     func testLayerIsThreeQuartersOfTheScreenHighAndCentred() throws {
         let layer = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
         let box = drawnBox(layer)
 
         XCTAssertEqual(box.height, screen.height * SketchArrow.heightFraction,
-                       accuracy: screen.height * 0.04)
-        XCTAssertEqual(box.midX, screen.midX, accuracy: screen.width * 0.03)
-        XCTAssertEqual(box.midY, screen.midY, accuracy: screen.height * 0.03)
+                       accuracy: screen.height * 0.005)
+        XCTAssertEqual(box.midX, screen.midX, accuracy: screen.width * 0.02)
+        XCTAssertEqual(box.midY, screen.midY, accuracy: screen.height * 0.005)
         XCTAssertLessThan(box.width, screen.width)
+    }
+
+    /// With a menu bar in the frame the drawing drops by half its height, which
+    /// is what puts an equal band of *desktop* above and below it. Measured off a
+    /// real screenshot, a frame-centred glyph left 94 pt above and 141 below.
+    func testTheMenuBarStripPushesTheDrawingDown() throws {
+        let menuBar: CGFloat = 37
+        let plain = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
+        let dropped = try XCTUnwrap(SketchArrow.makeLayer(in: screen, topInset: menuBar, scale: 2))
+
+        XCTAssertEqual(drawnBox(plain).midY - drawnBox(dropped).midY, menuBar / 2, accuracy: 0.5)
+        // Equal desktop above and below: the top margin loses the menu bar. The
+        // tolerance is the wobble's — the ink is a hand-drawn line, so it misses
+        // the nominal box by a few points wherever the widest pass strays.
+        let box = drawnBox(dropped)
+        let above = (screen.maxY - menuBar) - box.maxY
+        let below = box.minY - screen.minY
+        XCTAssertEqual(above, below, accuracy: screen.height * 0.006)
+        // An absurd inset is clamped rather than throwing the drawing off screen.
+        XCTAssertEqual(SketchArrow.visibleDrop(topInset: 4000), 40)
+        XCTAssertEqual(SketchArrow.visibleDrop(topInset: -5), 0)
+    }
+
+    /// Half transparent as a whole, with the per-pass alphas left alone — and the
+    /// closing fade starts from that same half, not from opaque, or the dissolve
+    /// would begin with the drawing jumping to full strength.
+    func testTheWholeDrawingIsHalfTransparent() throws {
+        let layer = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
+        XCTAssertEqual(layer.opacity, SketchArrow.overallOpacity)
+        XCTAssertEqual(SketchArrow.overallOpacity, 0.5)
+
+        let shapes = (layer.sublayers ?? []).compactMap { $0 as? CAShapeLayer }
+        for pass in SketchArrow.passes {
+            XCTAssertTrue(shapes.contains { $0.opacity == pass.alpha })
+        }
+
+        let fade = try XCTUnwrap(layer.animation(forKey: "fade") as? CABasicAnimation)
+        XCTAssertEqual(fade.fromValue as? Float, SketchArrow.overallOpacity)
+        XCTAssertEqual(fade.toValue as? Float ?? Float(fade.toValue as? Double ?? -1), 0)
     }
 
     /// Nine strokes: three passes over the ring and both barbs. Every one of
