@@ -49,7 +49,7 @@ this one only routes.
   where no map can see it. Two guards: `SoundEffectMapDriftTests` PARSES
   `EffectsEngine.swift` (the switch labels, the `if name ==` special cases)
   instead of comparing against a second copy, so the only way to make it pass is
-  to make the thing true; `EffectsCatalogTests` writes the 43-name set out by
+  to make the thing true; `EffectsCatalogTests` writes the 44-name set out by
   hand, so a change to the promise costs a deliberate edit in the file that IS
   the promise. Adding an effect to `playSound` without deciding about its star
   fails the build with the name of the list to edit. Details in
