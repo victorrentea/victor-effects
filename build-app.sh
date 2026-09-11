@@ -28,10 +28,10 @@ echo "VictorEffects built."
 
 echo "Building $APP_NAME.app..."
 
-# Convert the 🎆 PNG (tools/make-icon.swift) to ICNS
+# Convert the 💥 PNG (tools/make-icon.swift) to ICNS
 ICONSET=$(mktemp -d)/icon.iconset
 mkdir -p "$ICONSET"
-SRC_ICON="$DIR/Sources/VictorEffects/Resources/icon_fireworks.png"
+SRC_ICON="$DIR/Sources/VictorEffects/Resources/icon_explosion.png"
 for SIZE in 16 32 64 128 256 512; do
     sips -z $SIZE $SIZE "$SRC_ICON" --out "$ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null 2>&1
     DOUBLE=$((SIZE * 2))

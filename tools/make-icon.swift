@@ -1,15 +1,15 @@
 #!/usr/bin/env swift
-// Render the app's emoji into Sources/VictorEffects/Resources/icon_fireworks.png.
+// Render the app's emoji into Sources/VictorEffects/Resources/icon_explosion.png.
 // Run once (or after changing the emoji); build-app.sh turns the PNG into .icns.
 //
 //   swift tools/make-icon.swift [emoji] [out.png]
 
 import AppKit
 
-let emoji = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "🎆"
+let emoji = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "💥"
 let out = CommandLine.arguments.count > 2
     ? CommandLine.arguments[2]
-    : "Sources/VictorEffects/Resources/icon_fireworks.png"
+    : "Sources/VictorEffects/Resources/icon_explosion.png"
 
 let side = 1024
 // An explicit 1024×1024 rep, not `NSImage.lockFocus()`: focusing an NSImage on a

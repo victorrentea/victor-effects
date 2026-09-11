@@ -1,4 +1,4 @@
-# Victor Effects 🎆
+# Victor Effects 💥
 
 A macOS menu-bar app that draws **presentation effects** over the screen and
 plays a **soundboard** on request — confetti, snow, a fire cursor, a chainsaw
@@ -21,7 +21,7 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A 🎆 appears in the menu bar. `Quit – built <timestamp>` tells you which binary
+A 💥 appears in the menu bar. `Quit – built <timestamp>` tells you which binary
 is running; the log is `/tmp/victor-effects.log`.
 
 ## Permissions

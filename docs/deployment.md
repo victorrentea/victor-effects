@@ -19,7 +19,7 @@ load-bearing:
   dereferences a sounds folder into the bundle: the mp3s are read live from
   `EffectsConfig.soundsDir`, so a changed sound needs no rebuild and no symlink
   ever reaches `.build`.
-- **The icon** is generated from `Sources/VictorEffects/Resources/icon_fireworks.png`
+- **The icon** is generated from `Sources/VictorEffects/Resources/icon_explosion.png`
   (itself produced by `tools/make-icon.swift`) through `sips` + `iconutil`.
 - **`Bundle.module` is deliberately *not* copied into the `.app`.** The
   generated resource accessor resolves it from an **absolute** `.build/…`
@@ -118,7 +118,7 @@ only by selecting them in System Settings and pressing `−`.
 
 ## Two apps, side by side
 
-Effects (🎆, `ro.victorrentea.victor-effects`, port 55124) and addons (💬,
+Effects (💥, `ro.victorrentea.victor-effects`, port 55124) and addons (💬,
 `ro.victorrentea.macos-addons`, port 55123) are **separate processes with
 separate bundle ids, separate LaunchAgents and separate TCC grants**. Nothing
 orders their startup and neither waits for the other: the proxy answers

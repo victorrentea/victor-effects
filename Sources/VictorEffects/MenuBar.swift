@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// The 🎆 status item. Deliberately tiny compared to the addons menu it was cut
+/// The 💥 status item. Deliberately tiny compared to the addons menu it was cut
 /// from: this app has one job, so the menu is the effect list, the two hotkey
 /// features that need a no-Accessibility fallback, and Quit.
 final class MenuBar: NSObject, NSMenuDelegate {
@@ -87,7 +87,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     func setup() {
         buildMenu()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = Self.emojiIcon("🎆", pt: 15)
+        statusItem.button?.image = Self.emojiIcon("💥", pt: 15)
         statusItem.menu = menu
     }
 
@@ -225,7 +225,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     /// An emoji rendered into a status-item-sized image. A plain `button.title`
     /// works too but sits on a different baseline than every icon-based item in
-    /// the bar, so 🎆 ends up visibly lower than its neighbours.
+    /// the bar, so 💥 ends up visibly lower than its neighbours.
     static func emojiIcon(_ emoji: String, pt: CGFloat) -> NSImage? {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size)
