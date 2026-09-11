@@ -17,6 +17,29 @@ BUILD_TIMESTAMP=$(date "+%b %-d, %H:%M")
 sed -i '' "s/static let BUILD_TIME = .*/static let BUILD_TIME = \"$BUILD_TIMESTAMP\"/" "$DIR/Sources/VictorEffects/MenuBar.swift"
 echo "Build timestamp: $BUILD_TIMESTAMP"
 
+# Tests before the build, because several of them are the only thing standing
+# between a rename and a silent lie on screen: the ⭐ badge the tablet draws over
+# tiles that also animate the desktop is held together by string keys
+# (SoundEffectMapDriftTests), and fireEffect answers an unknown effect name by
+# logging, not by failing. A deploy is the moment that drift reaches the room,
+# so it is the moment worth blocking. SKIP_TESTS=1 forces a build anyway — for
+# the one case that outranks correctness, a hotfix mid-workshop.
+if [ "${SKIP_TESTS:-0}" != "1" ]; then
+    echo "Running tests..."
+    TESTLOG="$(mktemp -t victor-effects-tests)"
+    if ! swift test > "$TESTLOG" 2>&1; then
+        grep -E "error:|failed \(" "$TESTLOG" | head -20
+        echo ""
+        echo "❌ Tests failed — NOT deploying (full log: $TESTLOG)."
+        echo "   Fix them, or force with: SKIP_TESTS=1 ./build-app.sh"
+        exit 1
+    fi
+    grep -E "Executed [0-9]+ tests" "$TESTLOG" | tail -1
+    rm -f "$TESTLOG"
+else
+    echo "⚠️  SKIP_TESTS=1 — tests skipped"
+fi
+
 echo "Building VictorEffects..."
 swift build -c "$BUILD_CONFIG"
 echo "VictorEffects built."

@@ -34,6 +34,21 @@ this one only routes.
   thing that ends an effect — with two processes, a missing stop is now also a
   missing proxy hop, and an effect that only dies on a remote message would stay
   on screen forever.
+- **`build-app.sh` runs `swift test` first and refuses to deploy on a failure**
+  (`SKIP_TESTS=1 ./build-app.sh` forces it, for a hotfix mid-workshop). A
+  convention held together by string keys is only protected by a test that
+  actually runs, and the deploy is the moment the drift would reach the room.
+- **⭐ = "this tile also animates the desktop", and it is a promise, not a
+  label.** The tablet draws the badge from `GET /sound/effects`
+  (`SoundEffectMap.visualAssets`) and keeps no list of its own, so that half
+  cannot drift. This half can, silently — `fireEffect` answers an unknown name
+  by *logging*, and a new inside-the-clip effect lives in
+  `EffectsEngine.playSound` where no map can see it. `SoundEffectMapDriftTests`
+  is the guard: it PARSES `EffectsEngine.swift` (the switch labels, the
+  `if name ==` special cases) instead of comparing against a second copy, so the
+  only way to make it pass is to make the thing true. Adding an effect to
+  `playSound` without deciding about its star fails the build with the name of
+  the list to edit.
 - **Visual tests go on the non-projected screen.** The built-in retina is the
   overlay screen and may be mirrored to a room.
 - **Sounds are not in this repo.** They live in `EffectsConfig.soundsDir`; never
