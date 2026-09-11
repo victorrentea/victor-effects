@@ -13,7 +13,7 @@ port.
 | 🔥 whip | `docs/whip.md` | ⌃W, the crack macro, the OpenWhip parity harness |
 | sound routing | `docs/sound-routing.md` | `soundsDir`, the manifest, Bluetooth compensation |
 | HTTP contract | `docs/http-api.md` | every route, the webhook, `tiles.json` |
-| thumbnail panel | `docs/thumbnail-panel.md` | the right-⌘ soundboard grid |
+| thumbnail panel | `docs/thumbnail-panel.md` | the right-⌥ soundboard grid |
 | testing | `docs/testing.md` | the `/test/*` hooks |
 | deploy | `docs/deployment.md` | build-app.sh, LaunchAgent, TCC, code signing |
 
@@ -46,7 +46,7 @@ this one only routes.
   `dispatch` is **main-thread only** (it asserts it); the socket path wraps it in
   `DispatchQueue.main.sync`, the thumbnail panel calls it directly.
 - **One event tap, `EffectsHotkeyTap`.** ⌃W (swallowed), the Return/buttons-6-7
-  crack and the right-⌘ panel hold all live in it. A second tap would mean a
+  crack and the right-⌥ panel hold all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
 - **The two apps degrade independently.** Addons answers `effectsUp:false` while

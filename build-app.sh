@@ -79,7 +79,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>LSUIElement</key>
     <true/>
     <key>NSAccessibilityUsageDescription</key>
-    <string>Victor Effects listens for the right ⌘ key and puts the mouse in effects like the fire cursor.</string>
+    <string>Victor Effects listens for the right ⌥ key and puts the mouse in effects like the fire cursor.</string>
 </dict>
 </plist>
 PLIST

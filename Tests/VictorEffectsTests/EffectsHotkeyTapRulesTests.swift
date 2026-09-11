@@ -67,9 +67,73 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
         XCTAssertEqual(Tap.decideMouse(button: 2, whipShowing: true), .pass)
     }
 
-    func testRightCommandKeycodeIsNotLeftCommand() {
-        // 54 vs 55 is the whole difference between "hold right ⌘ for the panel"
-        // and "every ⌘C opens a grid over the screen".
-        XCTAssertEqual(EffectsHotkeyTap.VK_RIGHT_COMMAND, 54)
+    // MARK: - The panel modifier (right ⌥, alone)
+
+    private static let VK_RIGHT_OPTION: CGKeyCode = 61
+    private static let VK_LEFT_OPTION: CGKeyCode = 58
+    private static let VK_RIGHT_COMMAND: CGKeyCode = 54
+
+    func testRightOptionKeycodeIsNotLeftOption() {
+        // 61 vs 58 is the whole difference between "hold right ⌥ for the panel"
+        // and "every ⌥← opens a grid over the screen".
+        XCTAssertEqual(EffectsHotkeyTap.VK_RIGHT_OPTION, 61)
+    }
+
+    func testRightOptionAloneArmsThePanel() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [.maskAlternate],
+                                          rightOptionHeld: false), .rightOptionDown)
+    }
+
+    func testDroppingTheFlagReleasesIt() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [],
+                                          rightOptionHeld: true), .rightOptionUp)
+    }
+
+    func testRightCommandNoLongerTriggersThePanel() {
+        // The trigger used to be 54. Holding it must now be as uneventful as
+        // holding any other key — nothing armed, nothing shown.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: [.maskCommand],
+                                          rightOptionHeld: false), .ignore)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: [],
+                                          rightOptionHeld: false), .ignore)
+    }
+
+    func testLeftOptionIsNeverTheTrigger() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_OPTION,
+                                          flags: [.maskAlternate],
+                                          rightOptionHeld: false), .ignore)
+    }
+
+    func testOptionWithAnotherModifierIsSomebodyElsesLayer() {
+        // ⌃⌥ and ⌥⇧ are the emoji layers of the 💬 app next door; ⌘⌥ is a
+        // window shortcut. None of them may raise the soundboard.
+        for extra: CGEventFlags in [.maskControl, .maskShift, .maskCommand] {
+            XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                              flags: [.maskAlternate, extra],
+                                              rightOptionHeld: false), .ignore)
+        }
+    }
+
+    func testAModifierJoiningAHeldOptionCancels() {
+        // ⌥ first, ⇧ second: the user is reaching for ⌥⇧, not the panel.
+        XCTAssertEqual(Tap.decideModifier(keyCode: 56,
+                                          flags: [.maskAlternate, .maskShift],
+                                          rightOptionHeld: true), .cancel)
+    }
+
+    func testModifierTrafficWhileNothingIsHeldIsIgnored() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: 56,
+                                          flags: [.maskShift],
+                                          rightOptionHeld: false), .ignore)
+    }
+
+    func testKeyRepeatOnTheModifierIsNotASecondPress() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [.maskAlternate],
+                                          rightOptionHeld: true), .ignore)
     }
 }

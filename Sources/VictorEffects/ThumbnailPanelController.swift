@@ -2,15 +2,16 @@ import AppKit
 
 /// Owns the thumbnail panel: when it appears, where, and what a tile press does.
 ///
-/// The gesture is **hold the right ⌘ for 180 ms**. Right and not left because
-/// every ⌘-shortcut on this keyboard is typed with the left hand — binding the
-/// left key would flash a soundboard over the screen on every ⌘C. The 180 ms
-/// exist for the same reason from the other side: a right-⌘ shortcut is a tap,
+/// The gesture is **hold the right ⌥ alone for 180 ms**. Right and not left
+/// because every ⌥-shortcut on this keyboard is typed with the left hand —
+/// binding the left key would flash a soundboard over the screen on every ⌥←.
+/// *Alone* because ⌃⌥ and ⌥⇧ are layers other apps own. The 180 ms exist for
+/// the same reason from the other side: right-⌥E to type an accent is a tap,
 /// not a hold, and a tap must not show anything.
 ///
 /// Nothing here ever swallows a key. The panel is a passenger on the event tap;
-/// if it ever ate the modifier, every ⌘-shortcut typed with the right hand
-/// would die with it.
+/// if it ever ate the modifier, every ⌥-accent typed with the right hand would
+/// die with it.
 final class ThumbnailPanelController {
     /// How long the key must be held before the panel appears.
     static let holdDelay: TimeInterval = 0.180
@@ -21,16 +22,16 @@ final class ThumbnailPanelController {
     ///
     /// Extracted because the real thing needs Accessibility, an event tap and a
     /// pair of hands: on a Mac without the grant — this one, at the time of
-    /// writing — the only way to prove that ⌘C with the right key still reaches
-    /// the front app is to assert it on the rule itself.
+    /// writing — the only way to prove that right-⌥E still reaches the front
+    /// app is to assert it on the rule itself.
     enum PanelHoldRule {
         enum Event {
-            case rightCommandDown
+            case rightOptionDown
             case holdTimerFired
-            case rightCommandUp
-            /// Any other key went down while the right ⌘ was held: the user is
-            /// typing a shortcut, not asking for a soundboard.
-            case keyWhileRightCommand
+            case rightOptionUp
+            /// Any other key or modifier went down while the right ⌥ was held:
+            /// the user is typing an accent, not asking for a soundboard.
+            case keyWhileRightOption
         }
 
         enum Action: Equatable {
@@ -51,7 +52,7 @@ final class ThumbnailPanelController {
 
         static func apply(_ event: Event, to state: inout State) -> [Action] {
             switch event {
-            case .rightCommandDown:
+            case .rightOptionDown:
                 guard state.enabled, !state.holdArmed, !state.shownByHold else { return [] }
                 state.holdArmed = true
                 return [.armHoldTimer]
@@ -62,7 +63,7 @@ final class ThumbnailPanelController {
                 state.shownByHold = true
                 return [.show]
 
-            case .rightCommandUp:
+            case .rightOptionUp:
                 var actions: [Action] = []
                 if state.holdArmed {
                     state.holdArmed = false
@@ -74,9 +75,9 @@ final class ThumbnailPanelController {
                 }
                 return actions
 
-            case .keyWhileRightCommand:
-                // Before the panel is up: the hold was a shortcut, disarm.
-                // After it is up: get out of the way rather than fight ⌘V.
+            case .keyWhileRightOption:
+                // Before the panel is up: the hold was an accent, disarm.
+                // After it is up: get out of the way rather than fight ⌥E.
                 if state.holdArmed {
                     state.holdArmed = false
                     return [.cancelHoldTimer]
@@ -117,21 +118,21 @@ final class ThumbnailPanelController {
 
     // MARK: - Trigger
 
-    func rightCommand(down: Bool) {
-        perform(PanelHoldRule.apply(down ? .rightCommandDown : .rightCommandUp, to: &state))
+    func rightOption(down: Bool) {
+        perform(PanelHoldRule.apply(down ? .rightOptionDown : .rightOptionUp, to: &state))
     }
 
-    func keyWhileRightCommand() {
-        perform(PanelHoldRule.apply(.keyWhileRightCommand, to: &state))
+    func keyWhileRightOption() {
+        perform(PanelHoldRule.apply(.keyWhileRightOption, to: &state))
     }
 
     func setEnabled(_ enabled: Bool) {
         state.enabled = enabled
         if !enabled {
-            perform(PanelHoldRule.apply(.rightCommandUp, to: &state))
+            perform(PanelHoldRule.apply(.rightOptionUp, to: &state))
             hide()
         }
-        effectsInfo("Thumbnail panel \(enabled ? "enabled" : "disabled") (right-⌘ hold)")
+        effectsInfo("Thumbnail panel \(enabled ? "enabled" : "disabled") (right-⌥ hold)")
     }
 
     private func perform(_ actions: [PanelHoldRule.Action]) {

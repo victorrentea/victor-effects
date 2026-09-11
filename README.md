@@ -28,7 +28,7 @@ is running; the log is `/tmp/victor-effects.log`.
 
 | permission | why | what breaks without it |
 |---|---|---|
-| **Accessibility** | one `CGEventTap` for ⌃W (whip) and the right-⌘ panel hold | the hotkeys; effects still work over HTTP and from the menu |
+| **Accessibility** | one `CGEventTap` for ⌃W (whip) and the right-⌥ panel hold | the hotkeys; effects still work over HTTP and from the menu |
 | **Screen Recording** | `CGDisplayCreateImage` for the effects that distort what is on screen (heartbeat lens, broken glass, FBI knock, beethoven, chainsaw) | those effects draw on a blank backdrop |
 
 Nothing else: no microphone, no location, no Bluetooth permission, no full disk
@@ -76,7 +76,7 @@ licensed files, so they are not committed here.
 
 ## The soundboard panel
 
-Holding the **right ⌘** for 180 ms puts the tile grid on a screen the audience is
+Holding the **right ⌥** alone for 180 ms puts the tile grid on a screen the audience is
 not looking at; releasing hides it. Clicking a tile plays its sound and whatever
 visual is paired with it, and clicking it again stops both. Left ⌘ never opens
 it, and a key pressed while the right one is held cancels — so ⌘-shortcuts are

@@ -1,7 +1,7 @@
 # The Thumbnail Panel — the soundboard on the Mac
 
-Hold the **right ⌘** and the tile grid that lives on the tablet appears on a
-screen the room is not looking at. Release it and it is gone. Click a tile and
+Hold the **right ⌥** (alone) and the tile grid that lives on the tablet appears
+on a screen the room is not looking at. Release it and it is gone. Click a tile and
 it plays exactly as a tablet press would, because it is the same code path.
 
 It exists because the tablet is not always in reach, and because a grid of 91
@@ -17,27 +17,33 @@ pictures is a faster way to find a sound than a menu of 91 words.
 | `SoundboardPress.swift` | what a press *means* |
 | `TilesManifest.swift` | the tile list itself (`docs/http-api.md`) |
 
-## The trigger: right ⌘ held ≥ 180 ms
+## The trigger: right ⌥, alone, held ≥ 180 ms
 
 One rule inside `EffectsHotkeyTap` — the same tap that owns ⌃W, because a tap is
 a shared fragile resource and three of them would mean three re-enable paths and
 three Accessibility failures to explain.
 
-- `.flagsChanged` with `keyboardEventKeycode == 54`
-  (`EffectsHotkeyTap.VK_RIGHT_COMMAND`). **Left ⌘ is 55 and is deliberately not
-  matched**, so every left-hand ⌘ shortcut is untouched by this feature.
+- `.flagsChanged` with `keyboardEventKeycode == 61`
+  (`EffectsHotkeyTap.VK_RIGHT_OPTION`). **Left ⌥ is 58 and is deliberately not
+  matched**, so every left-hand ⌥ shortcut and every left-hand accent is
+  untouched by this feature.
+- **Alone**: `EffectsHotkeyTap.decideModifier` arms only when ⌘, ⌃ and ⇧ are all
+  absent, and **cancels** if one of them joins mid-hold. ⌃⌥ and ⌥⇧ are the emoji
+  cheat-sheet layers of the 💬 app (`victor-macos-addons`) — the panel must not
+  appear underneath somebody else's board. Caps lock and fn are not in the set:
+  caps lock is a latch somebody may be sitting on for an hour.
 - Down arms a `holdDelay` (**180 ms**) timer on the main queue; firing it shows
   the panel. Up hides it again.
-- A `keyDown` while right ⌘ is held means the user is typing a shortcut, not
+- A `keyDown` while right ⌥ is held means the user is typing an accent, not
   asking for the panel: before the timer fires it **cancels**; after it fires it
-  **hides**. The panel does not fight a shortcut — right-⌘C and right-⌘V keep
+  **hides**. The panel does not fight a dead key — right-⌥E and right-⌥N keep
   working.
-- **The rule never swallows anything** (`onRightCommand` /
-  `onKeyWhileRightCommand` are notified and the event passes through).
+- **The rule never swallows anything** (`onRightOption` / `onKeyWhileRightOption`
+  are notified and the event passes through).
 
 The decision itself is a pure state machine —
 `ThumbnailPanelController.PanelHoldRule.apply(_:to:)`, four `Event` cases
-(`rightCommandDown`, `holdTimerFired`, `rightCommandUp`, `keyWhileRightCommand`)
+(`rightOptionDown`, `holdTimerFired`, `rightOptionUp`, `keyWhileRightOption`)
 turning a `State` (`enabled`, `holdArmed`, `shownByHold`) into `Action`s
 (`armHoldTimer`, `cancelHoldTimer`, `show`, `hide`). It is a rule and not a
 tangle of booleans inside the tap callback because the interesting cases — a key
@@ -166,7 +172,7 @@ cancellable handle to keep in sync.
 
 ## Menu and test hooks
 
-Menu rows: **`Show tablet panel on right-⌘ hold`** (the checkbox), **`Show
+Menu rows: **`Show tablet panel on right-⌥ hold`** (the checkbox), **`Show
 tablet panel now`** (a toggle, for a mouse-only check), **`Reload tiles.json`**.
 
 The checkbox is stored as `MenuBar.kPanelEnabled` = `ThumbnailPanel.enabled`

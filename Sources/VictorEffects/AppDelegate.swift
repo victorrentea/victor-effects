@@ -88,10 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tap.whipShowing = { [weak self] in self?.engine.whipIsShowing ?? false }
         tap.onToggleWhip = { [weak self] in self?.engine.toggleWhip() }
         tap.onCrack = { [weak self] in self?.engine.whip?.forceCrack() }
-        // The panel is a listener on this tap, never an owner: `onRightCommand`
+        // The panel is a listener on this tap, never an owner: `onRightOption`
         // fires on the way past and the event continues to the front app.
-        tap.onRightCommand = { [weak self] down in self?.panelController.rightCommand(down: down) }
-        tap.onKeyWhileRightCommand = { [weak self] in self?.panelController.keyWhileRightCommand() }
+        tap.onRightOption = { [weak self] down in self?.panelController.rightOption(down: down) }
+        tap.onKeyWhileRightOption = { [weak self] in self?.panelController.keyWhileRightOption() }
 
         if tap.start() {
             menuBar.setAccessibilityTrusted(true)
@@ -134,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// minute later still installs the tap without a restart, and a denial does
     /// not turn into a dialog every half minute.
     private func requestPermissionsAtLaunch() {
-        // --- Accessibility (the one CGEventTap: ⌃W, the crack, right ⌘) ---
+        // --- Accessibility (the one CGEventTap: ⌃W, the crack, right ⌥) ---
         let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
         let axTrusted = AXIsProcessTrustedWithOptions(options)
         effectsInfo(axTrusted
