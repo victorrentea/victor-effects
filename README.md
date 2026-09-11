@@ -6,7 +6,8 @@ cursor, a phoenix, a gong, a heartbeat monitor, fireworks — plus a physics-dri
 🔥 **whip** you can crack at a coding agent.
 
 Everything is addressable over a small local HTTP API, so a tablet, a phone, a
-shell script, an editor plugin or another app can fire an effect.
+shell script, an editor plugin or another app can fire an effect. Hold the right
+⌘ key and the soundboard itself appears as a grid of thumbnails you can click.
 
 It was extracted from [victor-macos-addons](https://github.com/victorrentea/victor-macos-addons),
 which keeps the training/transcription half and proxies the effect routes here.
@@ -73,30 +74,34 @@ Four effects (`love-hands`, `brother`, `gangnam`, `fail`) look for extra images
 in `assetsDir` and quietly do nothing when they are absent — they are large or
 licensed files, so they are not committed here.
 
+## The soundboard panel
+
+Holding the **right ⌘** for 180 ms puts the tile grid on a screen the audience is
+not looking at; releasing hides it. Clicking a tile plays its sound and whatever
+visual is paired with it, and clicking it again stops both. Left ⌘ never opens
+it, and a key pressed while the right one is held cancels — so ⌘-shortcuts are
+untouched.
+
+The grid comes from a `tiles.json` next to the sounds (`soundsDir`), so adding a
+tile is one JSON entry plus one image. See `docs/thumbnail-panel.md` and
+`docs/http-api.md`.
+
 ## HTTP API
 
-Every route is `GET` on `http://127.0.0.1:<port>`.
+Every route is a `GET` on `http://127.0.0.1:<port>`:
 
 | route | does |
 |---|---|
-| `/ping` | `{ok, app, version, soundsHash, tilesHash, tabletVolume, panelMonitor}` |
-| `/effect/<name>` | run an effect — see the ⭐️ Effects menu for the list |
+| `/ping` | `{ok, app, effectsVersion, soundsHash, tilesHash, tabletVolume, panelMonitor}` |
+| `/effect/<name>` | run an effect — the ⭐️ Effects menu lists them |
 | `/effect/stop-all` | stop every effect and sound |
-| `/effect/progress-bar/<seconds>?rider=🏁`, `/effect/progress-bar/stop` | a countdown bar |
-| `/effect/emoji?e=❤️&count=3&glow=…` | fly emoji up the screen |
-| `/effect/whip`, `/effect/whip/crack` | show/hide the whip, crack it |
-| `/effect/coffee`, `/effect/coffee/pop` | the chargeable ☕ |
-| `/effect/green-flash`, `/effect/click` | link-feedback flash and click |
 | `/sound/play/<file>?vol=N` | play a sound from `soundsDir` → `{ok, durationMs}` |
-| `/sound/pressed/<file>`, `/sound/stopped/<file>` | the effect paired with a sound |
-| `/sound/volume/<pct>`, `/sound/stop` | volume, stop |
-| `/sounds/manifest` | `{name: sha256}` over `soundsDir/*.mp3` |
-| `/alarm/start`, `/alarm/stop` | the siren overlay |
-| `/bt-compensation`, `/bt-compensation/<ms>` | Bluetooth latency offset |
-| `/tiles`, `/tiles/<path>` | `tiles.json` and its images |
-| `/state` | what is playing/showing right now |
-| `/config/reload` | re-read the config file |
-| `/test/<name>` | historical aliases of the `/effect/` routes |
+| `/sounds/manifest`, `/tiles` | what this Mac has, so a client can compare |
+| `/state`, `/config/reload` | diagnostics, and re-read the config |
+
+**`docs/http-api.md` is the full contract** — every route, the query parameters,
+the status codes, the one webhook that goes the other way, and the `tiles.json`
+schema.
 
 ## 🔥 The whip
 
@@ -120,6 +125,14 @@ public addons repo; their provenance is not tracked and using them is your
 responsibility. The soundboard audio is never committed for exactly that reason.
 `claude-icon.png` and `copilot-icon.png` are third-party logos used for an
 optional mascot.
+
+## Documentation
+
+`docs/` carries the reasoning, not just the interface: the effect catalogue and
+why each one looks the way it does (`overlay-effects.md`), the whip
+(`whip.md`), sound routing and the Bluetooth mitigations (`sound-routing.md`),
+the HTTP contract (`http-api.md`), the panel (`thumbnail-panel.md`), the
+headless test hooks (`testing.md`) and deployment (`deployment.md`).
 
 ## Licence
 

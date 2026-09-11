@@ -17,6 +17,11 @@ port.
 | testing | `docs/testing.md` | the `/test/*` hooks |
 | deploy | `docs/deployment.md` | build-app.sh, LaunchAgent, TCC, code signing |
 
+**Read the zone's doc BEFORE touching its code.** Most of the constants in there
+were arrived at by being wrong in front of a room first; the details are
+load-bearing, not commentary. When you change something, edit that zone file —
+this one only routes.
+
 ## Rules
 
 - **Deploy after any code change**: `git push && ./build-app.sh`, then
@@ -38,3 +43,12 @@ port.
   tokens. Anything machine-specific belongs in `EffectsConfig`.
 - The HTTP handlers and the in-process callers share one entry point,
   `EffectsRouter.dispatch(_:)`. Add a route there, not in the socket code.
+  `dispatch` is **main-thread only** (it asserts it); the socket path wraps it in
+  `DispatchQueue.main.sync`, the thumbnail panel calls it directly.
+- **One event tap, `EffectsHotkeyTap`.** ⌃W (swallowed), the Return/buttons-6-7
+  crack and the right-⌘ panel hold all live in it. A second tap would mean a
+  second re-enable path for the same fragile resource and a second Accessibility
+  failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
+- **The two apps degrade independently.** Addons answers `effectsUp:false` while
+  this app is down; this app's webhook is fire-and-forget. Never introduce a
+  dependency that makes one wait for the other.
