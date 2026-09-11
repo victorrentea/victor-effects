@@ -40,8 +40,9 @@ final class EffectsRouter {
         /// A client reports a sound started; the Mac owns the sound→effect map.
         case soundPressed(String)
         case soundStopped(String)
-        /// `GET /sound/effects` — which sounds also fire a desktop visual.
-        case soundEffects
+        /// `GET /effects/assets` (and its older spelling `GET /sound/effects`)
+        /// — which sounds also fire a desktop visual.
+        case effectsAssets
         case btCompensationGet
         case btCompensationSet(Int)
         case alarmStart
@@ -112,7 +113,8 @@ final class EffectsRouter {
         switch pathOnly {
         case "/ping":               return .ping
         case "/sounds/manifest":    return .soundsManifest
-        case "/sound/effects":      return .soundEffects
+        case "/sound/effects":      return .effectsAssets
+        case "/effects/assets":     return .effectsAssets
         case "/sound/stop":         return .soundStop
         case "/bt-compensation":    return .btCompensationGet
         case "/alarm/start":        return .alarmStart
@@ -263,7 +265,7 @@ final class EffectsRouter {
             return .ok()
 
         case .tiles:
-            guard let json = TilesManifest.json else {
+            guard let json = TilesManifest.effectsJSON else {
                 return .json("{\"error\":\"no tiles.json in \(EffectsConfig.shared.soundsDir.path)\"}", status: 404)
             }
             return .json(json)
@@ -285,12 +287,12 @@ final class EffectsRouter {
             guard let press = onPanelPress else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
             return .json(press(n))
 
-        case .soundEffects:
-            // Sorted so the body is stable: the tablet caches it and only
-            // repaints when the list actually changes.
-            let assets = SoundEffectMap.visualAssets.sorted()
-                .map { "\"\($0)\"" }.joined(separator: ",")
-            return .json("{\"assets\":[\(assets)]}")
+        case .effectsAssets:
+            // Sorted so the body is stable: a client caches it and only repaints
+            // when the list actually changes. The tablet reads the ⭐ off /tiles
+            // now; this route stays as the flat, greppable answer to "which
+            // sounds are effect sounds" for a curl and for the drift tests.
+            return .json(EffectsCatalog.assetsJSON)
 
         case .state:
             return .json(engine.stateJSON(panelMonitor: panelMonitorActive(),

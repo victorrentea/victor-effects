@@ -39,16 +39,21 @@ this one only routes.
   convention held together by string keys is only protected by a test that
   actually runs, and the deploy is the moment the drift would reach the room.
 - **⭐ = "this tile also animates the desktop", and it is a promise, not a
-  label.** The tablet draws the badge from `GET /sound/effects`
-  (`SoundEffectMap.visualAssets`) and keeps no list of its own, so that half
-  cannot drift. This half can, silently — `fireEffect` answers an unknown name
-  by *logging*, and a new inside-the-clip effect lives in
-  `EffectsEngine.playSound` where no map can see it. `SoundEffectMapDriftTests`
-  is the guard: it PARSES `EffectsEngine.swift` (the switch labels, the
-  `if name ==` special cases) instead of comparing against a second copy, so the
-  only way to make it pass is to make the thing true. Adding an effect to
-  `playSound` without deciding about its star fails the build with the name of
-  the list to edit.
+  label.** One function answers it — `EffectsCatalog.effectName(forAsset:)` —
+  and `/effects/assets`, `effectsHash` and the `effect` field `GET /tiles` stamps
+  on each tile are all views of that one answer. The tablet keeps no list: it
+  reads `effect` off the `/tiles` rows it already draws the grid from and
+  re-fetches only when `effectsHash` moves in a `/ping`, so that half cannot
+  drift. This half can, silently — `fireEffect` answers an unknown name by
+  *logging*, and a new inside-the-clip effect lives in `EffectsEngine.playSound`
+  where no map can see it. Two guards: `SoundEffectMapDriftTests` PARSES
+  `EffectsEngine.swift` (the switch labels, the `if name ==` special cases)
+  instead of comparing against a second copy, so the only way to make it pass is
+  to make the thing true; `EffectsCatalogTests` writes the 43-name set out by
+  hand, so a change to the promise costs a deliberate edit in the file that IS
+  the promise. Adding an effect to `playSound` without deciding about its star
+  fails the build with the name of the list to edit. Details in
+  `docs/http-api.md` under **the ⭐ catalogue**.
 - **Visual tests go on the non-projected screen.** The built-in retina is the
   overlay screen and may be mirrored to a room.
 - **Sounds are not in this repo.** They live in `EffectsConfig.soundsDir`; never

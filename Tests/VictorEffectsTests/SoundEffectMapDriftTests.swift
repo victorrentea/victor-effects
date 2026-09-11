@@ -88,6 +88,14 @@ final class SoundEffectMapDriftTests: XCTestCase {
             XCTAssertTrue(handled.contains(effect),
                           "\(asset) stops with '\(effect)', which fireEffect does not handle — the effect would never be torn down")
         }
+        // The play-path names are never passed to fireEffect (playSound runs the
+        // animation itself, because it also owns the audio) — but they ARE what
+        // `GET /tiles` tells the tablet the star means. A name that matches no
+        // effect is a name that lies to the client, so hold it to the same bar.
+        for (asset, effect) in SoundEffectMap.playPathVisuals {
+            XCTAssertTrue(handled.contains(effect),
+                          "\(asset) is advertised as effect '\(effect)', which is not a real effect name")
+        }
     }
 
     /// A stop mapping for a sound nothing starts is dead weight that reads like
@@ -124,7 +132,7 @@ final class SoundEffectMapDriftTests: XCTestCase {
         let specialCased = Set(matches(#"name == "([^"]+)""#, in: play))
         XCTAssertGreaterThan(specialCased.count, 5, "playSound no longer parses — fix this test, do not delete it")
 
-        let starred = SoundEffectMap.visualAssets
+        let starred = Set(EffectsCatalog.assets)
         for asset in specialCased.subtracting(soundOnly) {
             XCTAssertTrue(starred.contains(asset),
                           """
@@ -141,7 +149,7 @@ final class SoundEffectMapDriftTests: XCTestCase {
     func testEveryPlayPathVisualIsStillSpecialCasedInPlaySound() throws {
         let swift = try source("Sources/VictorEffects/EffectsEngine.swift")
         let play = try body(of: "func playSound(_ name: String, volumePct: Int?) -> String? {", in: swift)
-        for asset in SoundEffectMap.playPathVisuals {
+        for asset in SoundEffectMap.playPathVisuals.keys {
             XCTAssertTrue(play.contains("\"\(asset)\""),
                           "\(asset) is listed as a play-path visual but playSound no longer mentions it — stale ⭐")
         }
@@ -151,7 +159,7 @@ final class SoundEffectMapDriftTests: XCTestCase {
     /// that ALSO sits in `onPress` would fire twice — the very thing the
     /// comments in both files warn about.
     func testPlayPathVisualsAndOnPressDoNotOverlap() {
-        let overlap = SoundEffectMap.playPathVisuals.intersection(SoundEffectMap.onPress.keys)
+        let overlap = Set(SoundEffectMap.playPathVisuals.keys).intersection(SoundEffectMap.onPress.keys)
         XCTAssertTrue(overlap.isEmpty, "\(overlap.sorted()) are in BOTH onPress and playPathVisuals — double trigger")
     }
 
@@ -171,9 +179,18 @@ final class SoundEffectMapDriftTests: XCTestCase {
         let assets = Set(tiles.compactMap { $0["asset"] as? String })
         XCTAssertGreaterThan(assets.count, 50, "tiles.json parsed but looks empty")
 
-        for asset in SoundEffectMap.visualAssets {
+        for asset in EffectsCatalog.assets {
             XCTAssertTrue(assets.contains(asset),
                           "\(asset) has an effect mapped but is not a tile in tiles.json — renamed or deleted mp3")
         }
+        // And the other way for the field the tablet now draws from: a tile the
+        // catalogue claims must actually come back carrying its `effect`.
+        let enriched = try XCTUnwrap(TilesManifest.enrich(data))
+        let out = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(enriched.utf8)) as? [String: Any])
+        let stamped = (out["tiles"] as? [[String: Any]] ?? []).reduce(into: [String: String]()) { acc, tile in
+            if let a = tile["asset"] as? String, let e = tile["effect"] as? String { acc[a] = e }
+        }
+        XCTAssertEqual(Set(stamped.keys), Set(EffectsCatalog.assets),
+                       "GET /tiles stamps a different set than EffectsCatalog names")
     }
 }

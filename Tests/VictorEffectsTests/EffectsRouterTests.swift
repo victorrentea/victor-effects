@@ -67,9 +67,12 @@ final class EffectsRouterTests: XCTestCase {
     }
 
     func testSoundEffectsListIsTheStarBadgeSource() {
-        // The tablet draws its ⭐ corner badge from this list, so the route must
-        // not be swallowed by the "/sound/<something>/<file>" prefixes around it.
-        XCTAssertEqual(route("/sound/effects"), .soundEffects)
+        // Both spellings answer the same route. `/effects/assets` is the name it
+        // should have had; `/sound/effects` is kept because scripts and the
+        // older tablet builds point at it, and it must still not be swallowed by
+        // the "/sound/<something>/<file>" prefixes around it.
+        XCTAssertEqual(route("/effects/assets"), .effectsAssets)
+        XCTAssertEqual(route("/sound/effects"), .effectsAssets)
 
         // Every starred sound must be a real tile asset, and the three kinds of
         // desktop visual must all be in: press-mapped (explosion), driven from

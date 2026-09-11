@@ -92,10 +92,59 @@ enum TilesManifest {
     /// this Mac's, the same way `soundsHash` does for the audio.
     static var tilesHash: String { load()?.hash ?? "" }
 
-    /// The raw bytes for `GET /tiles`, or nil when there is no manifest.
+    /// The raw bytes of the manifest, or nil when there is no manifest. Hashed
+    /// into `tilesHash` and enriched into [effectsJSON]; no route serves it.
     static var json: String? {
         guard let data = FileManager.default.contents(atPath: url.path) else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+
+    /// Body of `GET /tiles`: the manifest as written, plus **`"effect"` on every
+    /// tile whose asset also animates the desktop** and a top-level
+    /// **`"effectsHash"`**.
+    ///
+    /// This is what makes the ⭐ badge unable to drift. The tablet used to hold
+    /// its own idea of which tiles were effect tiles; now the only list is
+    /// `EffectsCatalog`, and it arrives stamped onto the very rows the badge is
+    /// drawn from — one fetch, one truth, nothing to keep in step.
+    ///
+    /// Enriched by re-serialising rather than by string-splicing, and through
+    /// `JSONSerialization` rather than `TilesDocument`, so that **keys this app
+    /// has never heard of survive**: the manifest is written by the tablet's
+    /// repo, and a key added there must not be filtered out by a Mac build that
+    /// predates it. `effect` itself is REPLACED, never merged: a stale copy left
+    /// in the file by an older tool loses to the live catalogue.
+    ///
+    /// `tilesHash` is unchanged by any of this — it stays the hash of the file's
+    /// own bytes, so "is my tile list the Mac's tile list" keeps its meaning
+    /// while "is my star set the Mac's star set" gets its own answer.
+    static var effectsJSON: String? {
+        guard let data = FileManager.default.contents(atPath: url.path) else { return nil }
+        return enrich(data) ?? String(data: data, encoding: .utf8)
+    }
+
+    /// Pure half of [effectsJSON], so a test can feed it a literal manifest
+    /// instead of a machine that happens to have the tablet assets mounted.
+    /// Returns nil when the bytes are not a JSON object — the caller then serves
+    /// them verbatim, because this repo's job is to pass the grid on, not to
+    /// have opinions about a file it does not own.
+    static func enrich(_ data: Data) -> String? {
+        guard var obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        if let tiles = obj["tiles"] as? [[String: Any]] {
+            obj["tiles"] = tiles.map { tile -> [String: Any] in
+                var tile = tile
+                if let asset = tile["asset"] as? String,
+                   let effect = EffectsCatalog.effectName(forAsset: asset) {
+                    tile["effect"] = effect
+                } else {
+                    tile.removeValue(forKey: "effect")
+                }
+                return tile
+            }
+        }
+        obj["effectsHash"] = EffectsCatalog.effectsHash
+        guard let out = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]) else { return nil }
+        return String(data: out, encoding: .utf8)
     }
 
     static func tile(number: Int) -> Tile? {

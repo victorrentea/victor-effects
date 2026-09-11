@@ -72,6 +72,9 @@ final class EffectsEngine {
         // sounds hash takes — hence the cached, never-blocking accessor.
         return "{\"ok\":true,\"app\":\"victor-effects\",\"effectsVersion\":\"\(MenuBar.BUILD_TIME)\","
             + "\"soundsHash\":\"\(SoundsManifest.cachedCombinedHash)\",\"tilesHash\":\"\(TilesManifest.tilesHash)\","
+            // Cheap (a hash of ~43 short strings, no I/O), so unlike soundsHash
+            // it needs no cache to stay inside the proxy's 1.5 s.
+            + "\"effectsHash\":\"\(EffectsCatalog.effectsHash)\","
             + "\"tabletVolume\":\(vol),\"panelMonitor\":\(panelMonitor)}"
     }
 
