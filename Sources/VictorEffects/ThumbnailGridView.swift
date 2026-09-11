@@ -137,6 +137,41 @@ final class ThumbnailGridView: NSView {
         }
     }
 
+    // MARK: - The pointing hand
+
+    /// Every tile is clickable, so the hand belongs to the grid and not to the
+    /// tiles: with 6 pt of `gap` between them, a per-tile cursor would flick
+    /// back to an arrow every time the mouse crossed from one tile to the next.
+    ///
+    /// Set imperatively with `NSCursor.set()` rather than through
+    /// `resetCursorRects`, because cursor *rects* are a key-window mechanism and
+    /// this panel deliberately never becomes key (`ThumbnailPanel.canBecomeKey`)
+    /// — hovering the board must not pull the caret out of the app being
+    /// demonstrated. `.activeAlways` is what keeps the events arriving while
+    /// this app is inactive, which it always is.
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds,
+                                       options: [.activeAlways, .mouseEnteredAndExited,
+                                                 .mouseMoved, .inVisibleRect],
+                                       owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) { NSCursor.pointingHand.set() }
+    /// Re-asserted on every move: the panel appearing *under* a stationary mouse
+    /// is the normal case for a hold gesture, and that delivers moves without an
+    /// enter.
+    override func mouseMoved(with event: NSEvent) { NSCursor.pointingHand.set() }
+    override func mouseExited(with event: NSEvent) { releaseCursor() }
+
+    /// Hand the cursor back to whoever is underneath. An imperative `set()`
+    /// bypasses AppKit's own cursor restoration, so both ways out have to say so
+    /// explicitly: leaving the grid, and the panel being ordered out from under
+    /// a cursor that then never gets a `mouseExited` at all. Otherwise the
+    /// pointing hand stays on screen over somebody else's window.
+    func releaseCursor() { NSCursor.arrow.set() }
+
     private func showEmptyMessage() {
         let label = NSTextField(labelWithString:
             "no tiles.json in \(EffectsConfig.shared.soundsDir.path)")

@@ -123,6 +123,10 @@ final class ThumbnailPanel: NSPanel {
         guard slideGeneration == generation else { return }  // a show overtook us
         orderOut(nil)
         alphaValue = 1
+        // The board usually disappears while the mouse is still on it (the key
+        // was released), and a window ordering out does not owe the view a
+        // `mouseExited`. Without this the pointing hand outlives the panel.
+        grid.releaseCursor()
     }
 
     /// Instant, un-animated. The panic path: the feature was switched off, or
@@ -131,5 +135,6 @@ final class ThumbnailPanel: NSPanel {
         slideGeneration += 1
         orderOut(nil)
         alphaValue = 1
+        grid.releaseCursor()
     }
 }

@@ -63,12 +63,20 @@ final class TileView: NSView {
     var onPress: ((Tile) -> Void)?
 
     private let imageLayer = CALayer()
+    private let hoverRimLayer = CALayer()
     private let hoverLayer = CALayer()
     private let borderLayer = CALayer()
     private let numberLayer = CATextLayer()
     private var labelLayer: CATextLayer?
     private var badgeLayer: CATextLayer?
     private var trackingArea: NSTrackingArea?
+
+    /// The hover outline: a dark rim at the tile's edge with a white ring just
+    /// inside it, 4 pt of mark in total — the same footprint as the playing
+    /// border, which is added after these layers and so draws straight over
+    /// them. A tile that is playing says *that* first.
+    static let hoverRimWidth: CGFloat = 4
+    static let hoverRingWidth: CGFloat = 2
 
     var isPlaying = false {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
@@ -86,7 +94,23 @@ final class TileView: NSView {
         imageLayer.masksToBounds = true
         layer?.addSublayer(imageLayer)
 
+        // Hover is a wash AND a ring. The wash alone (white at 8%) is what was
+        // here first and it is invisible on the half of the board whose pictures
+        // are already light — but "which tile is the mouse on" is exactly the
+        // question a grid of 91 pictures has to answer in one glance. The ring
+        // is white over a dark rim for the same reason `#NN` below is white with
+        // a black shadow: an outline that vanishes on half the tiles is not an
+        // outline. Rim at the very edge, white just inside it.
+        hoverRimLayer.borderColor = NSColor(white: 0, alpha: 0.55).cgColor
+        hoverRimLayer.borderWidth = Self.hoverRimWidth
+        hoverRimLayer.cornerRadius = 6
+        hoverRimLayer.opacity = 0
+        layer?.addSublayer(hoverRimLayer)
+
         hoverLayer.backgroundColor = NSColor(white: 1, alpha: 0.08).cgColor
+        hoverLayer.borderColor = NSColor.white.cgColor
+        hoverLayer.borderWidth = Self.hoverRingWidth
+        hoverLayer.cornerRadius = 6 - Self.hoverRingWidth
         hoverLayer.opacity = 0
         layer?.addSublayer(hoverLayer)
 
@@ -145,7 +169,9 @@ final class TileView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
-        hoverLayer.frame = bounds
+        hoverRimLayer.frame = bounds
+        let ringInset = Self.hoverRimWidth - Self.hoverRingWidth
+        hoverLayer.frame = bounds.insetBy(dx: ringInset, dy: ringInset)
         borderLayer.frame = bounds
         let numberSize = max(9, side * 0.10)
         numberLayer.fontSize = numberSize
@@ -199,8 +225,15 @@ final class TileView: NSView {
     /// that refuses focus, and the tile would need pressing twice.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseEntered(with event: NSEvent) { hoverLayer.opacity = 1 }
-    override func mouseExited(with event: NSEvent) { hoverLayer.opacity = 0 }
+    override func mouseEntered(with event: NSEvent) { setHover(true) }
+    override func mouseExited(with event: NSEvent) { setHover(false) }
+
+    /// Both halves of the outline move together; the implicit layer animation is
+    /// left in, so the ring fades up rather than snapping as the mouse crosses.
+    private func setHover(_ on: Bool) {
+        hoverRimLayer.opacity = on ? 1 : 0
+        hoverLayer.opacity = on ? 1 : 0
+    }
 
     override func mouseDown(with event: NSEvent) {
         layer?.setAffineTransform(CGAffineTransform(scaleX: 0.95, y: 0.95))
