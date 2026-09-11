@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Foundation
 
 /// The 🎆 status item. Deliberately tiny compared to the addons menu it was cut
@@ -7,7 +8,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Quit row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 11, 14:42"
+    static let BUILD_TIME = "Sep 11, 14:43"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -194,8 +195,17 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     @objc private func openAccessibilitySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
-        NSWorkspace.shared.open(url)
+        // The PROMPTING check, not the quiet one the app uses at launch. An app
+        // that has only ever called `AXIsProcessTrusted()` does not appear in the
+        // Accessibility list at all, so opening the pane would show Victor a list
+        // without this app in it and no obvious way in short of the "+" button
+        // and a trip through /Applications. Asking registers it.
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        _ = AXIsProcessTrustedWithOptions(options)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func quitApp() {
