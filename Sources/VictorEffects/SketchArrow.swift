@@ -55,6 +55,10 @@ enum SketchArrow {
     /// The short barb, dropping back inside the ring (r ≈ 0.43).
     static let barbInner = CGPoint(x: -0.371, y: 0.214)
 
+    /// The ring's own arc length in units of R (a 294° sweep) — the yardstick
+    /// every other stroke's wobble frequency is measured against.
+    static let ringSpan: CGFloat = 2 * .pi - (headAngle - tailAngle)
+
     /// Stroke width as a fraction of R — a quarter of the radius, which is what
     /// makes the artwork read as a marker glyph rather than a diagram.
     static let strokeRatio: CGFloat = 0.247
@@ -136,7 +140,7 @@ enum SketchArrow {
     /// out along its own radius by the pass's wobble.
     static func ringPoints(seed: UInt64, wobble: CGFloat, samples: Int = 220) -> [CGPoint] {
         let noise = Wobble(seed: seed, amp: wobble)
-        let sweep = 2 * CGFloat.pi - (headAngle - tailAngle)   // clockwise, ≈ 294°
+        let sweep = ringSpan   // clockwise, ≈ 294°
         return (0...samples).map { i in
             let t = CGFloat(i) / CGFloat(samples)
             let a = tailAngle - sweep * t
@@ -151,9 +155,9 @@ enum SketchArrow {
     /// the same pixel however far they stray afterwards: a chevron whose two
     /// lines miss each other is a different drawing.
     static func barbPoints(to tip: CGPoint, seed: UInt64, wobble: CGFloat, samples: Int = 48) -> [CGPoint] {
-        let noise = Wobble(seed: seed, amp: wobble)
         let dx = tip.x - apex.x, dy = tip.y - apex.y
         let len = max(sqrt(dx * dx + dy * dy), 0.0001)
+        let noise = Wobble(seed: seed, amp: wobble, cycles: len / ringSpan)
         let nx = -dy / len, ny = dx / len                      // unit normal
         return (0...samples).map { i in
             let t = CGFloat(i) / CGFloat(samples)
@@ -244,8 +248,8 @@ enum SketchArrow {
         // A soft cyan halo, so the line reads over a busy desktop without having
         // to be any thicker than the artwork's.
         layer.shadowColor = pass.color.cgColor
-        layer.shadowRadius = width * 0.55
-        layer.shadowOpacity = 0.85
+        layer.shadowRadius = width * 0.35
+        layer.shadowOpacity = 0.6
         layer.shadowOffset = .zero
 
         let draw = CABasicAnimation(keyPath: "strokeEnd")
@@ -306,10 +310,19 @@ struct Wobble {
     private let freq: [CGFloat]
     private let phase: [CGFloat]
 
-    init(seed: UInt64, amp: CGFloat) {
+    /// `cycles` scales every frequency, and it is what keeps a hand's wobble a
+    /// *spatial* wavelength rather than a per-stroke one. The noise runs on
+    /// t ∈ 0…1 along whatever it is given, so a barb a sixth of the ring's
+    /// length would otherwise get the same number of swings crammed into a sixth
+    /// of the distance — which renders as a string of sausages, not a line drawn
+    /// slightly off. Callers pass the stroke's length relative to the longest
+    /// one.
+    init(seed: UInt64, amp: CGFloat, cycles: CGFloat = 1) {
         var rng = SplitMix64(seed: seed)
         self.amp = amp
-        freq = [1.3 + rng.unit() * 1.4, 3.1 + rng.unit() * 2.0, 6.4 + rng.unit() * 3.0]
+        freq = [(1.3 + rng.unit() * 1.4) * cycles,
+                (3.1 + rng.unit() * 2.0) * cycles,
+                (6.4 + rng.unit() * 3.0) * cycles]
         phase = [rng.unit() * 2 * .pi, rng.unit() * 2 * .pi, rng.unit() * 2 * .pi]
     }
 

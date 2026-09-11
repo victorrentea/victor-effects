@@ -1039,7 +1039,10 @@ rule from the start.
   triangle.
   **The sketch is three passes**, each over the same ideal geometry with its own
   smooth wobble (`Wobble`: three sine waves on a seeded phase, weighted 6:3:1 so
-  the line has one lazy swing with smaller ones riding it), its own width
+  the line has one lazy swing with smaller ones riding it, and **scaled by each
+  stroke's own length** — the noise runs on t ∈ 0…1, so without that a barb a
+  sixth of the ring's length got the ring's whole swing count crammed into a
+  sixth of the distance and rendered as a string of sausages), its own width
   (1.00 / 0.58 / 0.36 of the stroke), alpha (0.92 / 0.55 / 0.40) and speed
   (1.00 / 0.90 / 1.10) — a felt-tip goes over a line twice and never lands on it
   twice. Each pass sweeps the ring (**1.35 s**, eased at both ends: a hand does
