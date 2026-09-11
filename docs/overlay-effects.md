@@ -762,16 +762,37 @@ rule from the start.
   place the choice is made**; `showHeartbeat` asks once and wires up whichever it is told.
 
   The cat is deliberately the dog's opposite. It **has no long neck**, so it does not
-  follow the cursor at all: `HeartbeatCatCorner` parks it in the **bottom-left corner**
-  — flush to the left edge, standing on the floor of the screen — aspect-fit inside a box
-  of **half the width by half the height, i.e. a quarter of the screen's area**, and there
+  follow the cursor at all: `HeartbeatCatCorner` parks it in a **bottom corner** and there
   it animates its GIF for as long as the heart beats. No poll, no timer, nothing to
   cancel: it is a **sibling** of the capture layer (so the lub-dub never bulges it, the
   dog's reason) and a sublayer of the tracked `heartbeat` container, which means the
-  container's own self-stop is its self-stop too. On the retina (1512 × 982) the asset's
-  1.40 aspect is squarer than the 756 × 491 box, so **height** binds and the cat draws at
-  **690 × 491**, the slack spent rightward — away from the corner, never by lifting it off
-  the floor.
+  container's own self-stop is its self-stop too.
+
+  Three numbers, all settled at the instant the effect starts and never revisited
+  (Victor, 2026-09-11):
+
+  - **Which corner** — `onRight` gives the cat the half the mouse is *not* in, so it never
+    lands under the pointer and therefore never under the lens the beat is bulging. Read
+    off the same `anchor` the first lens centre uses, i.e. the cursor as it was before the
+    capture. In the right corner the layer is **mirrored about its own centre**
+    (`facing`), so it sits the same way relative to the corner it is in instead of facing
+    off the edge. The dog re-asks nothing either, but for the dog that was a fix; for a
+    cat that never moves there was never a question.
+  - **How big** — aspect-fit inside **half the width by half the height (a quarter of the
+    screen's area)**, then taken down by `scale` = **0.7**. The unscaled fit put a cat
+    690 pt wide in the corner and it read as the subject rather than as company for the
+    beat — `heartbeatDogScale`'s lesson, learned again one corner over. On the retina
+    (1512 × 982) the asset's 1.40 aspect is squarer than the 756 × 491 box, so **height**
+    binds and the cat draws at **≈ 483 × 344**, the slack spent away from its corner.
+  - **How low** — sunk by `sinkFraction` = **9 % of its own height** below the floor of
+    the screen. The GIF's tail sweeps the bottom of its own frame, and a cat sitting
+    exactly on the edge reads as a sticker laid on the desktop; letting the tail run off
+    the edge puts it *in* the room. **The clipping is the effect**, not a placement to
+    clamp back up — the opposite of the dog's hard "bottom edge never lifted off the
+    floor" rule, which exists because the dog's photo is cropped at the chest.
+
+  The chosen corner and the resulting frame are logged on every run, so a screenshot is
+  never needed to tell which side it took.
 
   **The asset is `scared_cat.gif` in `EffectsConfig.assetsDir`** — a downloaded GIF, so it
   is *not in this repo*, same rule as `brother_full.gif`. Drop it there or the cat's turn
