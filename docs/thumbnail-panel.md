@@ -194,8 +194,12 @@ layer, versus a redraw loop in a drawing method:
   question 91 pictures have to answer in one glance. White over dark for the same
   reason `#NN` is white with a black shadow: an outline that vanishes on half the
   tiles is not an outline. The lift is 1.6 pt a side on an 81 pt cell, which fits
-  inside the 6 pt `gap` — a hovered tile never overlaps a neighbour, because
-  sibling order and not hover would decide which one won. The glow is the tile
+  inside the 6 pt `gap` — a hovered tile never overlaps a neighbour. It is also
+  raised by `zPosition` while hovered, because tiles are siblings and the later
+  ones draw on top: without it the glow is painted over by tile n+1 and the tile
+  looks lifted on its left and flat on its right. `zPosition` and not a reorder
+  of the subviews, since the grid lays out by the *index* of its `tileViews`
+  array. The glow is the tile
   layer's own shadow, which is why that layer must **not** set `masksToBounds`:
   a layer clips its own shadow along with its sublayers — the same reason a
   rounded view with a drop shadow always needs two layers. The rounding moved

@@ -283,6 +283,14 @@ final class TileView: NSView {
         layer?.shadowOffset = .zero
         layer?.shadowRadius = Self.hoverGlowRadius
         layer?.shadowOpacity = on ? Self.hoverGlowOpacity : 0
+        // Lift it over its neighbours as well as over the board. Tiles are
+        // siblings and the later ones draw on top, so without this the glow and
+        // the 1.6 pt of lift are painted over by tile n+1 on two sides out of
+        // four — the tile would look lifted on its left and flat on its right.
+        // `zPosition` and NOT a reorder of the subviews: `ThumbnailGridView`
+        // lays out by the INDEX of its `tileViews` array, and moving a view
+        // under the pointer churns tracking areas.
+        layer?.zPosition = on ? 1 : 0
         applyScale()
         CATransaction.commit()
     }
