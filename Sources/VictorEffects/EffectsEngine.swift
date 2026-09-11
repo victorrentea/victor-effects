@@ -153,6 +153,7 @@ final class EffectsEngine {
         case "fireworks":     animator.showFireworks(playSound: false)
         case "fear":          animator.showFear(playSound: false)
         case "fail":          animator.showFail(playSound: false)
+        case "wazzup":        animator.showWazzup(playSound: false)
         case "blood-drip":    animator.showBloodDrip(playSound: false)
         case "sonar":         animator.showSonar(playSound: true)
         case "sepia":         animator.showSepia(playSound: false)

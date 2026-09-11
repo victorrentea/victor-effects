@@ -138,6 +138,30 @@ rule from the start.
   so the routed `/sound/play/73_counter_strike.mp3` supplies the audio and the
   visual never double-triggers. `/test/counter-strike` and `/effect/counter-strike`
   fire it silently; the menu item **Counter-Strike 🔫** (Desktop Effects) too.
+- **👅 Wazzup** (sfx #69 `69_scream_ghost.mp3` → `wazzup`, `showWazzup`,
+  geometry in `WazzupCorner`): tile 69 is the Scary Movie "wazzuuup" bit, so the
+  overlay is the mask that says it — the **tongue-out Ghostface**, cut out of a
+  stock four-mask sheet and **mirrored horizontally** so it leans *into* the
+  desktop, standing flush in the **bottom-left corner**. The box it is fitted
+  into is **a fifth of the screen's area**, i.e. √0.2 ≈ 0.447 of each side
+  (`boxSideFraction`) — *area*, not side: 20 % per side is a sticker nobody reads
+  from the back of a room. Aspect-fit inside that box, so the portrait cut-out
+  binds on **height** and the slack is spent away from the corner —
+  **measured 383 × 497 pt on the 1728 × 1117 retina**, flush to both edges (the
+  whole box would be 773 × 500), i.e. about a tenth of the screen actually
+  inked. Deliberately a **still** — no entrance, no drift;
+  the clip is the joke and anything moving down there pulls the room's eyes off
+  the slide the clip just interrupted. It lives exactly as long as the track
+  (**duration read from the mp3** via `AVURLAsset`, 5.56 s, falling back to that
+  measured value) and fades over its last 0.35 s so it leaves *with* the sound
+  instead of blinking out. Driven from the **press path** (`SoundEffectMap`), so
+  the routed `/sound/play/69_scream_ghost.mp3` supplies the audio and the visual
+  never double-triggers; nothing loops, so there is no `onStop` entry and
+  `trackEffect` is the guaranteed exit. **The artwork is not in this repo**: like
+  `brother_full.gif` and `scared_cat.gif` it is an `assetsDir` file
+  (`wazzup.png`), and when it is missing the effect logs one line
+  (`showWazzup: no wazzup.png in …`) and does nothing — the clip still plays.
+  `/effect/wazzup` fires it silently.
 - **❄️ Snow** (tile #46 `46_michael_buble.mp3` → `snow` / `snow/stop`, `showSnow`):
   **tile #46 IS the Christmas tile** — Michael Bublé's *"It's Beginning to Look a Lot
   Like Christmas"*, snow already falling in its artwork — so pressing it now snows on

@@ -34,6 +34,11 @@ enum SoundEffectMap {
         "70_cavalry.mp3":        "cavalry",
         "73_counter_strike.mp3": "counter-strike",
         "76_sfx_118.mp3":        "wasnt-me",
+        // Tile 69 (👻 scream ghost) is the Scary Movie "wazzuuup" bit, so the
+        // overlay is the mask that says it: the tongue-out Ghostface leaning in
+        // from the bottom-left corner for the length of the clip. Press-driven
+        // and self-terminating, so no onStop entry — nothing here loops.
+        "69_scream_ghost.mp3":   "wazzup",
         // Tile 71 (🔁 "one more time"): the replay arrow off the tile's own
         // artwork is sketched across the desktop in cyan. Silent on this side —
         // the clip plays down the ordinary routed path — and it self-terminates

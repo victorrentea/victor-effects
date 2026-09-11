@@ -4115,6 +4115,62 @@ class EmojiAnimator {
         imgLayer.add(fadeOut, forKey: "failFade")
     }
 
+    // MARK: - Wazzup (sfx #69, 69_scream_ghost.mp3)
+
+    /// 👅 The tongue-out Ghostface mask leaning in from the **bottom-left
+    /// corner** for exactly as long as the clip runs.
+    ///
+    /// Deliberately a still and nothing else: the clip is the joke, the mask is
+    /// the punchline standing next to it. No entrance animation and no drift —
+    /// anything moving down there would pull the room's eyes off the slide the
+    /// clip is interrupting, which is the opposite of what a five-second gag is
+    /// for. Only the last 0.35 s fade, so it leaves with the sound instead of
+    /// blinking out.
+    ///
+    /// Geometry (which corner, how big) lives in `WazzupCorner` so it can be
+    /// tested without a screen.
+    func showWazzup(playSound: Bool = true) {
+        if cancelIfRunning("wazzup", sound: playSound ? WazzupCorner.soundName : nil) { return }
+
+        // Cut out from a stock mask sheet and mirrored, so it is not in the
+        // repo: drop it into assetsDir and the effect wakes up. Absent, it logs
+        // one line and does nothing rather than crash — the clip still plays.
+        guard let url = EffectsConfig.shared.assetURL(WazzupCorner.assetName),
+              let img = NSImage(contentsOf: url), img.size.width > 0, img.size.height > 0 else {
+            overlayInfo("showWazzup: no \(WazzupCorner.assetName) in \(EffectsConfig.shared.assetsDir.path)")
+            return
+        }
+
+        // Linger exactly as long as the ghost track; fall back to its measured length.
+        var duration = WazzupCorner.fallbackDuration
+        if let soundURL = SoundManager.shared.soundURL(for: WazzupCorner.soundName) {
+            let d = AVURLAsset(url: soundURL).duration
+            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+        }
+
+        let box = WazzupCorner.frame(imageSize: img.size, in: hostLayer.bounds)
+        let layer = CALayer()
+        layer.frame = box
+        layer.contents = img
+        layer.contentsGravity = .resizeAspect
+        hostLayer.addSublayer(layer)
+        overlayInfo(String(format: "👅 wazzup: bottom-left, %.0f×%.0f at (%.0f, %.0f), %.2fs",
+                           box.width, box.height, box.minX, box.minY, duration))
+
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.fromValue = 1.0
+        fadeOut.toValue = 0.0
+        fadeOut.beginTime = CACurrentMediaTime() + max(0, duration - 0.35)
+        fadeOut.duration = 0.35
+        fadeOut.fillMode = .forwards
+        fadeOut.isRemovedOnCompletion = false
+        layer.add(fadeOut, forKey: "wazzupFade")
+
+        if playSound { SoundManager.shared.play(WazzupCorner.soundName) }
+        trackEffect("wazzup", layer: layer, duration: duration,
+                    sound: playSound ? WazzupCorner.soundName : nil)
+    }
+
     // MARK: - Blood drip overlay (sfx #40, 40_joker.mp3)
 
     /// Blood band pinned to the TOP of the screen at full width, drips hanging
@@ -9012,7 +9068,11 @@ class EmojiAnimator {
     func showSketchArrow() {
         _ = cancelIfRunning("sketch-arrow")
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        guard let layer = SketchArrow.makeLayer(in: hostLayer.bounds, scale: scale) else { return }
+        // The menu bar's strip is not desktop, so the drawing is centred on what
+        // can actually be seen rather than on the panel — see SketchArrow.visibleDrop.
+        let screen = Screens.overlayScreen()
+        let menuBar = screen.map { max(0, $0.frame.maxY - $0.visibleFrame.maxY) } ?? 0
+        guard let layer = SketchArrow.makeLayer(in: hostLayer.bounds, topInset: menuBar, scale: scale) else { return }
         hostLayer.addSublayer(layer)
         trackEffect("sketch-arrow", layer: layer, duration: SketchArrow.totalDuration)
     }
