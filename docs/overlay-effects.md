@@ -508,6 +508,29 @@ rule from the start.
     would otherwise strand the desktop with no cursor. `/test/fire`, `/test/fire/stop`,
     `/effect/fire` and the menu item **Fire Cursor 🔥** fire it silently.
 
+- **💕 Love hands** (tile #41 `41_love_hearts.mp3` → `love-hands` / `love-hands/stop`,
+  `showLoveHands`): two hands (`love_hand_left.png` / `love_hand_right.png` from
+  `EffectsConfig.assetsDir`, square halves at aspect 0.5) slide in from the left and right
+  edges over **2.7 s**, eased out, meet at the horizontal centre a fifth of a screen height
+  below the middle, and spawn a heart burst out of the meeting point. They then linger until
+  the clip is nearly over and **fade** out with it (never an instant cut), identity-guarded
+  so an old run's timer cannot kill a newer one — this is the effect the "love-hands pattern"
+  in the lifecycle rule above is named after. The hands live in a container that is **added
+  to the layer tree and owns both of them**, so every teardown path takes them down together;
+  they used to be siblings under `host` with an empty off-tree wrapper tracked in their
+  place, and a stop cleared the tracker while leaving the hands on the desktop.
+  - **Size and opacity (2026-09-11):** `handHeight` is **1.04 × the screen height** — the
+    0.40 it started at, +30 % to 0.52, then **doubled**. They are deliberately taller than
+    the screen now: at that size they read as two hands reaching *into* the frame rather than
+    two cut-outs sliding across it, and the bottom of the wrists is cropped by the bottom
+    edge instead of floating. Everything else is derived from `handHeight` (width, the meeting
+    positions, the off-screen start points), so the **motion is unchanged** — same 2.7 s
+    converge, same ease, same meeting point.
+    The hands are **80 % opaque**, set on the two hand layers and *not* on the container: the
+    heart burst is a child of the same container, and it is the hands that should let the
+    desktop through, not the hearts. `fadeOutLoveHands` animates the container to 0 on top of
+    that, so 0.8 is simply the ceiling the fade starts from.
+
 - **🌈 Rainbow + 🦄 unicorns** (tile #37 `37_rainbow.mp3` → `rainbow` /
   `rainbow/stop`, `showRainbow`): seven translucent bands drawn as a **quarter**-arc —
   the circle's centre is pushed onto the right screen edge, so only the left quarter of

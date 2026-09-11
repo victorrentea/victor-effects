@@ -5341,7 +5341,12 @@ class EmojiAnimator {
         }
 
         let bounds = hostLayer.bounds
-        let handHeight = bounds.height * 0.52        // +30% over the original 0.40
+        // 0.40 → 0.52 (+30%) → 1.04 (×2, 2026-09-11). The hands are now taller
+        // than the screen and that is the point: they read as two hands reaching
+        // INTO the frame rather than two cut-outs sliding across it. The motion
+        // is untouched — every other number here is derived from handHeight, so
+        // doubling it moves the start/end positions with it.
+        let handHeight = bounds.height * 1.04
         // Source images are square halves (512x1024 → aspect 0.5).
         let handWidth = handHeight * 0.5
         // Place the hand centre 1/5 of screen height below screen midpoint
@@ -5366,16 +5371,25 @@ class EmojiAnimator {
         hostLayer.addSublayer(container)
         activeEffects["love-hands"] = container
 
+        // 0.8, and on the two hand layers rather than on `container`: the heart
+        // burst is a child of the same container, and it is the HANDS that
+        // should let the desktop through, not the hearts. Fading out still works
+        // — `fadeOutLoveHands` animates the container's opacity to 0 on top of
+        // this, so 0.8 is the ceiling the fade starts from.
+        let handOpacity: Float = 0.8
+
         let leftLayer = CALayer()
         leftLayer.frame = CGRect(x: leftEndX, y: handY, width: handWidth, height: handHeight)
         leftLayer.contents = leftCG
         leftLayer.contentsGravity = .resizeAspect
+        leftLayer.opacity = handOpacity
         container.addSublayer(leftLayer)
 
         let rightLayer = CALayer()
         rightLayer.frame = CGRect(x: rightEndX, y: handY, width: handWidth, height: handHeight)
         rightLayer.contents = rightCG
         rightLayer.contentsGravity = .resizeAspect
+        rightLayer.opacity = handOpacity
         container.addSublayer(rightLayer)
 
         let converge: CFTimeInterval = 2.7          // 3× slower than the original 0.9s
