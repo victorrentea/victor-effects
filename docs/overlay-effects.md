@@ -781,9 +781,11 @@ rule from the start.
   - **How big** — aspect-fit inside **half the width by half the height (a quarter of the
     screen's area)**, then taken down by `scale` = **0.7**. The unscaled fit put a cat
     690 pt wide in the corner and it read as the subject rather than as company for the
-    beat — `heartbeatDogScale`'s lesson, learned again one corner over. On the retina
-    (1512 × 982) the asset's 1.40 aspect is squarer than the 756 × 491 box, so **height**
-    binds and the cat draws at **≈ 483 × 344**, the slack spent away from its corner.
+    beat — `heartbeatDogScale`'s lesson, learned again one corner over. The asset's 1.40
+    aspect is squarer than the box on any wide screen, so **height** is what binds: on the
+    1728 × 1117 built-in panel the cat measures **549 × 391 at (0, −35)** (logged on every
+    run), and on the 1512 × 982 the heartbeat tests use as their fixture, ≈ 483 × 344. The
+    slack is spent away from its corner either way.
   - **How low** — sunk by `sinkFraction` = **9 % of its own height** below the floor of
     the screen. The GIF's tail sweeps the bottom of its own frame, and a cat sitting
     exactly on the edge reads as a sticker laid on the desktop; letting the tail run off
