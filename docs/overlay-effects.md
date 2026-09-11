@@ -302,13 +302,23 @@ rule from the start.
 
 - **💀 Game over → 📺 CRT shutdown** (tile #59 `59_game_over.mp3` → `game-over` /
   `game-over/stop`, `showGameOver` + `showCrtShutdown`/`CrtShutdown.swift`): the
-  picture first — a 70% black backdrop with the GAME OVER art centred at 70% of
-  the screen width, held for **exactly the clip's length** (read off
-  `59_game_over.mp3`, ~1.6 s; 2.0 s if the file is missing, deliberately short so
-  an absent sound cannot leave a long black screen) and then removed abruptly, no
-  fade. The tablet's `/sound/stopped` → `game-over/stop` is the polite end and is
-  **not** the authoritative one (`stopGameOver` only clears 0.5 s later, if it
-  arrives at all) — `trackEffect` is.
+  picture first — **TV white noise** (`TvStatic.swift`) with the GAME OVER art
+  centred at 70% of the screen width on top of it, held for **exactly the clip's
+  length** (read off `59_game_over.mp3`, ~1.6 s; 2.0 s if the file is missing,
+  deliberately short so an absent sound cannot leave a long dead screen). The
+  backdrop **used to be a flat 70% black wash**, which only dimmed the desktop
+  and said nothing; the tile is a set that has lost its signal, so it now shows
+  what such a set shows. The noise is **translucent** (`TvStatic.defaultAlpha`,
+  0.55) so whatever is being demoed still reads through it, and **animated at 16
+  fps** — 6 bitmaps rendered ONCE at a **quarter** of the screen's resolution
+  (binary black/white, not random greys, which average into a flat wash once
+  translucent), cached per screen size, and cycled by a `CAKeyframeAnimation` on
+  `contents` with `calculationMode = .discrete`. Nothing is generated while it is
+  on screen. `magnificationFilter = .nearest` on the blow-up is what keeps the
+  pixels square: interpolated, the grain is grey mush rather than speckle.
+  The tablet's `/sound/stopped` → `game-over/stop` is the polite end and is
+  **not** the authoritative one (`stopGameOver` clears it one close-length later,
+  if it arrives at all) — `trackEffect` is.
   **Then the desktop switches off like an old cathode-ray television.** Two black
   rectangles come in from the top and the bottom edge over **0.7 s** (`.easeIn`),
   leaving the middle transparent while they close, until only a **10 pt white
@@ -328,11 +338,20 @@ rule from the start.
   exactly half a screen, so the two meet on the middle with no seam to align; the
   white line is drawn **on top** of them (not in a gap) and collapses via
   `transform.scale.x` → 0, which pulls both ends in at once.
+  **It closes OVER the game-over screen, and changes nothing about it.** The CRT
+  container is added to `hostLayer` *after* the game-over container, so it is
+  strictly above it, and the game-over layer is **kept alive through the whole
+  close** (`trackEffect(duration: clip + CrtShutdown.closeDuration)`,
+  `stopGameOver` delayed by the same 0.7 s): the static keeps boiling and the
+  picture stays put underneath until the black has met in the middle. Dropping it
+  when the shutters started — which is what the first cut of this did — flashed
+  the bare desktop through the gap they had not covered yet, the opposite of a set
+  switching off. Nothing brightens or is repainted: the only white is the line,
+  and that arrives after the black is complete.
   **Arming, and what cancels it.** The close is scheduled from `showGameOver` for
-  the same deadline at which `trackEffect` drops the GAME OVER layer — queued
-  second, so it runs second and the shutters start on the frame the picture
-  leaves. It cannot check `activeEffects` to see whether the run is still alive
-  (that entry is gone by then either way), so it carries an epoch,
+  the deadline at which the clip ends. It cannot check `activeEffects` to see
+  whether the run is still alive (its own cleanup is on the same clock), so it
+  carries an epoch,
   `_crtArmEpoch`, bumped both by `showGameOver` and by `stopAllActiveEffects`.
   A `/effect/stop-all` during the picture — what a preempting tile press and a
   non-restartable re-tap both send — therefore cancels the pending close, and a

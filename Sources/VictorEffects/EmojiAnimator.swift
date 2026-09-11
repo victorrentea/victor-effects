@@ -4011,13 +4011,22 @@ class EmojiAnimator {
         let container = CALayer()
         container.frame = bounds
         hostLayer.addSublayer(container)
-        trackEffect("game-over", layer: container, duration: duration)
+        // Outlives the sound by exactly the CRT close: the tube shuts OVER the
+        // game-over screen as it is — static still boiling, picture still there —
+        // and only once the black has met in the middle is there nothing left to
+        // see. Dropping it when the shutters start would flash the bare desktop
+        // through the closing gap, which is the opposite of a set switching off.
+        trackEffect("game-over", layer: container,
+                    duration: duration + CrtShutdown.closeDuration)
 
-        // 70% black backdrop
-        let blackLayer = CALayer()
-        blackLayer.frame = bounds
-        blackLayer.backgroundColor = NSColor.black.withAlphaComponent(0.7).cgColor
-        container.addSublayer(blackLayer)
+        // 📺 Backdrop: TV WHITE NOISE, not a flat wash. The tile is a set that
+        // has lost its signal, and static is what that looks like — a 70% black
+        // rectangle just dimmed the desktop and said nothing. Translucent
+        // (TvStatic.defaultAlpha) so what is being demoed still reads through it,
+        // and animated (see TvStatic) so it boils instead of sitting there.
+        if let staticLayer = TvStatic.makeLayer(in: bounds) {
+            container.addSublayer(staticLayer)
+        }
 
         // Game Over image centered — PNG with transparent background
         if let url = Bundle.module.url(forResource: "game-over", withExtension: "png"),
@@ -4032,12 +4041,10 @@ class EmojiAnimator {
             imgLayer.contentsGravity = .resizeAspect
             container.addSublayer(imgLayer)
         }
-        // Overlay disappears abruptly via trackEffect after duration — no fade
-        // …and the screen it leaves behind closes like an old CRT being switched
-        // off (CrtShutdown). Armed on the SAME deadline as the trackEffect
-        // cleanup above — which was queued first, so it runs first: the GAME OVER
-        // picture is gone on the frame the shutters start moving, one continuous
-        // gesture instead of two overlays taking turns. The epoch is the guard: a
+        // No fade — and what ends it is the tube being switched off
+        // (CrtShutdown), armed for the moment the sound ends. The CRT layer is
+        // added to hostLayer AFTER this container, so it closes on top of a
+        // game-over screen that is still running underneath it. The epoch is the guard: a
         // /effect/stop-all (which is what a preempting tile press and a
         // non-restartable re-tap both send) bumps it and this hop does nothing.
         // Note `game-over/stop` deliberately does NOT disarm it — that message
@@ -8334,10 +8341,14 @@ class EmojiAnimator {
         CATransaction.commit()
     }
 
-    // MARK: - Stop game-over overlay (0.5s after sound ends)
+    // MARK: - Stop game-over overlay (once the CRT shutters have closed over it)
 
+    /// The client sends this when the clip ends, which is the same instant the
+    /// tube starts closing — so the delay is the length of that close, not the
+    /// old 0.5 s. Cutting the picture mid-close would show the bare desktop
+    /// through the gap the shutters have not covered yet.
     func stopGameOver() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + CrtShutdown.closeDuration + 0.05) { [weak self] in
             _ = self?.cancelIfRunning("game-over")
         }
     }
