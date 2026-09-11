@@ -3277,7 +3277,17 @@ class EmojiAnimator {
     /// How much bigger the minigun aiming reticle is than the 1.5× nuke reticle —
     /// the bullet-spray crosshair reads as a heftier "machine-gun sight".
     private static let minigunReticleScale: CGFloat = 2.5
-    static let minigunAimLeadIn: Double = 0.5
+    /// The gun's solo. It rises out of the bottom edge at t=0 and hauls itself
+    /// after the mouse for this long **in silence**, then the reticle, the first
+    /// bullet hole and the noise all arrive on the same instant. Raised from
+    /// 0.5 s to a **full second** (2026-09-11): half a second was not enough
+    /// beat for a room to notice the weapon before it opened fire.
+    ///
+    /// It is also the delay applied to the *audio* on the routed
+    /// `/sound/play/22_minigun.mp3` path (`EffectsEngine.playSound`), which is
+    /// the only reason the three coincide — the tablet starts the sound in its
+    /// own HTTP request, milliseconds before the one that starts the visual.
+    static let minigunAimLeadIn: Double = 1.0
     static let minigunBulletHoleScale: CGFloat = 0.7
 
     // MARK: The gun itself (minigun.gif)
@@ -3431,6 +3441,7 @@ class EmojiAnimator {
                 CGDisplayHideCursor(CGMainDisplayID())
                 self._minigunReticleHidCursor = true
             }
+            overlayInfo("🔫 reticle revealed")
         }
         if leadIn > 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + leadIn, execute: revealCrosshair)
@@ -4898,7 +4909,24 @@ class EmojiAnimator {
                 // child, on purpose: the lub-dub beats `imgLayer` alone (CALayer
                 // filters apply to a layer *and its sublayers*), so the screen
                 // bulges under the cursor while the dog beside it stays undistorted.
-                if let dog = Self.makeHeartbeatDogLayer(bounds: bounds) {
+                // 🐶/🐱 The companion alternates run to run — the choice itself
+                // lives in `HeartbeatCompanion`, this is only the wiring. The cat
+                // sits still in the bottom-left corner (no follow timer); the dog
+                // is the one that trots after the beat. A cat asked for but
+                // missing from assetsDir falls back to the dog.
+                var companion: CALayer?
+                if HeartbeatCompanion.next() == .cat {
+                    companion = HeartbeatCatCorner.makeLayer(bounds: bounds)
+                    if companion == nil {
+                        overlayInfo("💓 \(HeartbeatCatCorner.assetName) not in \(EffectsConfig.shared.assetsDir.path) — falling back to the 🐶")
+                    } else {
+                        overlayInfo("💓 companion: 🐱 corner cat")
+                    }
+                }
+                if let cat = companion {
+                    container.addSublayer(cat)
+                } else if let dog = Self.makeHeartbeatDogLayer(bounds: bounds) {
+                    overlayInfo("💓 companion: 🐶 following dog")
                     container.addSublayer(dog)
                     self.watchHeartbeatDog(dog, effect: container, bounds: bounds,
                                            until: clock0 + totalDuration)
@@ -6212,7 +6240,11 @@ class EmojiAnimator {
         // 42 evenly-spaced shots (~7/s): 30% lower fire rate than the original
         // 60, spread over the same window so the burst still spans the sound.
         let count = 42
-        let spawnStart = 0.25
+        // 0, not 0.25: the first hole has to land on the same instant as the
+        // reticle and the first frame of noise. A quarter second of crosshair
+        // over an unmarked desktop read as a misfire after the (now full second
+        // of) silent aiming.
+        let spawnStart = 0.0
         let spawnEnd = totalDuration - 0.25
 
         guard let url = Bundle.module.url(forResource: "bullet_hole", withExtension: "png"),
@@ -6230,6 +6262,10 @@ class EmojiAnimator {
         // with the holes; the resorb pass below skips it by identity.
         let gun = makeMinigunSprite(in: bounds)
         if let gun { container.addSublayer(gun) }
+        // The three lines this and the two below print are how the lead-in is
+        // checked without watching the screen: gun, then a silent gap of
+        // `minigunAimLeadIn`, then reticle + first hole on the same tenth.
+        overlayInfo("🔫 gun up — \(Self.minigunAimLeadIn)s of silence before reticle/holes/sound")
 
         let interval = (spawnEnd - spawnStart) / Double(count - 1)
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
@@ -6247,6 +6283,7 @@ class EmojiAnimator {
             let delay = Self.minigunAimLeadIn + spawnStart + Double(i) * interval
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak container] in
                 guard let self, let container, container.superlayer != nil else { return }
+                if i == 0 { overlayInfo("🔫 first bullet hole") }
                 let mouse = self.mouseInHostLayer()
 
                 let x: CGFloat

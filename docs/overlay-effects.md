@@ -319,8 +319,8 @@ rule from the start.
   **by identity** (`hole !== gun`) so the gun doesn't implode along with the bullet holes.
   Its opacity is **one keyframe track** (the wasn't-me pattern) beginning at **t=0**: the gun
   is the first thing on screen, and it has faded out by the time the last hole is resorbed.
-  The **0.5 s `minigunAimLeadIn` now belongs to the gun, not the reticle** — the weapon rises
-  out of the bottom edge and hauls itself after the mouse for half a second *before* the
+  The **`minigunAimLeadIn` belongs to the gun, not the reticle** — the weapon rises
+  out of the bottom edge and hauls itself after the mouse *before* the
   pointer turns into the crosshair and the sound + bullets start, which is the order the
   gesture actually reads in: you see the thing that is about to shoot, then it shoots. The
   reticle layer and its 60 fps tick are still created on the press (the tick is what steers
@@ -328,7 +328,20 @@ rule from the start.
   identity guard covering the lead-in, so a cancelling re-press inside it cannot leave a reveal
   scheduled behind it) — only the crosshair's opacity and the **real cursor's hide** are
   deferred to `revealAfter`. Hiding the cursor early would have left the desktop with no
-  pointer at all for that half second.
+  pointer at all for that silent stretch.
+  - **The lead-in is a full second and it is silent (2026-09-11).** It used to be 0.5 s, and
+    the noise did not respect it at all: the tablet starts the audio in its **own** HTTP
+    request (`/sound/play/22_minigun.mp3`, sent just before `/sound/pressed/…`), so the burst
+    was audible while the gun was still climbing. The routed path now special-cases the tile
+    in `EffectsEngine.playSound` and hands `playTabletSound` an explicit
+    `lead: EmojiAnimator.minigunAimLeadIn` — the one `lead:` override in the app, for the one
+    sound whose head start is owned by animation code instead of `sound-timing.json`. The
+    lead is added to the returned `durationMs` exactly as a configured one is, so the tile
+    stays lit for the whole thing (≈7.4 s now, not 6.4 s) instead of un-highlighting a second
+    early. `spawnStart` also went **0.25 → 0**: reticle, first hole and first frame of noise
+    now land on the same instant, which is the whole point of the silence before them.
+    Three log lines (`🔫 gun up…`, `🔫 reticle revealed`, `🔫 first bullet hole`) make that
+    checkable without watching the screen.
 
 - **🪚 Chainsaw cursor** (tile #18 `18_chainsaw.mp3` → `chainsaw` / `chainsaw/stop`,
   `showChainsawCursor`): for the length of the clip **the mouse pointer IS a running
@@ -485,7 +498,7 @@ rule from the start.
   six landings off by the same constant. All seven hang off one `clock0`, stamped in
   `showRainbow` next to the line that starts the sound.
 
-- **💓 Heartbeat + 🐶 dog** (tile #13 `13_heartbeat.mp3`, `showHeartbeat`): the built-in
+- **💓 Heartbeat + 🐶 dog / 🐱 cat** (tile #13 `13_heartbeat.mp3`, `showHeartbeat`): the built-in
   Retina is captured and redrawn full-screen, then **bulged under the cursor** in a
   lub-dub keyframe, twice per cycle, with the lens **re-centred on the live mouse
   before every beat** — the screen beats wherever the cursor rests.
@@ -649,6 +662,35 @@ rule from the start.
   freeze that stopped a mid-flight re-aim are all gone, and `minStep` is the only
   motion rule left. What remains is the follow — the dog stays on the same side of the
   pointer and trots after it wherever it goes.
+
+  **🐱 Every other run it is a cat instead** (Victor, 2026-09-11). `HeartbeatCompanion`
+  alternates the beat's companion run to run — run 1 the dog, run 2 the cat, run 3 the
+  dog — in memory only: the toggle is a `static var`, not a `UserDefaults` key, because a
+  restart beginning again at the dog is the correct cold start, not a bug. It is **the one
+  place the choice is made**; `showHeartbeat` asks once and wires up whichever it is told.
+
+  The cat is deliberately the dog's opposite. It **has no long neck**, so it does not
+  follow the cursor at all: `HeartbeatCatCorner` parks it in the **bottom-left corner**
+  — flush to the left edge, standing on the floor of the screen — aspect-fit inside a box
+  of **half the width by half the height, i.e. a quarter of the screen's area**, and there
+  it animates its GIF for as long as the heart beats. No poll, no timer, nothing to
+  cancel: it is a **sibling** of the capture layer (so the lub-dub never bulges it, the
+  dog's reason) and a sublayer of the tracked `heartbeat` container, which means the
+  container's own self-stop is its self-stop too. On the retina (1512 × 982) the asset's
+  1.40 aspect is squarer than the 756 × 491 box, so **height** binds and the cat draws at
+  **690 × 491**, the slack spent rightward — away from the corner, never by lifting it off
+  the floor.
+
+  **The asset is `scared_cat.gif` in `EffectsConfig.assetsDir`** — a downloaded GIF, so it
+  is *not in this repo*, same rule as `brother_full.gif`. Drop it there or the cat's turn
+  quietly becomes the dog's, with one `info` line naming the directory. It is stored
+  **pre-cropped**: the download was a 500 × 500 canvas whose subject occupies only
+  486 × 346, and the empty margin is not free — aspect-fitting the untrimmed canvas would
+  shrink the cat by a third and float it above the corner it is supposed to sit in. The
+  crop is the union alpha bounding box over all 30 frames (`magick … -coalesce -crop
+  486x346+5+96 +repage -dispose Background -layers OptimizeTransparency`), done once
+  offline rather than at load time. Frames are decoded once and cached by file
+  modification date, so replacing the GIF is picked up without a rebuild.
 
 - **🚪 FBI knock** (tile #64 `64_fbi.mp3`, `showFbiKnock`): the built-in Retina is
   captured and redrawn full-screen, then **shoved 7% larger on each of the three door

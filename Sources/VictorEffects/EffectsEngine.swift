@@ -380,6 +380,21 @@ final class EffectsEngine {
         if name == "80_badumtss.mp3" {
             return remember(Int(EmojiAnimator.minionDuration * 1000))
         }
+        // Tile #22 (🔫 minigun): the gun is on screen ALONE for
+        // `minigunAimLeadIn`, then the reticle, the first bullet hole and the
+        // noise arrive together. The visual half of that silence is inside
+        // `showBulletHoles` (the press path), but the audio is started here, by
+        // the client's *other* HTTP request — so the same lead-in is applied to
+        // the clip, and only then do the three coincide. Unlike the FBI knock
+        // this tile stays in `SoundEffectMap`: nothing here needs the capture,
+        // so the visual can keep starting from the press.
+        if name == "22_minigun.mp3" {
+            guard let duration = SoundManager.shared.playTabletSound(
+                "22_minigun.mp3", volume: volume,
+                lead: EmojiAnimator.minigunAimLeadIn) else { return nil }
+            effectsInfo("🔫 minigun audio scheduled +\(EmojiAnimator.minigunAimLeadIn)s, durationMs \(Int(duration * 1000))")
+            return remember(Int(duration * 1000))
+        }
         // Tile #27 (👏 applause): the clip is played 30 % shorter (tail faded)
         // so the audible clapping matches the trimmed GIF.
         if name == "27_clapping.mp3" {

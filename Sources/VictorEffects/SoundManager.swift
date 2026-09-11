@@ -335,7 +335,13 @@ class SoundManager {
     /// seconds (the tablet schedules its effect-stop chain from it), or nil
     /// if the file is unknown/unplayable. Synchronous — must be called on the
     /// main thread (TabletHttpServer dispatches handlers via DispatchQueue.main.sync).
-    func playTabletSound(_ filename: String, volume: Float? = nil) -> TimeInterval? {
+    /// `lead` overrides the shared `sound-timing.json` head start for this one
+    /// call, for a sound whose paired visual owns the number in code rather than
+    /// in the config file (tile #22, whose gun is on screen alone for
+    /// `EmojiAnimator.minigunAimLeadIn` before anything is heard). It is added
+    /// to the returned duration exactly as a configured lead is, so the client's
+    /// completion timer still covers the whole clip.
+    func playTabletSound(_ filename: String, volume: Float? = nil, lead: TimeInterval? = nil) -> TimeInterval? {
         if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
         // Preempt by fading, not by cutting: the outgoing clip keeps playing
         // under the new one for `interruptFade` seconds.
@@ -350,7 +356,7 @@ class SoundManager {
             player.volume = tabletVolume
             player.prepareToPlay()
             tabletPlayer = player
-            let lead = Self.pairedEffectStartDelays[filename] ?? 0
+            let lead = lead ?? Self.pairedEffectStartDelays[filename] ?? 0
             // When this Mac's own output is Bluetooth, prepend silence to warm
             // the A2DP link (so the sound isn't clipped) and remember the
             // compensation so the paired visual — a separate /effect request

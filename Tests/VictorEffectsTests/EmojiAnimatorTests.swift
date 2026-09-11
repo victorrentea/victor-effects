@@ -272,8 +272,11 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertLessThan(EmojiAnimator.bombFallingZ, EmojiAnimator.bombBlastZ)
     }
 
-    func testMinigunAllowsHalfSecondAimLeadInAndSmallerBulletHoles() {
-        XCTAssertEqual(EmojiAnimator.minigunAimLeadIn, 0.5, accuracy: 0.001)
+    /// The lead-in is a whole second of gun-only silence (raised from 0.5 s on
+    /// 2026-09-11) and it is also what the routed clip is delayed by, so the
+    /// reticle, the first hole and the first frame of noise coincide.
+    func testMinigunAllowsOneSecondAimLeadInAndSmallerBulletHoles() {
+        XCTAssertEqual(EmojiAnimator.minigunAimLeadIn, 1.0, accuracy: 0.001)
         XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.7, accuracy: 0.001)
     }
 
