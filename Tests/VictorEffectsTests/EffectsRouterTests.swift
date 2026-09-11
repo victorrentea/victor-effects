@@ -37,6 +37,13 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/effect/crt-shutdown"), .effect("crt-shutdown"))
     }
 
+    func testRouteSketchArrowTestAndEffectEndpoints() {
+        // 🔁 Tile #71's replay arrow. One-shot, so no /stop twin: it ends itself
+        // at the clip's length.
+        XCTAssertEqual(route("/test/sketch-arrow"), .effect("sketch-arrow"))
+        XCTAssertEqual(route("/effect/sketch-arrow"), .effect("sketch-arrow"))
+    }
+
     func testRouteElephantTestAndEffectEndpoints() {
         // 🐘 is a toggle, so the alias has a /stop twin.
         XCTAssertEqual(route("/test/elephant"), .effect("elephant"))

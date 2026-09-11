@@ -1019,6 +1019,50 @@ rule from the start.
   start delay would push the blast late off the fireball it exists to land on.
 
 
+- **🔁 Sketch arrow** (sfx #71 `71_one_more_time.mp3` → `sketch-arrow`,
+  `SketchArrow.swift`): tile #71's own artwork — a ring open at the top with a
+  big open chevron at its head — **drawn live** across the middle of the desktop
+  in cyan, as if somebody were sketching it with a marker, then held for the clip
+  and dissolved.
+  **Procedural, not a picture.** The glyph is `CAShapeLayer`s whose `strokeEnd`
+  runs 0 → 1; a PNG could be shown but not *drawn*, and would have to be re-cut
+  for every display size. The geometry was measured off the tile's jpg (threshold
+  the black, fit the annulus: centre-line radius R, stroke 0.247 R) and is stored
+  **normalised to R = 1** — which is why one set of numbers covers every screen.
+  The ring runs from the free tail at **47°** (≈ 1:30) the long way round through
+  the bottom to **113°** (≈ 11:00): a **clockwise 294° sweep** with the gap at the
+  top, and the head therefore points up and to the right along that tangent. The
+  arrowhead is two long barbs meeting at ≈ 91° on a point just outside the ring
+  (r ≈ 1.10) — an open chevron, the way the artwork draws it, not a filled
+  triangle.
+  **The sketch is three passes**, each over the same ideal geometry with its own
+  smooth wobble (`Wobble`: three sine waves on a seeded phase, weighted 6:3:1 so
+  the line has one lazy swing with smaller ones riding it), its own width
+  (1.00 / 0.58 / 0.36 of the stroke), alpha (0.92 / 0.55 / 0.40) and speed
+  (1.00 / 0.90 / 1.10) — a felt-tip goes over a line twice and never lands on it
+  twice. Each pass sweeps the ring (**1.35 s**, eased at both ends: a hand does
+  not start or stop a 294° curve at speed), then flicks the two barbs **from the
+  apex outwards** (0.32 s each, 0.18 s apart), the second starting 0.12 s before
+  the ring lands so the head reads as the same gesture rather than a second
+  drawing. Pen-up is at **`drawDuration` ≈ 2.04 s** — the *last* pass's, not the
+  first's.
+  **Then it boils.** Every stroke cycles between three wobble variants at 8 fps
+  (a discrete `path` keyframe animation), the trick hand-drawn animation uses to
+  keep an inked line alive; without it a 13 s hold is thirteen seconds of a frozen
+  decal. The boil begins only at pen-up — a line still being drawn must not
+  squirm. The wobble is seeded and pure, so the variants are a *fixed* set and
+  the line breathes instead of shimmering.
+  **Size and lifetime.** The glyph's own box (ring + the barb flung out left +
+  the point) is **0.75 of the screen height**, centred as a box — centring the
+  *ring* would hang the drawing right of the middle, because the long barb sticks
+  out on the left. It lives `SketchArrow.totalDuration` = **13.56 s**, the clip's
+  length (`afinfo`), with the 0.8 s dissolve *inside* that window, so the layer
+  `trackEffect` removes is already invisible when it goes — the self-termination
+  rule with nothing owed to any client. Silent on this side: the clip plays down
+  the ordinary routed `/sound/play` path, which is why #71 needs no special case
+  in `playSound` and no `onStop` entry. `stop-all` clears it like any other
+  tracked effect; re-firing redraws it (it is not a toggle).
+
 ## ☕ The hold-charge gesture
 
 `EmojiAnimator.tickCoffeeCharge(cursorGlobalPoint:)` is polled at 10 Hz by

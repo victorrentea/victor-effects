@@ -34,6 +34,11 @@ enum SoundEffectMap {
         "70_cavalry.mp3":        "cavalry",
         "73_counter_strike.mp3": "counter-strike",
         "76_sfx_118.mp3":        "wasnt-me",
+        // Tile 71 (🔁 "one more time"): the replay arrow off the tile's own
+        // artwork is sketched across the desktop in cyan. Silent on this side —
+        // the clip plays down the ordinary routed path — and it self-terminates
+        // at the clip's length, so no onStop entry is needed.
+        "71_one_more_time.mp3":  "sketch-arrow",
         // Tile 18 (🪚 chainsaw): the mouse pointer itself becomes a running
         // chainsaw for the length of the clip. Press starts it, stop puts the
         // real pointer back (see onStop) — and the effect self-stops at the
