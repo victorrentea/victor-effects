@@ -37,9 +37,38 @@ enum ThumbnailPanelPlacement {
     /// noise that a test asserting the two thirds would trip over.
     static let soloNumerator: CGFloat = 2
 
+    /// Where the panel keeps its edge when it is shortened to hug the grid.
+    enum VerticalAnchor: Equatable {
+        /// The bottom-right corner layout: the bottom edge is the fixed one,
+        /// so shortening the panel lowers its top and the corner stays put.
+        case bottom
+        /// The filled-screen layout: nothing anchors it, so it stays centred.
+        case centred
+    }
+
     struct Placement: Equatable {
         let screen: PanelScreen
         let frame: NSRect
+        let anchor: VerticalAnchor
+    }
+
+    /// Shorten a placed frame to the height the grid actually draws at.
+    ///
+    /// The cells are square and fit both ways, so whenever the **width** is
+    /// what binds — 13 columns is usually is — the grid comes out shorter than
+    /// the frame and the remainder is black. This trims it. It only ever
+    /// shrinks: a grid taller than its frame is already the shrunk-cell case
+    /// and wants every point it was given.
+    static func hug(_ frame: NSRect, toContentHeight height: CGFloat,
+                    anchor: VerticalAnchor) -> NSRect {
+        let h = min(frame.height, max(0, height)).rounded(.down)
+        guard h < frame.height else { return frame }
+        let y: CGFloat
+        switch anchor {
+        case .bottom: y = frame.minY
+        case .centred: y = (frame.minY + (frame.height - h) / 2).rounded()
+        }
+        return NSRect(x: frame.minX, y: y, width: frame.width, height: h)
     }
 
     static func choose(screens: [PanelScreen], mouse: NSPoint? = nil) -> Placement? {
@@ -54,7 +83,9 @@ enum ThumbnailPanelPlacement {
             let h = (s.visibleFrame.height * soloNumerator / 3).rounded(.down)
             let origin = NSPoint(x: s.visibleFrame.maxX - w - margin,
                                  y: s.visibleFrame.minY + margin)
-            return Placement(screen: s, frame: NSRect(origin: origin, size: NSSize(width: w, height: h)))
+            return Placement(screen: s,
+                             frame: NSRect(origin: origin, size: NSSize(width: w, height: h)),
+                             anchor: .bottom)
         }
 
         // Never the projected screen. If every screen is projected (a mirrored
@@ -70,7 +101,9 @@ enum ThumbnailPanelPlacement {
         if !nonPrimary.isEmpty { pool = nonPrimary }
 
         let chosen = pick(from: pool, mouse: mouse)
-        return Placement(screen: chosen, frame: chosen.visibleFrame.insetBy(dx: inset, dy: inset))
+        return Placement(screen: chosen,
+                         frame: chosen.visibleFrame.insetBy(dx: inset, dy: inset),
+                         anchor: .centred)
     }
 
     /// Tie-break among equally eligible screens: the one the mouse is on (the

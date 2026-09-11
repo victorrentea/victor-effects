@@ -80,6 +80,27 @@ testing are exactly the ones the machine writing the rule does not have.
 - Fallbacks, in order: if every screen is the overlay screen, use them all; if
   the only non-overlay screen *is* the primary, use it.
 
+### Hugging the grid
+
+The frame above is the *width* rule. The height is then trimmed to what the
+grid actually draws: `ThumbnailGridView.metrics(fitting:count:columns:)` answers
+a `hugHeight` (**rows × cell + gaps + padding × 2**) and
+`ThumbnailPanelPlacement.hug(_:toContentHeight:anchor:)` shortens the frame to
+it.
+
+Cells are square and fit both ways, so with 13 columns the **width** is almost
+always what binds — and the leftover height used to be black band above and
+below the rows. On the built-in retina the solo frame is 1152 × **719** and the
+grid is 7 rows of 81 pt: 1152 × **623**, so 96 pt of nothing were being framed.
+
+- It only ever **shrinks**. A grid taller than its frame is the shrunk-cell case
+  and wants every point it was given.
+- The `anchor` comes from the placement: **`.bottom`** for the single-screen
+  corner layout (the bottom-right corner must not move — only the top comes
+  down) and **`.centred`** for the filled-screen layout.
+- Hugging is **stable**: re-measuring at the hugged height gives the same cell,
+  so a second show does not creep the board smaller. `testHuggingIsStable`.
+
 **Why not the simpler "not the main screen".** At home the built-in retina is
 both primary and projected, so the two rules agree. At a venue the external is
 made primary while the retina is mirrored to the room — and there the literal
@@ -93,6 +114,22 @@ never main, `hidesOnDeactivate = false`, not released when closed. Shown with
 `orderFrontRegardless()` and hidden with `orderOut(nil)` — **never**
 `makeKeyAndOrderFront`, so showing it does not take focus from whatever is being
 demonstrated.
+
+It **slides in from the right edge of its screen** — parked at
+`visibleFrame.maxX` at its final size, then `animator().setFrame` to the target
+over `slideInDuration` (**0.20 s**, ease-out) while `alphaValue` goes 0 → 1.
+Only the *origin* animates: the content view never resizes, so the 91 tiles are
+laid out once instead of on every frame. The fade is there because on a
+multi-screen desk the parking spot is over the neighbouring screen.
+
+Out is `slideOut(to:)` — **0.12 s**, ease-in, starting from wherever the window
+visually is, because releasing the key before the board has landed is the normal
+case. A `slideGeneration` counter guards the teardown: a completion that finds a
+newer generation has been overtaken by a show and must **not** order the window
+out, or a fast release-and-re-hold leaves a panel that is invisible but
+`isVisible`. A `+0.25 s` fallback runs the same teardown in case the completion
+handler never arrives. `hideNow()` is the un-animated panic path (the feature
+switched off).
 
 Its level sits **one below** the click-through effects overlay, so an effect
 still draws over it on the built-in screen while clicks still reach the panel.
@@ -112,7 +149,9 @@ Cells are square and sized to fit **both ways**: `cellSide` is the smaller of
 what the width and the height allow, floored at 24 pt. The plan reached for a
 scroll view when the rows overflow; a panel you hold a key to see is one you
 never get to scroll, so shrinking the cell is what keeps every tile reachable in
-the one glance the gesture affords.
+the one glance the gesture affords. That arithmetic lives in the pure
+`ThumbnailGridView.metrics(fitting:count:columns:)`, because the panel has to
+ask it *before* there is a window to measure — see **Hugging the grid** above.
 
 `TileView` draws each tile out of `CALayer`s rather than in `draw(_:)`,
 because the playing border pulses and a press scales — both one animation on a

@@ -8,14 +8,58 @@ import AppKit
 /// sort of its own.
 final class ThumbnailGridView: NSView {
     private(set) var tiles: [Tile] = []
-    private var columns = 13
+    private(set) var columns = 13
     private var tileViews: [TileView] = []
     private var emptyLabel: NSTextField?
 
     var onPress: ((Tile) -> Void)?
 
-    private let padding: CGFloat = 10
-    private let gap: CGFloat = 6
+    static let padding: CGFloat = 10
+    static let gap: CGFloat = 6
+
+    /// The layout arithmetic, as a pure rule.
+    ///
+    /// Pulled out of `layout()` because the panel now has to ask the question
+    /// *before* it has a window to measure: "at this width, how tall does the
+    /// grid actually come out?" — which is what lets the panel hug the tiles
+    /// instead of framing them in black.
+    struct Metrics: Equatable {
+        let cell: CGFloat
+        let rows: Int
+        let size: NSSize
+        /// The panel height at which the grid exactly fills the content view:
+        /// the tiles plus the ordinary padding, and no dead band.
+        var hugHeight: CGFloat { size.height + ThumbnailGridView.padding * 2 }
+    }
+
+    /// Square cells that fit BOTH ways. The plan reached for a scroll view when
+    /// the rows overflow, but a panel you hold a key to see is one you never
+    /// get to scroll — shrinking the cell keeps every tile reachable in the one
+    /// glance the gesture affords.
+    ///
+    /// When the width is what binds — 13 columns across a wide panel, 7 rows
+    /// down a tall one — the grid ends up shorter than the panel, and the
+    /// difference used to be black. `hugHeight` is that difference, handed to
+    /// `ThumbnailPanelPlacement.hug`.
+    static func metrics(fitting size: NSSize, count: Int, columns: Int) -> Metrics {
+        let cols = max(1, columns)
+        let rows = max(1, Int(ceil(Double(max(count, 1)) / Double(cols))))
+        let byWidth = (size.width - padding * 2 - gap * CGFloat(cols - 1)) / CGFloat(cols)
+        let byHeight = (size.height - padding * 2 - gap * CGFloat(rows - 1)) / CGFloat(rows)
+        let cell = max(24, floor(min(byWidth, byHeight)))
+        return Metrics(cell: cell,
+                       rows: rows,
+                       size: NSSize(width: cell * CGFloat(cols) + gap * CGFloat(cols - 1),
+                                    height: cell * CGFloat(rows) + gap * CGFloat(rows - 1)))
+    }
+
+    /// How tall the panel should be for the grid to hug it at this size, or
+    /// `nil` when there are no tiles — the "no tiles.json" message wants the
+    /// room it was given.
+    func hugHeight(fitting size: NSSize) -> CGFloat? {
+        guard !tiles.isEmpty else { return nil }
+        return Self.metrics(fitting: size, count: tiles.count, columns: columns).hugHeight
+    }
 
     override var isFlipped: Bool { false }
 
@@ -67,25 +111,17 @@ final class ThumbnailGridView: NSView {
     override func layout() {
         super.layout()
         guard !tileViews.isEmpty else {
-            emptyLabel?.frame = NSRect(x: padding, y: bounds.midY - 40,
-                                       width: max(0, bounds.width - padding * 2), height: 80)
+            emptyLabel?.frame = NSRect(x: Self.padding, y: bounds.midY - 40,
+                                       width: max(0, bounds.width - Self.padding * 2), height: 80)
             return
         }
         let cols = max(1, columns)
-        let rows = Int(ceil(Double(tileViews.count) / Double(cols)))
-        let availableWidth = bounds.width - padding * 2
-        let availableHeight = bounds.height - padding * 2
-        // Square cells that fit BOTH ways. The plan reached for a scroll view
-        // when the rows overflow, but a panel you hold a key to see is one you
-        // never get to scroll — shrinking the cell keeps every tile reachable
-        // in the one glance the gesture affords.
-        let byWidth = (availableWidth - gap * CGFloat(cols - 1)) / CGFloat(cols)
-        let byHeight = (availableHeight - gap * CGFloat(rows - 1)) / CGFloat(rows)
-        let cell = max(24, floor(min(byWidth, byHeight)))
+        let m = Self.metrics(fitting: bounds.size, count: tileViews.count, columns: cols)
+        let cell = m.cell
         cellSide = cell
 
-        let gridWidth = cell * CGFloat(cols) + gap * CGFloat(cols - 1)
-        let gridHeight = cell * CGFloat(rows) + gap * CGFloat(rows - 1)
+        let gridWidth = m.size.width
+        let gridHeight = m.size.height
         let originX = ((bounds.width - gridWidth) / 2).rounded()
         let originY = ((bounds.height - gridHeight) / 2).rounded()
         gridFrame = NSRect(x: originX, y: originY, width: gridWidth, height: gridHeight)
@@ -93,10 +129,10 @@ final class ThumbnailGridView: NSView {
         for (index, view) in tileViews.enumerated() {
             let row = index / cols
             let col = index % cols
-            let x = originX + CGFloat(col) * (cell + gap)
+            let x = originX + CGFloat(col) * (cell + Self.gap)
             // Row 0 is the TOP row (the tablet's first row), and this view is
             // not flipped, so rows count down from the top of the grid.
-            let y = originY + gridHeight - CGFloat(row + 1) * cell - CGFloat(row) * gap
+            let y = originY + gridHeight - CGFloat(row + 1) * cell - CGFloat(row) * Self.gap
             view.frame = NSRect(x: x, y: y, width: cell, height: cell)
         }
     }

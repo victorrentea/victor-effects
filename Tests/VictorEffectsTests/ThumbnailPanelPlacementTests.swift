@@ -116,4 +116,75 @@ final class ThumbnailPanelPlacementTests: XCTestCase {
         let p = try XCTUnwrap(ThumbnailPanelPlacement.choose(screens: [a, b]))
         XCTAssertFalse(p.frame.isEmpty)
     }
+
+    // MARK: - Hugging the grid
+
+    /// The real board: 91 tiles, 13 columns, so 7 rows.
+    private func metrics(_ size: NSSize) -> ThumbnailGridView.Metrics {
+        ThumbnailGridView.metrics(fitting: size, count: 91, columns: 13)
+    }
+
+    func testAWideFrameIsWidthBoundAndLeavesABandToTrim() {
+        // 13 columns across 1872 pt of a 1920 screen vs 7 rows down 1007 pt:
+        // the width binds, the grid comes out shorter than the frame, and the
+        // difference is exactly the black band the panel used to frame.
+        let frame = asus.insetBy(dx: ThumbnailPanelPlacement.inset,
+                                 dy: ThumbnailPanelPlacement.inset)
+        let m = metrics(frame.size)
+        XCTAssertLessThan(m.hugHeight, frame.height)
+        XCTAssertEqual(m.rows, 7)
+        // rows × cell + gaps + padding, asserted as the arithmetic itself.
+        XCTAssertEqual(m.hugHeight,
+                       m.cell * 7 + ThumbnailGridView.gap * 6 + ThumbnailGridView.padding * 2,
+                       accuracy: 0.001)
+    }
+
+    func testHuggingIsStable() {
+        // Shrinking the panel to the hugged height must not shrink the cell
+        // again — otherwise every show would creep the board smaller.
+        let frame = asus.insetBy(dx: ThumbnailPanelPlacement.inset,
+                                 dy: ThumbnailPanelPlacement.inset)
+        let first = metrics(frame.size)
+        let second = metrics(NSSize(width: frame.width, height: first.hugHeight))
+        XCTAssertEqual(second.cell, first.cell)
+        XCTAssertEqual(second.hugHeight, first.hugHeight, accuracy: 1)
+    }
+
+    func testHugKeepsTheBottomRightCornerOnOneScreen() {
+        let only = screen("Color LCD", retina, primary: true, overlay: true)
+        let p = ThumbnailPanelPlacement.choose(screens: [only])!
+        XCTAssertEqual(p.anchor, .bottom)
+        let hugged = ThumbnailPanelPlacement.hug(p.frame, toContentHeight: 300, anchor: .bottom)
+        // The corner the eye is trained on does not move; only the top comes down.
+        XCTAssertEqual(hugged.minY, p.frame.minY)
+        XCTAssertEqual(hugged.maxX, p.frame.maxX)
+        XCTAssertEqual(hugged.width, p.frame.width)
+        XCTAssertEqual(hugged.height, 300)
+    }
+
+    func testHugStaysCentredOnAFilledScreen() throws {
+        let retinaScreen = screen("Color LCD", retina, primary: true, overlay: true)
+        let asusScreen = screen("ASUS", asus)
+        let p = try XCTUnwrap(ThumbnailPanelPlacement.choose(screens: [retinaScreen, asusScreen]))
+        XCTAssertEqual(p.anchor, .centred)
+        let hugged = ThumbnailPanelPlacement.hug(p.frame, toContentHeight: 400, anchor: .centred)
+        XCTAssertEqual(hugged.midY, p.frame.midY, accuracy: 1)
+        XCTAssertEqual(hugged.height, 400)
+        XCTAssertEqual(hugged.width, p.frame.width)
+    }
+
+    func testHugNeverGrowsTheFrame() {
+        // A grid taller than its frame is the shrunk-cell case: it already uses
+        // every point it was given and must not be handed more.
+        let frame = NSRect(x: 0, y: 0, width: 800, height: 400)
+        XCTAssertEqual(ThumbnailPanelPlacement.hug(frame, toContentHeight: 900, anchor: .bottom), frame)
+        XCTAssertEqual(ThumbnailPanelPlacement.hug(frame, toContentHeight: 400, anchor: .centred), frame)
+    }
+
+    func testTheSlideIsFasterThanTheHoldThatAsksForIt() {
+        // A slide longer than the 180 ms hold would mean the board is still
+        // flying when a quick hold is already over.
+        XCTAssertLessThan(ThumbnailPanel.slideInDuration, ThumbnailPanelController.holdDelay + 0.05)
+        XCTAssertLessThanOrEqual(ThumbnailPanel.slideOutDuration, 0.15)
+    }
 }

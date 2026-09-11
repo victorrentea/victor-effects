@@ -104,6 +104,10 @@ final class ThumbnailPanelController {
     /// Manifest hash the grid was built from, so a show does not rebuild 91
     /// views for a file that has not changed.
     private var builtFromHash: String?
+    /// The x the panel slides in from and back out to — the right edge of the
+    /// screen it was last placed on. Remembered because a hide has no placement
+    /// of its own and must not have to recompute one to leave.
+    private var offscreenX: CGFloat?
 
     init(router: EffectsRouter) {
         self.router = router
@@ -130,7 +134,11 @@ final class ThumbnailPanelController {
         state.enabled = enabled
         if !enabled {
             perform(PanelHoldRule.apply(.rightOptionUp, to: &state))
-            hide()
+            // Switched off: gone now, not in 120 ms.
+            autoHide?.invalidate()
+            autoHide = nil
+            shownSticky = false
+            panel?.hideNow()
         }
         effectsInfo("Thumbnail panel \(enabled ? "enabled" : "disabled") (right-⌥ hold)")
     }
@@ -175,20 +183,41 @@ final class ThumbnailPanelController {
             panel.grid.reload()
             builtFromHash = hash
         }
-        panel.show(at: placement.frame)
+        // Hug the grid: the cells are square and fit both ways, so a 13-column
+        // board across a wide frame leaves a black band above and below the
+        // rows. Trim the frame to the height the grid actually draws at,
+        // keeping the width rule and the anchor the placement chose.
+        let hugged = panel.grid.hugHeight(fitting: placement.frame.size).map {
+            ThumbnailPanelPlacement.hug(placement.frame, toContentHeight: $0,
+                                        anchor: placement.anchor)
+        } ?? placement.frame
+        let placed = ThumbnailPanelPlacement.Placement(screen: placement.screen,
+                                                       frame: hugged,
+                                                       anchor: placement.anchor)
+
+        let offscreen = placement.screen.visibleFrame.maxX
+        offscreenX = offscreen
+        panel.show(at: hugged, slidingFrom: offscreen)
         panel.grid.setPlaying(asset: press.playing?.asset)
-        effectsInfo("Thumbnail panel on \"\(placement.screen.name)\" "
-            + "\(Int(placement.frame.width))×\(Int(placement.frame.height)) "
-            + "at (\(Int(placement.frame.minX)),\(Int(placement.frame.minY))) — "
-            + "\(panel.grid.tiles.count) tiles")
-        return placement
+        effectsInfo("Thumbnail panel on \"\(placed.screen.name)\" "
+            + "\(Int(hugged.width))×\(Int(hugged.height)) "
+            + "at (\(Int(hugged.minX)),\(Int(hugged.minY))) — "
+            + "\(panel.grid.tiles.count) tiles "
+            + "(trimmed \(Int(placement.frame.height - hugged.height)) pt of band)")
+        return placed
     }
 
     func hide() {
         autoHide?.invalidate()
         autoHide = nil
         shownSticky = false
-        panel?.hideNow()
+        // Slide back out rather than blink away — and from wherever the window
+        // has got to, so a key released mid-slide-in still leaves cleanly.
+        if let offscreen = offscreenX {
+            panel?.slideOut(to: offscreen)
+        } else {
+            panel?.hideNow()
+        }
     }
 
     /// The menu row: a toggle, so a Mac with no Accessibility grant can still
