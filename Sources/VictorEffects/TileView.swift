@@ -1,0 +1,227 @@
+import AppKit
+import ImageIO
+
+/// Decoded tile pictures, kept for the life of the process.
+///
+/// The originals are up to 2238 px square and there are 91 of them — several
+/// hundred MB of bitmap for tiles about 140 pt across. `ImageIO` makes the
+/// thumbnail instead of decoding the full image and throwing most of it away,
+/// which is the same trade the tablet makes with `inSampleSize`.
+final class TileImageCache {
+    static let shared = TileImageCache()
+
+    private var cache: [String: CGImage] = [:]
+    private var inFlight: Set<String> = []
+    private let queue = DispatchQueue(label: "victor-effects-tiles", qos: .userInitiated)
+
+    /// Main thread only (the dictionary is not locked; every caller is a view).
+    func cached(_ relativePath: String) -> CGImage? { cache[relativePath] }
+
+    func clear() {
+        cache.removeAll()
+        inFlight.removeAll()
+    }
+
+    /// Loads off the main thread and calls back on it. Returns immediately if
+    /// another tile view already asked for the same picture.
+    func load(_ relativePath: String, maxPixel: CGFloat, completion: @escaping (CGImage?) -> Void) {
+        if let hit = cache[relativePath] { completion(hit); return }
+        guard !inFlight.contains(relativePath) else { return }
+        inFlight.insert(relativePath)
+        let url = EffectsConfig.shared.soundsDir.appendingPathComponent(relativePath)
+        let pixels = max(64, maxPixel * 2)
+        queue.async {
+            let image = Self.thumbnail(at: url, maxPixel: pixels)
+            DispatchQueue.main.async {
+                self.inFlight.remove(relativePath)
+                if let image { self.cache[relativePath] = image }
+                completion(image)
+            }
+        }
+    }
+
+    private static func thumbnail(at url: URL, maxPixel: CGFloat) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(maxPixel),
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+}
+
+/// One tile: the picture, its `#NN`, an optional word across it, the ↻ badge,
+/// and a red border while its sound plays.
+///
+/// Built out of `CALayer`s rather than `draw(_:)` because the playing border
+/// pulses and the press scales — both of which are one animation on a layer and
+/// a redraw loop in a drawing method.
+final class TileView: NSView {
+    let tile: Tile
+    var onPress: ((Tile) -> Void)?
+
+    private let imageLayer = CALayer()
+    private let hoverLayer = CALayer()
+    private let borderLayer = CALayer()
+    private let numberLayer = CATextLayer()
+    private var labelLayer: CATextLayer?
+    private var badgeLayer: CATextLayer?
+    private var trackingArea: NSTrackingArea?
+
+    var isPlaying = false {
+        didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
+    }
+
+    init(tile: Tile) {
+        self.tile = tile
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        layer?.cornerRadius = 6
+        layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+
+        imageLayer.contentsGravity = .resizeAspectFill
+        imageLayer.masksToBounds = true
+        layer?.addSublayer(imageLayer)
+
+        hoverLayer.backgroundColor = NSColor(white: 1, alpha: 0.08).cgColor
+        hoverLayer.opacity = 0
+        layer?.addSublayer(hoverLayer)
+
+        borderLayer.borderColor = NSColor.systemRed.cgColor
+        borderLayer.borderWidth = 4
+        borderLayer.cornerRadius = 6
+        borderLayer.opacity = 0
+        layer?.addSublayer(borderLayer)
+
+        // The tablet's `numberPaint`: white with a black shadow, because half
+        // the pictures are light and half are dark.
+        numberLayer.string = "#\(tile.n)"
+        numberLayer.foregroundColor = NSColor.white.cgColor
+        numberLayer.shadowColor = NSColor.black.cgColor
+        numberLayer.shadowOpacity = 0.9
+        numberLayer.shadowRadius = 2
+        numberLayer.shadowOffset = .zero
+        numberLayer.alignmentMode = .left
+        layer?.addSublayer(numberLayer)
+
+        if let text = tile.label, !text.isEmpty {
+            let l = CATextLayer()
+            l.string = text
+            l.foregroundColor = NSColor.white.cgColor
+            l.alignmentMode = .center
+            l.shadowColor = NSColor.black.cgColor
+            l.shadowOpacity = 0.9
+            l.shadowRadius = 3
+            l.shadowOffset = .zero
+            layer?.addSublayer(l)
+            labelLayer = l
+        }
+
+        if tile.restartable {
+            // The ↻ badge, bottom-left — the only free corner on the tablet, and
+            // kept there so the two grids look like the same grid.
+            let badge = CATextLayer()
+            badge.string = "↻"
+            badge.foregroundColor = NSColor.white.cgColor
+            badge.alignmentMode = .center
+            badge.backgroundColor = NSColor(white: 0, alpha: 0.65).cgColor
+            layer?.addSublayer(badge)
+            badgeLayer = badge
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    // MARK: - Layout
+
+    override func layout() {
+        super.layout()
+        let side = bounds.width
+        // Layer geometry is set outside an animation: a resize would otherwise
+        // slide every sublayer into place over a quarter second.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        imageLayer.frame = bounds
+        hoverLayer.frame = bounds
+        borderLayer.frame = bounds
+        let numberSize = max(9, side * 0.10)
+        numberLayer.fontSize = numberSize
+        numberLayer.font = NSFont.boldSystemFont(ofSize: numberSize)
+        numberLayer.frame = NSRect(x: side * 0.04, y: bounds.height - numberSize * 1.5,
+                                   width: side * 0.9, height: numberSize * 1.3)
+        numberLayer.contentsScale = window?.backingScaleFactor ?? 2
+        if let l = labelLayer {
+            let size = max(10, side * 0.28)
+            l.fontSize = size
+            l.font = NSFont.boldSystemFont(ofSize: size)
+            l.frame = NSRect(x: 0, y: bounds.midY - size * 0.7, width: bounds.width, height: size * 1.4)
+            l.contentsScale = window?.backingScaleFactor ?? 2
+        }
+        if let badge = badgeLayer {
+            let r = side * 0.22
+            badge.frame = NSRect(x: side * 0.05, y: side * 0.05, width: r, height: r)
+            badge.cornerRadius = r / 2
+            badge.fontSize = r * 0.55
+            badge.contentsScale = window?.backingScaleFactor ?? 2
+        }
+        CATransaction.commit()
+
+        if let hit = TileImageCache.shared.cached(tile.image) {
+            imageLayer.contents = hit
+        } else {
+            TileImageCache.shared.load(tile.image, maxPixel: side) { [weak self] image in
+                guard let self, let image else { return }
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                self.imageLayer.contents = image
+                CATransaction.commit()
+            }
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(rect: bounds,
+                                  options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    // MARK: - Interaction
+
+    /// The panel never becomes key, so every click is a "first mouse". Without
+    /// this the first click on the panel would be swallowed to focus a window
+    /// that refuses focus, and the tile would need pressing twice.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseEntered(with event: NSEvent) { hoverLayer.opacity = 1 }
+    override func mouseExited(with event: NSEvent) { hoverLayer.opacity = 0 }
+
+    override func mouseDown(with event: NSEvent) {
+        layer?.setAffineTransform(CGAffineTransform(scaleX: 0.95, y: 0.95))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        layer?.setAffineTransform(.identity)
+        guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        onPress?(tile)
+    }
+
+    private func updatePlayingBorder() {
+        borderLayer.removeAnimation(forKey: "pulse")
+        guard isPlaying else { borderLayer.opacity = 0; return }
+        borderLayer.opacity = 1
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 1.0
+        pulse.toValue = 0.16
+        pulse.duration = 0.5
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        borderLayer.add(pulse, forKey: "pulse")
+    }
+}
