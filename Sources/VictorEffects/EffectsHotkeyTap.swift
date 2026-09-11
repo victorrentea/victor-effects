@@ -14,9 +14,9 @@ final class EffectsHotkeyTap {
     private static let VK_W: CGKeyCode = 0x0D
     private static let VK_RETURN: CGKeyCode = 0x24        // Return
     private static let VK_KEYPAD_ENTER: CGKeyCode = 0x4C  // Enter (keypad / Fn-Return)
-    /// Right ⌥. Left ⌥ is 58 and is deliberately NOT matched: the left key is
-    /// the one every ⌥-shortcut and every ⌥-accent is typed with.
-    static let VK_RIGHT_OPTION: CGKeyCode = 61
+    /// Right ⌘. Left ⌘ is 55 and is deliberately NOT matched: the left key is
+    /// the one every ⌘-shortcut is typed with.
+    static let VK_RIGHT_COMMAND: CGKeyCode = 54
 
     private static let MOUSE_BUTTON_6: Int64 = 5  // physical "button 6"
     private static let MOUSE_BUTTON_7: Int64 = 6  // physical "button 7"
@@ -60,46 +60,46 @@ final class EffectsHotkeyTap {
     ///
     /// Separate from `decideKey` because modifiers are not keys: there is no
     /// "down" field, only a flag that is either still set or no longer set, and
-    /// the interesting question — *is right ⌥ the only thing being held* — is
+    /// the interesting question — *is right ⌘ the only thing being held* — is
     /// answered by the flags of a completely different key's event.
     enum ModifierDecision: Equatable {
-        /// Right ⌥ went down **alone**: arm the hold.
-        case rightOptionDown
-        /// Right ⌥ came back up.
-        case rightOptionUp
-        /// Another modifier joined while right ⌥ was held (⌃⌥, ⌥⇧, ⌘⌥ …).
+        /// Right ⌘ went down **alone**: arm the hold.
+        case rightCommandDown
+        /// Right ⌘ came back up.
+        case rightCommandUp
+        /// Another modifier joined while right ⌘ was held (⌃⌘, ⌘⇧, ⌘⌥ …).
         /// Same meaning as a letter key: this is a shortcut, not the panel.
         case cancel
         /// Not ours.
         case ignore
     }
 
-    /// `⌥ alone` means ⌥ and nothing else from the shortcut-forming trio.
+    /// `⌘ alone` means ⌘ and nothing else from the shortcut-forming trio.
     ///
     /// Caps lock and fn are deliberately not in the set: caps lock is a latch
     /// somebody may be sitting on for an hour, and neither of them is a
-    /// modifier a ⌥-shortcut is built out of.
-    private static func optionIsAlone(_ flags: CGEventFlags) -> Bool {
-        !flags.contains(.maskCommand)
+    /// modifier a ⌘-shortcut is built out of.
+    private static func commandIsAlone(_ flags: CGEventFlags) -> Bool {
+        !flags.contains(.maskAlternate)
             && !flags.contains(.maskControl)
             && !flags.contains(.maskShift)
     }
 
     static func decideModifier(keyCode: CGKeyCode,
                                flags: CGEventFlags,
-                               rightOptionHeld: Bool) -> ModifierDecision {
-        guard keyCode == VK_RIGHT_OPTION else {
-            // Any *other* modifier moving while right ⌥ is down: ⌃⌥, ⌥⇧ and
-            // friends belong to whatever else is listening (the emoji layers in
-            // the 💬 app among them), so the panel steps aside.
-            return rightOptionHeld ? .cancel : .ignore
+                               rightCommandHeld: Bool) -> ModifierDecision {
+        guard keyCode == VK_RIGHT_COMMAND else {
+            // Any *other* modifier moving while right ⌘ is down: ⌃⌘, ⌘⇧ and
+            // friends belong to whatever else is listening, so the panel steps
+            // aside rather than appear underneath a shortcut.
+            return rightCommandHeld ? .cancel : .ignore
         }
-        let down = flags.contains(.maskAlternate)
+        let down = flags.contains(.maskCommand)
         if down {
-            guard !rightOptionHeld else { return .ignore }   // key repeat
-            return optionIsAlone(flags) ? .rightOptionDown : .ignore
+            guard !rightCommandHeld else { return .ignore }   // key repeat
+            return commandIsAlone(flags) ? .rightCommandDown : .ignore
         }
-        return rightOptionHeld ? .rightOptionUp : .ignore
+        return rightCommandHeld ? .rightCommandUp : .ignore
     }
 
     static func decideMouse(button: Int64, whipShowing: Bool) -> Decision {
@@ -115,19 +115,19 @@ final class EffectsHotkeyTap {
     var onCrack: (() -> Void)?
     var whipShowing: () -> Bool = { false }
 
-    /// Right-⌥ held down / released, for the thumbnail panel (WI-4).
+    /// Right-⌘ held down / released, for the thumbnail panel (WI-4).
     ///
     /// A closure and not a hardcoded call because the panel is a separate work
     /// item and this tap is the only place that can see the key. The default is
-    /// a no-op, and the rule NEVER swallows: ⌥-accents (right-⌥E, right-⌥N …)
-    /// must keep reaching the front app whether or not something is listening.
-    var onRightOption: ((Bool) -> Void)?
-    /// A key was pressed while right ⌥ is held — the user is typing an accent
-    /// or a shortcut, not asking for the panel.
-    var onKeyWhileRightOption: (() -> Void)?
+    /// a no-op, and the rule NEVER swallows: right-⌘C and right-⌘V must keep
+    /// reaching the front app whether or not something is listening.
+    var onRightCommand: ((Bool) -> Void)?
+    /// A key was pressed while right ⌘ is held — the user is typing a
+    /// shortcut, not asking for the panel.
+    var onKeyWhileRightCommand: (() -> Void)?
 
     private var tapPort: CFMachPort?
-    private var rightOptionHeld = false
+    private var rightCommandHeld = false
     var isActive: Bool { tapPort != nil }
 
     /// Installs the tap. Returns false when Accessibility is not granted (or the
@@ -136,7 +136,7 @@ final class EffectsHotkeyTap {
     func start() -> Bool {
         guard tapPort == nil else { return true }
         guard AXIsProcessTrusted() else {
-            effectsInfo("⚠️ Accessibility not granted — ⌃W and the right-⌥ panel are off "
+            effectsInfo("⚠️ Accessibility not granted — ⌃W and the right-⌘ panel are off "
                 + "(System Settings → Privacy & Security → Accessibility). The menu rows still work.")
             return false
         }
@@ -166,7 +166,7 @@ final class EffectsHotkeyTap {
         }
         thread.name = "EffectsHotkeyTap"
         thread.start()
-        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, Return/buttons 6-7 crack, right ⌥ panel)")
+        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, Return/buttons 6-7 crack, right ⌘ panel)")
         return true
     }
 
@@ -186,23 +186,23 @@ final class EffectsHotkeyTap {
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
             switch Self.decideModifier(keyCode: keyCode,
                                        flags: event.flags,
-                                       rightOptionHeld: rightOptionHeld) {
-            case .rightOptionDown:
-                rightOptionHeld = true
-                DispatchQueue.main.async { [weak self] in self?.onRightOption?(true) }
-            case .rightOptionUp:
-                rightOptionHeld = false
-                DispatchQueue.main.async { [weak self] in self?.onRightOption?(false) }
+                                       rightCommandHeld: rightCommandHeld) {
+            case .rightCommandDown:
+                rightCommandHeld = true
+                DispatchQueue.main.async { [weak self] in self?.onRightCommand?(true) }
+            case .rightCommandUp:
+                rightCommandHeld = false
+                DispatchQueue.main.async { [weak self] in self?.onRightCommand?(false) }
             case .cancel:
-                DispatchQueue.main.async { [weak self] in self?.onKeyWhileRightOption?() }
+                DispatchQueue.main.async { [weak self] in self?.onKeyWhileRightCommand?() }
             case .ignore:
                 break
             }
             return passThrough
 
         case .keyDown:
-            if rightOptionHeld {
-                DispatchQueue.main.async { [weak self] in self?.onKeyWhileRightOption?() }
+            if rightCommandHeld {
+                DispatchQueue.main.async { [weak self] in self?.onKeyWhileRightCommand?() }
             }
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
             switch Self.decideKey(keyCode: keyCode, flags: event.flags, whipShowing: whipShowing()) {

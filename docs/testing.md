@@ -63,7 +63,7 @@ Not a bug to chase: check `activeEffects` instead.
 `swift test`. The parts worth knowing about:
 
 - `EffectsRouterTests` — the whole route table, asserted as values with no socket
-- `EffectsHotkeyTapRulesTests` — `decideKey` / `decideMouse` / `decideModifier` as pure rules: ⌃W swallows, ⌘⌃W passes, Return cracks only while the whip is showing, and the panel arms on **right ⌥ (61) alone** — never on left ⌥ (58), never on the old right ⌘ (54), and never under ⌃⌥ / ⌥⇧ / ⌘⌥
+- `EffectsHotkeyTapRulesTests` — `decideKey` / `decideMouse` / `decideModifier` as pure rules: ⌃W swallows, ⌘⌃W passes, Return cracks only while the whip is showing, and the panel arms on **right ⌘ (54) alone** — never on left ⌘ (55), never on right ⌥ (61), and never under ⌃⌘ / ⌘⇧ / ⌘⌥
 - `WhipPhysicsTests.testSettleMatchesJSGolden` — frame-by-frame parity with the JavaScript original (`tools/whip-parity`)
 - `SoundsManifestTests` — the canonical hash form, which an Android client reproduces byte for byte
 - `TilesManifestTests`, `EffectsConfigTests` — both parse literals rather than reading this machine, so no test depends on what is installed here

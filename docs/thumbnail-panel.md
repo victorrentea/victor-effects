@@ -138,6 +138,19 @@ still draws over it on the built-in screen while clicks still reach the panel.
 dragging anything along. Hover highlights come from an `NSTrackingArea`, which
 works without key status.
 
+The **pointing hand** is the grid's, not the tile's (`ThumbnailGridView`): with
+6 pt of `gap` between tiles, a per-tile cursor flicks back to an arrow every time
+the mouse crosses from one tile to the next. It is set imperatively with
+`NSCursor.set()` and **not** through `resetCursorRects`, because cursor *rects*
+are a key-window mechanism and this panel never becomes key — the same scar
+`BreakTimerOverlay` carries in the other app. It is re-asserted on `mouseMoved`
+as well as on enter, because a panel that appears *under* a stationary mouse (the
+normal case for a hold gesture) delivers moves without an enter. Giving it back
+is explicit in three places — `mouseExited`, `finishSlideOut` and `hideNow` —
+since an imperative `set()` bypasses AppKit's own restoration and a window
+ordering out owes the view no `mouseExited`; the hand would otherwise stay on
+screen over somebody else's window.
+
 ## The grid
 
 `ThumbnailGridView` lays the tiles out in **`tiles.json`'s own array order**,
@@ -162,7 +175,15 @@ layer, versus a redraw loop in a drawing method:
 - the optional `label` centred across it;
 - a `↻` badge when the tile is `restartable`;
 - **playing** = a red border whose opacity pulses;
-- hover = a light wash, mouse-down = a slight scale-down.
+- **hover** = a light wash *and* an outline — a white ring over a dark rim, 4 pt
+  in total. The wash on its own was white at 8%, which is nothing on the half of
+  the board whose pictures are already light, and "which tile is the mouse on"
+  is the question 91 pictures have to answer in one glance. White over dark for
+  the same reason `#NN` is white with a black shadow: an outline that vanishes
+  on half the tiles is not an outline. The playing border is added after the two
+  hover layers and covers them exactly — a tile that is playing says *that*
+  first;
+- mouse-down = a slight scale-down.
 
 Pictures are decoded by `TileImageCache`: **thumbnails via `ImageIO`**, not full
 decodes. The originals run to 2238 px square and there are 91 of them — several

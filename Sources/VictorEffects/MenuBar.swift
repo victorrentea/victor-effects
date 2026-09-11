@@ -97,7 +97,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
 
         // ⚠️ row, hidden while Accessibility is granted (see setAccessibilityTrusted)
-        accessibilityItem = NSMenuItem(title: "⚠️ Grant Accessibility for ⌃W / right-⌥",
+        accessibilityItem = NSMenuItem(title: "⚠️ Grant Accessibility for ⌃W / right-⌘",
                                        action: #selector(openAccessibilitySettings), keyEquivalent: "")
         accessibilityItem.target = self
         accessibilityItem.isEnabled = true
@@ -132,7 +132,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         whipItem.isEnabled = true
         menu.addItem(whipItem)
 
-        panelItem = NSMenuItem(title: "Show tablet panel on right-⌥ hold",
+        panelItem = NSMenuItem(title: "Show tablet panel on right-⌘ hold",
                                action: #selector(togglePanelAction), keyEquivalent: "")
         panelItem.target = self
         panelItem.isEnabled = true

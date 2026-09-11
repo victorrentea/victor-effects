@@ -32,7 +32,7 @@ load-bearing:
 
 macOS ties Accessibility and Screen Recording grants to a **bundle id plus a
 signing identity**. An ad-hoc signature changes on every build, so every rebuild
-would re-prompt for both — and until they are re-granted, ⌃W, the right-⌥ panel
+would re-prompt for both — and until they are re-granted, ⌃W, the right-⌘ panel
 and every screen-capturing effect are silently dead.
 
 `build-app.sh` therefore looks for a stable identity in `login.keychain-db`, in
@@ -49,7 +49,7 @@ ad-hoc branch — which is exactly the thing that revokes the grants.
 
 | permission | why | without it |
 |---|---|---|
-| **Accessibility** | the one `CGEventTap` (`EffectsHotkeyTap`): ⌃W is swallowed, right ⌥ is watched | the tap is not installed; the menu shows `⚠️ Grant Accessibility for ⌃W / right-⌥` and `AppDelegate` retries every 30 s |
+| **Accessibility** | the one `CGEventTap` (`EffectsHotkeyTap`): ⌃W is swallowed, right ⌘ is watched | the tap is not installed; the menu shows `⚠️ Grant Accessibility for ⌃W / right-⌘` and `AppDelegate` retries every 30 s |
 | **Screen Recording** | `CGDisplayCreateImage` for the effects that distort what is on screen (heartbeat lens, broken glass, FBI knock, beethoven, chainsaw) | those effects draw over wallpaper instead of the desktop — a silent wrong answer, not an error |
 
 Nothing else: no microphone, no location, no Bluetooth permission, no full disk

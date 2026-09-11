@@ -67,73 +67,74 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
         XCTAssertEqual(Tap.decideMouse(button: 2, whipShowing: true), .pass)
     }
 
-    // MARK: - The panel modifier (right ⌥, alone)
+    // MARK: - The panel modifier (right ⌘, alone)
 
-    private static let VK_RIGHT_OPTION: CGKeyCode = 61
-    private static let VK_LEFT_OPTION: CGKeyCode = 58
     private static let VK_RIGHT_COMMAND: CGKeyCode = 54
+    private static let VK_LEFT_COMMAND: CGKeyCode = 55
+    private static let VK_RIGHT_OPTION: CGKeyCode = 61
 
-    func testRightOptionKeycodeIsNotLeftOption() {
-        // 61 vs 58 is the whole difference between "hold right ⌥ for the panel"
-        // and "every ⌥← opens a grid over the screen".
-        XCTAssertEqual(EffectsHotkeyTap.VK_RIGHT_OPTION, 61)
+    func testRightCommandKeycodeIsNotLeftCommand() {
+        // 54 vs 55 is the whole difference between "hold right ⌘ for the panel"
+        // and "every ⌘C opens a grid over the screen".
+        XCTAssertEqual(EffectsHotkeyTap.VK_RIGHT_COMMAND, 54)
     }
 
-    func testRightOptionAloneArmsThePanel() {
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                          flags: [.maskAlternate],
-                                          rightOptionHeld: false), .rightOptionDown)
+    func testRightCommandAloneArmsThePanel() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: [.maskCommand],
+                                          rightCommandHeld: false), .rightCommandDown)
     }
 
     func testDroppingTheFlagReleasesIt() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: [],
+                                          rightCommandHeld: true), .rightCommandUp)
+    }
+
+    func testRightOptionNoLongerTriggersThePanel() {
+        // The trigger spent a day on 61. Holding it must now be as uneventful
+        // as holding any other key — nothing armed, nothing shown — so the
+        // emoji cheat-sheet layers of the 💬 app get the key back.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [.maskAlternate],
+                                          rightCommandHeld: false), .ignore)
         XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
                                           flags: [],
-                                          rightOptionHeld: true), .rightOptionUp)
+                                          rightCommandHeld: false), .ignore)
     }
 
-    func testRightCommandNoLongerTriggersThePanel() {
-        // The trigger used to be 54. Holding it must now be as uneventful as
-        // holding any other key — nothing armed, nothing shown.
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+    func testLeftCommandIsNeverTheTrigger() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_COMMAND,
                                           flags: [.maskCommand],
-                                          rightOptionHeld: false), .ignore)
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
-                                          flags: [],
-                                          rightOptionHeld: false), .ignore)
+                                          rightCommandHeld: false), .ignore)
     }
 
-    func testLeftOptionIsNeverTheTrigger() {
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_OPTION,
-                                          flags: [.maskAlternate],
-                                          rightOptionHeld: false), .ignore)
-    }
-
-    func testOptionWithAnotherModifierIsSomebodyElsesLayer() {
-        // ⌃⌥ and ⌥⇧ are the emoji layers of the 💬 app next door; ⌘⌥ is a
-        // window shortcut. None of them may raise the soundboard.
-        for extra: CGEventFlags in [.maskControl, .maskShift, .maskCommand] {
-            XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                              flags: [.maskAlternate, extra],
-                                              rightOptionHeld: false), .ignore)
+    func testCommandWithAnotherModifierIsSomebodyElsesShortcut() {
+        // ⌃⌘, ⌘⇧ and ⌘⌥ are shortcut layers other apps own. None of them may
+        // raise the soundboard.
+        for extra: CGEventFlags in [.maskControl, .maskShift, .maskAlternate] {
+            XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                              flags: [.maskCommand, extra],
+                                              rightCommandHeld: false), .ignore)
         }
     }
 
-    func testAModifierJoiningAHeldOptionCancels() {
-        // ⌥ first, ⇧ second: the user is reaching for ⌥⇧, not the panel.
+    func testAModifierJoiningAHeldCommandCancels() {
+        // ⌘ first, ⇧ second: the user is reaching for ⌘⇧, not the panel.
         XCTAssertEqual(Tap.decideModifier(keyCode: 56,
-                                          flags: [.maskAlternate, .maskShift],
-                                          rightOptionHeld: true), .cancel)
+                                          flags: [.maskCommand, .maskShift],
+                                          rightCommandHeld: true), .cancel)
     }
 
     func testModifierTrafficWhileNothingIsHeldIsIgnored() {
         XCTAssertEqual(Tap.decideModifier(keyCode: 56,
                                           flags: [.maskShift],
-                                          rightOptionHeld: false), .ignore)
+                                          rightCommandHeld: false), .ignore)
     }
 
     func testKeyRepeatOnTheModifierIsNotASecondPress() {
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                          flags: [.maskAlternate],
-                                          rightOptionHeld: true), .ignore)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: [.maskCommand],
+                                          rightCommandHeld: true), .ignore)
     }
 }
