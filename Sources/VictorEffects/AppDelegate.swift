@@ -73,12 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menuBar.onQuit = { [weak self] in self?.tearDownForReplacement() }
 
-        // Warm the manifest (a few MB of SHA-256) off the main thread so the
-        // first /ping does not pay for it.
-        DispatchQueue.global(qos: .utility).async {
-            _ = SoundsManifest.combinedHash
-            _ = TilesManifest.tilesHash
-        }
+        // Warm the manifest (a few MB of SHA-256) off the main thread: /ping is
+        // proxied with about a 1.5 s budget and answers from this cache only.
+        SoundsManifest.warm()
+        DispatchQueue.global(qos: .utility).async { _ = TilesManifest.tilesHash }
         // Same for the brother GIF, whose decode is long enough to be visible.
         EmojiAnimator.warmBrotherCache()
 

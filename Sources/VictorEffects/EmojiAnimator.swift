@@ -606,13 +606,11 @@ class EmojiAnimator {
         return CGPoint(x: at.x + screen.origin.x, y: at.y + screen.origin.y)
     }
 
-    /// The built-in Retina screen's frame in global coords — where the overlay sits.
+    /// The overlay screen's frame in global coords. Goes through `Screens` like
+    /// the panel and the flash do — the fourth copy of the built-in-display loop
+    /// was the one that would have ignored `overlayScreen`.
     private static func builtInScreenFrame() -> CGRect? {
-        let screen = NSScreen.screens.first { screen in
-            guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
-            return CGDisplayIsBuiltin(id) != 0
-        } ?? NSScreen.main ?? NSScreen.screens.first
-        return screen?.frame
+        Screens.overlayScreen()?.frame
     }
 
     func spawnRandomEmoji() {

@@ -123,6 +123,16 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/test/thumbnail-panel/press/23"), .panelPress(23))
     }
 
+    func testPercentEncodingIsDecodedOnceHere() {
+        // The proxy in front of this app forwards the path and query verbatim,
+        // already encoded, and re-encodes nothing. Decoding is this side's job,
+        // and doing it twice would turn a literal "%25" in a filename into "%".
+        XCTAssertEqual(route("/sound/play/50%5Fgong.mp3"), .soundPlay("50_gong.mp3", nil))
+        XCTAssertEqual(route("/effect/emoji?e=%E2%98%95"), .emoji(e: "☕", count: 1, glow: nil))
+        XCTAssertEqual(route("/effect/progress-bar/300?rider=%F0%9F%8F%81"),
+                       .progressBar(seconds: 300, rider: "🏁"))
+    }
+
     func testUnknownPathsAreUnknown() {
         XCTAssertEqual(route("/test/unknown"), .unknown)
         XCTAssertEqual(route("/videos"), .unknown)       // stayed with the other app

@@ -34,7 +34,60 @@ enum SoundsManifest {
 
     /// Drop the cache — `GET /config/reload` may have pointed `soundsDir`
     /// somewhere else entirely.
-    static func invalidate() { cachedFiles = nil }
+    static func invalidate() {
+        cachedFiles = nil
+        cachedCombined = nil
+        cachedCombinedAt = nil
+        warm()
+    }
+
+    // MARK: - The hash `/ping` reports
+
+    private static var cachedCombined: String?
+    /// `soundsDir`'s own mtime when the cache was built. The directory's date
+    /// moves whenever a file in it is added, removed or replaced, so one `stat`
+    /// per ping catches an edited sounds folder without re-reading megabytes.
+    private static var cachedCombinedAt: Date?
+    private static var warming = false
+
+    /// The hash `/ping` answers with. **Never blocks**: the caller proxying this
+    /// route allows it about a second and a half, and hashing the folder can
+    /// take longer than that on a cold cache. An empty hash is a defined answer
+    /// — a client that gets one skips the comparison and plays its own copy —
+    /// whereas a timed-out ping looks like the whole app is down.
+    static var cachedCombinedHash: String {
+        let now = directoryModified()
+        if let c = cachedCombined, cachedCombinedAt == now { return c }
+        warm()
+        return cachedCombined ?? ""
+    }
+
+    private static func directoryModified() -> Date? {
+        guard let dir = SoundManager.sharedSoundsDir() else { return nil }
+        return (try? FileManager.default.attributesOfItem(atPath: dir.path)[.modificationDate]) as? Date
+    }
+
+    /// Recompute off the main thread. Idempotent and self-limiting, so the ping
+    /// that notices a stale cache does not start a second pass over the folder.
+    static func warm() {
+        guard !warming else { return }
+        warming = true
+        DispatchQueue.global(qos: .utility).async {
+            let stamp = directoryModified()
+            // The non-caching variant on purpose: `cachedFiles` is read from the
+            // main thread by /sounds/manifest, and a background write to it
+            // while a request is reading is a data race for no gain — this pass
+            // only needs the one string.
+            let hash = SoundManager.sharedSoundsDir().map { combinedHash(ofDirectory: $0) } ?? ""
+            DispatchQueue.main.async {
+                if !hash.isEmpty {
+                    cachedCombined = hash
+                    cachedCombinedAt = stamp
+                }
+                warming = false
+            }
+        }
+    }
 
     /// Hash a folder without touching the cached one. Used by the tests, which
     /// must not depend on whatever this machine has configured.

@@ -65,8 +65,13 @@ final class EffectsEngine {
     func pingJSON(panelMonitor: Bool) -> String {
         lastPingAt = Date()
         let vol = Int((SoundManager.shared.currentTabletVolume * 100).rounded())
-        return "{\"ok\":true,\"app\":\"victor-effects\",\"version\":\"\(MenuBar.BUILD_TIME)\","
-            + "\"soundsHash\":\"\(SoundsManifest.combinedHash)\",\"tilesHash\":\"\(TilesManifest.tilesHash)\","
+        // A FLAT object, and no recomputation. The app that proxies this route
+        // splices its own keys in by string manipulation before the closing
+        // brace, so a nested object at the top level would corrupt the merged
+        // body; and it allows this route ~1.5 s, which is less than a cold
+        // sounds hash takes — hence the cached, never-blocking accessor.
+        return "{\"ok\":true,\"app\":\"victor-effects\",\"effectsVersion\":\"\(MenuBar.BUILD_TIME)\","
+            + "\"soundsHash\":\"\(SoundsManifest.cachedCombinedHash)\",\"tilesHash\":\"\(TilesManifest.tilesHash)\","
             + "\"tabletVolume\":\(vol),\"panelMonitor\":\(panelMonitor)}"
     }
 
