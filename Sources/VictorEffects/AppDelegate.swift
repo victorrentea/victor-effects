@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var server: EffectsHttpServer!
     private var hotkeyTap: EffectsHotkeyTap!
     private var coffeeMonitor: CoffeeChargeMonitor!
+    private var panelController: ThumbnailPanelController!
     private var keepAlive: BluetoothKeepAlive?
     private var accessibilityRetry: Timer?
 
@@ -45,6 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         router = EffectsRouter(engine: engine)
         router.panelMonitorActive = { [weak self] in self?.hotkeyTap?.isActive == true && MenuBar.panelEnabled }
 
+        panelController = ThumbnailPanelController(router: router)
+        panelController.claimRouterHooks()
+
         server = EffectsHttpServer(router: router)
         server.start(port: EffectsConfig.shared.port)
 
@@ -65,12 +69,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name == "stop-all" ? self.engine.stopAll() : self.engine.menuEffect(name)
         }
         menuBar.onWhip = { [weak self] in self?.engine.toggleWhip() }
-        menuBar.onReloadTiles = { [weak self] in
-            TilesManifest.invalidate()
-            let count = TilesManifest.load()?.doc.tiles.count ?? 0
-            effectsInfo("tiles.json reloaded: \(count) tiles")
-            _ = self
-        }
+        menuBar.onReloadTiles = { [weak self] in self?.panelController.reloadTiles() }
+        menuBar.onTogglePanel = { [weak self] enabled in self?.panelController.setEnabled(enabled) }
+        menuBar.onShowPanelNow = { [weak self] in self?.panelController.toggleFromMenu() }
         menuBar.onQuit = { [weak self] in self?.tearDownForReplacement() }
 
         // Warm the manifest (a few MB of SHA-256) off the main thread: /ping is
@@ -91,11 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tap.whipShowing = { [weak self] in self?.engine.whipIsShowing ?? false }
         tap.onToggleWhip = { [weak self] in self?.engine.toggleWhip() }
         tap.onCrack = { [weak self] in self?.engine.whip?.forceCrack() }
-        // Hook point for the thumbnail panel (WI-4): a no-op until the panel
-        // controller claims it. The tap never swallows right ⌘, so leaving it
-        // unclaimed costs nothing.
-        tap.onRightCommand = { _ in }
-        tap.onKeyWhileRightCommand = { }
+        // The panel is a listener on this tap, never an owner: `onRightCommand`
+        // fires on the way past and the event continues to the front app.
+        tap.onRightCommand = { [weak self] down in self?.panelController.rightCommand(down: down) }
+        tap.onKeyWhileRightCommand = { [weak self] in self?.panelController.keyWhileRightCommand() }
 
         if tap.start() {
             menuBar.setAccessibilityTrusted(true)
