@@ -86,6 +86,12 @@ final class EffectsConfig {
         return values
     }
 
+    /// Point the app at different values without a file. Only the tests use it:
+    /// half of what lives here is a path, and a test that had to write into
+    /// `~/.victor-effects` to check a path rule would be editing the running
+    /// app's configuration.
+    func override(_ v: EffectsConfigValues) { values = v }
+
     var port: UInt16 { values.port }
     var soundsDir: URL { URL(fileURLWithPath: Self.expand(values.soundsDir)) }
     var assetsDir: URL { URL(fileURLWithPath: Self.expand(values.assetsDir)) }
@@ -98,6 +104,24 @@ final class EffectsConfig {
         var isDir: ObjCBool = false
         let ok = FileManager.default.fileExists(atPath: soundsDir.path, isDirectory: &isDir)
         return ok && isDir.boolValue
+    }
+
+    /// The live config as JSON, for `/state` and `/config/reload`. Hand-rolled
+    /// the way the rest of the HTTP surface is, and routed through
+    /// `JSONSerialization` for the string values so a path with a quote in it
+    /// cannot break the body it is pasted into.
+    var asJSON: String {
+        func s(_ v: String) -> String {
+            let data = (try? JSONSerialization.data(withJSONObject: [v])) ?? Data()
+            let arr = String(data: data, encoding: .utf8) ?? "[\"\"]"
+            return String(arr.dropFirst().dropLast())
+        }
+        let emoji = values.chargeEmoji.map { s($0) }.joined(separator: ",")
+        return "{\"port\":\(values.port),\"soundsDir\":\(s(soundsDir.path)),"
+            + "\"assetsDir\":\(s(assetsDir.path)),\"eventWebhook\":\(s(values.eventWebhook)),"
+            + "\"bluetoothSpeakerNameMatch\":\(s(values.bluetoothSpeakerNameMatch)),"
+            + "\"overlayScreen\":\(s(values.overlayScreen)),\"chargeEmoji\":[\(emoji)],"
+            + "\"soundsDirExists\":\(soundsDirExists)}"
     }
 
     static func expand(_ path: String) -> String {
