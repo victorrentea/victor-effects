@@ -1,6 +1,6 @@
 # The Thumbnail Panel — the soundboard on the Mac
 
-Hold the **right ⌥** (alone) and the tile grid that lives on the tablet appears
+Hold the **right ⌘** (alone) and the tile grid that lives on the tablet appears
 on a screen the room is not looking at. Release it and it is gone. Click a tile and
 it plays exactly as a tablet press would, because it is the same code path.
 
@@ -17,33 +17,32 @@ pictures is a faster way to find a sound than a menu of 91 words.
 | `SoundboardPress.swift` | what a press *means* |
 | `TilesManifest.swift` | the tile list itself (`docs/http-api.md`) |
 
-## The trigger: right ⌥, alone, held ≥ 180 ms
+## The trigger: right ⌘, alone, held ≥ 180 ms
 
 One rule inside `EffectsHotkeyTap` — the same tap that owns ⌃W, because a tap is
 a shared fragile resource and three of them would mean three re-enable paths and
 three Accessibility failures to explain.
 
-- `.flagsChanged` with `keyboardEventKeycode == 61`
-  (`EffectsHotkeyTap.VK_RIGHT_OPTION`). **Left ⌥ is 58 and is deliberately not
-  matched**, so every left-hand ⌥ shortcut and every left-hand accent is
-  untouched by this feature.
-- **Alone**: `EffectsHotkeyTap.decideModifier` arms only when ⌘, ⌃ and ⇧ are all
-  absent, and **cancels** if one of them joins mid-hold. ⌃⌥ and ⌥⇧ are the emoji
-  cheat-sheet layers of the 💬 app (`victor-macos-addons`) — the panel must not
-  appear underneath somebody else's board. Caps lock and fn are not in the set:
-  caps lock is a latch somebody may be sitting on for an hour.
+- `.flagsChanged` with `keyboardEventKeycode == 54`
+  (`EffectsHotkeyTap.VK_RIGHT_COMMAND`). **Left ⌘ is 55 and is deliberately not
+  matched**, so every left-hand ⌘ shortcut is untouched by this feature.
+- **Alone**: `EffectsHotkeyTap.decideModifier` arms only when ⌥, ⌃ and ⇧ are all
+  absent, and **cancels** if one of them joins mid-hold. ⌃⌘, ⌘⇧ and ⌘⌥ are
+  shortcut layers other apps own — the panel must not appear underneath somebody
+  else's chord. Caps lock and fn are not in the set: caps lock is a latch
+  somebody may be sitting on for an hour.
 - Down arms a `holdDelay` (**180 ms**) timer on the main queue; firing it shows
   the panel. Up hides it again.
-- A `keyDown` while right ⌥ is held means the user is typing an accent, not
+- A `keyDown` while right ⌘ is held means the user is typing a shortcut, not
   asking for the panel: before the timer fires it **cancels**; after it fires it
-  **hides**. The panel does not fight a dead key — right-⌥E and right-⌥N keep
+  **hides**. The panel does not fight a shortcut — right-⌘C and right-⌘V keep
   working.
-- **The rule never swallows anything** (`onRightOption` / `onKeyWhileRightOption`
-  are notified and the event passes through).
+- **The rule never swallows anything** (`onRightCommand` /
+  `onKeyWhileRightCommand` are notified and the event passes through).
 
 The decision itself is a pure state machine —
 `ThumbnailPanelController.PanelHoldRule.apply(_:to:)`, four `Event` cases
-(`rightOptionDown`, `holdTimerFired`, `rightOptionUp`, `keyWhileRightOption`)
+(`rightCommandDown`, `holdTimerFired`, `rightCommandUp`, `keyWhileRightCommand`)
 turning a `State` (`enabled`, `holdArmed`, `shownByHold`) into `Action`s
 (`armHoldTimer`, `cancelHoldTimer`, `show`, `hide`). It is a rule and not a
 tangle of booleans inside the tap callback because the interesting cases — a key
@@ -138,18 +137,28 @@ still draws over it on the built-in screen while clicks still reach the panel.
 dragging anything along. Hover highlights come from an `NSTrackingArea`, which
 works without key status.
 
-The **pointing hand** is the grid's, not the tile's (`ThumbnailGridView`): with
-6 pt of `gap` between tiles, a per-tile cursor flicks back to an arrow every time
-the mouse crosses from one tile to the next. It is set imperatively with
-`NSCursor.set()` and **not** through `resetCursorRects`, because cursor *rects*
-are a key-window mechanism and this panel never becomes key — the same scar
+**The cursor over the panel is an arrow and never changes shape** (`PanelCursor`,
+pinned from `ThumbnailGridView`, `TileView` and `PanelContentView`): being the
+window on top does not win the pointer's shape, so with no answer from us the
+window *underneath* answered — an I-beam over a terminal, a pointing hand over a
+browser link, a pointer reacting to a window the user cannot see. The option that
+buys it is **`.cursorUpdate`** on the tracking area (plus `.activeAlways`, since
+this app is never the active one); all three views carry it because the topmost
+tracking area under the pointer is the one AppKit asks. It is set imperatively
+with `NSCursor.set()` and **not** through `addCursorRect`/`resetCursorRects`,
+because cursor *rects* are dispatched to the key window only and this panel never
+becomes key — the rect would never fire once. That is the same scar
 `BreakTimerOverlay` carries in the other app. It is re-asserted on `mouseMoved`
 as well as on enter, because a panel that appears *under* a stationary mouse (the
-normal case for a hold gesture) delivers moves without an enter. Giving it back
-is explicit in three places — `mouseExited`, `finishSlideOut` and `hideNow` —
-since an imperative `set()` bypasses AppKit's own restoration and a window
-ordering out owes the view no `mouseExited`; the hand would otherwise stay on
-screen over somebody else's window.
+normal case for a hold gesture) delivers moves without an enter. `releaseCursor()`
+still hands ownership back in three places — `mouseExited`, `finishSlideOut` and
+`hideNow` — since an imperative `set()` bypasses AppKit's own restoration and a
+window ordering out owes the view no `mouseExited`. `PanelCursor` logs only the
+*corrections* (it found something other than an arrow and overrode it), never the
+confirmations, or one hover would fill the log. `ThumbnailPanelCursorTests` is the
+guard: it parses these three files with their comments stripped, so deleting
+`.cursorUpdate` from one options array fails the build instead of silently going
+back to borrowing the cursor.
 
 ## The grid
 
@@ -174,16 +183,26 @@ layer, versus a redraw loop in a drawing method:
 - `#NN` top-left;
 - the optional `label` centred across it;
 - a `↻` badge when the tile is `restartable`;
-- **playing** = a red border whose opacity pulses;
-- **hover** = a light wash *and* an outline — a white ring over a dark rim, 4 pt
-  in total. The wash on its own was white at 8%, which is nothing on the half of
-  the board whose pictures are already light, and "which tile is the mouse on"
-  is the question 91 pictures have to answer in one glance. White over dark for
-  the same reason `#NN` is white with a black shadow: an outline that vanishes
-  on half the tiles is not an outline. The playing border is added after the two
-  hover layers and covers them exactly — a tile that is playing says *that*
-  first;
-- mouse-down = a slight scale-down.
+- **playing** = a red border whose opacity pulses, `hoverRimWidth` thick — tied
+  to the hover rim rather than a number of its own, because its job is to cover
+  the hover outline exactly;
+- **hover** = a light wash, an outline, a lift *and* a glow — a 5 pt white ring
+  over a 7 pt dark rim, a 20% white wash, `hoverScale` 1.04 and a white shadow on
+  the tile's own layer. It was a 2 pt ring over a 4 pt rim and an 8% wash, and
+  from a metre back — mid-sentence, with a room watching — that read as "a tile
+  with an edge" rather than "THIS one"; "which tile is the mouse on" is the
+  question 91 pictures have to answer in one glance. White over dark for the same
+  reason `#NN` is white with a black shadow: an outline that vanishes on half the
+  tiles is not an outline. The lift is 1.6 pt a side on an 81 pt cell, which fits
+  inside the 6 pt `gap` — a hovered tile never overlaps a neighbour, because
+  sibling order and not hover would decide which one won. The glow is the tile
+  layer's own shadow, the one mark allowed outside the tile: `masksToBounds`
+  clips a layer's sublayers but never its own shadow. The playing border is added
+  after the two hover layers and covers them exactly — a tile that is playing
+  says *that* first;
+- mouse-down = a slight scale-down. Hover and press are one decision
+  (`applyScale`), because releasing a press used to snap back to `.identity` and
+  throw away the hover the mouse is still inside.
 
 Pictures are decoded by `TileImageCache`: **thumbnails via `ImageIO`**, not full
 decodes. The originals run to 2238 px square and there are 91 of them — several
@@ -232,7 +251,7 @@ cancellable handle to keep in sync.
 
 ## Menu and test hooks
 
-Menu rows: **`Show tablet panel on right-⌥ hold`** (the checkbox), **`Show
+Menu rows: **`Show tablet panel on right-⌘ hold`** (the checkbox), **`Show
 tablet panel now`** (a toggle, for a mouse-only check), **`Reload tiles.json`**.
 
 The checkbox is stored as `MenuBar.kPanelEnabled` = `ThumbnailPanel.enabled`

@@ -40,7 +40,7 @@ final class ThumbnailPanel: NSPanel {
         level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)) - 1)
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
-        let content = NSView(frame: contentRect(forFrameRect: frame))
+        let content = PanelContentView(frame: contentRect(forFrameRect: frame))
         content.wantsLayer = true
         content.layer?.backgroundColor = NSColor(white: 0.08, alpha: 0.94).cgColor
         content.layer?.cornerRadius = 18
@@ -55,6 +55,12 @@ final class ThumbnailPanel: NSPanel {
 
     /// Never key, never main — see the class note. Overridden rather than set,
     /// because `NSPanel` decides this by asking, not by reading a stored flag.
+    ///
+    /// This is also why the arrow over the board is pinned from tracking areas
+    /// (`PanelCursor`) and NOT with `addCursorRect`/`invalidateCursorRects`:
+    /// cursor *rects* are dispatched to the key window only, so on this panel
+    /// they would never fire once and the cursor would keep being decided by the
+    /// window underneath.
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
@@ -137,4 +143,30 @@ final class ThumbnailPanel: NSPanel {
         alphaValue = 1
         grid.releaseCursor()
     }
+}
+
+/// The panel's own content view: dark rounded card, and the same arrow.
+///
+/// The grid fills it, so in practice the pointer is over `ThumbnailGridView`
+/// nearly always — but "nearly" is the gap the old behaviour lived in. The
+/// padding around the grid, the empty-manifest message, and the frames between
+/// the panel appearing and the grid laying out are all this view, and over every
+/// one of them the cursor must already be the arrow rather than borrow the shape
+/// of the window underneath.
+final class PanelContentView: NSView {
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds,
+                                       options: [.activeAlways, .mouseEnteredAndExited,
+                                                 .mouseMoved, .cursorUpdate, .inVisibleRect],
+                                       owner: self, userInfo: nil))
+    }
+
+    /// The panel never becomes key, so every click on it is a "first mouse".
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseEntered(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func mouseMoved(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 }

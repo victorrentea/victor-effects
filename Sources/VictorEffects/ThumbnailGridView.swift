@@ -137,39 +137,57 @@ final class ThumbnailGridView: NSView {
         }
     }
 
-    // MARK: - The pointing hand
+    // MARK: - The cursor is an arrow, and stays one
 
-    /// Every tile is clickable, so the hand belongs to the grid and not to the
-    /// tiles: with 6 pt of `gap` between them, a per-tile cursor would flick
-    /// back to an arrow every time the mouse crossed from one tile to the next.
+    /// Every tile is clickable, so the cursor belongs to the grid and not to the
+    /// tiles: with 6 pt of `gap` between them, a per-tile cursor would flick back
+    /// to whatever is underneath every time the mouse crossed from one tile to
+    /// the next. `TileView` pins it too, but only because a tile is the topmost
+    /// tracking area under the pointer and would otherwise answer the cursor
+    /// question with silence.
     ///
-    /// Set imperatively with `NSCursor.set()` rather than through
-    /// `resetCursorRects`, because cursor *rects* are a key-window mechanism and
-    /// this panel deliberately never becomes key (`ThumbnailPanel.canBecomeKey`)
-    /// — hovering the board must not pull the caret out of the app being
-    /// demonstrated. `.activeAlways` is what keeps the events arriving while
-    /// this app is inactive, which it always is.
+    /// `.cursorUpdate` is the option that matters. Without it the panel never
+    /// answers "what is the cursor here?", the window UNDER the overlay answers
+    /// instead, and the pointer morphs to that window's idea of the spot — an
+    /// I-beam over a terminal, a hand over a link in a browser. The board is one
+    /// surface of 91 buttons; the pointer has no business changing shape as it
+    /// crosses it.
+    ///
+    /// `.activeAlways` is what keeps all of these arriving while this app is
+    /// inactive, which it always is. `NSCursor.set()` is imperative rather than
+    /// `resetCursorRects`/`addCursorRect`, because cursor *rects* are a
+    /// key-window mechanism and this panel deliberately never becomes key
+    /// (`ThumbnailPanel.canBecomeKey`) — hovering the board must not pull the
+    /// caret out of the app being demonstrated. That is the same scar
+    /// `BreakTimerOverlay` carries in the other app.
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         for area in trackingAreas { removeTrackingArea(area) }
         addTrackingArea(NSTrackingArea(rect: bounds,
                                        options: [.activeAlways, .mouseEnteredAndExited,
-                                                 .mouseMoved, .inVisibleRect],
+                                                 .mouseMoved, .cursorUpdate, .inVisibleRect],
                                        owner: self, userInfo: nil))
     }
 
-    override func mouseEntered(with event: NSEvent) { NSCursor.pointingHand.set() }
+    /// The panel is never key, so every click on it is a "first mouse". Said here
+    /// as well as on `TileView` because the gaps between tiles are the grid.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseEntered(with event: NSEvent) { PanelCursor.pinArrow() }
     /// Re-asserted on every move: the panel appearing *under* a stationary mouse
     /// is the normal case for a hold gesture, and that delivers moves without an
     /// enter.
-    override func mouseMoved(with event: NSEvent) { NSCursor.pointingHand.set() }
+    override func mouseMoved(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
     override func mouseExited(with event: NSEvent) { releaseCursor() }
 
     /// Hand the cursor back to whoever is underneath. An imperative `set()`
     /// bypasses AppKit's own cursor restoration, so both ways out have to say so
-    /// explicitly: leaving the grid, and the panel being ordered out from under
-    /// a cursor that then never gets a `mouseExited` at all. Otherwise the
-    /// pointing hand stays on screen over somebody else's window.
+    /// explicitly: leaving the grid, and the panel being ordered out from under a
+    /// cursor that then never gets a `mouseExited` at all. The arrow is also what
+    /// the panel itself shows now, so this no longer *changes* anything the eye
+    /// can see — it hands ownership back, and the window underneath reasserts its
+    /// own cursor on the next move.
     func releaseCursor() { NSCursor.arrow.set() }
 
     private func showEmptyMessage() {
@@ -183,5 +201,43 @@ final class ThumbnailGridView: NSView {
         addSubview(label)
         emptyLabel = label
         needsLayout = true
+    }
+}
+
+/// The panel's cursor policy, in one place: **over the board it is an arrow**.
+///
+/// A borderless non-activating panel does not own the pointer's shape by being
+/// on top of the screen. The shape is decided by whoever answers the cursor
+/// question for the spot under the pointer, and with no answer from us that is
+/// the window UNDER the overlay — so the board used to show an I-beam over a
+/// terminal and a pointing hand over a browser link, a pointer reacting to a
+/// window the user cannot even see.
+enum PanelCursor {
+    /// True when the last `pinArrow()` found the arrow already in place, i.e.
+    /// nothing underneath had taken the cursor. Read by the test hook and
+    /// reported by `/test/thumbnail-panel`, because this is the one fact about
+    /// the cursor a headless check can actually observe.
+    private(set) static var lastFoundArrow = true
+    /// How many times the pin had to CORRECT the cursor rather than confirm it.
+    /// One or two is the panel opening under a pointer somebody else had shaped;
+    /// a number that climbs while the mouse sits still is a fight.
+    private(set) static var corrections = 0
+
+    /// Idempotent, and called on every move — so it logs the corrections, not
+    /// the confirmations, or a single hover would fill the log.
+    static func pinArrow() {
+        let wasArrow = NSCursor.current == NSCursor.arrow
+        lastFoundArrow = wasArrow
+        if !wasArrow {
+            corrections += 1
+            effectsInfo("panel cursor: found \(NSCursor.current) under the pointer, pinned the arrow (correction #\(corrections))")
+        }
+        NSCursor.arrow.set()
+    }
+
+    /// For tests: the counters are process-wide.
+    static func resetForTesting() {
+        lastFoundArrow = true
+        corrections = 0
     }
 }

@@ -70,13 +70,33 @@ final class TileView: NSView {
     private var labelLayer: CATextLayer?
     private var badgeLayer: CATextLayer?
     private var trackingArea: NSTrackingArea?
+    private var isHovered = false
+    private var isPressed = false
 
     /// The hover outline: a dark rim at the tile's edge with a white ring just
-    /// inside it, 4 pt of mark in total — the same footprint as the playing
+    /// inside it, 7 pt of mark in total — the same footprint as the playing
     /// border, which is added after these layers and so draws straight over
     /// them. A tile that is playing says *that* first.
-    static let hoverRimWidth: CGFloat = 4
-    static let hoverRingWidth: CGFloat = 2
+    ///
+    /// It was 4 pt (2 pt of ring over a 4 pt rim) and that was still a guess from
+    /// a metre back: an 81 pt tile with a 2 pt edge reads as "a tile with an
+    /// edge", not as "THIS one". The ring is what the eye lands on, so the ring
+    /// is what grew — 2 → 5 pt — and the dark rim went with it to keep the white
+    /// legible on the light half of the board.
+    static let hoverRimWidth: CGFloat = 7
+    static let hoverRingWidth: CGFloat = 5
+    /// How far the white ring sits inside the dark rim: the rim shows as a thin
+    /// dark keyline around it, and the ring's corner radius has to match.
+    static var hoverRingInset: CGFloat { hoverRimWidth - hoverRingWidth }
+    /// Thicker and brighter, and then the tile also comes forward. 1.04 of an
+    /// 81 pt cell is 1.6 pt a side — it fits inside the 6 pt `gap`, so a hovered
+    /// tile lifts without ever touching its neighbours.
+    static let hoverScale: CGFloat = 1.04
+    /// The glow around the lifted tile. The root layer clips its *sublayers*
+    /// (`masksToBounds`) but never its own shadow, so this is the one mark that
+    /// is allowed outside the tile.
+    static let hoverGlowRadius: CGFloat = 9
+    static let hoverGlowOpacity: Float = 0.75
     /// Short enough to track a mouse crossing tiles, long enough not to strobe.
     static let hoverFade: CFTimeInterval = 0.08
 
@@ -103,21 +123,23 @@ final class TileView: NSView {
         // is white over a dark rim for the same reason `#NN` below is white with
         // a black shadow: an outline that vanishes on half the tiles is not an
         // outline. Rim at the very edge, white just inside it.
-        hoverRimLayer.borderColor = NSColor(white: 0, alpha: 0.55).cgColor
+        hoverRimLayer.borderColor = NSColor(white: 0, alpha: 0.75).cgColor
         hoverRimLayer.borderWidth = Self.hoverRimWidth
         hoverRimLayer.cornerRadius = 6
         hoverRimLayer.opacity = 0
         layer?.addSublayer(hoverRimLayer)
 
-        hoverLayer.backgroundColor = NSColor(white: 1, alpha: 0.08).cgColor
+        hoverLayer.backgroundColor = NSColor(white: 1, alpha: 0.20).cgColor
         hoverLayer.borderColor = NSColor.white.cgColor
         hoverLayer.borderWidth = Self.hoverRingWidth
-        hoverLayer.cornerRadius = 6 - Self.hoverRingWidth
+        hoverLayer.cornerRadius = 6 - Self.hoverRingInset
         hoverLayer.opacity = 0
         layer?.addSublayer(hoverLayer)
 
         borderLayer.borderColor = NSColor.systemRed.cgColor
-        borderLayer.borderWidth = 4
+        // Tied to the hover rim, not a 4 of its own: this border's job is to
+        // cover the hover outline exactly, so the two widths are one decision.
+        borderLayer.borderWidth = Self.hoverRimWidth
         borderLayer.cornerRadius = 6
         borderLayer.opacity = 0
         layer?.addSublayer(borderLayer)
@@ -172,8 +194,7 @@ final class TileView: NSView {
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
         hoverRimLayer.frame = bounds
-        let ringInset = Self.hoverRimWidth - Self.hoverRingWidth
-        hoverLayer.frame = bounds.insetBy(dx: ringInset, dy: ringInset)
+        hoverLayer.frame = bounds.insetBy(dx: Self.hoverRingInset, dy: Self.hoverRingInset)
         borderLayer.frame = bounds
         let numberSize = max(9, side * 0.10)
         numberLayer.fontSize = numberSize
@@ -213,8 +234,12 @@ final class TileView: NSView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea { removeTrackingArea(trackingArea) }
+        // `.cursorUpdate` as well as enter/exit: a tile is the TOPMOST tracking
+        // area under the pointer, so if it did not answer the cursor question
+        // itself, the answer would come from whatever is underneath the panel.
         let area = NSTrackingArea(rect: bounds,
-                                  options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  options: [.mouseEnteredAndExited, .cursorUpdate,
+                                            .activeAlways, .inVisibleRect],
                                   owner: self, userInfo: nil)
         addTrackingArea(area)
         trackingArea = area
@@ -227,27 +252,58 @@ final class TileView: NSView {
     /// that refuses focus, and the tile would need pressing twice.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseEntered(with event: NSEvent) { setHover(true) }
+    override func mouseEntered(with event: NSEvent) {
+        setHover(true)
+        PanelCursor.pinArrow()
+    }
+
     override func mouseExited(with event: NSEvent) { setHover(false) }
+
+    /// AppKit asking "what is the cursor here?" — the one moment it is polite to
+    /// answer, and the answer is always the arrow. See `PanelCursor`.
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 
     /// Both halves of the outline move together, and they fade rather than snap —
     /// but over `hoverFade`, not CALayer's implicit quarter of a second. The
     /// outline's whole job is to keep up with the mouse sweeping the board; at
     /// 0.25 s it is still arriving on the tile the pointer has already left.
     private func setHover(_ on: Bool) {
+        guard on != isHovered else { return }
+        isHovered = on
         CATransaction.begin()
         CATransaction.setAnimationDuration(Self.hoverFade)
         hoverRimLayer.opacity = on ? 1 : 0
         hoverLayer.opacity = on ? 1 : 0
+        layer?.shadowColor = NSColor.white.cgColor
+        layer?.shadowOffset = .zero
+        layer?.shadowRadius = Self.hoverGlowRadius
+        layer?.shadowOpacity = on ? Self.hoverGlowOpacity : 0
+        applyScale()
         CATransaction.commit()
     }
 
+    /// One place decides the tile's size, because two states claim it: hovering
+    /// lifts it and pressing pushes it in. Releasing a press used to snap back to
+    /// `.identity`, which threw away the hover the mouse is still inside.
+    private func applyScale() {
+        let scale: CGFloat = isPressed ? 0.95 : (isHovered ? Self.hoverScale : 1)
+        layer?.setAffineTransform(CGAffineTransform(scaleX: scale, y: scale))
+    }
+
     override func mouseDown(with event: NSEvent) {
-        layer?.setAffineTransform(CGAffineTransform(scaleX: 0.95, y: 0.95))
+        isPressed = true
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.hoverFade)
+        applyScale()
+        CATransaction.commit()
     }
 
     override func mouseUp(with event: NSEvent) {
-        layer?.setAffineTransform(.identity)
+        isPressed = false
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.hoverFade)
+        applyScale()
+        CATransaction.commit()
         guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
         onPress?(tile)
     }
