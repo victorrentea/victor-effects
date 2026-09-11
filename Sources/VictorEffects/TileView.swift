@@ -77,6 +77,8 @@ final class TileView: NSView {
     /// them. A tile that is playing says *that* first.
     static let hoverRimWidth: CGFloat = 4
     static let hoverRingWidth: CGFloat = 2
+    /// Short enough to track a mouse crossing tiles, long enough not to strobe.
+    static let hoverFade: CFTimeInterval = 0.08
 
     var isPlaying = false {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
@@ -228,11 +230,16 @@ final class TileView: NSView {
     override func mouseEntered(with event: NSEvent) { setHover(true) }
     override func mouseExited(with event: NSEvent) { setHover(false) }
 
-    /// Both halves of the outline move together; the implicit layer animation is
-    /// left in, so the ring fades up rather than snapping as the mouse crosses.
+    /// Both halves of the outline move together, and they fade rather than snap —
+    /// but over `hoverFade`, not CALayer's implicit quarter of a second. The
+    /// outline's whole job is to keep up with the mouse sweeping the board; at
+    /// 0.25 s it is still arriving on the tile the pointer has already left.
     private func setHover(_ on: Bool) {
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.hoverFade)
         hoverRimLayer.opacity = on ? 1 : 0
         hoverLayer.opacity = on ? 1 : 0
+        CATransaction.commit()
     }
 
     override func mouseDown(with event: NSEvent) {
