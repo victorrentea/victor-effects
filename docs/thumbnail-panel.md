@@ -196,8 +196,10 @@ layer, versus a redraw loop in a drawing method:
   tiles is not an outline. The lift is 1.6 pt a side on an 81 pt cell, which fits
   inside the 6 pt `gap` — a hovered tile never overlaps a neighbour, because
   sibling order and not hover would decide which one won. The glow is the tile
-  layer's own shadow, the one mark allowed outside the tile: `masksToBounds`
-  clips a layer's sublayers but never its own shadow. The playing border is added
+  layer's own shadow, which is why that layer must **not** set `masksToBounds`:
+  a layer clips its own shadow along with its sublayers — the same reason a
+  rounded view with a drop shadow always needs two layers. The rounding moved
+  down to `imageLayer`, the only sublayer with anything to clip. The playing border is added
   after the two hover layers and covers them exactly — a tile that is playing
   says *that* first;
 - mouse-down = a slight scale-down. Hover and press are one decision

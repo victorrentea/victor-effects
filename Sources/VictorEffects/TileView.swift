@@ -92,9 +92,10 @@ final class TileView: NSView {
     /// 81 pt cell is 1.6 pt a side — it fits inside the 6 pt `gap`, so a hovered
     /// tile lifts without ever touching its neighbours.
     static let hoverScale: CGFloat = 1.04
-    /// The glow around the lifted tile. The root layer clips its *sublayers*
-    /// (`masksToBounds`) but never its own shadow, so this is the one mark that
-    /// is allowed outside the tile.
+    /// The glow around the lifted tile: the root layer's own shadow, which is
+    /// why that layer must NOT set `masksToBounds` — a layer clips its own
+    /// shadow along with its sublayers, which is the same reason a rounded view
+    /// with a drop shadow always needs two layers.
     static let hoverGlowRadius: CGFloat = 9
     static let hoverGlowOpacity: Float = 0.75
     /// Short enough to track a mouse crossing tiles, long enough not to strobe.
@@ -108,12 +109,16 @@ final class TileView: NSView {
         self.tile = tile
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.masksToBounds = true
+        // NOT `masksToBounds` — a layer clips its own shadow as well as its
+        // sublayers, and the hover glow IS this layer's shadow. The rounding it
+        // used to provide moves down to `imageLayer`, which is the only sublayer
+        // that ever has anything to clip; every other one is an inset border.
         layer?.cornerRadius = 6
         layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
 
         imageLayer.contentsGravity = .resizeAspectFill
         imageLayer.masksToBounds = true
+        imageLayer.cornerRadius = 6
         layer?.addSublayer(imageLayer)
 
         // Hover is a wash AND a ring. The wash alone (white at 8%) is what was
