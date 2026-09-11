@@ -44,6 +44,15 @@ enum SoundEffectMap {
         // the clip plays down the ordinary routed path — and it self-terminates
         // at the clip's length, so no onStop entry is needed.
         "71_one_more_time.mp3":  "sketch-arrow",
+        // Tile 7 (☎️ animated phone): 🔴 the big red button grows out of the
+        // pointer and waits to be PRESSED. The only effect in the catalogue that
+        // deliberately outlives its clip — the clip is a couple of seconds, the
+        // button is a prop Victor talks over and then presses — so there is no
+        // onStop entry: the tablet's /sound/stopped must NOT take it away. It
+        // ends on the click, on Escape, on a stop-all, or on its own 20 s
+        // deadline (`RedButton.maxLifetime`), which is the self-termination rule
+        // for an effect with no clip length to inherit.
+        "07_animated_phone.mp3": "red-button",
         // Tile 18 (🪚 chainsaw): the mouse pointer itself becomes a running
         // chainsaw for the length of the clip. Press starts it, stop puts the
         // real pointer back (see onStop) — and the effect self-stops at the

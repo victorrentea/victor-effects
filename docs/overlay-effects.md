@@ -29,7 +29,7 @@ available to decide when a looping effect should end.
 Everything is drawn as `CALayer`s on `OverlayPanel`'s `hostLayer` — one
 click-through, all-spaces panel covering `Screens.overlayScreen()` (the
 built-in display by default, see `EffectsConfig.overlayScreen`). Bitmaps and
-gif frames come from `Bundle.module`; the six large/licensed ones come from
+gif frames come from `Bundle.module`; the seven large/licensed ones come from
 `EffectsConfig.assetsDir` via `assetURL(_:)` and the effect quietly does
 nothing when they are absent. Audio comes from `EffectsConfig.soundsDir`
 (`docs/sound-routing.md`) — **no soundboard mp3 is in this repo**.
@@ -1127,6 +1127,78 @@ rule from the start.
   the ordinary routed `/sound/play` path, which is why #71 needs no special case
   in `playSound` and no `onStop` entry. `stop-all` clears it like any other
   tracked effect; re-firing redraws it (it is not a toggle).
+
+- **🔴 Big red button** (tile #7 `07_animated_phone.mp3` → `red-button`,
+  `showRedButton`, `RedButton.swift`): **the one effect the room does not just
+  watch.** A big red arcade button zooms out of the pointer, lights up when the
+  pointer is on it, goes down when it is pressed, and shrinks back into the exact
+  pixel it came from.
+  **The asset is not in this repo.** `red_button.gif` lives in
+  `EffectsConfig.assetsDir` (`~/.victor-effects/assets` by default), same rule as
+  `wazzup.png`, `brother_full.gif` and `scared_cat.gif` — a stock arcade button,
+  background flood-filled to alpha and alpha-trimmed, **468×426, two frames**:
+  frame 0 raised, frame 1 pressed in. Missing ⇒ one log line
+  (`showRedButton: no red_button.gif in …`) and no overlay; the clip still plays.
+  A one-frame replacement is legal — the press then falls back to squash 0.92 +
+  brightness −0.15 instead of swapping the frame.
+  **Geometry.** Height is **half the overlay screen's height**, width by the
+  image's own aspect, centred **exactly** on the pointer — and deliberately *not*
+  clamped onto the screen. The whole promise is "grows out of P, shrinks back into
+  P"; a button nudged inwards to fit would shrink into a pixel nobody clicked,
+  which is a worse lie than a button hanging off the edge when the pointer was
+  parked in a corner. Zoom out **0→1 over 0.35 s, ease-out**; shrink back
+  **1→0 over 0.30 s, ease-in** — the entrance is an arrival and wants to be
+  seen, the exit is a dismissal.
+  **Hover costs a second window.** The desktop overlay is `ignoresMouseEvents =
+  true` so effects can be drawn over a Mac somebody is still working on; flipping
+  that for the whole screen would make the desktop deaf. So the artwork is a
+  layer on the shared `hostLayer` and the hit target is a **second small panel**
+  laid exactly over it (`RedButtonHitPanel`, the mascot's `PeekHitPanel` trick).
+  Two differences from the mascot: the cursor is the **pointing hand** rather than
+  `PanelCursor`'s pinned arrow (same mechanism — a tracking area's `cursorUpdate`,
+  because a borderless non-activating panel does not own the pointer's shape just
+  by being on top — opposite answer: the board is a surface, this is a button and
+  it has to *look* pressable); and the panel is **only listening while the pointer
+  is on an opaque pixel**. `RedButton.isOpaque` alpha-tests an 8-bit mask of the
+  first frame, and the controller flips `ignoresMouseEvents` off that, so a click
+  in the transparent corners reaches the app underneath. A circle wastes 21 % of
+  its bounding box on those corners and this one is half the screen high.
+  The hit test uses the **resting** rectangle, never the hovered one: hit-testing
+  the grown rect makes the edge bistable (cross in, it grows to meet you, you are
+  inside; leave, it shrinks away, you are outside) and the boundary flickers at
+  the frame rate. Hover look: **scale 1.06 + brightness +12 %** — both, because
+  the scale carries from the back of a room and the brightness carries on a
+  mirrored projector that has flattened the contrast.
+  **The click hook is the point, and it is deliberately empty.**
+  `RedButtonController.onButtonClicked: ((_ origin: CGPoint) -> Void)?` is called
+  on **mouse-up on the button**, with `origin` = the **global screen point** the
+  button grew out of. Today nothing is assigned to it: the press logs
+  `🔴 red button clicked — origin P=(x,y)` and the button shrinks away as if
+  nothing had happened. What actually happens at P is a decision about the room,
+  not about this mechanism, and the mechanism is finished without it — whoever
+  makes that decision assigns the closure in `EmojiAnimator.showRedButton` and
+  touches nothing else.
+  **Clicked ⇒ stays pressed. Timed out ⇒ comes back up.** That distinction is the
+  reason the lifecycle is a state machine (`RedButton.Phase`/`Event`/`Action`,
+  `next(_:_:)`) rather than a handful of booleans, and it is asserted in
+  `RedButtonTests` without a screen. A press dragged off the button cancels, like
+  every other button on the machine; a `mouseUp` during the shrink fires nothing.
+  **Lifetime — the one effect that outlives its clip.** Tile 7's sound is a couple
+  of seconds and the button is a prop Victor talks over *and then* presses, so
+  "the sound ended" is explicitly not the deadline: there is no `onStop` entry, and
+  the tablet's `/sound/stopped` must not take it away. It ends on the click, on
+  **Esc**, on `stop-all`, or on its own **20 s** deadline
+  (`RedButton.maxLifetime`), after which it shrinks away **un-pressed**. That
+  deadline is the self-termination rule for an effect with no clip length to
+  inherit one from.
+  Esc is taken with a local `CGEventTap` for the fire cursor's reason — a monitor
+  can only observe, and an Esc that also closed the user's dialog would make
+  dismissing the button cost something. The same tap watches `mouseMoved` (passed
+  through untouched) to drive the hover. Like the fire cursor and the
+  bombardment, the run holds a tap **and** a real window, so `stopAllActiveEffects`
+  tears it down explicitly (`stopRedButton`) instead of relying on the
+  `activeEffects` sweep, which would drop the artwork and leave an invisible
+  rectangle eating clicks in the middle of the screen.
 
 ## ☕ The hold-charge gesture
 

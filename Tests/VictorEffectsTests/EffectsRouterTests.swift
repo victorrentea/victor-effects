@@ -44,6 +44,15 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/effect/sketch-arrow"), .effect("sketch-arrow"))
     }
 
+    func testRouteRedButtonTestAndEffectEndpoints() {
+        // 🔴 Tile #7's big red button. It waits to be pressed rather than ending
+        // with its clip, so unlike the sketch arrow it needs an explicit /stop.
+        XCTAssertEqual(route("/test/red-button"), .effect("red-button"))
+        XCTAssertEqual(route("/test/red-button/stop"), .effect("red-button/stop"))
+        XCTAssertEqual(route("/effect/red-button"), .effect("red-button"))
+        XCTAssertEqual(route("/effect/red-button/stop"), .effect("red-button/stop"))
+    }
+
     func testRouteElephantTestAndEffectEndpoints() {
         // 🐘 is a toggle, so the alias has a /stop twin.
         XCTAssertEqual(route("/test/elephant"), .effect("elephant"))

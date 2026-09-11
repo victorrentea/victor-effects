@@ -213,6 +213,8 @@ final class EffectsEngine {
         case "zorro":         animator.showZorro()
         case "laugh":         animator.showLaugh()
         case "sketch-arrow":  animator.showSketchArrow()
+        case "red-button":    animator.showRedButton()
+        case "red-button/stop": animator.stopRedButton()
         case "coffee":
             // Spawn a few rising ☕ so the hold-charge gesture can be exercised
             // headlessly — hover one, hold 3 s, watch it freeze, grow and pop.
