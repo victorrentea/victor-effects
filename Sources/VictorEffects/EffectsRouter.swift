@@ -40,6 +40,12 @@ final class EffectsRouter {
         /// A client reports a sound started; the Mac owns the sound→effect map.
         case soundPressed(String)
         case soundStopped(String)
+        /// `GET /usage` — the press counts behind the tablet's green dots.
+        case usage
+        /// `GET /usage/import?counts=<asset>:<n>,…` — a client's historical
+        /// totals, max-merged in. One-shot, at the tablet's first sync.
+        case usageImport([String: Int])
+        case usageReset
         /// `GET /effects/assets` (and its older spelling `GET /sound/effects`)
         /// — which sounds also fire a desktop visual.
         case effectsAssets
@@ -122,6 +128,19 @@ final class EffectsRouter {
         case "/alarm/start":        return .alarmStart
         case "/alarm/stop":         return .alarmStop
         case "/tiles":              return .tiles
+        case "/usage":              return .usage
+        case "/usage/reset":        return .usageReset
+        case "/usage/import":
+            // "asset:count,asset:count" — a GET because that is the only verb
+            // the tablet's link speaks, and the payload is ~100 short pairs.
+            var parsed: [String: Int] = [:]
+            for pair in (q("counts") ?? "").split(separator: ",") {
+                let halves = pair.split(separator: ":")
+                if halves.count == 2, let n = Int(halves[1]), n > 0 {
+                    parsed[String(halves[0])] = n
+                }
+            }
+            return parsed.isEmpty ? .unknown : .usageImport(parsed)
         case "/state":              return .state
         case "/config/reload":      return .configReload
         case "/test/thumbnail-panel":       return .panelShow
@@ -223,6 +242,11 @@ final class EffectsRouter {
             return .ok()
 
         case .soundPressed(let file):
+            // Counted BEFORE the effect lookup: a tile with no visual is still a
+            // tile that was pressed, and the dots measure use, not spectacle.
+            // This is also the one place both surfaces meet — the tablet's HTTP
+            // press and the panel's in-process dispatch land here alike.
+            UsageCounts.record(file)
             guard let effect = SoundEffectMap.pressEffect(for: file) else { return .ok("no-effect") }
             engine.runEffect(effect)
             return .ok()
@@ -243,6 +267,10 @@ final class EffectsRouter {
             return .json("{\"ok\":true,\"ms\":\(applied)}")
 
         case .alarmStart:
+            // The siren is the one tile that reports through /alarm/* instead of
+            // /sound/pressed, so without this line it would be the one tile
+            // whose dots never move.
+            UsageCounts.record(SoundboardPress.sirenAsset)
             engine.startAlarm()
             return .ok()
 
@@ -295,6 +323,17 @@ final class EffectsRouter {
             // now; this route stays as the flat, greppable answer to "which
             // sounds are effect sounds" for a curl and for the drift tests.
             return .json(EffectsCatalog.assetsJSON)
+
+        case .usage:
+            return .json(UsageCounts.json)
+
+        case .usageImport(let counts):
+            UsageCounts.merge(counts)
+            return .json(UsageCounts.json)
+
+        case .usageReset:
+            UsageCounts.reset()
+            return .json(UsageCounts.json)
 
         case .state:
             return .json(engine.stateJSON(panelMonitor: panelMonitorActive(),

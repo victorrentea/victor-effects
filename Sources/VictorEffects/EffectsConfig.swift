@@ -27,6 +27,11 @@ struct EffectsConfigValues: Equatable {
     /// Emoji that charge up when the cursor hovers them and pop into a webhook.
     var chargeEmoji: [String] = ["☕"]
 
+    /// Where the per-tile press counts live (`UsageCounts`). Next to the config
+    /// rather than in `soundsDir`: that folder is a git checkout of the tablet
+    /// repo, and a file rewritten on every press has no business being in it.
+    var usageFile: String = "~/.victor-effects/usage.json"
+
     /// Pure parser — the tests drive this with literal JSON and a literal
     /// environment, so no test ever depends on what is on this machine.
     static func parse(jsonData: Data?, env: [String: String] = [:]) -> EffectsConfigValues {
@@ -42,6 +47,7 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["bluetoothSpeakerNameMatch"] as? String { v.bluetoothSpeakerNameMatch = s }
             if let s = obj["overlayScreen"] as? String, !s.isEmpty { v.overlayScreen = s }
             if let a = obj["chargeEmoji"] as? [String], !a.isEmpty { v.chargeEmoji = a }
+            if let s = obj["usageFile"] as? String, !s.isEmpty { v.usageFile = s }
         }
         // Env wins over the file: it is how you start a second copy on another
         // port without editing the config the running one shares.

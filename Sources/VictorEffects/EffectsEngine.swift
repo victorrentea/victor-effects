@@ -75,6 +75,10 @@ final class EffectsEngine {
             // Cheap (a hash of ~43 short strings, no I/O), so unlike soundsHash
             // it needs no cache to stay inside the proxy's 1.5 s.
             + "\"effectsHash\":\"\(EffectsCatalog.effectsHash)\","
+            // Same reasoning as effectsHash, and the same cost: the dots the
+            // tablet draws are these numbers, so it needs to know they moved —
+            // including when the move came from the Mac's own panel.
+            + "\"usageHash\":\"\(UsageCounts.hash)\","
             + "\"tabletVolume\":\(vol),\"panelMonitor\":\(panelMonitor)}"
     }
 

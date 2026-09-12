@@ -33,12 +33,15 @@ press cannot drift apart.
 
 | route | answers | notes |
 |---|---|---|
-| `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
+| `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","usageHash":"…","tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
 | `GET /sounds/manifest` | `{name: sha256}` over `soundsDir/*.mp3` | **503** `{"error":"soundsDir unreadable"}` when the folder is gone |
 | `GET /sound/play/<file>?vol=N` | `{"ok":true,"durationMs":N}` | **404** `{"ok":false,"reason":"unknown-sound"}`. Seven files take a paired-visual path — see `docs/sound-routing.md` |
 | `GET /sound/volume/<pct>` | `ok` | player level, not system volume |
 | `GET /sound/stop` | `ok` | fades over `interruptFade` |
 | `GET /sound/pressed/<file>` | `ok`, or `no-effect` | `SoundEffectMap.pressEffect` → `runEffect` |
+| `GET /usage` | `{"counts":{"<asset>":n,…},"hash":"…"}` | The press count behind each of the tablet's green dots. **This Mac is the only counter**: every `/sound/pressed/` (tablet) and every in-process panel press lands in `UsageCounts`, so the dots finally include the presses made on the Mac itself. The body carries the hash it was computed from — a client adopting the table records THAT, not the one from a `/ping` its own press may have crossed |
+| `GET /usage/import?counts=<asset>:<n>,…` | the merged table | One-shot seed of a client's history (the years the tablet counted alone). **Max-merged**, so a retry or a second tablet cannot inflate anything |
+| `GET /usage/reset` | the empty table | Wipes the counts — what the tablet's "Reset usage stats" now calls, since clearing only its own copy would be undone by the next ping |
 | `GET /effects/assets` | `{"assets":["02_siren.mp3",…]}` | Every sound whose tile ALSO does something on the desktop, sorted — `EffectsCatalog.assets`. See **the ⭐ catalogue** below |
 | `GET /sound/effects` | same body | The older spelling, kept for scripts and for tablet builds that predate the `effect` field on `/tiles` |
 | `GET /sound/stopped/<file>` | `ok`, or `no-effect` | `SoundEffectMap.stopEffect` → `runEffect` |
@@ -110,6 +113,11 @@ Two test files hold this together, and both are guards rather than copies:
   it pass is to make the real thing true. It also checks every catalogued asset
   against the live `tiles.json` (skipped when `soundsDir` is not on this machine)
   to catch a renamed mp3 leaving a star over nothing.
+
+`usageHash` is the third: a SHA-256 over the sorted `asset:count` lines of
+`UsageCounts`. It moves on every press — including a press made on the Mac's own
+thumbnail panel, which is exactly the event the tablet had no way of hearing
+about — and the tablet re-pulls `/usage` when it does.
 
 `tilesHash` and `effectsHash` answer different questions and must not be merged:
 `tilesHash` is the hash of the manifest's own BYTES ("is my tile list the Mac's

@@ -95,6 +95,17 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertFalse(starred.contains("01_baby.mp3"))
     }
 
+    func testUsageRoutesParse() {
+        XCTAssertEqual(route("/usage"), .usage)
+        XCTAssertEqual(route("/usage/reset"), .usageReset)
+        XCTAssertEqual(route("/usage/import?counts=03_explosion.mp3:12,50_gong.mp3:3"),
+                       .usageImport(["03_explosion.mp3": 12, "50_gong.mp3": 3]))
+        // A seed with nothing in it is not a seed; it must not be mistaken for
+        // an instruction to write an empty table over the Mac's history.
+        XCTAssertEqual(route("/usage/import?counts="), .unknown)
+        XCTAssertEqual(route("/usage/import"), .unknown)
+    }
+
     func testSoundStopExactStillDistinctFromStopped() {
         // "/sound/stop" preempts playback; it must NOT be parsed as a
         // "/sound/stopped/<file>" report with an empty filename.

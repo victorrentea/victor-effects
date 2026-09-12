@@ -54,6 +54,21 @@ this one only routes.
   the promise. Adding an effect to `playSound` without deciding about its star
   fails the build with the name of the list to edit. Details in
   `docs/http-api.md` under **the ⭐ catalogue**.
+- **This Mac owns the soundboard, not just its effects.** Three things the
+  tablet used to decide for itself now arrive from here and are re-read whenever
+  a hash in `/ping` moves: the grid itself (`GET /tiles` — order, columns,
+  labels, `restartable`, ©, and the `effect` field behind the ⭐; `tilesHash` +
+  `effectsHash`), and the press counts behind its green dots (`GET /usage`,
+  `usageHash`). The tablet caches the last `/tiles` body on disk and builds from
+  it at launch **before** its own bundled copy, so a board that boots with no Mac
+  in reach still shows this Mac's last word. Anything that changes what a tile IS
+  belongs in `tiles.json` or `EffectsCatalog`, never in Kotlin.
+- **`UsageCounts` counts every press, from every surface.** The tablet reports
+  its own (`/sound/pressed/`, `/alarm/start` for the siren) and the panel presses
+  through the same router in-process, so one counter sees both — the panel's
+  presses were invisible to the dots before. Stored in `usageFile`
+  (`~/.victor-effects/usage.json` by default), NOT in `soundsDir`: that folder is
+  a git checkout of the tablet repo.
 - **Visual tests go on the non-projected screen.** The built-in retina is the
   overlay screen and may be mirrored to a room.
 - **Sounds are not in this repo.** They live in `EffectsConfig.soundsDir`; never
