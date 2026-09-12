@@ -12,10 +12,16 @@ import XCTest
 /// when it rots: delete `.cursorUpdate` from one options array and the panel
 /// still builds, still shows, and quietly goes back to borrowing its cursor.
 ///
-/// **The hover mark is thick enough to find from a metre away.** Its numbers are
-/// also load-bearing against each other: the red playing border has to keep
-/// covering the hover outline exactly, and the hover scale-up has to stay inside
-/// the gap between tiles.
+/// **The mark under the pointer never moves the picture.** Hover and press are
+/// painted in the dead black gutter around the cell — green and red — and reach
+/// exactly as far as the neighbours. The old mark did the opposite: it scaled
+/// the tile up 1.04 and glowed, so the artwork twitched under the mouse.
+///
+/// **And the panel is the same board as the tablet.** Same ⭐ on the same tiles
+/// (the catalogue's answer, in process), at the same fractions of the cell; the
+/// video titles at the tablet's own ratio, which the panel had been drawing at
+/// half size because `textSize = 48f` in Kotlin is sp and it had been copied as
+/// px.
 ///
 /// Both are asserted against THE SOURCE where no value is exported, the same
 /// trick as `SoundEffectMapDriftTests` — the only way to pass is to make the
@@ -131,47 +137,102 @@ final class ThumbnailPanelCursorTests: XCTestCase {
 
     // MARK: - The hover mark
 
-    func testTheHoverRingIsThickEnoughToFindFromAMetreAway() {
+    /// **The picture never moves.** Hover was a 1.04 scale-up with a white glow
+    /// and press was a 0.95 scale-down; on a board of 91 photographs that reads
+    /// as the artwork twitching under the pointer rather than as "the mouse is
+    /// here". The mark moved OUT of the tile and into the dead black gutter
+    /// around it, and nothing in the compiler stops a transform from creeping
+    /// back — so this reads the source of both tile views.
+    func testNeitherTileViewEverMovesItsPicture() throws {
+        for path in ["Sources/VictorEffects/TileView.swift",
+                     "Sources/VictorEffects/VideoGridView.swift"] {
+            let swift = try code(path)
+            XCTAssertFalse(swift.contains("setAffineTransform"),
+                           "\(path) transforms the tile — hover and press must not move the artwork")
+            XCTAssertFalse(swift.contains("shadowOpacity = on"),
+                           "\(path) glows on hover — the mark belongs in the gutter, not around the picture")
+            XCTAssertFalse(swift.contains("hoverScale"),
+                           "\(path) still scales on hover")
+        }
+    }
+
+    /// The mark reaches exactly to the neighbours: a fill short of the gap would
+    /// leave a black hairline down the middle of the gutter, which is precisely
+    /// the "a tile with an edge" reading the old 2 pt ring was replaced for.
+    func testTheHoverFillCoversTheWholeGutter() {
         XCTAssertGreaterThanOrEqual(
-            TileView.hoverRingWidth, 5,
-            "the bright ring was 2 pt and read as 'a tile with an edge', not as 'THIS one'"
-        )
-        XCTAssertGreaterThan(
-            TileView.hoverRimWidth, TileView.hoverRingWidth,
-            "the dark rim has to show OUTSIDE the white ring, or the ring vanishes on the light half of the board"
-        )
-        XCTAssertGreaterThan(TileView.hoverRingInset, 0)
-    }
-
-    func testAHoveredTileLiftsWithoutTouchingItsNeighbours() {
-        XCTAssertGreaterThan(TileView.hoverScale, 1, "hover should bring the tile forward")
-        // The biggest cell the grid will ever lay out: the full board on the
-        // widest panel it is placed on.
-        let m = ThumbnailGridView.metrics(fitting: NSSize(width: 2560, height: 1415),
-                                          count: 91, columns: 13)
-        let growthPerSide = m.cell * (TileView.hoverScale - 1) / 2
-        XCTAssertLessThan(
-            growthPerSide, ThumbnailGridView.gap,
-            """
-            a hovered \(m.cell) pt tile grows \(growthPerSide) pt a side into a \
-            \(ThumbnailGridView.gap) pt gap — it would overlap its neighbour, and \
-            sibling order (not hover) decides which one wins
-            """
+            TileView.highlightGutter, ThumbnailGridView.gap,
+            "the hover fill must reach the neighbouring tiles, not stop inside the gap"
         )
     }
 
-    /// The red border is added after the two hover layers and covers them
-    /// exactly. Growing the hover outline without growing the border would leave
-    /// the white ring peeking out around a playing tile.
-    func testThePlayingBorderStillCoversTheHoverOutline() throws {
+    /// Green for hover, red for press, and they must not be the same mark: the
+    /// press is the only feedback left now that the tile no longer sinks.
+    func testHoverAndPressAreTellableApart() {
+        XCTAssertNotEqual(TileView.hoverColor, TileView.pressColor)
+        // Bright, saturated green — a dull one is lost against the panel's own
+        // near-black ground from a metre away.
+        var h = (r: CGFloat(0), g: CGFloat(0), b: CGFloat(0), a: CGFloat(0))
+        TileView.hoverColor.usingColorSpace(.sRGB)?.getRed(&h.r, green: &h.g, blue: &h.b, alpha: &h.a)
+        XCTAssertGreaterThan(h.g, 0.8, "the hover green has to be bright")
+        XCTAssertGreaterThan(h.g - max(h.r, h.b), 0.5, "and unmistakably green")
+    }
+
+    /// Both pages share one mark, because it is one pointer over one panel.
+    func testTheVideoPageUsesTheSameHoverMark() throws {
+        let swift = try code("Sources/VictorEffects/VideoGridView.swift")
+        XCTAssertTrue(swift.contains("TileView.hoverColor") && swift.contains("TileView.pressColor"),
+                      "page 2 must reuse TileView's hover/press colours, not invent its own")
+        XCTAssertTrue(swift.contains("TileView.highlightGutter"),
+                      "page 2 must reuse the same gutter width")
+    }
+
+    // MARK: - The ⭐, and the tablet's proportions
+
+    /// The panel was the one surface drawing the board WITHOUT the star the
+    /// tablet has had for weeks — same grid, same `tiles.json`, a star on one
+    /// screen and not on the other. The set is the catalogue's, in process:
+    /// exactly the tiles `GET /tiles` stamps an `effect` on.
+    func testThePanelStarsExactlyTheCatalogueTiles() throws {
+        let tilesJSON = EffectsConfig.shared.soundsDir.appendingPathComponent("tiles.json")
+        guard let data = try? Data(contentsOf: tilesJSON),
+              let doc = TilesManifest.parse(data), !doc.tiles.isEmpty else {
+            throw XCTSkip("no tiles.json under soundsDir — tablet assets not on this machine")
+        }
+        let starred = Set(doc.tiles.filter { TileView.desktopEffect(for: $0) != nil }.map(\.asset))
+        XCTAssertEqual(starred, Set(EffectsCatalog.assets),
+                       "the panel's stars and the catalogue have drifted apart")
+
+        // And against what the tablet is actually told, so the two boards cannot
+        // disagree even if the catalogue itself is wrong.
+        let enriched = try XCTUnwrap(TilesManifest.enrich(data))
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(enriched.utf8)) as? [String: Any])
+        let stamped = Set((obj["tiles"] as? [[String: Any]] ?? [])
+            .filter { $0["effect"] != nil }
+            .compactMap { $0["asset"] as? String })
+        XCTAssertEqual(starred, stamped, "the panel stars a different set than GET /tiles hands the tablet")
+    }
+
+    /// The star is drawn at the tablet's own fractions (`w * 0.22f` of type, a
+    /// `w * 0.05f` margin), because the panel's cell is whatever 13 columns
+    /// leave on the screen it opens on and the two boards have to look like one.
+    func testTheStarKeepsTheTabletsProportions() throws {
+        XCTAssertEqual(TileView.starSizeRatio, 0.22, accuracy: 0.001)
+        XCTAssertEqual(TileView.starMarginRatio, 0.05, accuracy: 0.001)
         let swift = try code("Sources/VictorEffects/TileView.swift")
-        XCTAssertTrue(
-            swift.contains("borderLayer.borderWidth = Self.hoverRimWidth"),
-            """
-            the red playing border's width must be TIED to hoverRimWidth, not a \
-            literal of its own: its job is to cover the hover outline exactly, so \
-            a tile that is playing says that first.
-            """
-        )
+        XCTAssertTrue(swift.contains("\u{2605}"), "the badge is the solid star glyph, as on the tablet")
+        XCTAssertTrue(swift.contains("side * Self.starSizeRatio"),
+                      "the star must scale off the tile width, never a fixed point size")
+    }
+
+    /// The video title was half the tablet's: `textSize = 48f` on a TextView is
+    /// **sp**, and the panel had copied it as px.
+    func testTheVideoTitleIsTheTabletsSize() {
+        XCTAssertEqual(VideoTileView.titleSizeRatio, 0.20, accuracy: 0.001,
+                       "48 sp at density 1.25 × font scale 1.3 on a 382 px cell ≈ 0.20 of the tile")
+        let m = VideoGridView.metrics(fitting: NSSize(width: 2560, height: 1415), count: 5)
+        let size = m.cellWidth * VideoTileView.titleSizeRatio
+        XCTAssertLessThan(size, m.cellHeight / 2,
+                          "a title taller than half the 16:9 cell would swallow the thumbnail")
     }
 }

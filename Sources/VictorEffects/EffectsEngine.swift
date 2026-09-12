@@ -328,6 +328,18 @@ final class EffectsEngine {
     /// same call as their audio because the cue lives at a fixed offset INSIDE
     /// the clip, and a separately-clocked visual slides off it.
     func playSound(_ name: String, volumePct: Int?) -> String? {
+        // 🔀 A few tiles are a PAIR behind one press (#19 fail alternates with
+        // #20 fail2, run by run — `AlternatingSounds`). Resolved here, before
+        // anything else, so the whole method and everything downstream of it —
+        // the special cases, the duration handed back, `playing`, the log —
+        // speak about the file that is really being played rather than the one
+        // that was asked for. An unpaired asset comes back unchanged.
+        let requested = name
+        let name = AlternatingSounds.shared.next(for: requested)
+        if name != requested {
+            effectsInfo("🔀 \(requested) → playing \(name) (alternating pair)")
+        }
+
         let volume = volumePct.map { Float($0) / 100 }
 
         func remember(_ ms: Int) -> String {

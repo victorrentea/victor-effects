@@ -230,8 +230,7 @@ final class VideoTileView: NSView {
     var onPress: ((VideoTile) -> Void)?
 
     private let imageLayer = CALayer()
-    private let hoverRimLayer = CALayer()
-    private let hoverLayer = CALayer()
+    private let gutterLayer = CALayer()
     private let borderLayer = CALayer()
     private let numberLayer = CATextLayer()
     private let titleLayer = CATextLayer()
@@ -243,6 +242,19 @@ final class VideoTileView: NSView {
     /// `VideoGridView.badgeUnit`.
     var badgeUnit: CGFloat = 0 { didSet { if badgeUnit != oldValue { needsLayout = true } } }
 
+    /// The title's type size **as a fraction of the tile's width**, matched to
+    /// the tablet.
+    ///
+    /// This was 0.10, from a comment reading "the tablet's 48 px on a ~494 px
+    /// cell" — and the 48 in `buildSnippetTile` is `textSize = 48f` on a
+    /// `TextView`, which is **sp, not px**. On the board (density override 200,
+    /// i.e. 1.25, and Victor's font scale 1.3) that is 48 × 1.625 ≈ 78 px of
+    /// type on a cell of (2000 − 2×13 − 4×15) / 5 ≈ 382 px: **0.20 of the tile**,
+    /// twice what the panel was drawing. The same clip has to be namable from
+    /// the same distance on either screen, so the panel takes the ratio, not the
+    /// number.
+    static let titleSizeRatio: CGFloat = 0.20
+
     var isPlaying = false {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
     }
@@ -251,10 +263,17 @@ final class VideoTileView: NSView {
         self.tile = tile
         super.init(frame: .zero)
         wantsLayer = true
-        // Not `masksToBounds` — the hover glow is this layer's own shadow, and a
-        // layer clips its shadow along with its sublayers.
+        // Not `masksToBounds`: like `TileView`, the hover mark is painted
+        // OUTSIDE these bounds, and a layer clips its sublayers to itself.
         layer?.cornerRadius = 6
         layer?.backgroundColor = NSColor.black.cgColor
+
+        // The hover/press fill of the gutter, under the picture — see
+        // `TileView.highlightGutter`. Page 2 gets the same mark as page 1
+        // because it is the same pointer over the same panel.
+        gutterLayer.cornerRadius = 6 + TileView.highlightGutter
+        gutterLayer.opacity = 0
+        layer?.addSublayer(gutterLayer)
 
         imageLayer.contentsGravity = .resizeAspectFill
         imageLayer.masksToBounds = true
@@ -262,21 +281,8 @@ final class VideoTileView: NSView {
         imageLayer.contents = VideoThumbCache.shared.image(for: tile)
         layer?.addSublayer(imageLayer)
 
-        hoverRimLayer.borderColor = NSColor(white: 0, alpha: 0.75).cgColor
-        hoverRimLayer.borderWidth = TileView.hoverRimWidth
-        hoverRimLayer.cornerRadius = 6
-        hoverRimLayer.opacity = 0
-        layer?.addSublayer(hoverRimLayer)
-
-        hoverLayer.backgroundColor = NSColor(white: 1, alpha: 0.20).cgColor
-        hoverLayer.borderColor = NSColor.white.cgColor
-        hoverLayer.borderWidth = TileView.hoverRingWidth
-        hoverLayer.cornerRadius = 6 - TileView.hoverRingInset
-        hoverLayer.opacity = 0
-        layer?.addSublayer(hoverLayer)
-
         borderLayer.borderColor = NSColor.systemRed.cgColor
-        borderLayer.borderWidth = TileView.hoverRimWidth
+        borderLayer.borderWidth = TileView.playingBorderWidth
         borderLayer.cornerRadius = 6
         borderLayer.opacity = 0
         layer?.addSublayer(borderLayer)
@@ -299,8 +305,9 @@ final class VideoTileView: NSView {
         titleLayer.alignmentMode = .center
         titleLayer.shadowColor = NSColor.black.cgColor
         titleLayer.shadowOpacity = 0.9
-        titleLayer.shadowRadius = 3
-        titleLayer.shadowOffset = .zero
+        // The tablet's `setShadowLayer(8f, 2f, 2f, BLACK)`, down-and-right.
+        titleLayer.shadowRadius = 4
+        titleLayer.shadowOffset = CGSize(width: 2, height: -2)
         titleLayer.truncationMode = .end
         layer?.addSublayer(titleLayer)
     }
@@ -312,8 +319,7 @@ final class VideoTileView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
-        hoverRimLayer.frame = bounds
-        hoverLayer.frame = bounds.insetBy(dx: TileView.hoverRingInset, dy: TileView.hoverRingInset)
+        gutterLayer.frame = bounds.insetBy(dx: -TileView.highlightGutter, dy: -TileView.highlightGutter)
         borderLayer.frame = bounds
         let scale = window?.backingScaleFactor ?? 2
 
@@ -328,8 +334,7 @@ final class VideoTileView: NSView {
                                    width: bounds.width - unit * 0.08, height: numberSize * 1.3)
         numberLayer.contentsScale = scale
 
-        // The tablet's 48 px on a ~494 px cell — a tenth of the tile's width.
-        let titleSize = max(11, bounds.width * 0.10)
+        let titleSize = max(11, bounds.width * Self.titleSizeRatio)
         titleLayer.fontSize = titleSize
         titleLayer.font = NSFont.boldSystemFont(ofSize: titleSize)
         titleLayer.frame = NSRect(x: 4, y: bounds.midY - titleSize * 0.7,
@@ -365,38 +370,29 @@ final class VideoTileView: NSView {
     private func setHover(_ on: Bool) {
         guard on != isHovered else { return }
         isHovered = on
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(TileView.hoverFade)
-        hoverRimLayer.opacity = on ? 1 : 0
-        hoverLayer.opacity = on ? 1 : 0
-        layer?.shadowColor = NSColor.white.cgColor
-        layer?.shadowOffset = .zero
-        layer?.shadowRadius = TileView.hoverGlowRadius
-        layer?.shadowOpacity = on ? TileView.hoverGlowOpacity : 0
-        layer?.zPosition = on ? 1 : 0
-        applyScale()
-        CATransaction.commit()
+        updateHighlight()
     }
 
-    private func applyScale() {
-        let scale: CGFloat = isPressed ? 0.95 : (isHovered ? TileView.hoverScale : 1)
-        layer?.setAffineTransform(CGAffineTransform(scaleX: scale, y: scale))
+    /// The picture does not move — see `TileView.updateHighlight`, of which this
+    /// is the same four lines on a 16:9 cell.
+    private func updateHighlight() {
+        let color: NSColor? = isPressed ? TileView.pressColor : (isHovered ? TileView.hoverColor : nil)
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(TileView.hoverFade)
+        gutterLayer.backgroundColor = (color ?? .clear).cgColor
+        gutterLayer.opacity = color == nil ? 0 : 1
+        layer?.zPosition = color == nil ? 0 : 1
+        CATransaction.commit()
     }
 
     override func mouseDown(with event: NSEvent) {
         isPressed = true
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(TileView.hoverFade)
-        applyScale()
-        CATransaction.commit()
+        updateHighlight()
     }
 
     override func mouseUp(with event: NSEvent) {
         isPressed = false
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(TileView.hoverFade)
-        applyScale()
-        CATransaction.commit()
+        updateHighlight()
         guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
         onPress?(tile)
     }

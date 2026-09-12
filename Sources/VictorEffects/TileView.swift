@@ -63,88 +63,98 @@ final class TileView: NSView {
     var onPress: ((Tile) -> Void)?
 
     private let imageLayer = CALayer()
-    private let hoverRimLayer = CALayer()
-    private let hoverLayer = CALayer()
+    private let gutterLayer = CALayer()
     private let borderLayer = CALayer()
     private let numberLayer = CATextLayer()
     private var labelLayer: CATextLayer?
     private var badgeLayer: CATextLayer?
+    private var starLayer: CATextLayer?
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
     private var isPressed = false
 
-    /// The hover outline: a dark rim at the tile's edge with a white ring just
-    /// inside it, 7 pt of mark in total — the same footprint as the playing
-    /// border, which is added after these layers and so draws straight over
-    /// them. A tile that is playing says *that* first.
+    /// **The picture never moves.** Hover and press are painted in the BLACK
+    /// GUTTER around the tile, not on the tile.
     ///
-    /// It was 4 pt (2 pt of ring over a 4 pt rim) and that was still a guess from
-    /// a metre back: an 81 pt tile with a 2 pt edge reads as "a tile with an
-    /// edge", not as "THIS one". The ring is what the eye lands on, so the ring
-    /// is what grew — 2 → 5 pt — and the dark rim went with it to keep the white
-    /// legible on the light half of the board.
-    static let hoverRimWidth: CGFloat = 7
-    static let hoverRingWidth: CGFloat = 5
-    /// How far the white ring sits inside the dark rim: the rim shows as a thin
-    /// dark keyline around it, and the ring's corner radius has to match.
-    static var hoverRingInset: CGFloat { hoverRimWidth - hoverRingWidth }
-    /// Thicker and brighter, and then the tile also comes forward. 1.04 of an
-    /// 81 pt cell is 1.6 pt a side — it fits inside the 6 pt `gap`, so a hovered
-    /// tile lifts without ever touching its neighbours.
-    static let hoverScale: CGFloat = 1.04
-    /// The glow around the lifted tile: the root layer's own shadow, which is
-    /// why that layer must NOT set `masksToBounds` — a layer clips its own
-    /// shadow along with its sublayers, which is the same reason a rounded view
-    /// with a drop shadow always needs two layers.
-    static let hoverGlowRadius: CGFloat = 9
-    static let hoverGlowOpacity: Float = 0.75
+    /// What was here before — a 1.04 scale-up, a white glow, a wash and a ring
+    /// inside the tile's own edge — moved the artwork a pixel or two under the
+    /// pointer. On a board of 91 photographs that reads as the picture twitching
+    /// rather than as "the mouse is here", and the ring ate the outer few
+    /// percent of an image that is already only ~80 pt across. The gap between
+    /// tiles is dead black space that belongs to nobody; lighting it up is a
+    /// bigger, brighter mark than any outline that fits inside a tile, and it
+    /// costs the artwork nothing.
+    ///
+    /// The fill reaches exactly one `gap` outwards — up to the neighbours'
+    /// edges, so the whole gutter around the cell goes green with no black
+    /// hairline left in the middle of it. (At the edges of the grid it eats 6 of
+    /// the 10 pt of `padding`, which is the same mark seen from the outside.)
+    static var highlightGutter: CGFloat { ThumbnailGridView.gap }
+    /// Hover: bright, saturated green — nothing else on the board is this
+    /// colour (the usage dots are a darker green, the star amber, the playing
+    /// border red), so it cannot be read as a state the tile is *in*.
+    static let hoverColor = NSColor(srgbRed: 0.224, green: 1.0, blue: 0.078, alpha: 1)   // #39FF14
+    /// Mouse-down: the same shape in red. The press used to be a 0.95 scale —
+    /// again the picture moving — and this keeps the feedback while leaving the
+    /// artwork alone.
+    static let pressColor = NSColor(srgbRed: 1.0, green: 0.13, blue: 0.13, alpha: 1)     // #FF2121
     /// Short enough to track a mouse crossing tiles, long enough not to strobe.
     static let hoverFade: CFTimeInterval = 0.08
+    /// The red border that pulses while the tile's sound plays. Its own number
+    /// now: with the hover mark outside the tile there is no longer an outline
+    /// underneath for it to cover.
+    static let playingBorderWidth: CGFloat = 7
+
+    /// The ⭐'s type size and corner margin **as fractions of the tile**, taken
+    /// straight off the tablet (`starPaint.textSize = w * 0.22f`,
+    /// `margin = width * 0.05f` in `TileImageView.onDraw`). Fractions and not
+    /// points because the panel's cell is whatever 13 columns leave on the
+    /// screen it opens on, and the two boards have to look like one board.
+    static let starSizeRatio: CGFloat = 0.22
+    static let starMarginRatio: CGFloat = 0.05
 
     var isPlaying = false {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
     }
 
+    /// The desktop effect this tile's asset fires, or nil — **the catalogue's
+    /// answer, in process**. The panel used to be the one surface that drew the
+    /// board without the ⭐ the tablet has had for weeks: same grid, same
+    /// `tiles.json`, a star on one screen and not on the other. There is no
+    /// second list here and no HTTP hop to `/tiles` — both stars are
+    /// `EffectsCatalog.effectName(forAsset:)` answering twice.
+    static func desktopEffect(for tile: Tile) -> String? {
+        EffectsCatalog.effectName(forAsset: tile.asset)
+    }
+
+    /// True when this tile wears the ⭐.
+    var hasDesktopEffect: Bool { Self.desktopEffect(for: tile) != nil }
+
     init(tile: Tile) {
         self.tile = tile
         super.init(frame: .zero)
         wantsLayer = true
-        // NOT `masksToBounds` — a layer clips its own shadow as well as its
-        // sublayers, and the hover glow IS this layer's shadow. The rounding it
-        // used to provide moves down to `imageLayer`, which is the only sublayer
-        // that ever has anything to clip; every other one is an inset border.
+        // NOT `masksToBounds`: the hover mark is painted OUTSIDE these bounds,
+        // in the gutter between the tiles, and a layer clips its sublayers to
+        // itself. The rounding lives on `imageLayer`, which is the only sublayer
+        // with anything to clip.
         layer?.cornerRadius = 6
         layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+
+        // Below everything: the hover/press fill of the surrounding gutter. It
+        // is the first sublayer so the picture always sits ON it — the mark is a
+        // frame around the artwork, never a wash over it.
+        gutterLayer.cornerRadius = 6 + Self.highlightGutter
+        gutterLayer.opacity = 0
+        layer?.addSublayer(gutterLayer)
 
         imageLayer.contentsGravity = .resizeAspectFill
         imageLayer.masksToBounds = true
         imageLayer.cornerRadius = 6
         layer?.addSublayer(imageLayer)
 
-        // Hover is a wash AND a ring. The wash alone (white at 8%) is what was
-        // here first and it is invisible on the half of the board whose pictures
-        // are already light — but "which tile is the mouse on" is exactly the
-        // question a grid of 91 pictures has to answer in one glance. The ring
-        // is white over a dark rim for the same reason `#NN` below is white with
-        // a black shadow: an outline that vanishes on half the tiles is not an
-        // outline. Rim at the very edge, white just inside it.
-        hoverRimLayer.borderColor = NSColor(white: 0, alpha: 0.75).cgColor
-        hoverRimLayer.borderWidth = Self.hoverRimWidth
-        hoverRimLayer.cornerRadius = 6
-        hoverRimLayer.opacity = 0
-        layer?.addSublayer(hoverRimLayer)
-
-        hoverLayer.backgroundColor = NSColor(white: 1, alpha: 0.20).cgColor
-        hoverLayer.borderColor = NSColor.white.cgColor
-        hoverLayer.borderWidth = Self.hoverRingWidth
-        hoverLayer.cornerRadius = 6 - Self.hoverRingInset
-        hoverLayer.opacity = 0
-        layer?.addSublayer(hoverLayer)
-
         borderLayer.borderColor = NSColor.systemRed.cgColor
-        // Tied to the hover rim, not a 4 of its own: this border's job is to
-        // cover the hover outline exactly, so the two widths are one decision.
-        borderLayer.borderWidth = Self.hoverRimWidth
+        borderLayer.borderWidth = Self.playingBorderWidth
         borderLayer.cornerRadius = 6
         borderLayer.opacity = 0
         layer?.addSublayer(borderLayer)
@@ -184,6 +194,26 @@ final class TileView: NSView {
             layer?.addSublayer(badge)
             badgeLayer = badge
         }
+
+        if hasDesktopEffect {
+            // ⭐ TOP-RIGHT, the tablet's badge reproduced glyph for glyph: the
+            // solid star "★" (not the emoji, which would arrive as a colour
+            // sprite in a different metric), amber `#FFC400` so it is the only
+            // non-white/green mark on a tile, a black shadow so it survives a
+            // bright thumbnail, and right-aligned against a 5 % margin. The
+            // corner is the last free one — `#NN` top-left, ↻ bottom-left, the
+            // usage dots bottom-right.
+            let star = CATextLayer()
+            star.string = "★"
+            star.foregroundColor = NSColor(srgbRed: 1, green: 0.769, blue: 0, alpha: 1).cgColor
+            star.alignmentMode = .right
+            star.shadowColor = NSColor.black.cgColor
+            star.shadowOpacity = 0.9
+            star.shadowRadius = 2
+            star.shadowOffset = CGSize(width: 1, height: -1)
+            layer?.addSublayer(star)
+            starLayer = star
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -198,8 +228,8 @@ final class TileView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
-        hoverRimLayer.frame = bounds
-        hoverLayer.frame = bounds.insetBy(dx: Self.hoverRingInset, dy: Self.hoverRingInset)
+        // Outwards by one gap, into the gutter this cell owns.
+        gutterLayer.frame = bounds.insetBy(dx: -Self.highlightGutter, dy: -Self.highlightGutter)
         borderLayer.frame = bounds
         let numberSize = max(9, side * 0.10)
         numberLayer.fontSize = numberSize
@@ -220,6 +250,18 @@ final class TileView: NSView {
             badge.cornerRadius = r / 2
             badge.fontSize = r * 0.55
             badge.contentsScale = window?.backingScaleFactor ?? 2
+        }
+        if let star = starLayer {
+            // Right edge at the tablet's `width - margin`, top at its `margin`.
+            // The glyph is laid out from the TOP of a text layer, so the box is
+            // pinned by its top and given a line's worth of height.
+            let size = max(9, side * Self.starSizeRatio)
+            let margin = side * Self.starMarginRatio
+            star.fontSize = size
+            star.font = NSFont.boldSystemFont(ofSize: size)
+            star.frame = NSRect(x: margin, y: bounds.height - margin - size * 1.3,
+                                width: bounds.width - margin * 2, height: size * 1.3)
+            star.contentsScale = window?.backingScaleFactor ?? 2
         }
         CATransaction.commit()
 
@@ -268,55 +310,46 @@ final class TileView: NSView {
     /// answer, and the answer is always the arrow. See `PanelCursor`.
     override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 
-    /// Both halves of the outline move together, and they fade rather than snap —
-    /// but over `hoverFade`, not CALayer's implicit quarter of a second. The
-    /// outline's whole job is to keep up with the mouse sweeping the board; at
-    /// 0.25 s it is still arriving on the tile the pointer has already left.
     private func setHover(_ on: Bool) {
         guard on != isHovered else { return }
         isHovered = on
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(Self.hoverFade)
-        hoverRimLayer.opacity = on ? 1 : 0
-        hoverLayer.opacity = on ? 1 : 0
-        layer?.shadowColor = NSColor.white.cgColor
-        layer?.shadowOffset = .zero
-        layer?.shadowRadius = Self.hoverGlowRadius
-        layer?.shadowOpacity = on ? Self.hoverGlowOpacity : 0
-        // Lift it over its neighbours as well as over the board. Tiles are
-        // siblings and the later ones draw on top, so without this the glow and
-        // the 1.6 pt of lift are painted over by tile n+1 on two sides out of
-        // four — the tile would look lifted on its left and flat on its right.
-        // `zPosition` and NOT a reorder of the subviews: `ThumbnailGridView`
-        // lays out by the INDEX of its `tileViews` array, and moving a view
-        // under the pointer churns tracking areas.
-        layer?.zPosition = on ? 1 : 0
-        applyScale()
-        CATransaction.commit()
+        updateHighlight()
     }
 
-    /// One place decides the tile's size, because two states claim it: hovering
-    /// lifts it and pressing pushes it in. Releasing a press used to snap back to
-    /// `.identity`, which threw away the hover the mouse is still inside.
-    private func applyScale() {
-        let scale: CGFloat = isPressed ? 0.95 : (isHovered ? Self.hoverScale : 1)
-        layer?.setAffineTransform(CGAffineTransform(scaleX: scale, y: scale))
+    /// One place decides the mark, because two states claim it: hovering paints
+    /// the gutter green, pressing paints it red, and releasing a press has to
+    /// fall back to the hover the mouse is still inside rather than to nothing.
+    ///
+    /// It fades over `hoverFade` rather than CALayer's implicit quarter second:
+    /// the mark's whole job is to keep up with a mouse sweeping the board, and
+    /// at 0.25 s it is still arriving on the tile the pointer has already left.
+    ///
+    /// **Nothing here touches the tile's transform, its shadow or its frame.**
+    /// The artwork is exactly where it was before the mouse arrived.
+    private func updateHighlight() {
+        let color: NSColor? = isPressed ? Self.pressColor : (isHovered ? Self.hoverColor : nil)
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.hoverFade)
+        gutterLayer.backgroundColor = (color ?? .clear).cgColor
+        gutterLayer.opacity = color == nil ? 0 : 1
+        // The fill reaches OUTSIDE this view, into ground the neighbours' own
+        // layers are painted over. Tiles are siblings and the later ones draw on
+        // top, so without this the mark would be clipped away on two sides out
+        // of four. `zPosition` and NOT a reorder of the subviews:
+        // `ThumbnailGridView` lays out by the INDEX of its `tileViews` array,
+        // and moving a view under the pointer churns tracking areas.
+        layer?.zPosition = color == nil ? 0 : 1
+        CATransaction.commit()
     }
 
     override func mouseDown(with event: NSEvent) {
         isPressed = true
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(Self.hoverFade)
-        applyScale()
-        CATransaction.commit()
+        updateHighlight()
     }
 
     override func mouseUp(with event: NSEvent) {
         isPressed = false
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(Self.hoverFade)
-        applyScale()
-        CATransaction.commit()
+        updateHighlight()
         guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
         onPress?(tile)
     }

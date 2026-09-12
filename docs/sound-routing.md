@@ -50,6 +50,40 @@ six hits, the money round, the clipped applause. Two more (`34_phoenix.mp3`,
 is the *on-screen* life of the effect, so a non-restartable tile stays
 "playing" for as long as the visual runs.
 
+## One button, two clips (`AlternatingSounds`)
+
+A few tiles are a **pair behind one press**. `EffectsEngine.playSound` resolves
+the requested file through `AlternatingSounds.shared.next(for:)` before anything
+else, so the whole method — the special cases above, the `durationMs` handed
+back, `playing` in `/state`, the log line — speaks about the file that is really
+being played and not the one that was asked for.
+
+Today the table holds one entry: **#19 `19_fail.mp3` alternates with #20
+`20_fail2.mp3`**, run by run (19 → 20 → 19 → …). The same trombone joke was
+sitting on two squares of a 13-column board and the room only ever heard
+whichever one Victor's thumb landed on; now one button carries both takes and the
+second press of the evening is not the same noise as the first. Tile #20 keeps
+its asset and its artwork — the grid is numbered `#NN` **by position**, so
+removing a row would renumber sixty tiles — and is labelled **`N/A`** in
+`tiles.json` to say it is no longer its own press.
+
+Three properties are deliberate:
+
+- **The cursor is in memory only.** A restart begins each pair at its first file.
+  The point is variety within a session, not a ledger across them, and nothing on
+  disk is worth the alternation being one file "off" after a crash mid-workshop.
+- **The client knows nothing about it.** The table is keyed by the asset the
+  client presses and its first entry is that same asset, so the tablet, the
+  panel and every script keep sending `/sound/play/19_fail.mp3`. The paired
+  `/sound/pressed/19_fail.mp3` still fires `fail` — the effect belongs to the
+  press, the alternation only to the audio — which is why both files of a cycle
+  must carry the *same* desktop effect (`AlternatingSoundsTests` asserts it).
+- **Pressing a partner directly is left alone.** `20_fail2.mp3` played by name is
+  `20_fail2.mp3`, exactly as before: one entry point per pair keeps "what does
+  this press do" answerable by reading one row.
+
+Adding the next pair is one line in `AlternatingSounds.defaultTable`.
+
 ## Interrupted sounds fade, they never cut
 
 Every early end routes through one helper, `fadeOutAndStop(_:over:)`, with
