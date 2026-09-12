@@ -8,6 +8,12 @@ import AppKit
 /// That rules out anything that can become key.
 final class ThumbnailPanel: NSPanel {
     let grid = ThumbnailGridView()
+    /// Page 2. Both grids live in the panel for the life of the process and one
+    /// of them is hidden, because the whole point of the ⌥ half of the gesture
+    /// is that the switch is **instant**: a key that is already held is not a
+    /// moment at which to build eighteen views and decode eighteen JPEGs.
+    let videoGrid = VideoGridView()
+    private(set) var page: PanelPage = .effects
 
     /// The slide in from the right edge of the screen. Fast on purpose: the
     /// gesture is a hold, so every millisecond of animation is a millisecond
@@ -51,6 +57,24 @@ final class ThumbnailPanel: NSPanel {
         grid.autoresizingMask = [.width, .height]
         grid.frame = content.bounds
         content.addSubview(grid)
+
+        videoGrid.autoresizingMask = [.width, .height]
+        videoGrid.frame = content.bounds
+        videoGrid.isHidden = true
+        content.addSubview(videoGrid)
+    }
+
+    /// Swap which grid is on show. **No slide and no re-show**: the panel is
+    /// already up under a held key, and animating it would read as the board
+    /// going away rather than as the board changing pages.
+    func setPage(_ page: PanelPage) {
+        self.page = page
+        grid.isHidden = page != .effects
+        videoGrid.isHidden = page != .videos
+        let visible: NSView = page == .effects ? grid : videoGrid
+        visible.frame = contentView?.bounds ?? visible.frame
+        visible.needsLayout = true
+        visible.layoutSubtreeIfNeeded()
     }
 
     /// Never key, never main — see the class note. Overridden rather than set,
@@ -74,9 +98,10 @@ final class ThumbnailPanel: NSPanel {
 
         setFrame(NSRect(x: offscreenX, y: frame.minY,
                         width: frame.width, height: frame.height), display: false)
-        grid.frame = contentView?.bounds ?? NSRect(origin: .zero, size: frame.size)
-        grid.needsLayout = true
-        grid.layoutSubtreeIfNeeded()
+        let visible: NSView = page == .effects ? grid : videoGrid
+        visible.frame = contentView?.bounds ?? NSRect(origin: .zero, size: frame.size)
+        visible.needsLayout = true
+        visible.layoutSubtreeIfNeeded()
 
         // Fade the first frames in as well as slide them: on a multi-screen
         // desk the parking spot is over the neighbouring screen, and a board
@@ -93,6 +118,17 @@ final class ThumbnailPanel: NSPanel {
             animator().setFrame(frame, display: true)
             animator().alphaValue = 1
         }
+    }
+
+    /// Resize in place, un-animated: the page switch changes how tall the grid
+    /// hugs, and a board that grew a row must not slide to say so.
+    func resize(to frame: NSRect) {
+        guard isVisible else { return }
+        setFrame(frame, display: true)
+        let visible: NSView = page == .effects ? grid : videoGrid
+        visible.frame = contentView?.bounds ?? visible.frame
+        visible.needsLayout = true
+        visible.layoutSubtreeIfNeeded()
     }
 
     /// Slide back out to `offscreenX` and then order out.
@@ -133,6 +169,7 @@ final class ThumbnailPanel: NSPanel {
         // was released), and a window ordering out does not owe the view a
         // `mouseExited`. Without this the pointing hand outlives the panel.
         grid.releaseCursor()
+        videoGrid.releaseCursor()
     }
 
     /// Instant, un-animated. The panic path: the feature was switched off, or
@@ -142,6 +179,7 @@ final class ThumbnailPanel: NSPanel {
         orderOut(nil)
         alphaValue = 1
         grid.releaseCursor()
+        videoGrid.releaseCursor()
     }
 }
 

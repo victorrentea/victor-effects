@@ -172,9 +172,15 @@ final class EffectsRouterTests: XCTestCase {
     }
 
     func testPanelHooks() {
-        XCTAssertEqual(route("/test/thumbnail-panel"), .panelShow)
+        XCTAssertEqual(route("/test/thumbnail-panel"), .panelShow(.effects))
         XCTAssertEqual(route("/test/thumbnail-panel/hide"), .panelHide)
-        XCTAssertEqual(route("/test/thumbnail-panel/press/23"), .panelPress(23))
+        XCTAssertEqual(route("/test/thumbnail-panel/press/23"), .panelPress(23, .effects))
+        // `?page=videos` picks the second grid — the tablet's page 2 — on both
+        // hooks, and anything else falls back to the soundboard rather than 404.
+        XCTAssertEqual(route("/test/thumbnail-panel?page=videos"), .panelShow(.videos))
+        XCTAssertEqual(route("/test/thumbnail-panel?page=effects"), .panelShow(.effects))
+        XCTAssertEqual(route("/test/thumbnail-panel?page=nonsense"), .panelShow(.effects))
+        XCTAssertEqual(route("/test/thumbnail-panel/press/1?page=videos"), .panelPress(1, .videos))
     }
 
     func testPercentEncodingIsDecodedOnceHere() {

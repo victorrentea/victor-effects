@@ -20,13 +20,13 @@ final class ThumbnailPanelHoldTests: XCTestCase {
 
     func testHoldingTheKeyLongEnoughShowsThePanel() {
         let (state, actions) = run([.rightCommandDown, .holdTimerFired])
-        XCTAssertEqual(actions, [.armHoldTimer, .show])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects)])
         XCTAssertTrue(state.shownByHold)
     }
 
     func testReleasingHidesIt() {
         let (state, actions) = run([.rightCommandDown, .holdTimerFired, .rightCommandUp])
-        XCTAssertEqual(actions, [.armHoldTimer, .show, .hide])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects), .hide])
         XCTAssertFalse(state.shownByHold)
     }
 
@@ -61,7 +61,7 @@ final class ThumbnailPanelHoldTests: XCTestCase {
         // Held long enough to show the board, then ⌘V: get out of the way
         // rather than sit over the app receiving the paste.
         let (state, actions) = run([.rightCommandDown, .holdTimerFired, .keyWhileRightCommand])
-        XCTAssertEqual(actions, [.armHoldTimer, .show, .hide])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects), .hide])
         XCTAssertFalse(state.shownByHold)
     }
 
@@ -70,7 +70,7 @@ final class ThumbnailPanelHoldTests: XCTestCase {
         // held. Only the first may produce a `.hide`.
         let (_, actions) = run([.rightCommandDown, .holdTimerFired,
                                 .keyWhileRightCommand, .keyWhileRightCommand, .rightCommandUp])
-        XCTAssertEqual(actions, [.armHoldTimer, .show, .hide])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects), .hide])
     }
 
     func testKeyRepeatOnTheModifierDoesNotStackTimers() {
@@ -93,5 +93,85 @@ final class ThumbnailPanelHoldTests: XCTestCase {
 
     func testTheHoldIsLongEnoughToBeDeliberate() {
         XCTAssertEqual(ThumbnailPanelController.holdDelay, 0.180, accuracy: 0.0001)
+    }
+
+    // MARK: - 🎬 The second page (right ⌘ + right ⌥)
+
+    func testOptionBeforeTheTimerShowsTheVideosStraightAway() {
+        // ⌘ down, ⌥ joins at 90 ms, the timer fires at 180: the panel must
+        // appear ALREADY on page 2. Showing the soundboard first and swapping a
+        // frame later is the flicker this ordering exists to avoid.
+        let (state, actions) = run([.rightCommandDown, .rightOptionDown, .holdTimerFired])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.videos)])
+        XCTAssertEqual(state.page, .videos)
+    }
+
+    func testOptionAfterThePanelIsUpSwapsTheContentInPlace() {
+        // No `.hide` and no second `.show` anywhere in here: the board is up
+        // under a key that is still held, and it changes its mind rather than
+        // leaving and coming back.
+        let (state, actions) = run([.rightCommandDown, .holdTimerFired, .rightOptionDown])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects), .setPage(.videos)])
+        XCTAssertEqual(state.page, .videos)
+    }
+
+    func testTogglingOptionTogglesThePageBothWays() {
+        let (state, actions) = run([.rightCommandDown, .holdTimerFired,
+                                    .rightOptionDown, .rightOptionUp, .rightOptionDown])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects),
+                                 .setPage(.videos), .setPage(.effects), .setPage(.videos)])
+        XCTAssertEqual(state.page, .videos)
+    }
+
+    func testOptionKeyRepeatDoesNotRepaintThePage() {
+        // A held modifier can deliver more than one edge; only a real change of
+        // page may cost a rebuild of eighteen tiles.
+        let (_, actions) = run([.rightCommandDown, .holdTimerFired,
+                                .rightOptionDown, .rightOptionDown, .rightOptionDown])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.effects), .setPage(.videos)])
+    }
+
+    func testOptionOnItsOwnDoesNothingAtAll() {
+        // Right ⌥ with no right ⌘ under it belongs to the 💬 app's emoji layers.
+        // The rule may not so much as remember it.
+        let (state, actions) = run([.rightOptionDown, .rightOptionUp])
+        XCTAssertEqual(actions, [])
+        XCTAssertEqual(state.page, .effects)
+        XCTAssertFalse(state.shownByHold)
+    }
+
+    func testReleasingTheCommandEndsTheVideoPageToo() {
+        // One hide, and the next hold starts on the soundboard: ⌥ is held, not
+        // latched, so the page must not outlive the gesture that chose it.
+        let (state, actions) = run([.rightCommandDown, .rightOptionDown,
+                                    .holdTimerFired, .rightCommandUp])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.videos), .hide])
+        XCTAssertEqual(state.page, .effects)
+
+        let (again, _) = run([.rightCommandDown, .holdTimerFired], from: state)
+        XCTAssertEqual(again.page, .effects)
+    }
+
+    func testATapOnBothKeysStillShowsNothing() {
+        let (state, actions) = run([.rightCommandDown, .rightOptionDown, .rightCommandUp])
+        XCTAssertEqual(actions, [.armHoldTimer, .cancelHoldTimer])
+        XCTAssertFalse(state.shownByHold)
+        XCTAssertEqual(state.page, .effects)
+    }
+
+    func testAShortcutTypedOnTheVideoPageStillGetsOutOfTheWay() {
+        // ⌘⌥ with a letter is somebody else's chord even while page 2 is up.
+        let (state, actions) = run([.rightCommandDown, .rightOptionDown,
+                                    .holdTimerFired, .keyWhileRightCommand])
+        XCTAssertEqual(actions, [.armHoldTimer, .show(.videos), .hide])
+        XCTAssertFalse(state.shownByHold)
+        XCTAssertEqual(state.page, .effects)
+    }
+
+    func testDisabledMeansTheOptionKeyDoesNothingEither() {
+        let off = Rule.State(enabled: false)
+        let (state, actions) = run([.rightCommandDown, .rightOptionDown, .holdTimerFired], from: off)
+        XCTAssertEqual(actions, [])
+        XCTAssertEqual(state.page, .effects)
     }
 }

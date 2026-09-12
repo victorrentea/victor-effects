@@ -27,6 +27,9 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         "Sources/VictorEffects/TileView.swift",
         "Sources/VictorEffects/ThumbnailGridView.swift",
         "Sources/VictorEffects/ThumbnailPanel.swift",
+        // Page 2 is a second pair of views under the same pointer, and it would
+        // lose the cursor in exactly the same silent way.
+        "Sources/VictorEffects/VideoGridView.swift",
     ]
 
     private func source(_ relativePath: String) throws -> String {

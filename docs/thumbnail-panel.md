@@ -1,23 +1,37 @@
-# The Thumbnail Panel — the soundboard on the Mac
+# The Thumbnail Panel — the tablet's board on the Mac
 
-Hold the **right ⌘** (alone) and the tile grid that lives on the tablet appears
-on a screen the room is not looking at. Release it and it is gone. Click a tile and
-it plays exactly as a tablet press would, because it is the same code path.
+Hold the **right ⌘** and the tile grid that lives on the tablet appears on a
+screen the room is not looking at. Release it and it is gone. Click a tile and it
+plays exactly as a tablet press would, because it is the same code path.
 
 It exists because the tablet is not always in reach, and because a grid of 91
 pictures is a faster way to find a sound than a menu of 91 words.
 
+**The tablet has two pages, and so does this.** Add the **right ⌥** to the hold
+and the panel shows the 🎬 video snippets instead — the tablet's page 2, in the
+same order, with the same `#NN`.
+
+| trigger | page |
+|---|---|
+| right ⌘ alone, held ≥ 180 ms | **effects** — the 91 soundboard tiles |
+| right ⌘ **+ right ⌥**, either order, while ⌘ is down | **videos** — the 🎬 snippets |
+| let go of ⌥ (⌘ still down) | back to the soundboard, **in place** |
+| let go of ⌘ | hidden |
+| ⌃, ⇧ or **left** ⌥ joining, or any key | cancelled / hidden — somebody else's shortcut |
+
 | file | what it is |
 |---|---|
-| `ThumbnailPanelController.swift` | the feature: `PanelHoldRule`, the hold timer, show/hide, reload |
-| `ThumbnailPanel.swift` | the window |
+| `ThumbnailPanelController.swift` | the feature: `PanelPage`, `PanelHoldRule`, the hold timer, show/hide/switch, reload |
+| `ThumbnailPanel.swift` | the window — and it holds **both** grids |
 | `ThumbnailPanelPlacement.swift` | **which screen and what frame** — pure, unit-tested |
-| `ThumbnailGridView.swift` | the grid: columns, cell size, order |
-| `TileView.swift` | one tile + `TileImageCache` |
-| `SoundboardPress.swift` | what a press *means* |
+| `ThumbnailGridView.swift` | page 1: columns, cell size, order |
+| `TileView.swift` | one sound tile + `TileImageCache` |
+| `SoundboardPress.swift` | what a press *means* on page 1 |
 | `TilesManifest.swift` | the tile list itself (`docs/http-api.md`) |
+| `VideoGridView.swift` | page 2: the 16:9 grid, `VideoTileView`, `VideoThumbCache` |
+| `AddonsVideos.swift` | page 2's data and press: `AddonsClient`, `VideosManifest`, `VideoPress` |
 
-## The trigger: right ⌘, alone, held ≥ 180 ms
+## The trigger: right ⌘, held ≥ 180 ms
 
 One rule inside `EffectsHotkeyTap` — the same tap that owns ⌃W, because a tap is
 a shared fragile resource and three of them would mean three re-enable paths and
@@ -26,11 +40,22 @@ three Accessibility failures to explain.
 - `.flagsChanged` with `keyboardEventKeycode == 54`
   (`EffectsHotkeyTap.VK_RIGHT_COMMAND`). **Left ⌘ is 55 and is deliberately not
   matched**, so every left-hand ⌘ shortcut is untouched by this feature.
-- **Alone**: `EffectsHotkeyTap.decideModifier` arms only when ⌥, ⌃ and ⇧ are all
-  absent, and **cancels** if one of them joins mid-hold. ⌃⌘, ⌘⇧ and ⌘⌥ are
+- **Alone, except for the right ⌥**: `EffectsHotkeyTap.decideModifier` arms only
+  when ⌃ and ⇧ are absent and any ⌥ that is down is the **right** one, and
+  **cancels** if one of the others joins mid-hold. ⌃⌘, ⌘⇧ and left-hand ⌘⌥ are
   shortcut layers other apps own — the panel must not appear underneath somebody
   else's chord. Caps lock and fn are not in the set: caps lock is a latch
   somebody may be sitting on for an hour.
+- **Left ⌥ (58) and right ⌥ (61) are a real distinction, and `CGEventFlags`
+  cannot make it.** `.maskAlternate` says only that *an* ⌥ is down. The keycode
+  on a `.flagsChanged` names the key that **moved**, which answers the case where
+  ⌥ arrives second — but when right ⌘ arrives second the question is which ⌥ is
+  still **held**, and the only thing that knows is the device-dependent bits
+  (`NX_DEVICEL/RALTKEYMASK`, `EffectsHotkeyTap.DEVICE_LEFT_OPTION` /
+  `DEVICE_RIGHT_OPTION`) riding in the raw flags. A `.maskAlternate` carrying
+  **neither** bit — a synthesised event, a remapped key — is deliberately read as
+  the left one: the safe fallback is the behaviour this feature already had
+  (⌘⌥ cancels), never a board appearing under somebody's chord.
 - Down arms a `holdDelay` (**180 ms**) timer on the main queue; firing it shows
   the panel. Up hides it again.
 - A `keyDown` while right ⌘ is held means the user is typing a shortcut, not
@@ -41,14 +66,29 @@ three Accessibility failures to explain.
   `onKeyWhileRightCommand` are notified and the event passes through).
 
 The decision itself is a pure state machine —
-`ThumbnailPanelController.PanelHoldRule.apply(_:to:)`, four `Event` cases
-(`rightCommandDown`, `holdTimerFired`, `rightCommandUp`, `keyWhileRightCommand`)
-turning a `State` (`enabled`, `holdArmed`, `shownByHold`) into `Action`s
-(`armHoldTimer`, `cancelHoldTimer`, `show`, `hide`). It is a rule and not a
+`ThumbnailPanelController.PanelHoldRule.apply(_:to:)`, six `Event` cases
+(`rightCommandDown`, `holdTimerFired`, `rightCommandUp`, `rightOptionDown`,
+`rightOptionUp`, `keyWhileRightCommand`) turning a `State` (`enabled`,
+`holdArmed`, `shownByHold`, `page`) into `Action`s (`armHoldTimer`,
+`cancelHoldTimer`, `show(page)`, `setPage(page)`, `hide`). It is a rule and not a
 tangle of booleans inside the tap callback because the interesting cases — a key
 pressed at 179 ms, a release that arrives before the timer, a panel already open
-from the menu — are exactly the ones that are miserable to reproduce by hand.
-`ThumbnailPanelHoldTests` covers them.
+from the menu, ⌥ pressed at 90 ms and let go at 400 — are exactly the ones that
+are miserable to reproduce by hand. `ThumbnailPanelHoldTests` covers them, and it
+has to: the gestures themselves cannot be checked without synthesising input.
+
+Three things the rule is careful about:
+
+- **`show` carries its page.** The action is a complete instruction rather than
+  something the caller reads back off the state, so the two can never disagree.
+- **The page is a state of the hold, not a mode.** Every end of a hold resets it
+  to `effects`, so ⌥ is *held* and never latched — the next gesture always starts
+  on the soundboard.
+- **Either order is one ordering.** When right ⌥ is already down as right ⌘
+  arrives, the **tap** synthesises the `rightOptionDown` edge straight after the
+  `rightCommandDown` (it can see the held bits in the flags), so the rule only
+  ever has to understand one sequence and the panel appears *already* on page 2
+  rather than flickering through page 1.
 
 The tap needs **Accessibility** because of ⌃W, not because of this — a
 listen-only tap would do for the panel alone. Without the grant the tap is not
@@ -160,7 +200,7 @@ guard: it parses these three files with their comments stripped, so deleting
 `.cursorUpdate` from one options array fails the build instead of silently going
 back to borrowing the cursor.
 
-## The grid
+## The grid (page 1)
 
 `ThumbnailGridView` lays the tiles out in **`tiles.json`'s own array order**,
 `columns` wide — never sorted by `n` and never re-ordered, because the number
@@ -223,6 +263,112 @@ The red border **follows the sound, not the click** (`setPlaying(asset:)`): a
 tile whose clip ended on its own has to stop pulsing without anyone pressing
 anything.
 
+## 🎬 The video page
+
+The tablet's page 2, on the Mac. Same list, same order, same numbers — because
+a snippet called out by its `#NN` in the room has to be in the same place on
+whichever board is nearer.
+
+### Where the list comes from
+
+**`GET <addonsBaseURL>/videos`, on the addons app** (55123, `VideoLibrary`).
+That route and the two play routes are addons-local and deliberately **not**
+proxied back to 55124: the library, IINA, the display arrangement and the ~60 s
+auto-kill all live over there, and a proxy hop would only add a way for the two
+halves to disagree about what is on the projector. This is therefore the one
+place this app dials *out* — `AddonsClient`, and `addonsBaseURL` is an
+`EffectsConfig` key (default `http://127.0.0.1:55123`, empty = the page is off)
+so a public repo never hardcodes another machine's port.
+
+- **Every entry carries its picture inline**, as a base64 JPEG, exactly as the
+  tablet receives it. One call for the list *and* the thumbnails is what keeps
+  the two from drifting and what lets the page paint with no per-tile fetch.
+- **Refreshed on every show, cached for the session** (`VideosManifest`). Refreshed
+  because a clip added with the `add-training-video` skill has to appear without
+  restarting this app; cached because the refresh is allowed to fail — a Mac whose
+  addons app is restarting still draws the board it drew a minute ago rather than
+  replacing eighteen tiles with an error. A **200 carrying an empty list** is a
+  real answer (an addons app with no `videos/`) and does replace the cache.
+- **Synchronous, capped at 1.5 s.** The panel cannot be sized until the list is
+  known, and a background fetch would mean a board that appears empty and resizes
+  itself under a key somebody is still holding. Over loopback it costs
+  milliseconds; the one case that costs the whole 1.5 s is addons being down, and
+  that is the case that then draws the single **`no videos (addons down?)`** tile
+  naming the base URL it tried. "The panel is up" and "the panel is up and the
+  other app is down" have to be tellable apart at a glance, from a metre back,
+  with a key still held.
+
+This is the one place the rule *"never introduce a dependency that makes one app
+wait for the other"* is bent, and it is bent on purpose and with a timer: the
+wait is bounded, it happens only on this page, and its failure mode is a tile
+rather than a hang.
+
+### The layout
+
+Mirrored from `MainActivity.renderVideoTiles`, not invented:
+
+| | page 1 (sounds) | page 2 (videos) |
+|---|---|---|
+| columns | 13 (`tiles.json`) | **5** (`SNIPPETS_PER_ROW`) |
+| shape | square | **16:9** |
+| width vs a sound tile | 1× | **2.6×** (13 ÷ 5) |
+| `padding` / `gap` | 10 / 6 | the same — they are one decision |
+| `#NN` | white bold at 10% of the tile | white bold at 10% of the **sound** tile |
+| label | optional word, centred | **the title**, centred across the picture |
+
+- **The badge is scaled off the soundboard tile, never off the video tile it is
+  drawn on.** `TileNumberBadge` on the tablet says the same thing in the same
+  words: a video tile is nearly three times wider, and scaling the badge with it
+  would produce a different badge, not the same one. `VideoGridView.badgeUnit`
+  re-derives the sound cell for the same panel size to get it.
+- **`#NN` is the tile's place in the Mac's order**, 1-based, nothing else — so it
+  renumbers itself when a clip is added, and a row this app had to drop (no `id`)
+  closes up behind it rather than leaving a hole in the badges.
+- **The title sits across the picture, not under it.** A frame grabbed at the
+  snippet's own start second is rarely legible enough to name the clip on its own,
+  and a caption under the picture would cost a line of height on every row.
+- **Tile widths are whole multiples of 16** (`widthQuantum`). Not tidiness — it is
+  what makes hugging *stable*: the panel measures the grid, shortens its frame to
+  the answer and measures again at that height, and a cell whose height was
+  `floor(width × 9/16)` loses the fraction and comes back a point smaller, so a
+  second show creeps the board down. On a multiple of 16 the height is exact.
+  (Page 1 carries the same scar, solved there by writing ⅔ as a division.)
+- It fits **both ways** like page 1 — a short frame shrinks the cell rather than
+  overflow, because a panel you hold a key to see is one you never get to scroll.
+
+### Switching pages
+
+`PanelHoldRule` answers `.setPage` and the controller does it **in place**: no
+hide, no show, no slide. The key is still held and the board has to read as
+changing its mind, not as leaving and coming back. The frame does move, because
+the two pages hug to different heights — set, never animated, and against the
+*remembered* placement (`lastPlacement`) rather than a fresh screen choice, which
+would be free to pick a different screen mid-gesture. Both grids live in the
+panel for the life of the process with one hidden, so the swap never has to build
+eighteen views under a key that is already down.
+
+### What a video press does
+
+`VideoPress`, a port of the tap half of the tablet's `onSnippetTouch`:
+
+1. **Tap** → `GET <addonsBaseURL>/video/play/<id>`, which answers
+   `{ok,startSeconds,durationMs}` and puts the clip fullscreen in IINA on the
+   Retina. `durationMs` is the shorter of what is left of the clip and addons'
+   auto-kill window.
+2. **Tap the tile that is playing** → `GET /video/stop`. The playing tile is its
+   own stop button, exactly as on the tablet — a tile that stopped the clip there
+   and replayed it here would be a bug in the middle of a session.
+3. **A different tile** replaces rather than stops: addons kills the previous IINA
+   before relaunching, so a stop sent from here could only land *after* the new
+   play.
+4. The red border clears at `durationMs + 100 ms`. Nothing polls for the end —
+   that deadline IS the one addons armed. Completion timers are **outvoted, not
+   cancelled**, the same guard `SoundboardPress` carries.
+
+The tablet's *other* gesture on that tile — hold three seconds for the soundtrack
+alone — is deliberately not here: it is a gesture for a finger, and this panel is
+already being held open with the other hand.
+
 ## What a press does
 
 `SoundboardPress` is a **port of the tablet's own press semantics**
@@ -268,9 +414,15 @@ ships switched off for everyone who never touched it.
 
 | hook | does |
 |---|---|
-| `GET /test/thumbnail-panel` | show it for `testShowSeconds` (**5 s**) and answer `{ok, screen, primary, overlayScreen, frame:{x,y,w,h}, tiles, seconds}` — the headless way to check the placement rule on the rig you are sitting at, and to tell "the panel is up" from "the panel is up and empty" |
+| `GET /test/thumbnail-panel` | show it for `testShowSeconds` (**5 s**) and answer `{ok, page, screen, primary, overlayScreen, frame:{x,y,w,h}, tiles, seconds}` — the headless way to check the placement rule on the rig you are sitting at, and to tell "the panel is up" from "the panel is up and empty" |
+| `…?page=videos` | the same on page 2. `tiles` must match `curl -s 127.0.0.1:55123/videos \| jq '.videos\|length'` — the two-command check that the fetch, the parse and the grid agree |
 | `GET /test/thumbnail-panel/hide` | hide it early |
 | `GET /test/thumbnail-panel/press/<n>` | press tile `n` exactly as a click does → `{ok, n, asset, action, durationMs}`, or `unknown-tile`. The panel need not be visible: the press path is the sound semantics, not the window |
+| `…/press/<n>?page=videos` | press video tile `n` → `{ok, n, id, action, durationMs}`, `unknown-video`, or `addons-down`. It really starts IINA — **stop it** with `curl 127.0.0.1:55123/video/stop` or it sits fullscreen until the auto-kill |
+
+`page` is `effects` unless the query says `videos`; an unknown value falls back to
+`effects` rather than 404, because these are hooks typed into a shell and a typo
+answering "no such route" is not a better error.
 
 All three answer **503 `{"ok":false,"reason":"no-panel"}`** when no panel is
 wired, rather than 404: the route exists, the feature is not attached.

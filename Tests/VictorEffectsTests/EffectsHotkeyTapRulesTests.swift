@@ -137,4 +137,91 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                                           flags: [.maskCommand],
                                           rightCommandHeld: true), .ignore)
     }
+
+    // MARK: - 🎬 Right ⌥ as the second page
+
+    private static let VK_LEFT_OPTION: CGKeyCode = 58
+
+    /// `.maskAlternate` cannot say WHICH ⌥ — only the device-dependent bits can,
+    /// and the whole feature is the difference between them.
+    private func flags(_ base: CGEventFlags, device: UInt64) -> CGEventFlags {
+        CGEventFlags(rawValue: base.rawValue | device)
+    }
+    private var rightOpt: UInt64 { Tap.DEVICE_RIGHT_OPTION }
+    private var leftOpt: UInt64 { Tap.DEVICE_LEFT_OPTION }
+
+    func testRightOptionUnderAHeldCommandIsThePageSwitch() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: flags([.maskCommand, .maskAlternate], device: rightOpt),
+                                          rightCommandHeld: true,
+                                          rightOptionHeld: false), .rightOptionDown)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [.maskCommand],
+                                          rightCommandHeld: true,
+                                          rightOptionHeld: true), .rightOptionUp)
+    }
+
+    func testRightOptionRepeatIsNotASecondPage() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: flags([.maskCommand, .maskAlternate], device: rightOpt),
+                                          rightCommandHeld: true,
+                                          rightOptionHeld: true), .ignore)
+    }
+
+    func testLeftOptionStillCancelsEvenWhereTheRightOneWouldNot() {
+        // The one asymmetry worth a test of its own: 61 opens the videos, 58 is
+        // half of ⌘⌥ and belongs to whoever else is listening.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_OPTION,
+                                          flags: flags([.maskCommand, .maskAlternate], device: leftOpt),
+                                          rightCommandHeld: true), .cancel)
+        // …and a left ⌥ joining a right ⌥ that is already there cancels too:
+        // the chord stopped being this feature's the moment it grew a third key.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: flags([.maskCommand, .maskAlternate],
+                                                       device: leftOpt | rightOpt),
+                                          rightCommandHeld: true,
+                                          rightOptionHeld: true), .cancel)
+    }
+
+    func testRightCommandArrivingSecondStillArms() {
+        // Either order. ⌥ first, then ⌘ — the flags on the ⌘ event carry the
+        // right-⌥ device bit, and `commandIsAlone` has to let that one through
+        // while still refusing every other modifier.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: flags([.maskCommand, .maskAlternate], device: rightOpt),
+                                          rightCommandHeld: false), .rightCommandDown)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: flags([.maskCommand, .maskAlternate], device: leftOpt),
+                                          rightCommandHeld: false), .ignore)
+    }
+
+    func testAnAmbiguousOptionIsTreatedAsTheLeftOne() {
+        // `.maskAlternate` with NEITHER device bit — a synthesised event, a
+        // remapped key. The safe answer is the behaviour this feature already
+        // had (⌘⌥ cancels), never a board appearing under somebody's chord.
+        XCTAssertFalse(Tap.rightOptionOnly([.maskAlternate]))
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: [.maskCommand, .maskAlternate],
+                                          rightCommandHeld: false), .ignore)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [.maskCommand, .maskAlternate],
+                                          rightCommandHeld: true), .cancel)
+    }
+
+    func testControlOrShiftStillCancelEvenAlongsideTheRightOption() {
+        for extra: CGEventFlags in [.maskControl, .maskShift] {
+            XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                              flags: flags([.maskCommand, .maskAlternate, extra],
+                                                           device: rightOpt),
+                                              rightCommandHeld: false), .ignore)
+        }
+    }
+
+    func testRightOptionWithoutCommandIsStillNobodysBusiness() {
+        // Unchanged from before the second page existed, and the reason the
+        // trigger moved off 61 in the first place.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: flags([.maskAlternate], device: rightOpt),
+                                          rightCommandHeld: false), .ignore)
+    }
 }

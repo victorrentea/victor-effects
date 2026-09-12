@@ -27,6 +27,17 @@ struct EffectsConfigValues: Equatable {
     /// Emoji that charge up when the cursor hovers them and pop into a webhook.
     var chargeEmoji: [String] = ["☕"]
 
+    /// Where the **addons** app answers (`victor-macos-addons`, normally 55123).
+    ///
+    /// The panel's video page is the one thing in here that is not this app's:
+    /// the list comes from that app's `GET /videos` and a tile plays through its
+    /// `GET /video/play/<id>`. Those two routes are addons-local — they are NOT
+    /// among the ones it proxies back to 55124 — so this app has to dial out,
+    /// and a hardcoded port in a public repo is exactly the machine-specific
+    /// thing `EffectsConfig` exists to hold. Empty disables the video page,
+    /// which is the right answer on a Mac with no addons app on it.
+    var addonsBaseURL: String = "http://127.0.0.1:55123"
+
     /// Where the per-tile press counts live (`UsageCounts`). Next to the config
     /// rather than in `soundsDir`: that folder is a git checkout of the tablet
     /// repo, and a file rewritten on every press has no business being in it.
@@ -48,6 +59,7 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["overlayScreen"] as? String, !s.isEmpty { v.overlayScreen = s }
             if let a = obj["chargeEmoji"] as? [String], !a.isEmpty { v.chargeEmoji = a }
             if let s = obj["usageFile"] as? String, !s.isEmpty { v.usageFile = s }
+            if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
         }
         // Env wins over the file: it is how you start a second copy on another
         // port without editing the config the running one shares.
@@ -55,6 +67,7 @@ struct EffectsConfigValues: Equatable {
             v.port = UInt16(n)
         }
         if let s = env["VICTOR_EFFECTS_SOUNDS_DIR"], !s.isEmpty { v.soundsDir = s }
+        if let s = env["VICTOR_EFFECTS_ADDONS_URL"] { v.addonsBaseURL = s }
         return v
     }
 }
@@ -105,6 +118,12 @@ final class EffectsConfig {
     var bluetoothSpeakerNameMatch: String { values.bluetoothSpeakerNameMatch }
     var overlayScreen: String { values.overlayScreen }
     var chargeEmoji: [String] { values.chargeEmoji }
+    /// Trailing slash trimmed once, here, so every caller can write
+    /// `"\(addonsBaseURL)/videos"` and none of them has to think about it.
+    var addonsBaseURL: String {
+        let raw = values.addonsBaseURL.trimmingCharacters(in: .whitespaces)
+        return raw.hasSuffix("/") ? String(raw.dropLast()) : raw
+    }
 
     var soundsDirExists: Bool {
         var isDir: ObjCBool = false
@@ -127,6 +146,7 @@ final class EffectsConfig {
             + "\"assetsDir\":\(s(assetsDir.path)),\"eventWebhook\":\(s(values.eventWebhook)),"
             + "\"bluetoothSpeakerNameMatch\":\(s(values.bluetoothSpeakerNameMatch)),"
             + "\"overlayScreen\":\(s(values.overlayScreen)),\"chargeEmoji\":[\(emoji)],"
+            + "\"addonsBaseURL\":\(s(addonsBaseURL)),"
             + "\"soundsDirExists\":\(soundsDirExists)}"
     }
 

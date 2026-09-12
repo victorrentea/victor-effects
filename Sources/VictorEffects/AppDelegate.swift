@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The panel is a listener on this tap, never an owner: `onRightCommand`
         // fires on the way past and the event continues to the front app.
         tap.onRightCommand = { [weak self] down in self?.panelController.rightCommand(down: down) }
+        tap.onRightOption = { [weak self] down in self?.panelController.rightOption(down: down) }
         tap.onKeyWhileRightCommand = { [weak self] in self?.panelController.keyWhileRightCommand() }
 
         if tap.start() {

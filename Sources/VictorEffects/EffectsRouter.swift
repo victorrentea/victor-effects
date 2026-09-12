@@ -64,9 +64,9 @@ final class EffectsRouter {
         case tileImage(String)
         /// Hook points for the thumbnail panel (WI-4). Parsed here so the route
         /// table is complete and testable before the panel exists.
-        case panelShow
+        case panelShow(PanelPage)
         case panelHide
-        case panelPress(Int)
+        case panelPress(Int, PanelPage)
         case state
         case configReload
         case unknown
@@ -114,6 +114,14 @@ final class EffectsRouter {
         "/test/whip/crack": "whip/crack",
     ]
 
+    /// `?page=videos` selects the panel's second page; anything else — absent,
+    /// misspelt, `effects` — is the soundboard. Lenient on purpose: these are
+    /// hooks typed into a shell, and a typo answering "no such route" instead of
+    /// showing the board is not a better error.
+    static func page(_ raw: String?) -> PanelPage {
+        PanelPage(rawValue: raw ?? "") ?? .effects
+    }
+
     static func route(forPath path: String) -> Route {
         let (pathOnly, query) = parsePathAndQuery(path)
         func q(_ name: String) -> String? { query.first { $0.name == name }?.value }
@@ -143,7 +151,7 @@ final class EffectsRouter {
             return parsed.isEmpty ? .unknown : .usageImport(parsed)
         case "/state":              return .state
         case "/config/reload":      return .configReload
-        case "/test/thumbnail-panel":       return .panelShow
+        case "/test/thumbnail-panel":       return .panelShow(page(q("page")))
         case "/test/thumbnail-panel/hide":  return .panelHide
         case "/effect/progress-bar/stop":   return .progressBarStop
         case "/effect/emoji":
@@ -184,7 +192,9 @@ final class EffectsRouter {
             if let ms = Int(pathOnly.dropFirst("/bt-compensation/".count)) { return .btCompensationSet(ms) }
         }
         if pathOnly.hasPrefix("/test/thumbnail-panel/press/") {
-            if let n = Int(pathOnly.dropFirst("/test/thumbnail-panel/press/".count)) { return .panelPress(n) }
+            if let n = Int(pathOnly.dropFirst("/test/thumbnail-panel/press/".count)) {
+                return .panelPress(n, page(q("page")))
+            }
         }
         if pathOnly.hasPrefix("/tiles/") {
             let rel = String(pathOnly.dropFirst("/tiles/".count))
@@ -199,9 +209,9 @@ final class EffectsRouter {
 
     /// Filled in by the thumbnail panel (WI-4). Left as optional closures so the
     /// four panel routes already answer — with 503 — instead of not existing.
-    var onPanelShow: (() -> String)?
+    var onPanelShow: ((PanelPage) -> String)?
     var onPanelHide: (() -> Void)?
-    var onPanelPress: ((Int) -> String)?
+    var onPanelPress: ((Int, PanelPage) -> String)?
     var panelMonitorActive: () -> Bool = { false }
     var panelVisible: () -> Bool = { false }
 
@@ -304,18 +314,18 @@ final class EffectsRouter {
             guard let img = TilesManifest.image(relativePath: rel) else { return .notFound }
             return .binary(img.data, contentType: img.contentType)
 
-        case .panelShow:
+        case .panelShow(let page):
             guard let show = onPanelShow else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
-            return .json(show())
+            return .json(show(page))
 
         case .panelHide:
             guard let hide = onPanelHide else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
             hide()
             return .ok()
 
-        case .panelPress(let n):
+        case .panelPress(let n, let page):
             guard let press = onPanelPress else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
-            return .json(press(n))
+            return .json(press(n, page))
 
         case .effectsAssets:
             // Sorted so the body is stable: a client caches it and only repaints

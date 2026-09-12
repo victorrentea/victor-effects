@@ -81,9 +81,15 @@ this one only routes.
   `dispatch` is **main-thread only** (it asserts it); the socket path wraps it in
   `DispatchQueue.main.sync`, the thumbnail panel calls it directly.
 - **One event tap, `EffectsHotkeyTap`.** ⌃W (swallowed), the Return/buttons-6-7
-  crack and the right-⌘ panel hold all live in it. A second tap would mean a
+  crack and the right-⌘ panel hold (plus its right-⌥ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
 - **The two apps degrade independently.** Addons answers `effectsUp:false` while
   this app is down; this app's webhook is fire-and-forget. Never introduce a
-  dependency that makes one wait for the other.
+  dependency that makes one wait for the other. **The panel's 🎬 video page is the
+  one bent case** and it is bent deliberately: the list and the play route live
+  only on addons (`addonsBaseURL`, never a hardcoded port), the wait is capped at
+  **1.5 s**, it happens on that page alone, and its failure mode is a tile reading
+  *no videos (addons down?)* — not a hang and not a missing panel. Any further
+  cross-app call owes the same three things: a config key, a timeout, and a
+  visible degraded state.

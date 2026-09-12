@@ -52,7 +52,8 @@ cracks.
   "eventWebhook": "",
   "bluetoothSpeakerNameMatch": "",
   "overlayScreen": "builtin",
-  "chargeEmoji": ["☕"]
+  "chargeEmoji": ["☕"],
+  "addonsBaseURL": "http://127.0.0.1:55123"
 }
 ```
 
@@ -65,9 +66,11 @@ cracks.
 | `bluetoothSpeakerNameMatch` | *(empty = off)* | substring of a Bluetooth speaker's name to keep awake between sounds |
 | `overlayScreen` | `builtin` | `builtin` \| `main` \| a substring of a screen's name |
 | `chargeEmoji` | `["☕"]` | emoji that charge up under the cursor and pop |
+| `addonsBaseURL` | `http://127.0.0.1:55123` | where the **addons** app answers. The panel's 🎬 video page is built from its `GET /videos` and plays through its `GET /video/play/<id>` — the two routes it does *not* proxy back here. Empty switches the video page off, which is the right setting on a Mac with no addons app |
 
 Env overrides: `VICTOR_EFFECTS_PORT`, `VICTOR_EFFECTS_SOUNDS_DIR`,
-`VICTOR_EFFECTS_CONFIG` (path of the config file itself).
+`VICTOR_EFFECTS_ADDONS_URL`, `VICTOR_EFFECTS_CONFIG` (path of the config file
+itself).
 `GET /config/reload` re-reads the file without restarting.
 
 Four effects (`love-hands`, `brother`, `gangnam`, `fail`) look for extra images
