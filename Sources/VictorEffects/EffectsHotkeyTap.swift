@@ -17,21 +17,26 @@ final class EffectsHotkeyTap {
     /// Right ⌘. Left ⌘ is 55 and is deliberately NOT matched: the left key is
     /// the one every ⌘-shortcut is typed with.
     static let VK_RIGHT_COMMAND: CGKeyCode = 54
-    /// Right ⌥. Held *together with* right ⌘ it flips the panel to its second
-    /// page (the videos), exactly like the tablet's page 2. Left ⌥ is 58 and is
-    /// deliberately NOT matched: ⌘⌥ typed with one hand is a shortcut layer
+    /// Right ⇧. Held *together with* right ⌘ it flips the panel to its second
+    /// page (the videos), exactly like the tablet's page 2. Left ⇧ is 56 and is
+    /// deliberately NOT matched: ⌘⇧ typed with one hand is a shortcut layer
     /// other apps own, and it still cancels.
-    static let VK_RIGHT_OPTION: CGKeyCode = 61
-
-    /// Device-dependent modifier bits (`NX_DEVICEL/RALTKEYMASK`).
     ///
-    /// `CGEventFlags.maskAlternate` only says "an ⌥ is down" — it cannot say
+    /// The page lived on right ⌥ for an afternoon, and right ⌘ + right ⌥ is
+    /// **Wispr Flow's push-to-talk**: every dictation raised a soundboard over
+    /// the screen. ⌥ now cancels exactly like ⌃ and the left ⇧ do, so that
+    /// chord can never open this panel again.
+    static let VK_RIGHT_SHIFT: CGKeyCode = 60
+
+    /// Device-dependent modifier bits (`NX_DEVICEL/RSHIFTKEYMASK`).
+    ///
+    /// `CGEventFlags.maskShift` only says "a ⇧ is down" — it cannot say
     /// *which*, and the whole second page hangs on that difference. The keycode
     /// on the `.flagsChanged` event names the key that MOVED; these name the
     /// keys that are still **held**, which is the question asked when right ⌘
     /// arrives second.
-    static let DEVICE_LEFT_OPTION: UInt64 = 0x00000020
-    static let DEVICE_RIGHT_OPTION: UInt64 = 0x00000040
+    static let DEVICE_LEFT_SHIFT: UInt64 = 0x00000002
+    static let DEVICE_RIGHT_SHIFT: UInt64 = 0x00000004
 
     private static let MOUSE_BUTTON_6: Int64 = 5  // physical "button 6"
     private static let MOUSE_BUTTON_7: Int64 = 6  // physical "button 7"
@@ -82,63 +87,64 @@ final class EffectsHotkeyTap {
         case rightCommandDown
         /// Right ⌘ came back up.
         case rightCommandUp
-        /// Right ⌥ joined a held right ⌘: the panel's **second page** (videos).
-        case rightOptionDown
-        /// Right ⌥ let go while right ⌘ is still held: back to the soundboard.
-        case rightOptionUp
-        /// Another modifier joined while right ⌘ was held (⌃⌘, ⌘⇧, left ⌘⌥ …).
+        /// Right ⇧ joined a held right ⌘: the panel's **second page** (videos).
+        case rightShiftDown
+        /// Right ⇧ let go while right ⌘ is still held: back to the soundboard.
+        case rightShiftUp
+        /// Another modifier joined while right ⌘ was held (⌃⌘, ⌘⌥, left ⌘⇧ …).
         /// Same meaning as a letter key: this is a shortcut, not the panel.
         case cancel
         /// Not ours.
         case ignore
     }
 
-    /// True when an ⌥ is down and it is unambiguously the **right** one.
+    /// True when a ⇧ is down and it is unambiguously the **right** one.
     ///
-    /// A `.maskAlternate` carrying neither device bit — a synthesised event, a
+    /// A `.maskShift` carrying neither device bit — a synthesised event, a
     /// remapped key — answers **false** on purpose: the safe fallback is the
-    /// behaviour this feature already had (⌘⌥ cancels), not a soundboard page
+    /// behaviour this feature already had (⌘⇧ cancels), not a soundboard page
     /// appearing underneath somebody else's chord.
-    static func rightOptionOnly(_ flags: CGEventFlags) -> Bool {
-        guard flags.contains(.maskAlternate) else { return false }
-        return (flags.rawValue & DEVICE_RIGHT_OPTION) != 0
-            && (flags.rawValue & DEVICE_LEFT_OPTION) == 0
+    static func rightShiftOnly(_ flags: CGEventFlags) -> Bool {
+        guard flags.contains(.maskShift) else { return false }
+        return (flags.rawValue & DEVICE_RIGHT_SHIFT) != 0
+            && (flags.rawValue & DEVICE_LEFT_SHIFT) == 0
     }
 
     /// `⌘ alone` means ⌘ and nothing else from the shortcut-forming trio —
-    /// **except a right ⌥**, which is this feature's own second page and is
-    /// allowed to be down first (the gesture works in either order).
+    /// **except a right ⇧**, which is this feature's own second page and is
+    /// allowed to be down first (the gesture works in either order). ⌥ has no
+    /// exception of any kind: right ⌘ + right ⌥ is Wispr Flow's push-to-talk.
     ///
     /// Caps lock and fn are deliberately not in the set: caps lock is a latch
     /// somebody may be sitting on for an hour, and neither of them is a
     /// modifier a ⌘-shortcut is built out of.
     private static func commandIsAlone(_ flags: CGEventFlags) -> Bool {
-        guard !flags.contains(.maskControl), !flags.contains(.maskShift) else { return false }
-        return !flags.contains(.maskAlternate) || rightOptionOnly(flags)
+        guard !flags.contains(.maskControl), !flags.contains(.maskAlternate) else { return false }
+        return !flags.contains(.maskShift) || rightShiftOnly(flags)
     }
 
     static func decideModifier(keyCode: CGKeyCode,
                                flags: CGEventFlags,
                                rightCommandHeld: Bool,
-                               rightOptionHeld: Bool = false) -> ModifierDecision {
-        if keyCode == VK_RIGHT_OPTION {
-            // Right ⌥ is **only** the page switch, and only underneath a held
-            // right ⌘. On its own it belongs to the 💬 app's emoji layers — this
-            // trigger lived on 61 for a day and giving the key back was the
-            // point of moving it.
+                               rightShiftHeld: Bool = false) -> ModifierDecision {
+        if keyCode == VK_RIGHT_SHIFT {
+            // Right ⇧ is **only** the page switch, and only underneath a held
+            // right ⌘. On its own it is a shift key like any other and none of
+            // this app's business.
             guard rightCommandHeld else { return .ignore }
-            if rightOptionOnly(flags) {
-                return rightOptionHeld ? .ignore : .rightOptionDown   // key repeat
+            if rightShiftOnly(flags) {
+                return rightShiftHeld ? .ignore : .rightShiftDown   // key repeat
             }
-            // Still an ⌥ down, but not (only) the right one: a left ⌥ has joined,
-            // which is ⌘⌥ and somebody else's.
-            if flags.contains(.maskAlternate) { return .cancel }
-            return rightOptionHeld ? .rightOptionUp : .ignore
+            // Still a ⇧ down, but not (only) the right one: a left ⇧ has joined,
+            // which is ⌘⇧ and somebody else's.
+            if flags.contains(.maskShift) { return .cancel }
+            return rightShiftHeld ? .rightShiftUp : .ignore
         }
         guard keyCode == VK_RIGHT_COMMAND else {
-            // Any *other* modifier moving while right ⌘ is down: ⌃⌘, ⌘⇧ and
-            // friends belong to whatever else is listening, so the panel steps
-            // aside rather than appear underneath a shortcut.
+            // Any *other* modifier moving while right ⌘ is down: ⌃⌘, ⌘⌥ —
+            // Wispr Flow's push-to-talk — and friends belong to whatever else
+            // is listening, so the panel steps aside rather than appear
+            // underneath a shortcut.
             return rightCommandHeld ? .cancel : .ignore
         }
         let down = flags.contains(.maskCommand)
@@ -173,14 +179,14 @@ final class EffectsHotkeyTap {
     /// shortcut, not asking for the panel.
     var onKeyWhileRightCommand: (() -> Void)?
 
-    /// Right ⌥ went down / came up while right ⌘ is held — the panel's page
-    /// switch. Like `onRightCommand` it NEVER swallows: ⌘⌥ chords typed with
+    /// Right ⇧ went down / came up while right ⌘ is held — the panel's page
+    /// switch. Like `onRightCommand` it NEVER swallows: ⌘⇧ chords typed with
     /// the right hand keep reaching the front app.
-    var onRightOption: ((Bool) -> Void)?
+    var onRightShift: ((Bool) -> Void)?
 
     private var tapPort: CFMachPort?
     private var rightCommandHeld = false
-    private var rightOptionHeld = false
+    private var rightShiftHeld = false
     var isActive: Bool { tapPort != nil }
 
     /// Installs the tap. Returns false when Accessibility is not granted (or the
@@ -219,7 +225,7 @@ final class EffectsHotkeyTap {
         }
         thread.name = "EffectsHotkeyTap"
         thread.start()
-        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, Return/buttons 6-7 crack, right ⌘ panel, right ⌘+⌥ videos)")
+        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, Return/buttons 6-7 crack, right ⌘ panel, right ⌘+⇧ videos)")
         return true
     }
 
@@ -240,29 +246,29 @@ final class EffectsHotkeyTap {
             switch Self.decideModifier(keyCode: keyCode,
                                        flags: event.flags,
                                        rightCommandHeld: rightCommandHeld,
-                                       rightOptionHeld: rightOptionHeld) {
+                                       rightShiftHeld: rightShiftHeld) {
             case .rightCommandDown:
                 rightCommandHeld = true
-                // Either order. When right ⌥ is ALREADY down as ⌘ arrives, the
+                // Either order. When right ⇧ is ALREADY down as ⌘ arrives, the
                 // gesture means the video page from its first frame — so the tap
                 // synthesises that edge here and the rule only ever has to
                 // understand one ordering.
-                let optionAlready = Self.rightOptionOnly(event.flags)
-                rightOptionHeld = optionAlready
+                let shiftAlready = Self.rightShiftOnly(event.flags)
+                rightShiftHeld = shiftAlready
                 DispatchQueue.main.async { [weak self] in
                     self?.onRightCommand?(true)
-                    if optionAlready { self?.onRightOption?(true) }
+                    if shiftAlready { self?.onRightShift?(true) }
                 }
             case .rightCommandUp:
                 rightCommandHeld = false
-                rightOptionHeld = false
+                rightShiftHeld = false
                 DispatchQueue.main.async { [weak self] in self?.onRightCommand?(false) }
-            case .rightOptionDown:
-                rightOptionHeld = true
-                DispatchQueue.main.async { [weak self] in self?.onRightOption?(true) }
-            case .rightOptionUp:
-                rightOptionHeld = false
-                DispatchQueue.main.async { [weak self] in self?.onRightOption?(false) }
+            case .rightShiftDown:
+                rightShiftHeld = true
+                DispatchQueue.main.async { [weak self] in self?.onRightShift?(true) }
+            case .rightShiftUp:
+                rightShiftHeld = false
+                DispatchQueue.main.async { [weak self] in self?.onRightShift?(false) }
             case .cancel:
                 DispatchQueue.main.async { [weak self] in self?.onKeyWhileRightCommand?() }
             case .ignore:

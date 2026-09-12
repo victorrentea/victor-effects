@@ -13,14 +13,16 @@ enum PanelPage: String, Equatable {
 /// Owns the thumbnail panel: when it appears, where, and what a tile press does.
 ///
 /// The gesture is **hold the right ⌘ for 180 ms** — alone for the soundboard,
-/// with the **right ⌥** for the videos. Right and not left
+/// with the **right ⇧** for the videos. Right and not left
 /// because every ⌘-shortcut on this keyboard is typed with the left hand —
 /// binding the left key would flash a soundboard over the screen on every ⌘C.
-/// *Alone* because ⌃⌘, ⌘⇧ and ⌘⌥ are shortcut layers other apps own. The 180 ms
+/// *Alone* because ⌃⌘, ⌘⌥ and left-hand ⌘⇧ are shortcut layers other apps own —
+/// ⌘⌥ most of all, since right ⌘ + right ⌥ is **Wispr Flow's push-to-talk**.
+/// The 180 ms
 /// exist for the same reason from the other side: a right-⌘ shortcut is a tap,
-/// not a hold, and a tap must not show anything. The second modifier is right ⌥
+/// not a hold, and a tap must not show anything. The second modifier is right ⇧
 /// and not a number key because the page is a *state of the hold*, not a
-/// command: let go of ⌥ and the soundboard is back, with the panel never having
+/// command: let go of ⇧ and the soundboard is back, with the panel never having
 /// gone anywhere.
 ///
 /// Nothing here ever swallows a key. The panel is a passenger on the event tap;
@@ -43,10 +45,10 @@ final class ThumbnailPanelController {
             case rightCommandDown
             case holdTimerFired
             case rightCommandUp
-            /// Right ⌥ joined the held right ⌘ → page 2.
-            case rightOptionDown
+            /// Right ⇧ joined the held right ⌘ → page 2.
+            case rightShiftDown
             /// …and let go again → back to page 1.
-            case rightOptionUp
+            case rightShiftUp
             /// Any other key or modifier went down while the right ⌘ was held:
             /// the user is typing a shortcut, not asking for a soundboard.
             case keyWhileRightCommand
@@ -72,7 +74,7 @@ final class ThumbnailPanelController {
             /// row or the test hook, which outlive the key.
             var shownByHold = false
             /// Which page the *current hold* means. Reset by every end of a
-            /// hold, so a gesture always starts on the soundboard: ⌥ is held
+            /// hold, so a gesture always starts on the soundboard: ⇧ is held
             /// down, not latched, and a page that survived the key would be a
             /// mode nobody asked for.
             var page: PanelPage = .effects
@@ -82,8 +84,8 @@ final class ThumbnailPanelController {
             switch event {
             case .rightCommandDown:
                 guard state.enabled, !state.holdArmed, !state.shownByHold else { return [] }
-                // A fresh hold starts on the soundboard. When right ⌥ is ALREADY
-                // down the tap follows this immediately with `.rightOptionDown`,
+                // A fresh hold starts on the soundboard. When right ⇧ is ALREADY
+                // down the tap follows this immediately with `.rightShiftDown`,
                 // which is how "either order" is one ordering in here.
                 state.page = .effects
                 state.holdArmed = true
@@ -95,9 +97,9 @@ final class ThumbnailPanelController {
                 state.shownByHold = true
                 return [.show(state.page)]
 
-            case .rightOptionDown, .rightOptionUp:
-                let wanted: PanelPage = event == .rightOptionDown ? .videos : .effects
-                // ⌥ on its own is somebody else's key: the page only exists
+            case .rightShiftDown, .rightShiftUp:
+                let wanted: PanelPage = event == .rightShiftDown ? .videos : .effects
+                // ⇧ on its own is somebody else's key: the page only exists
                 // inside a hold, armed or shown.
                 guard state.enabled, state.holdArmed || state.shownByHold else { return [] }
                 guard state.page != wanted else { return [] }
@@ -185,9 +187,9 @@ final class ThumbnailPanelController {
         perform(PanelHoldRule.apply(down ? .rightCommandDown : .rightCommandUp, to: &state))
     }
 
-    /// Right ⌥ went down / came up underneath a held right ⌘ — the page switch.
-    func rightOption(down: Bool) {
-        perform(PanelHoldRule.apply(down ? .rightOptionDown : .rightOptionUp, to: &state))
+    /// Right ⇧ went down / came up underneath a held right ⌘ — the page switch.
+    func rightShift(down: Bool) {
+        perform(PanelHoldRule.apply(down ? .rightShiftDown : .rightShiftUp, to: &state))
     }
 
     func keyWhileRightCommand() {

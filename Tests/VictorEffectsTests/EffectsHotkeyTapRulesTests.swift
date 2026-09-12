@@ -71,12 +71,20 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
 
     private static let VK_RIGHT_COMMAND: CGKeyCode = 54
     private static let VK_LEFT_COMMAND: CGKeyCode = 55
+    private static let VK_RIGHT_SHIFT: CGKeyCode = 60
+    private static let VK_LEFT_SHIFT: CGKeyCode = 56
     private static let VK_RIGHT_OPTION: CGKeyCode = 61
 
     func testRightCommandKeycodeIsNotLeftCommand() {
         // 54 vs 55 is the whole difference between "hold right ⌘ for the panel"
         // and "every ⌘C opens a grid over the screen".
         XCTAssertEqual(EffectsHotkeyTap.VK_RIGHT_COMMAND, 54)
+    }
+
+    func testRightShiftKeycodeIsNotLeftShift() {
+        // 60 vs 56, the same distinction one row down: the right key is the
+        // page switch, the left one is half of every ⌘⇧ shortcut.
+        XCTAssertEqual(EffectsHotkeyTap.VK_RIGHT_SHIFT, 60)
     }
 
     func testRightCommandAloneArmsThePanel() {
@@ -111,7 +119,8 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
 
     func testCommandWithAnotherModifierIsSomebodyElsesShortcut() {
         // ⌃⌘, ⌘⇧ and ⌘⌥ are shortcut layers other apps own. None of them may
-        // raise the soundboard.
+        // raise the soundboard. (A bare `.maskShift` with no device bit is
+        // ambiguous, and ambiguous reads as the left key — see below.)
         for extra: CGEventFlags in [.maskControl, .maskShift, .maskAlternate] {
             XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
                                               flags: [.maskCommand, extra],
@@ -120,14 +129,14 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
     }
 
     func testAModifierJoiningAHeldCommandCancels() {
-        // ⌘ first, ⇧ second: the user is reaching for ⌘⇧, not the panel.
-        XCTAssertEqual(Tap.decideModifier(keyCode: 56,
+        // ⌘ first, left ⇧ second: the user is reaching for ⌘⇧, not the panel.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_SHIFT,
                                           flags: [.maskCommand, .maskShift],
                                           rightCommandHeld: true), .cancel)
     }
 
     func testModifierTrafficWhileNothingIsHeldIsIgnored() {
-        XCTAssertEqual(Tap.decideModifier(keyCode: 56,
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_SHIFT,
                                           flags: [.maskShift],
                                           rightCommandHeld: false), .ignore)
     }
@@ -138,90 +147,111 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                                           rightCommandHeld: true), .ignore)
     }
 
-    // MARK: - 🎬 Right ⌥ as the second page
+    // MARK: - 🎬 Right ⇧ as the second page
 
-    private static let VK_LEFT_OPTION: CGKeyCode = 58
-
-    /// `.maskAlternate` cannot say WHICH ⌥ — only the device-dependent bits can,
+    /// `.maskShift` cannot say WHICH ⇧ — only the device-dependent bits can,
     /// and the whole feature is the difference between them.
     private func flags(_ base: CGEventFlags, device: UInt64) -> CGEventFlags {
         CGEventFlags(rawValue: base.rawValue | device)
     }
-    private var rightOpt: UInt64 { Tap.DEVICE_RIGHT_OPTION }
-    private var leftOpt: UInt64 { Tap.DEVICE_LEFT_OPTION }
+    private var rightShift: UInt64 { Tap.DEVICE_RIGHT_SHIFT }
+    private var leftShift: UInt64 { Tap.DEVICE_LEFT_SHIFT }
 
-    func testRightOptionUnderAHeldCommandIsThePageSwitch() {
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                          flags: flags([.maskCommand, .maskAlternate], device: rightOpt),
+    func testRightShiftUnderAHeldCommandIsThePageSwitch() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_SHIFT,
+                                          flags: flags([.maskCommand, .maskShift], device: rightShift),
                                           rightCommandHeld: true,
-                                          rightOptionHeld: false), .rightOptionDown)
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          rightShiftHeld: false), .rightShiftDown)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_SHIFT,
                                           flags: [.maskCommand],
                                           rightCommandHeld: true,
-                                          rightOptionHeld: true), .rightOptionUp)
+                                          rightShiftHeld: true), .rightShiftUp)
     }
 
-    func testRightOptionRepeatIsNotASecondPage() {
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                          flags: flags([.maskCommand, .maskAlternate], device: rightOpt),
+    func testRightShiftRepeatIsNotASecondPage() {
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_SHIFT,
+                                          flags: flags([.maskCommand, .maskShift], device: rightShift),
                                           rightCommandHeld: true,
-                                          rightOptionHeld: true), .ignore)
+                                          rightShiftHeld: true), .ignore)
     }
 
-    func testLeftOptionStillCancelsEvenWhereTheRightOneWouldNot() {
-        // The one asymmetry worth a test of its own: 61 opens the videos, 58 is
-        // half of ⌘⌥ and belongs to whoever else is listening.
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_OPTION,
-                                          flags: flags([.maskCommand, .maskAlternate], device: leftOpt),
+    func testLeftShiftStillCancelsEvenWhereTheRightOneWouldNot() {
+        // The one asymmetry worth a test of its own: 60 opens the videos, 56 is
+        // half of ⌘⇧ and belongs to whoever else is listening.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_LEFT_SHIFT,
+                                          flags: flags([.maskCommand, .maskShift], device: leftShift),
                                           rightCommandHeld: true), .cancel)
-        // …and a left ⌥ joining a right ⌥ that is already there cancels too:
+        // …and a left ⇧ joining a right ⇧ that is already there cancels too:
         // the chord stopped being this feature's the moment it grew a third key.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_SHIFT,
+                                          flags: flags([.maskCommand, .maskShift],
+                                                       device: leftShift | rightShift),
+                                          rightCommandHeld: true,
+                                          rightShiftHeld: true), .cancel)
+    }
+
+    /// **Wispr Flow's push-to-talk is right ⌘ + right ⌥**, which is why the
+    /// page moved off ⌥ the same afternoon it landed there: every dictation
+    /// raised a soundboard over the screen. Right ⌥ now cancels like ⌃ and the
+    /// left ⇧ do, in both orders.
+    func testWisprPushToTalkNeverOpensThePanel() {
+        // `NX_DEVICERALTKEYMASK` — the right ⌥'s own device bit. Named here
+        // and nowhere in the app, because ⌥ no longer needs telling apart:
+        // either hand cancels.
+        let rightOptionDevice: UInt64 = 0x00000040
+        // ⌘ first, ⌥ second — the panel is cancelled, never shown.
         XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
                                           flags: flags([.maskCommand, .maskAlternate],
-                                                       device: leftOpt | rightOpt),
-                                          rightCommandHeld: true,
-                                          rightOptionHeld: true), .cancel)
+                                                       device: rightOptionDevice),
+                                          rightCommandHeld: true), .cancel)
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
+                                          flags: [.maskCommand, .maskAlternate],
+                                          rightCommandHeld: true), .cancel)
+        // …and ⌥ first, ⌘ second — nothing arms in the first place.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
+                                          flags: flags([.maskCommand, .maskAlternate],
+                                                       device: rightOptionDevice),
+                                          rightCommandHeld: false), .ignore)
     }
 
     func testRightCommandArrivingSecondStillArms() {
-        // Either order. ⌥ first, then ⌘ — the flags on the ⌘ event carry the
-        // right-⌥ device bit, and `commandIsAlone` has to let that one through
+        // Either order. ⇧ first, then ⌘ — the flags on the ⌘ event carry the
+        // right-⇧ device bit, and `commandIsAlone` has to let that one through
         // while still refusing every other modifier.
         XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
-                                          flags: flags([.maskCommand, .maskAlternate], device: rightOpt),
+                                          flags: flags([.maskCommand, .maskShift], device: rightShift),
                                           rightCommandHeld: false), .rightCommandDown)
         XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
-                                          flags: flags([.maskCommand, .maskAlternate], device: leftOpt),
+                                          flags: flags([.maskCommand, .maskShift], device: leftShift),
                                           rightCommandHeld: false), .ignore)
     }
 
-    func testAnAmbiguousOptionIsTreatedAsTheLeftOne() {
-        // `.maskAlternate` with NEITHER device bit — a synthesised event, a
+    func testAnAmbiguousShiftIsTreatedAsTheLeftOne() {
+        // `.maskShift` with NEITHER device bit — a synthesised event, a
         // remapped key. The safe answer is the behaviour this feature already
-        // had (⌘⌥ cancels), never a board appearing under somebody's chord.
-        XCTAssertFalse(Tap.rightOptionOnly([.maskAlternate]))
+        // had (⌘⇧ cancels), never a board appearing under somebody's chord.
+        XCTAssertFalse(Tap.rightShiftOnly([.maskShift]))
         XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
-                                          flags: [.maskCommand, .maskAlternate],
+                                          flags: [.maskCommand, .maskShift],
                                           rightCommandHeld: false), .ignore)
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                          flags: [.maskCommand, .maskAlternate],
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_SHIFT,
+                                          flags: [.maskCommand, .maskShift],
                                           rightCommandHeld: true), .cancel)
     }
 
-    func testControlOrShiftStillCancelEvenAlongsideTheRightOption() {
-        for extra: CGEventFlags in [.maskControl, .maskShift] {
+    func testControlOrOptionStillCancelEvenAlongsideTheRightShift() {
+        for extra: CGEventFlags in [.maskControl, .maskAlternate] {
             XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_COMMAND,
-                                              flags: flags([.maskCommand, .maskAlternate, extra],
-                                                           device: rightOpt),
+                                              flags: flags([.maskCommand, .maskShift, extra],
+                                                           device: rightShift),
                                               rightCommandHeld: false), .ignore)
         }
     }
 
-    func testRightOptionWithoutCommandIsStillNobodysBusiness() {
-        // Unchanged from before the second page existed, and the reason the
-        // trigger moved off 61 in the first place.
-        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_OPTION,
-                                          flags: flags([.maskAlternate], device: rightOpt),
+    func testRightShiftWithoutCommandIsStillNobodysBusiness() {
+        // A ⇧ held with no right ⌘ under it is just a capital letter.
+        XCTAssertEqual(Tap.decideModifier(keyCode: Self.VK_RIGHT_SHIFT,
+                                          flags: flags([.maskShift], device: rightShift),
                                           rightCommandHeld: false), .ignore)
     }
 }

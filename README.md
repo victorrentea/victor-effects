@@ -80,10 +80,12 @@ licensed files, so they are not committed here.
 ## The soundboard panel
 
 Holding the **right ⌘** alone for 180 ms puts the tile grid on a screen the audience is
-not looking at; releasing hides it. Clicking a tile plays its sound and whatever
+not looking at; releasing hides it. Add the **right ⇧** (either order, while ⌘ is
+down) and the same window shows the 🎬 video snippets — the tablet's page 2 —
+switching back in place when ⇧ is let go. Clicking a tile plays its sound and whatever
 visual is paired with it, and clicking it again stops both. Left ⌘ never opens
-it, and a key pressed while the right one is held cancels — so ⌘-shortcuts are
-untouched.
+it, and ⌃, ⌥ (right ⌘ + right ⌥ is Wispr Flow's push-to-talk), a left ⇧ or any
+key pressed while the right ⌘ is held cancels — so ⌘-shortcuts are untouched.
 
 The grid comes from a `tiles.json` next to the sounds (`soundsDir`), so adding a
 tile is one JSON entry plus one image. See `docs/thumbnail-panel.md` and

@@ -46,7 +46,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 - `GET /test/thumbnail-panel?page=videos` — the same, on the panel's 🎬 **second page**. The answer carries `"page":"videos"` and a `tiles` count that must match `curl -s 127.0.0.1:55123/videos | jq '.videos|length'` — the two-command check that the fetch, the parse and the grid all agree
 - `GET /test/thumbnail-panel/press/<n>?page=videos` — press video tile `n` (its `#NN`, i.e. its place in the Mac's order): plays the clip in IINA through addons, or stops it when it is the one already playing. **Stop it when you are done** (`curl 127.0.0.1:55123/video/stop`) or it sits fullscreen on the Retina until the ~60 s auto-kill
 - All of them answer **503** `{"ok":false,"reason":"no-panel"}` when the panel is not wired. Page 1 needs a `tiles.json` in `soundsDir` (`GET /tiles` tells you whether there is one); page 2 needs the addons app up on `addonsBaseURL` and answers `unknown-video` for a number past the end of its list
-- **The hold gestures themselves cannot be tested from a shell.** Right ⌘ and right ⌘+⌥ need synthesised input on a live machine, which is not something to do here — `ThumbnailPanelHoldTests` and `EffectsHotkeyTapRulesTests` are the assertions that stand in for it
+- **The hold gestures themselves cannot be tested from a shell.** Right ⌘ and right ⌘+⇧ need synthesised input on a live machine, which is not something to do here — `ThumbnailPanelHoldTests` and `EffectsHotkeyTapRulesTests` are the assertions that stand in for it
 
 ## Sound and state
 
@@ -67,7 +67,7 @@ Not a bug to chase: check `activeEffects` instead.
 `swift test`. The parts worth knowing about:
 
 - `EffectsRouterTests` — the whole route table, asserted as values with no socket
-- `EffectsHotkeyTapRulesTests` — `decideKey` / `decideMouse` / `decideModifier` as pure rules: ⌃W swallows, ⌘⌃W passes, Return cracks only while the whip is showing, and the panel arms on **right ⌘ (54) alone** — never on left ⌘ (55), never on right ⌥ (61), and never under ⌃⌘ / ⌘⇧ / ⌘⌥
+- `EffectsHotkeyTapRulesTests` — `decideKey` / `decideMouse` / `decideModifier` as pure rules: ⌃W swallows, ⌘⌃W passes, Return cracks only while the whip is showing, and the panel arms on **right ⌘ (54) alone** — never on left ⌘ (55), never on right ⇧ (60) by itself, and never under ⌃⌘ / ⌘⌥ / left-⌘⇧. The page switch is **right ⇧ (60)**, told from the left one (56) by the device bits; `testWisprPushToTalkNeverOpensThePanel` pins the reason it is not ⌥ — that chord is Wispr Flow's push-to-talk
 - `WhipPhysicsTests.testSettleMatchesJSGolden` — frame-by-frame parity with the JavaScript original (`tools/whip-parity`)
 - `SoundsManifestTests` — the canonical hash form, which an Android client reproduces byte for byte
 - `TilesManifestTests`, `EffectsConfigTests` — both parse literals rather than reading this machine, so no test depends on what is installed here

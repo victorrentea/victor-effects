@@ -81,7 +81,7 @@ this one only routes.
   `dispatch` is **main-thread only** (it asserts it); the socket path wraps it in
   `DispatchQueue.main.sync`, the thumbnail panel calls it directly.
 - **One event tap, `EffectsHotkeyTap`.** ⌃W (swallowed), the Return/buttons-6-7
-  crack and the right-⌘ panel hold (plus its right-⌥ video page) all live in it. A second tap would mean a
+  crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
 - **The two apps degrade independently.** Addons answers `effectsUp:false` while

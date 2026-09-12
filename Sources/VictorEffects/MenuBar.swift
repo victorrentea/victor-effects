@@ -132,7 +132,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         whipItem.isEnabled = true
         menu.addItem(whipItem)
 
-        panelItem = NSMenuItem(title: "Show tablet panel on right-⌘ hold",
+        panelItem = NSMenuItem(title: "Show tablet panel on right-⌘ hold (right ⇧ = videos)",
                                action: #selector(togglePanelAction), keyEquivalent: "")
         panelItem.target = self
         panelItem.isEnabled = true
