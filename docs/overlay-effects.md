@@ -1144,14 +1144,18 @@ rule from the start.
   (`showRedButton: no red_button.gif in …`) and no overlay; the clip still plays.
   A one-frame replacement is legal — the press then falls back to squash 0.92 +
   brightness −0.15 instead of swapping the frame.
-  **Geometry.** Height is **half the overlay screen's height**, width by the
-  image's own aspect, centred **exactly** on the pointer — and deliberately *not*
-  clamped onto the screen. The whole promise is "grows out of P, shrinks back into
-  P"; a button nudged inwards to fit would shrink into a pixel nobody clicked,
-  which is a worse lie than a button hanging off the edge when the pointer was
-  parked in a corner. Zoom out **0→1 over 0.35 s, ease-out**; shrink back
-  **1→0 over 0.30 s, ease-in** — the entrance is an arrival and wants to be
-  seen, the exit is a dismissal.
+  **Geometry.** Height is **a sixth of the overlay screen's height** (`0.5 / 3` —
+  it shipped at half and was cut to a third of that), width by the image's own
+  aspect, centred **exactly** on the pointer — and deliberately *not* clamped onto
+  the screen. The whole promise is "grows out of P, shrinks back into P"; a button
+  nudged inwards to fit would shrink into a pixel nobody clicked, which is a worse
+  lie than a button hanging off the edge when the pointer was parked in a corner.
+  The size is also what makes the pass-through click below worth having: a button
+  covering half the slide was covering whatever the click then landed on.
+  Zoom out **0→1 over 0.70 s, ease-out** — twice the old 0.35 s, because a sixth
+  of the screen is a small enough movement that a fast arrival is over before the
+  room has found it; shrink back **1→0 over 0.30 s, ease-in**, unchanged — the
+  entrance is an arrival and wants to be seen, the exit is a dismissal.
   **Hover costs a second window.** The desktop overlay is `ignoresMouseEvents =
   true` so effects can be drawn over a Mac somebody is still working on; flipping
   that for the whole screen would make the desktop deaf. So the artwork is a
@@ -1165,22 +1169,42 @@ rule from the start.
   is on an opaque pixel**. `RedButton.isOpaque` alpha-tests an 8-bit mask of the
   first frame, and the controller flips `ignoresMouseEvents` off that, so a click
   in the transparent corners reaches the app underneath. A circle wastes 21 % of
-  its bounding box on those corners and this one is half the screen high.
+  its bounding box on those corners.
+  The hand is re-asserted on **every** mouse-move that lands on an opaque pixel,
+  not only on the one that arrived there: the app underneath still owns the
+  pointer's shape and restores its own cursor on each move it sees, so a single
+  `.set()` at the boundary survives only until the next event — which is why the
+  hand used to flicker back to an arrow while the pointer sat on the artwork.
+  `ThumbnailGridView`'s `PanelCursor` pins the arrow the same way.
   The hit test uses the **resting** rectangle, never the hovered one: hit-testing
   the grown rect makes the edge bistable (cross in, it grows to meet you, you are
   inside; leave, it shrinks away, you are outside) and the boundary flickers at
   the frame rate. Hover look: **scale 1.06 + brightness +12 %** — both, because
   the scale carries from the back of a room and the brightness carries on a
   mirrored projector that has flattened the contrast.
-  **The click hook is the point, and it is deliberately empty.**
+  **The click goes through to what was underneath.**
   `RedButtonController.onButtonClicked: ((_ origin: CGPoint) -> Void)?` is called
   on **mouse-up on the button**, with `origin` = the **global screen point** the
-  button grew out of. Today nothing is assigned to it: the press logs
-  `🔴 red button clicked — origin P=(x,y)` and the button shrinks away as if
-  nothing had happened. What actually happens at P is a decision about the room,
-  not about this mechanism, and the mechanism is finished without it — whoever
-  makes that decision assigns the closure in `EmojiAnimator.showRedButton` and
-  touches nothing else.
+  button grew out of, and `EmojiAnimator.showRedButton` assigns it to
+  `RedButtonController.deliverClickBelow(at:)`: a synthetic left down+up posted at
+  P. The prop had to *eat* a real click to know it was pressed — the hit panel
+  consumed it — so it hands one back at the same pixel, and a button grown over a
+  link, a Play or a Run leaves that button clicked. The press still logs
+  `🔴 red button clicked — origin P=(x,y)`, then
+  `🔴 red button: click passed through to P=(x,y)`.
+  **The post is one runloop turn late, and that is not a detail.** `.click` runs
+  before `.shrinkPressed` in the same `perform` loop, so at hook time the hit
+  panel is still up and still listening on exactly the pixel the click is aimed
+  at — posting there hands the event back to us and presses the button again. The
+  `DispatchQueue.main.async` inside `deliverClickBelow` puts it after
+  `shrink()`'s `hitPanel.dismiss()`, which sets `ignoresMouseEvents = true`
+  immediately. The flip into `CGEvent`'s top-origin space goes through
+  `RedButton.flipY(_:screensMaxY:)`, the same pure function the hover tap uses to
+  come the other way, so the two cannot disagree about where the top of a
+  multi-screen desktop is.
+  Anything louder than passing the click on (a crack, a blast, a webhook) is a
+  decision about the room, not about this mechanism — it is wired at that one
+  call site and touches nothing else.
   **Clicked ⇒ stays pressed. Timed out ⇒ comes back up.** That distinction is the
   reason the lifecycle is a state machine (`RedButton.Phase`/`Event`/`Action`,
   `next(_:_:)`) rather than a handful of booleans, and it is asserted in

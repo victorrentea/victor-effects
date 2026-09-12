@@ -14,10 +14,26 @@ final class RedButtonTests: XCTestCase {
 
     // MARK: - Geometry
 
-    func testHeightIsHalfTheScreenAndTheAspectIsTheImages() {
+    /// A sixth of the screen height — a third of the half it shipped at — and the
+    /// image's own aspect. The literal `/ 6` is the point of the assertion: it
+    /// fails if `heightFraction` is edited, which is exactly when somebody should
+    /// be made to look at the number again.
+    func testHeightIsASixthOfTheScreenAndTheAspectIsTheImages() {
         let f = RedButton.frame(imageSize: art, in: screen, centredOn: CGPoint(x: 800, y: 500))
-        XCTAssertEqual(f.height, screen.height / 2, accuracy: 0.001)
+        XCTAssertEqual(f.height, screen.height / 6, accuracy: 0.001)
         XCTAssertEqual(f.width / f.height, art.width / art.height, accuracy: 0.0001)
+    }
+
+    /// The pass-through click and the hover tap both cross into `CGEvent`'s
+    /// top-origin world, and they must agree about where the top is — a flip
+    /// about the wrong `maxY` sends the click to a mirrored pixel on a
+    /// multi-screen Mac, which is the sort of bug a room finds first.
+    func testTheEventSpaceFlipIsItsOwnInverse() {
+        let maxY: CGFloat = 1600
+        let p = CGPoint(x: 300, y: 420)
+        let flipped = RedButton.flipY(p, screensMaxY: maxY)
+        XCTAssertEqual(flipped, CGPoint(x: 300, y: 1180))
+        XCTAssertEqual(RedButton.flipY(flipped, screensMaxY: maxY), p)
     }
 
     /// The whole effect is "it grows out of P and shrinks back into P". A frame
@@ -203,8 +219,10 @@ final class RedButtonTests: XCTestCase {
     /// particular is the self-termination rule for an effect with no clip to
     /// inherit one from.
     func testTheDecidedNumbers() {
-        XCTAssertEqual(RedButton.heightFraction, 0.5)
-        XCTAssertEqual(RedButton.zoomInDuration, 0.35)
+        XCTAssertEqual(RedButton.heightFraction, 0.5 / 3, accuracy: 1e-12,
+                       "a sixth of the screen — three times smaller than the half it shipped at")
+        XCTAssertEqual(RedButton.zoomInDuration, 0.70, accuracy: 1e-12,
+                       "twice the old 0.35 s: the smaller button needs longer to be seen arriving")
         XCTAssertEqual(RedButton.shrinkDuration, 0.30)
         XCTAssertEqual(RedButton.maxLifetime, 20.0)
     }

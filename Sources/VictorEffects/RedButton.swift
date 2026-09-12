@@ -38,15 +38,21 @@ enum RedButton {
 
     // MARK: - Numbers
 
-    /// "About half the screen height." Height and not width, because the height
-    /// is the dimension a projector's aspect ratio does not change: the same
-    /// fraction gives the same apparent size in the room on 16:10 and on 16:9.
-    static let heightFraction: CGFloat = 0.5
+    /// "About a sixth of the screen height" — a third of the half it started at.
+    /// The button is a prop Victor presses in front of a room, not a takeover of
+    /// the slide: at half the height it covered whatever it grew out of, and the
+    /// click it now passes through lands on something nobody could see. Height
+    /// and not width, because the height is the dimension a projector's aspect
+    /// ratio does not change: the same fraction gives the same apparent size in
+    /// the room on 16:10 and on 16:9.
+    static let heightFraction: CGFloat = 0.5 / 3
 
-    /// Grow out of the cursor. Short, because the button is arriving under the
-    /// pointer the user is already looking at — anything slower reads as the
-    /// machine thinking rather than as the prop appearing.
-    static let zoomInDuration: Double = 0.35
+    /// Grow out of the cursor — deliberately twice as slow as it used to be.
+    /// The old 0.35 s was tuned for a button half the screen high, which is a
+    /// big movement and reads even when it is quick; a sixth of the screen is
+    /// small enough that a fast zoom is over before the room has found it, so
+    /// the arrival is given the time the size no longer buys it.
+    static let zoomInDuration: Double = 0.70
 
     /// Shrink back into the cursor. Slightly quicker than the entrance: the
     /// entrance is an arrival and wants to be seen, the exit is a dismissal.
@@ -95,6 +101,18 @@ enum RedButton {
         let h = bounds.height * heightFraction
         let w = h * (imageSize.width / imageSize.height)
         return CGRect(x: p.x - w / 2, y: p.y - h / 2, width: w, height: h)
+    }
+
+    /// `CGEvent` lives in a top-origin world and everything else here does not,
+    /// so one function owns the flip — the hover tap reads a point out of it and
+    /// the pass-through click writes a point into it, and neither can pick a
+    /// different `maxY` than the other.
+    ///
+    /// `screensMaxY` is the top of the union of all screen frames, which is what
+    /// the window server flips about on a multi-screen Mac — not the height of
+    /// the screen the button happens to be on.
+    static func flipY(_ p: CGPoint, screensMaxY: CGFloat) -> CGPoint {
+        CGPoint(x: p.x, y: screensMaxY - p.y)
     }
 
     // MARK: - Alpha hit-test
@@ -356,13 +374,13 @@ final class RedButtonController {
 
     /// **The extension point.** What happens at P after the button is pressed.
     ///
-    /// Today it only logs — `🔴 red button clicked — origin P=(x,y)` — and the
-    /// button then shrinks back into P as if nothing had happened. That is on
-    /// purpose: the payoff (a crack, a blast, a cut to something, a webhook) is a
-    /// decision about the *room*, not about this mechanism, and the mechanism is
-    /// finished without it. Whoever makes that decision wires it here and touches
-    /// nothing else — `origin` is the **global screen point** the button grew out
-    /// of, which is the pixel the payoff is supposed to happen at.
+    /// `EmojiAnimator.showRedButton` assigns it to [deliverClickBelow], so the
+    /// shipped payoff is "the click the button ate reaches the app underneath" —
+    /// the button is a prop over a working Mac, and pressing a prop should not
+    /// cost the press. Anything louder (a crack, a blast, a webhook) is a
+    /// decision about the *room* and is wired at that one call site, touching
+    /// nothing here — `origin` is the **global screen point** the button grew
+    /// out of, which is the pixel the payoff is supposed to happen at.
     var onButtonClicked: ((_ origin: CGPoint) -> Void)?
 
     /// Called once, when the run is over, so the animator can forget it.
@@ -538,8 +556,46 @@ final class RedButtonController {
 
     /// A `CGEvent`'s location is top-origin; everything else here is not.
     private func updateHover(atFlipped p: CGPoint) {
-        let h = NSScreen.screens.map(\.frame).reduce(CGRect.null, { $0.union($1) }).maxY
-        updateHover(at: CGPoint(x: p.x, y: h - p.y))
+        updateHover(at: RedButton.flipY(p, screensMaxY: RedButtonController.screensMaxY))
+    }
+
+    /// The top of the union of every screen — what `CGEvent` measures down from.
+    static var screensMaxY: CGFloat {
+        NSScreen.screens.map(\.frame).reduce(CGRect.null, { $0.union($1) }).maxY
+    }
+
+    /// Pass the press on to whatever the button was standing in front of.
+    ///
+    /// The button is a prop laid over a Mac somebody is still working on, so the
+    /// press has to end where the pointer already was: a real left click at P,
+    /// synthesised because the click the user actually made was consumed by the
+    /// hit panel and can no longer be forwarded.
+    ///
+    /// **Posted a runloop turn late, on purpose.** `.click` fires before
+    /// `.shrinkPressed` in the same `perform` loop, so at the moment the hook
+    /// runs the hit panel is still up and still listening on the pixel the click
+    /// is aimed at — posting there would hand the event straight back to us and
+    /// press the button a second time. One `async` puts the post after
+    /// `shrink()` has called `hitPanel.dismiss()`, which sets
+    /// `ignoresMouseEvents = true` immediately, so the event falls through to
+    /// the app below. The artwork is still shrinking over that pixel and does
+    /// not care: the overlay panel ignores mouse events by construction.
+    static func deliverClickBelow(at origin: CGPoint) {
+        DispatchQueue.main.async {
+            let p = RedButton.flipY(origin, screensMaxY: screensMaxY)
+            let src = CGEventSource(stateID: .combinedSessionState)
+            guard let down = CGEvent(mouseEventSource: src, mouseType: .leftMouseDown,
+                                     mouseCursorPosition: p, mouseButton: .left),
+                  let up = CGEvent(mouseEventSource: src, mouseType: .leftMouseUp,
+                                   mouseCursorPosition: p, mouseButton: .left) else {
+                overlayError("🔴 red button: could not synthesise the pass-through click")
+                return
+            }
+            down.post(tap: .cghidEventTap)
+            up.post(tap: .cghidEventTap)
+            overlayInfo(String(format: "🔴 red button: click passed through to P=(%.0f, %.0f)",
+                               origin.x, origin.y))
+        }
     }
 
     /// The one place `ignoresMouseEvents` is decided: the panel listens exactly
@@ -549,11 +605,18 @@ final class RedButtonController {
     private func updateHover(at global: CGPoint) {
         guard phase == .idle || phase == .hover || phase == .pressed else { return }
         let inside = RedButton.isOpaque(at: global, restingFrame: screenFrame, mask: mask)
+        // The hand is re-asserted on EVERY move that is on the button, not only
+        // on the move that arrived there. The app underneath still owns the
+        // pointer's shape and restores its own cursor on each move it sees, so a
+        // single `.set()` at the boundary survives exactly until the next mouse
+        // event — which is why the hand used to flicker back to an I-beam or an
+        // arrow while the pointer was sitting on the artwork. `PanelCursor` in
+        // `ThumbnailGridView` pins the arrow the same way, for the same reason.
+        if inside { NSCursor.pointingHand.set() }
         guard inside != hovering else { return }
         hovering = inside
         hitPanel?.ignoresMouseEvents = !inside
         if inside {
-            NSCursor.pointingHand.set()
             handle(.hoverEnter)
         } else {
             NSCursor.arrow.set()

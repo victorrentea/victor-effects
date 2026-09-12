@@ -9113,12 +9113,15 @@ class EmojiAnimator {
             return
         }
 
-        // `controller.onButtonClicked` is deliberately left UNSET: the press
-        // already logs `🔴 red button clicked — origin P=(x,y)` and the button
-        // shrinks away as if nothing had happened. What actually happens at P is
-        // a decision about the room, not about this mechanism — whoever makes it
-        // assigns the closure here and touches nothing else. See the doc on
-        // `RedButtonController.onButtonClicked`.
+        // The payoff: the press goes through to whatever the button was
+        // covering. The prop ate a real click — the hit panel had to consume it
+        // to know it was pressed — so it hands one back at the same pixel, and a
+        // button grown over a link, a Play or a Run still leaves that button
+        // clicked. `deliverClickBelow` posts it one runloop turn late, after the
+        // hit panel has gone deaf; see its doc for why that is not optional.
+        controller.onButtonClicked = { origin in
+            RedButtonController.deliverClickBelow(at: origin)
+        }
 
         controller.onFinished = { [weak self] in
             guard let self else { return }
