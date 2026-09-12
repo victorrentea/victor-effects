@@ -67,7 +67,6 @@ final class ThumbnailPanelController {
         }
 
         struct State: Equatable {
-            var enabled = true
             /// A hold timer is pending.
             var holdArmed = false
             /// The panel is up *because of the hold* — as opposed to the menu
@@ -83,7 +82,7 @@ final class ThumbnailPanelController {
         static func apply(_ event: Event, to state: inout State) -> [Action] {
             switch event {
             case .rightCommandDown:
-                guard state.enabled, !state.holdArmed, !state.shownByHold else { return [] }
+                guard !state.holdArmed, !state.shownByHold else { return [] }
                 // A fresh hold starts on the soundboard. When right ⇧ is ALREADY
                 // down the tap follows this immediately with `.rightShiftDown`,
                 // which is how "either order" is one ordering in here.
@@ -101,7 +100,7 @@ final class ThumbnailPanelController {
                 let wanted: PanelPage = event == .rightShiftDown ? .videos : .effects
                 // ⇧ on its own is somebody else's key: the page only exists
                 // inside a hold, armed or shown.
-                guard state.enabled, state.holdArmed || state.shownByHold else { return [] }
+                guard state.holdArmed || state.shownByHold else { return [] }
                 guard state.page != wanted else { return [] }
                 state.page = wanted
                 // Before the timer fires there is nothing to swap — the page is
@@ -153,8 +152,12 @@ final class ThumbnailPanelController {
     private var panel: ThumbnailPanel?
     private var holdWork: DispatchWorkItem?
     private var autoHide: Timer?
-    /// Shown by the menu row or the test hook, i.e. not tied to the key.
+    /// Shown by a menu row or the test hook, i.e. not tied to the key.
     private var shownSticky = false
+    /// The page currently on screen. The rule's `state.page` cannot answer it:
+    /// that one is a property of the *hold* and is reset the moment the key goes
+    /// up, while a panel opened from a menu row outlives every key.
+    private var shownPage: PanelPage = .effects
     /// Manifest hash the grid was built from, so a show does not rebuild 91
     /// views for a file that has not changed.
     private var builtFromHash: String?
@@ -170,7 +173,7 @@ final class ThumbnailPanelController {
     init(router: EffectsRouter) {
         self.router = router
         self.press = SoundboardPress(router: router)
-        self.state = PanelHoldRule.State(enabled: MenuBar.panelEnabled)
+        self.state = PanelHoldRule.State()
         press.onPlayingChanged = { [weak self] tile in
             self?.panel?.grid.setPlaying(asset: tile?.asset)
         }
@@ -194,19 +197,6 @@ final class ThumbnailPanelController {
 
     func keyWhileRightCommand() {
         perform(PanelHoldRule.apply(.keyWhileRightCommand, to: &state))
-    }
-
-    func setEnabled(_ enabled: Bool) {
-        state.enabled = enabled
-        if !enabled {
-            perform(PanelHoldRule.apply(.rightCommandUp, to: &state))
-            // Switched off: gone now, not in 120 ms.
-            autoHide?.invalidate()
-            autoHide = nil
-            shownSticky = false
-            panel?.hideNow()
-        }
-        effectsInfo("Thumbnail panel \(enabled ? "enabled" : "disabled") (right-⌘ hold)")
     }
 
     private func perform(_ actions: [PanelHoldRule.Action]) {
@@ -256,6 +246,7 @@ final class ThumbnailPanelController {
                                                        frame: hugged,
                                                        anchor: placement.anchor)
 
+        shownPage = page
         let offscreen = placement.screen.visibleFrame.maxX
         offscreenX = offscreen
         lastPlacement = placement
@@ -281,8 +272,13 @@ final class ThumbnailPanelController {
 
     /// Fill the page that is about to be shown, and only that one.
     ///
-    /// Page 1 rebuilds only when `tiles.json` moved (91 views for an unchanged
-    /// file is work nobody asked for). Page 2 re-asks addons **on every show**,
+    /// Page 1 **re-reads `tiles.json` on every show** and rebuilds only when the
+    /// bytes moved (91 views for an unchanged file is work nobody asked for).
+    /// The re-read is what retired the `Reload tiles.json` menu row: a manifest
+    /// edited in the tablet's repo now reaches the board on the next hold
+    /// instead of on the next click of a row somebody had to remember. It costs
+    /// one read and one SHA-256 of a ~30 KB file per show. Page 2 re-asks addons
+    /// **on every show**,
     /// because a video added with the `add-training-video` skill has to appear
     /// without restarting this app — and falls back on the last good list when
     /// the answer does not come, which is the whole reason `VideosManifest`
@@ -290,8 +286,14 @@ final class ThumbnailPanelController {
     private func build(page: PanelPage, in panel: ThumbnailPanel) {
         switch page {
         case .effects:
+            TilesManifest.invalidate()
             let hash = TilesManifest.load()?.hash
             if builtFromHash != hash || panel.grid.tiles.isEmpty {
+                // A manifest that moved may have moved its pictures too, and the
+                // cache is keyed by path: a tile re-pointed at a file that was
+                // replaced in place would otherwise keep the old thumbnail for
+                // the life of the process.
+                if builtFromHash != nil { TileImageCache.shared.clear() }
                 panel.grid.reload()
                 builtFromHash = hash
             }
@@ -325,6 +327,7 @@ final class ThumbnailPanelController {
         guard let panel, panel.isVisible else { return }
         build(page: page, in: panel)
         panel.setPage(page)
+        shownPage = page
         panel.grid.setPlaying(asset: press.playing?.asset)
         panel.videoGrid.setPlaying(id: videoPress.playing?.id)
         if let placement = lastPlacement {
@@ -347,28 +350,22 @@ final class ThumbnailPanelController {
         }
     }
 
-    /// The menu row: a toggle, so a Mac with no Accessibility grant can still
-    /// see the board.
-    func toggleFromMenu() {
+    /// One of the two menu rows, so a Mac with no Accessibility grant can still
+    /// see either board. Page-specific, because the rows are: the hold teaches
+    /// the two pages with ⇧, and a mouse-only user has to be able to reach the
+    /// second one too.
+    ///
+    /// Still a toggle on the row that is already showing — clicking `Show Effect
+    /// Panel` twice puts the board away — while the *other* row swaps the page
+    /// in place rather than hiding, which is what the ⇧ half of the gesture does.
+    func showFromMenu(page: PanelPage) {
         if isVisible {
-            hide()
-        } else {
-            shownSticky = true
-            show(page: .effects)
+            if shownPage == page { hide(); return }
+            switchPage(to: page)
+            return
         }
-    }
-
-    func reloadTiles() {
-        TilesManifest.invalidate()
-        TileImageCache.shared.clear()
-        VideosManifest.invalidate()
-        VideoThumbCache.shared.clear()
-        builtFromHash = nil
-        if isVisible {
-            panel?.grid.reload()
-            builtFromHash = TilesManifest.load()?.hash
-        }
-        effectsInfo("tiles.json reloaded: \(TilesManifest.load()?.doc.tiles.count ?? 0) tiles")
+        shownSticky = true
+        show(page: page)
     }
 
     // MARK: - Presses

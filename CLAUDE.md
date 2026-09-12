@@ -84,6 +84,17 @@ this one only routes.
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
+- **The 💥 menu is not a second surface.** Five rows: 🛑 Stop all, 🔥 Whip Agent
+  (⌃W), `Show Effect Panel   (Right ⌘)`, `Show Video Panel   (Right ⌘⇧)` and
+  Quit with the build stamp — plus ⚠️ Accessibility while that grant is missing.
+  The 39-row ⭐️ Effects submenu went on 2026-09-12, and with it the panel's
+  checkbox, its "show now" and "Reload tiles.json" rows and "Open config
+  folder": the panel shows the same effects as *pictures*, in the layout the
+  room already knows from the tablet, and every row removed had a route or a
+  gesture doing the same job (`/effect/<name>`, `/config/reload`, the right-⌘
+  hold, a show that now re-reads `tiles.json` itself). A menu row that
+  duplicates a picture is a second list to keep in step, and this repo has
+  already paid for one of those. `docs/thumbnail-panel.md`.
 - **The two apps degrade independently.** Addons answers `effectsUp:false` while
   this app is down; this app's webhook is fire-and-forget. Never introduce a
   dependency that makes one wait for the other. **The panel's 🎬 video page is the

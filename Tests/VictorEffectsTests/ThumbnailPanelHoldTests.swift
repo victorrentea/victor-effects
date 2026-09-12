@@ -78,13 +78,6 @@ final class ThumbnailPanelHoldTests: XCTestCase {
         XCTAssertEqual(actions, [.armHoldTimer])
     }
 
-    func testDisabledMeansTheKeyDoesNothingAtAll() {
-        let off = Rule.State(enabled: false)
-        let (state, actions) = run([.rightCommandDown, .holdTimerFired, .rightCommandUp], from: off)
-        XCTAssertEqual(actions, [])
-        XCTAssertFalse(state.shownByHold)
-    }
-
     func testTheRuleOnlyEverListensToTheRightCommandKey() {
         // Not a rule test but the reason there is one: 54 is right ⌘, 55 is
         // left. The tap filters on 54 before any of this runs.
@@ -168,10 +161,8 @@ final class ThumbnailPanelHoldTests: XCTestCase {
         XCTAssertEqual(state.page, .effects)
     }
 
-    func testDisabledMeansTheShiftKeyDoesNothingEither() {
-        let off = Rule.State(enabled: false)
-        let (state, actions) = run([.rightCommandDown, .rightShiftDown, .holdTimerFired], from: off)
-        XCTAssertEqual(actions, [])
-        XCTAssertEqual(state.page, .effects)
-    }
+    /// The two `enabled: false` cases that used to live here went with the
+    /// checkbox they asserted (`ThumbnailPanel.enabled`): with the panel always
+    /// armed there is no off state left for the rule to have, and a test kept
+    /// alive by a field nobody can set is a test of its own scaffolding.
 }

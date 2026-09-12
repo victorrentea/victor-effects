@@ -40,7 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine.startWatchdog()
 
         router = EffectsRouter(engine: engine)
-        router.panelMonitorActive = { [weak self] in self?.hotkeyTap?.isActive == true && MenuBar.panelEnabled }
+        // The tap IS the feature now: the checkbox that used to have to agree
+        // with it is gone, so `panelMonitor` means exactly "the right-⌘ hold is
+        // being watched".
+        router.panelMonitorActive = { [weak self] in self?.hotkeyTap?.isActive == true }
 
         panelController = ThumbnailPanelController(router: router)
         panelController.claimRouterHooks()
@@ -57,17 +60,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installHotkeyTap()
 
         menuBar.setup()
-        menuBar.onEffect = { [weak self] name in
-            guard let self else { return }
-            // The menu goes through `menuEffect`, not `runEffect`: menu runs are
-            // silent and fixed-length because no sound's duration is available
-            // to end a looping effect.
-            name == "stop-all" ? self.engine.stopAll() : self.engine.menuEffect(name)
-        }
+        menuBar.onStopAll = { [weak self] in self?.engine.stopAll() }
         menuBar.onWhip = { [weak self] in self?.engine.toggleWhip() }
-        menuBar.onReloadTiles = { [weak self] in self?.panelController.reloadTiles() }
-        menuBar.onTogglePanel = { [weak self] enabled in self?.panelController.setEnabled(enabled) }
-        menuBar.onShowPanelNow = { [weak self] in self?.panelController.toggleFromMenu() }
+        menuBar.onShowPanel = { [weak self] page in self?.panelController.showFromMenu(page: page) }
         menuBar.onQuit = { [weak self] in self?.tearDownForReplacement() }
 
         // Warm the manifest (a few MB of SHA-256) off the main thread: /ping is

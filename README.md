@@ -21,14 +21,17 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A 💥 appears in the menu bar. `Quit – built <timestamp>` tells you which binary
-is running; the log is `/tmp/victor-effects.log`.
+A 💥 appears in the menu bar — five rows: `🛑 Stop all`, `🔥 Whip Agent` (⌃W),
+`Show Effect Panel   (Right ⌘)`, `Show Video Panel   (Right ⌘⇧)` and
+`Quit – built <timestamp>`, which tells you which binary is running. (A sixth,
+`⚠️ Grant Accessibility`, appears only while the grant is missing.) The log is
+`/tmp/victor-effects.log`.
 
 ## Permissions
 
 | permission | why | what breaks without it |
 |---|---|---|
-| **Accessibility** | one `CGEventTap` for ⌃W (whip) and the right-⌘ panel hold | the hotkeys; effects still work over HTTP and from the menu |
+| **Accessibility** | one `CGEventTap` for ⌃W (whip) and the right-⌘ panel hold | the hotkeys; effects still work over HTTP, and the two menu rows still open the panel |
 | **Screen Recording** | `CGDisplayCreateImage` for the effects that distort what is on screen (heartbeat lens, broken glass, FBI knock, beethoven, chainsaw) | those effects draw on a blank backdrop |
 
 Nothing else: no microphone, no location, no Bluetooth permission, no full disk
@@ -98,7 +101,7 @@ Every route is a `GET` on `http://127.0.0.1:<port>`:
 | route | does |
 |---|---|
 | `/ping` | `{ok, app, effectsVersion, soundsHash, tilesHash, tabletVolume, panelMonitor}` |
-| `/effect/<name>` | run an effect — the ⭐️ Effects menu lists them |
+| `/effect/<name>` | run an effect — `docs/overlay-effects.md` lists them |
 | `/effect/stop-all` | stop every effect and sound |
 | `/sound/play/<file>?vol=N` | play a sound from `soundsDir` → `{ok, durationMs}` |
 | `/sounds/manifest`, `/tiles` | what this Mac has, so a client can compare |

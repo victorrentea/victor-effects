@@ -50,9 +50,9 @@ screen — what is playing, which effects are active, `whipShowing`,
 
 ## Sound and state
 
-- `GET /ping` — `{ok, app, effectsVersion, soundsHash, tilesHash, tabletVolume, panelMonitor}`. Also feeds the routed-sound watchdog: 12 s without a ping stops a playing sound
+- `GET /ping` — `{ok, app, effectsVersion, soundsHash, tilesHash, tabletVolume, panelMonitor}` — `panelMonitor` is now simply whether the event tap is running, the checkbox that used to be ANDed into it having gone. Also feeds the routed-sound watchdog: 12 s without a ping stops a playing sound
 - `GET /state` — what is playing, which effects are live, `whipShowing`, `panelMonitor`, `panelVisible`, and the whole live config including `soundsDirExists` — the first thing to check when everything answers `ok` and nothing is audible
-- `GET /config/reload` — re-read `~/.victor-effects/config.json` and drop the sounds, tiles and timing caches. Answers with the config it ended up with, so a typo in a path is visible immediately
+- `GET /config/reload` — re-read `~/.victor-effects/config.json` and drop the sounds, tiles, tile-image and timing caches (the image half is what the retired `Reload tiles.json` menu row used to be for). Answers with the config it ended up with, so a typo in a path is visible immediately
 - `GET /tiles` — the tile manifest, or a 404 naming the `soundsDir` it looked in
 
 **Quirk worth knowing:** `state.playing` is `null` during the sonar and the

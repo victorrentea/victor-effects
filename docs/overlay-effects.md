@@ -21,10 +21,13 @@ switch (`EffectsEngine.fireEffect`):
   visual goes with it (`SoundEffectMap`). Changing a pairing is a Mac-side
   edit; no client is redeployed.
 
-The ⭐️ Effects menu is a fourth door onto the same names, through
-`EffectsEngine.menuEffect` rather than `runEffect`: a menu run is silent and
-fixed-length (`menuEffectDuration`), because no routed sound's duration is
-available to decide when a looping effect should end.
+**There is no longer a fourth door through the menu.** The 💥 menu used to carry
+a 39-row ⭐️ Effects submenu, fired through an `EffectsEngine.menuEffect` of its
+own — silent and fixed-length, because no routed sound's duration was there to
+end a looping effect. It went on 2026-09-12 along with `menuEffect` itself: the
+thumbnail panel shows the same effects as *pictures*, on a board the room
+already knows from the tablet, and a menu of words for a board of pictures was
+only a second list to keep in step. `🛑 Stop all` is what stayed.
 
 Everything is drawn as `CALayer`s on `OverlayPanel`'s `hostLayer` — one
 click-through, all-spaces panel covering `Screens.overlayScreen()` (the
@@ -137,7 +140,7 @@ rule from the start.
   fades out over its last 0.3 s. Driven from the **press path** (`SoundEffectMap`),
   so the routed `/sound/play/73_counter_strike.mp3` supplies the audio and the
   visual never double-triggers. `/test/counter-strike` and `/effect/counter-strike`
-  fire it silently; the menu item **Counter-Strike 🔫** (Desktop Effects) too.
+  fire it silently.
 - **👅 Wazzup** (sfx #69 `69_scream_ghost.mp3` → `wazzup`, `showWazzup`,
   geometry in `WazzupCorner`): tile 69 is the Scary Movie "wazzuuup" bit, so the
   overlay is the mask that says it — the **tongue-out Ghostface**, cut out of a
@@ -211,8 +214,8 @@ rule from the start.
   The tablet's `/sound/stopped` → `snow/stop` melts it early through the same 1 s
   fade, so stopping the sound stops the snow; pending spawns are cancelled by `clearSnow`,
   which `stopAllActiveEffects` calls explicitly (they live outside `activeEffects`,
-  like the spiral hearts'). `/test/snow`, `/test/snow/stop`, `/effect/snow` and the
-  menu item **Snow ❄️** fire it silently.
+  like the spiral hearts'). `/test/snow`, `/test/snow/stop` and `/effect/snow`
+  fire it silently.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
   **stops near the middle of the screen** (`starWarsRestPoint` = 0.42 W, 0.44 H — its
@@ -270,10 +273,10 @@ rule from the start.
   its content **symmetrically about the source frame's centre** — minimal, but the
   closed microwave still sits dead-centre and the door keeps room to swing out to
   the left. The tablet thumbnail is the gif's **own first frame** (door shut), so
-  the tile shows the "before" of the animation it fires. `/test/microwave`,
-  `/effect/microwave` and the **Microwave ⏲️** menu item all fire it **with sound** —
-  the one Desktop-Effects item that is not silent, since a soundless microwave
-  would just sit there for 2.7 s and then open for no reason.
+  the tile shows the "before" of the animation it fires. `/test/microwave` and
+  `/effect/microwave` both fire it **with sound** — the one of these that is not
+  silent, since a soundless microwave would just sit there for 2.7 s and then
+  open for no reason.
 - **🕳️ Iris close** (tile #31, repurposed from Tarzan): a cinematic "iris out"
   blackout. The Android tile #31 is redrawn as a **black circle
   with a white centre and four inward-pointing arrows** (vector `sfx_31_iris.xml`);
@@ -484,8 +487,8 @@ rule from the start.
     a lost `/sound/stopped` on a flaky venue network would otherwise leave the desktop with
     no cursor. The tablet's stop still shortens it through `onStop` → `chainsaw/stop`.
     Press path only (`SoundEffectMap`), so the routed `/sound/play/18_chainsaw.mp3` supplies
-    the audio and the visual never double-triggers. `/test/chainsaw`, `/test/chainsaw/stop`,
-    `/effect/chainsaw` and the menu item **Chainsaw Cursor 🪚** fire it silently.
+    the audio and the visual never double-triggers. `/test/chainsaw`, `/test/chainsaw/stop` and
+    `/effect/chainsaw` fire it silently.
 
 - **🔥 Fire cursor** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
   the chainsaw's trick with a flame — the real pointer is hidden and a 40-frame fire
@@ -548,8 +551,8 @@ rule from the start.
   - **Lifecycle**: three ways out — the length of `11_fire.mp3` (`AVURLAsset`, 35.88 s
     fallback, generation-guarded), Escape, or the tablet's `onStop` → `fire/stop`. The
     clip's length stays the authoritative one for the usual reason: a lost `/sound/stopped`
-    would otherwise strand the desktop with no cursor. `/test/fire`, `/test/fire/stop`,
-    `/effect/fire` and the menu item **Fire Cursor 🔥** fire it silently.
+    would otherwise strand the desktop with no cursor. `/test/fire`, `/test/fire/stop` and
+    `/effect/fire` fire it silently.
 
 - **💘 Spiral hearts** (tile #42 `42_saxophone.mp3` → `spiral-hearts` / `spiral-hearts/stop`,
   `showSpiralHearts`): **the cursor becomes a pulsing red heart** for the length of the clip

@@ -14,10 +14,6 @@ final class EffectsEngine {
     let animator: EmojiAnimator
     let progressBar: ProgressBarOverlay
 
-    /// Fixed run time for looping effects fired from the menu, where no sound's
-    /// length can decide it.
-    private let menuEffectDuration: TimeInterval = 8
-
     /// Last `/ping`, for the watchdog below.
     private var lastPingAt: Date?
     private var soundWatchdog: Timer?
@@ -248,48 +244,6 @@ final class EffectsEngine {
             stopAll()
         default:
             effectsInfo("unknown effect '\(name)'")
-        }
-    }
-
-    /// The ⭐️ Effects menu. Silent (`playSound: false`) and fixed-length:
-    /// nothing here is paired with a routed sound whose duration could decide
-    /// when a looping effect ends, so looping ones are stopped after
-    /// `menuEffectDuration` and one-shots keep their natural length.
-    func menuEffect(_ name: String) {
-        // When the Mac's own output is Bluetooth, warm the A2DP link and shift
-        // the whole effect later by the compensation, so the leading edge is not
-        // clipped.
-        let comp = SoundTimingConfig.shared.currentBluetoothCompensation
-        if comp > 0 { BluetoothOutput.playWakeTone(seconds: comp) }
-        let fire = { [weak self] in
-            guard let self else { return }
-            self.overlayPanel.refreshScreenFrame()
-            let stopAfter: (@escaping () -> Void) -> Void = { stop in
-                DispatchQueue.main.asyncAfter(deadline: .now() + self.menuEffectDuration, execute: stop)
-            }
-            switch name {
-            case "applause":      self.animator.showApplause(playSound: false); stopAfter { self.animator.stopApplause() }
-            case "spiral-hearts": self.animator.showSpiralHearts(); stopAfter { self.animator.stopSpiralHearts() }
-            case "game-over":     self.animator.showGameOver(); stopAfter { self.animator.stopGameOver() }
-            case "pulse":         self.animator.startPulseOverlay(playSound: false); stopAfter { self.animator.stopPulseOverlay() }
-            case "brother":       self.animator.showBrother(playSound: false); stopAfter { self.animator.stopBrother() }
-            case "gangnam":       self.animator.showGangnam(playSound: false); stopAfter { self.animator.stopGangnam() }
-            case "love-hands":    self.animator.showLoveHands(playSound: false); stopAfter { self.animator.stopLoveHands() }
-            case "star-wars":     self.animator.showStarWars(playSound: false); stopAfter { self.animator.stopStarWars() }
-            case "rainbow":       self.animator.showRainbow(playSound: false); stopAfter { self.animator.stopRainbow() }
-            case "snow":          self.animator.showSnow(); stopAfter { self.animator.stopSnow() }
-            case "drum-roll":     self.animator.showDrumRoll(playSound: false); stopAfter { self.animator.stopDrumRoll() }
-            // No stopAfter for the chainsaw and the fire cursor: both self-stop
-            // at their clip's length, so a silent menu run lasts exactly as long
-            // as a routed one. The fire cursor's Escape is the only early way out
-            // of the 36 s it would otherwise run for.
-            default:              self.fireEffect(name)
-            }
-        }
-        if comp > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + comp, execute: fire)
-        } else {
-            fire()
         }
     }
 

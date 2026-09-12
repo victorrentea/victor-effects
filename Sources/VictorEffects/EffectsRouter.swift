@@ -354,6 +354,13 @@ final class EffectsRouter {
             SoundManager.resetSoundsDirWarning()
             SoundsManifest.invalidate()
             TilesManifest.invalidate()
+            // The *pictures* too, which the retired `Reload tiles.json` menu row
+            // used to be the only way to drop: the caches are keyed by path, so
+            // a thumbnail replaced in place under the same name would otherwise
+            // survive every reload for the life of the process.
+            TileImageCache.shared.clear()
+            VideosManifest.invalidate()
+            VideoThumbCache.shared.clear()
             SoundTimingConfig.reload()
             return .json("{\"ok\":true,\"config\":\(EffectsConfig.shared.asJSON)}")
 

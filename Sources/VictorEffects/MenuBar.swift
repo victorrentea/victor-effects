@@ -3,8 +3,10 @@ import ApplicationServices
 import Foundation
 
 /// The 💥 status item. Deliberately tiny compared to the addons menu it was cut
-/// from: this app has one job, so the menu is the effect list, the two hotkey
-/// features that need a no-Accessibility fallback, and Quit.
+/// from, and smaller again since the panel arrived: a 39-row ⭐️ Effects submenu
+/// was a menu of words for a board of pictures, so what is left is the panic
+/// row, the two features that need a no-Accessibility fallback (⌃W and the
+/// panel, one row per page), and Quit.
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Quit row always says which binary is actually running.
@@ -12,77 +14,20 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     // MARK: callbacks (AppDelegate wires them)
 
-    /// A row of the ⭐️ Effects submenu was clicked: the effect's route name.
-    var onEffect: ((String) -> Void)?
+    /// 🛑 Stop all — the panic row, and the only thing left of the effect menu.
+    var onStopAll: (() -> Void)?
     /// 🔥 Whip Agent — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
     var onWhip: (() -> Void)?
-    /// Hook point for the thumbnail panel (WI-4): checkbox state changed.
-    var onTogglePanel: ((Bool) -> Void)?
-    /// Hook point for the thumbnail panel (WI-4): "Show tablet panel now".
-    var onShowPanelNow: (() -> Void)?
-    /// Hook point for the thumbnail panel (WI-4): "Reload tiles.json".
-    var onReloadTiles: (() -> Void)?
+    /// One of the two panel rows was clicked: show that page of the thumbnail
+    /// panel. The mouse-only way in, for a Mac without the Accessibility grant.
+    var onShowPanel: ((PanelPage) -> Void)?
     var onQuit: (() -> Void)?
 
     private var statusItem: NSStatusItem!
     private var menu: NSMenu!
-    private var panelItem: NSMenuItem!
     private var whipItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
-
-    /// `object(forKey:) as? Bool ?? true` and not `bool(forKey:)`: an unset key
-    /// reads `false` from the latter, which would ship the panel switched off
-    /// for everyone who never touched the checkbox.
-    static let kPanelEnabled = "ThumbnailPanel.enabled"
-    static var panelEnabled: Bool {
-        get { UserDefaults.standard.object(forKey: kPanelEnabled) as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: kPanelEnabled) }
-    }
-
-    /// Effect route name per row. Same list, same order as the addons submenu
-    /// this replaces, so muscle memory survives the move.
-    static let effectPairs: [(String, String)] = [
-        ("Heart ❤️",        "heart"),
-        ("Confetti 🎊",     "confetti"),
-        ("Zorro",           "zorro"),
-        ("Fear 😱",         "fear"),
-        ("Old Film 📽️",    "sepia"),
-        ("Fail Stamp",      "fail"),
-        ("Fireworks 🎆",    "fireworks"),
-        ("Applause 👏",     "applause"),
-        ("Nuke ☢️",          "explosion"),
-        ("Broken Glass 💥", "broken-glass"),
-        ("Game Over",       "game-over"),
-        ("Pulse",           "pulse"),
-        ("Fire Alarm 🚨",    "fire-alarm"),
-        ("Bullet Holes 🎯",  "bullet-holes"),
-        ("Phone Ring 📱",   "phone-ring"),
-        ("FBI Knock 🚪",    "fbi-knock"),
-        ("Beethoven 🎼",     "beethoven"),
-        ("Brother 🤢",       "brother"),
-        ("Gangnam 💃",       "gangnam"),
-        ("Love Hands 🤲",   "love-hands"),
-        ("Death Star ☠️",    "star-wars"),
-        ("Gong 🔔",          "gong"),
-        ("Rainbow 🌈",       "rainbow"),
-        ("Snow ❄️",          "snow"),
-        ("Cavalry 🐎",       "cavalry"),
-        ("Counter-Strike 🔫", "counter-strike"),
-        ("Wasn't Me 🙅", "wasnt-me"),
-        ("Chainsaw Cursor 🪚", "chainsaw"),
-        ("Fire Cursor 🔥",    "fire"),
-        ("Microwave ⏲️",      "microwave"),
-        ("Wrong X ❌",        "wrong-x"),
-        ("Drum Roll 🥁",     "drum-roll"),
-        ("Phoenix 🔥",        "phoenix"),
-        ("Money 💸",          "money"),
-        ("Laugh 🤣",          "laugh"),
-        ("Corner Confetti 🎉", "corner-confetti"),
-        ("Heartbeat 💓",      "heartbeat"),
-        ("Spiral Hearts 💘",  "spiral-hearts"),
-        ("Green Flash 🟢",    "green-flash"),
-    ]
 
     func setup() {
         buildMenu()
@@ -104,19 +49,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
         accessibilityItem.isHidden = true
         menu.addItem(accessibilityItem)
 
-        let effectsItem = NSMenuItem(title: "⭐️ Effects", action: nil, keyEquivalent: "")
-        effectsItem.isEnabled = true
-        let effectsSubmenu = NSMenu()
-        effectsItem.submenu = effectsSubmenu
-        for (title, name) in Self.effectPairs {
-            let item = NSMenuItem(title: title, action: #selector(effectAction(_:)), keyEquivalent: "")
-            item.target = self
-            item.isEnabled = true
-            item.representedObject = name
-            effectsSubmenu.addItem(item)
-        }
-        menu.addItem(effectsItem)
-
         let stopItem = NSMenuItem(title: "🛑 Stop all", action: #selector(stopAllAction), keyEquivalent: "")
         stopItem.target = self
         stopItem.isEnabled = true
@@ -132,29 +64,21 @@ final class MenuBar: NSObject, NSMenuDelegate {
         whipItem.isEnabled = true
         menu.addItem(whipItem)
 
-        panelItem = NSMenuItem(title: "Show tablet panel on right-⌘ hold (right ⇧ = videos)",
-                               action: #selector(togglePanelAction), keyEquivalent: "")
-        panelItem.target = self
-        panelItem.isEnabled = true
-        panelItem.state = Self.panelEnabled ? .on : .off
-        menu.addItem(panelItem)
-
-        let showNow = NSMenuItem(title: "Show tablet panel now", action: #selector(showPanelNowAction), keyEquivalent: "")
-        showNow.target = self
-        showNow.isEnabled = true
-        menu.addItem(showNow)
-
-        let reload = NSMenuItem(title: "Reload tiles.json", action: #selector(reloadTilesAction), keyEquivalent: "")
-        reload.target = self
-        reload.isEnabled = true
-        menu.addItem(reload)
+        // The two panel rows. Plain rows and never a checkbox: the panel is
+        // always armed now, so the only question a row can answer is "show me
+        // that page", and one row per page is how the hold's two pages are
+        // taught to a mouse.
+        //
+        // **The hint is part of the title.** The gesture is a *held* right ⌘,
+        // and an `NSMenuItem` key equivalent cannot be a modifier on its own —
+        // `keyEquivalentModifierMask` needs a key to hang off. An attributed
+        // title with a grey run was the other candidate and was dropped: the
+        // secondary colour does not turn white when the row highlights, so the
+        // hint goes muddy exactly when the pointer is on it.
+        addPanelRow(title: "Show Effect Panel", hint: "Right ⌘", page: .effects)
+        addPanelRow(title: "Show Video Panel", hint: "Right ⌘⇧", page: .videos)
 
         menu.addItem(.separator())
-
-        let configItem = NSMenuItem(title: "Open config folder", action: #selector(openConfigFolder), keyEquivalent: "")
-        configItem.target = self
-        configItem.isEnabled = true
-        menu.addItem(configItem)
 
         let quitItem = NSMenuItem(title: "Quit – built " + MenuBar.BUILD_TIME,
                                   action: #selector(quitApp), keyEquivalent: "")
@@ -170,28 +94,12 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     // MARK: actions
 
-    @objc private func effectAction(_ sender: NSMenuItem) {
-        guard let name = sender.representedObject as? String else { return }
-        onEffect?(name)
-    }
-
-    @objc private func stopAllAction() { onEffect?("stop-all") }
+    @objc private func stopAllAction() { onStopAll?() }
     @objc private func whipAction() { onWhip?() }
 
-    @objc private func togglePanelAction() {
-        let enabled = !(panelItem.state == .on)
-        panelItem.state = enabled ? .on : .off
-        Self.panelEnabled = enabled
-        onTogglePanel?(enabled)
-    }
-
-    @objc private func showPanelNowAction() { onShowPanelNow?() }
-    @objc private func reloadTilesAction() { onReloadTiles?() }
-
-    @objc private func openConfigFolder() {
-        let dir = EffectsConfig.configDir
-        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        NSWorkspace.shared.open(URL(fileURLWithPath: dir))
+    @objc private func showPanelAction(_ sender: NSMenuItem) {
+        guard let page = sender.representedObject as? PanelPage else { return }
+        onShowPanel?(page)
     }
 
     @objc private func openAccessibilitySettings() {
@@ -222,6 +130,18 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     // MARK: helpers
+
+    /// One panel row: the title, three spaces, the gesture that does the same
+    /// thing without the mouse. Three spaces and not a tab — `NSMenu` lays a tab
+    /// out as one space, so `\t` would read as a typo rather than as a gap.
+    private func addPanelRow(title: String, hint: String, page: PanelPage) {
+        let item = NSMenuItem(title: "\(title)   (\(hint))",
+                              action: #selector(showPanelAction(_:)), keyEquivalent: "")
+        item.target = self
+        item.isEnabled = true
+        item.representedObject = page
+        menu.addItem(item)
+    }
 
     /// An emoji rendered into a status-item-sized image. A plain `button.title`
     /// works too but sits on a different baseline than every icon-based item in

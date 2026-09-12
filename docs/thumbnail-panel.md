@@ -103,10 +103,11 @@ Three things the rule is careful about:
 The tap needs **Accessibility** because of ⌃W, not because of this — a
 listen-only tap would do for the panel alone. Without the grant the tap is not
 installed, the menu shows its ⚠️ row, and `AppDelegate` retries every 30 s — the
-**`Show tablet panel now`** menu row is the fallback in the meantime.
+two **`Show … Panel`** menu rows are the fallback in the meantime, one per page.
 
 `GET /state` and `/ping` report `panelMonitor`: whether the tap is actually
-running *and* the checkbox is on.
+running. It used to mean "running *and* the checkbox is on"; there is no
+checkbox any more, so the tap is the whole answer.
 
 ## Which screen
 
@@ -281,8 +282,8 @@ Pictures are decoded by `TileImageCache`: **thumbnails via `ImageIO`**, not full
 decodes. The originals run to 2238 px square and there are 91 of them — several
 hundred MB of bitmap for tiles about 140 pt across. Loading happens off the main
 thread, once per path (`inFlight` collapses duplicate requests), and the result
-is kept for the life of the process (`TileImageCache.shared`, cleared by
-**`Reload tiles.json`**). A missing image file degrades to a plain tile rather
+is kept for the life of the process (`TileImageCache.shared`, dropped by
+`GET /config/reload`, and by a show whose `tiles.json` bytes moved). A missing image file degrades to a plain tile rather
 than an empty grid; a missing manifest shows one line naming the `soundsDir` it
 looked in.
 
@@ -441,15 +442,41 @@ cancellable handle to keep in sync.
 
 ## Menu and test hooks
 
-Menu rows: **`Show tablet panel on right-⌘ hold (right ⇧ = videos)`** (the
-checkbox), **`Show
-tablet panel now`** (a toggle, for a mouse-only check), **`Reload tiles.json`**.
+Two menu rows, one per page: **`Show Effect Panel   (Right ⌘)`** and **`Show
+Video Panel   (Right ⌘⇧)`**. Plain rows, always enabled, with the gesture
+written into the title — `NSMenuItem` cannot take a bare modifier as a key
+equivalent (`keyEquivalentModifierMask` needs a key to hang off), and an
+attributed title with a grey run was the other candidate: its secondary colour
+does not turn white when the row highlights, so the hint goes muddy exactly when
+the pointer is on it.
 
-The checkbox is stored as `MenuBar.kPanelEnabled` = `ThumbnailPanel.enabled`
-(`UserDefaults`, domain `ro.victorrentea.victor-effects`) and
-read as `object(forKey:) as? Bool ?? true` — **default on**. `bool(forKey:)`
-answers `false` for a key nobody has written, which is exactly how a feature
-ships switched off for everyone who never touched it.
+`showFromMenu(page:)` is the old "show now", made page-specific: the row that is
+already showing **hides** (so each row is its own off switch), the other row
+**swaps the page in place**, which is what the ⇧ half of the gesture does. It
+tracks its own `shownPage` rather than reading the rule's `state.page`, because
+that one is a property of the *hold* and is reset the moment the key goes up,
+while a panel opened from a menu row outlives every key.
+
+**What went on 2026-09-12**: the `Show tablet panel on right-⌘ hold` checkbox,
+`Show tablet panel now`, `Reload tiles.json` and `Open config folder`.
+
+- The checkbox is **deleted, key and all** — `MenuBar.kPanelEnabled` = the
+  `ThumbnailPanel.enabled` `UserDefault`, `MenuBar.panelEnabled`,
+  `PanelHoldRule.State.enabled` and the controller's `setEnabled`. It defaulted
+  on and was never turned off, and an off switch nobody uses is a second thing
+  every other rule has to agree with: `panelMonitor` had to say "the tap is
+  running *and* the checkbox is on" precisely because the two could disagree.
+  (One scar worth keeping if a boolean default ever comes back: it was read as
+  `object(forKey:) as? Bool ?? true`, never `bool(forKey:)`, which answers
+  `false` for a key nobody has written — exactly how a feature ships switched
+  off for everyone who never touched it.)
+- `Reload tiles.json` is redundant because **every show re-reads the manifest**:
+  `build(page:)` invalidates `TilesManifest` before loading it and rebuilds the
+  91 views only when the hash actually moved, so a tile edited in the tablet's
+  repo arrives on the next hold rather than on the next click of a row somebody
+  had to remember. The row's *other* half — dropping the picture caches, which
+  are keyed by path and so survive a file replaced in place — moved to
+  `GET /config/reload`.
 
 | hook | does |
 |---|---|
