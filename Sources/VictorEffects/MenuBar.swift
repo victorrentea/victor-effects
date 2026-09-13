@@ -10,7 +10,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Quit row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 12, 22:47"
+    static let BUILD_TIME = "Sep 13, 09:02"
 
     // MARK: callbacks (AppDelegate wires them)
 
