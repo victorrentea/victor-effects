@@ -269,7 +269,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     // MARK: actions
 
-    @objc private func stopAllAction() { onStopAll?() }
     @objc private func whipAction() { onWhip?() }
 
     @objc private func showPanelAction(_ sender: NSMenuItem) {
