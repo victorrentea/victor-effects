@@ -35,16 +35,41 @@ only a second list to keep in step. `🛑 Stop all` is what stayed — and on
 The menu-bar icon has two faces, and it is the one surface that answers
 `/effect/stop-all` without opening anything:
 
-| | 💥 nothing running | 🛑 something running |
+| | nothing running (💥) | something running (🛑) |
 |---|---|---|
-| left click | opens the menu | **stops everything** |
+| left click | opens the menu | **stops everything, in one call** |
 | right click, or ⌃-click | opens the menu | opens the menu |
+
+"Everything" is `EffectsEngine.stopAll()`, so however many effects are layered
+they all go at once, along with the routed sound, the progress bar and an armed
+whip.
 
 Right-click is the rule that does not depend on the screen: Quit and the two
 panel rows stay one gesture away whatever is playing, which is why the 🛑 state
-is allowed to take the left click at all. A click is honoured against **the face
-that was drawn**, not against a fresh reading — what you clicked is what
-happens, even if the last effect happened to end in the meantime.
+is allowed to take the left click at all.
+
+**Which row of that table applies is decided by a LIVE read of
+`isAnythingRunning`, at click time — not by the icon that happens to be drawn.**
+The two disagree for up to one poll interval, and that window is the whole
+point: an effect starts, the bar still says 💥 for a third of a second, and a
+hand that is already moving lands in it. Honouring the drawn icon there would
+answer the click by opening a menu over a demo that has just gone wrong in front
+of a room. This is an emergency stop: it is allowed to look momentarily
+inconsistent with its own lamp, it is not allowed to miss. (The reverse
+mismatch costs nothing — a stale 🛑 over a quiet screen fires a `stopAll()` that
+stops nothing.) The icon is still drawn promptly, because the room learns the
+shortcuts by heart and this is the one surface a demo can always be aborted
+from.
+
+**An armed 🔥 whip counts as running**, and this is the one entry that is a
+*mode* rather than an animation: while the whip is up, Return and mouse buttons
+6/7 crack it and a click types the scold macro into the front app
+(`EffectsHotkeyTap` gates all three on `whipIsShowing`). One click on the 🛑
+disarms it through the same `stopAll()` that clears everything else —
+`WhipController.hide()` takes the panel down, drops the Esc monitors and stops
+the Bluetooth warm, after which the tap stops gating. The whip has no deadline
+of its own, so the price is that the status item shows 🛑 for as long as the
+whip is out: `docs/whip.md`.
 
 The two mechanics worth knowing before editing `MenuBar`:
 

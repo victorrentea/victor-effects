@@ -27,9 +27,11 @@ A 💥 appears in the menu bar — four rows: `🔥 Whip` (⌃W),
 `⚠️ Grant Accessibility`, appears only while the grant is missing.) The log is
 `/tmp/victor-effects.log`.
 
-**Stop-all is the icon, not a row.** While anything is running the 💥 turns 🛑
-and a plain click stops everything; right-click (or ⌃-click) opens the menu in
-either state. See `docs/overlay-effects.md`.
+**Stop-all is the icon, not a row.** While anything is running — including an
+armed 🔥 whip — the 💥 turns 🛑, and a plain click stops everything at once;
+right-click (or ⌃-click) opens the menu in either state. The click asks what is
+running at that instant rather than trusting the icon, so it cannot miss an
+effect that started a moment ago. See `docs/overlay-effects.md`.
 
 ## Permissions
 

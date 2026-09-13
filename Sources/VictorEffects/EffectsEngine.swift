@@ -258,6 +258,18 @@ final class EffectsEngine {
     /// already publishes (`playing`, `activeEffects`, `whipShowing`), so there
     /// is no second copy of "what is running" to drift.
     ///
+    /// `whipIsShowing` is in there as a full member, not as an afterthought: an
+    /// armed whip is a *mode*, not an animation — while it is up, Return and
+    /// mouse buttons 6/7 crack it and a click types the scold macro into the
+    /// front app (`EffectsHotkeyTap` gates all three on exactly this flag). So
+    /// it is the one thing here that can still be "running" with nothing
+    /// moving on screen, and the one a person is most likely to want killed
+    /// from the menu bar. `stopAll()` disarms it through `WhipController.hide()`,
+    /// which takes the panel down, drops the Esc monitors and stops the
+    /// Bluetooth warm — after which `isShowing` is false and the tap stops
+    /// gating on it. Trade-off, deliberately accepted: the whip has no deadline
+    /// of its own, so the status item shows 🛑 for as long as it is out.
+    ///
     /// What it does NOT see is the handful of overlays kept outside
     /// `activeEffects` on purpose (the 🕳️ iris, the 🪚 chainsaw cursor, the
     /// spiral hearts…) and the short spawns that were never tracked at all

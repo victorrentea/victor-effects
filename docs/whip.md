@@ -27,6 +27,13 @@ backwards** in terminals and editors for as long as this app runs.
 the `!hasCmd` clause is there so a dictation app that owns ⌘⌃W for "paste
 transcript" keeps it. Both can run at once only because of that one clause.
 
+**The menu-bar icon shows 🛑 while the whip is armed**, and a click on it
+dismisses the whip exactly as Esc does (`stopAll()` → `WhipController.hide()`).
+An armed whip is a mode — it gates the Return/buttons-6-7 crack and the
+click-types-the-macro behaviour and has no deadline of its own — so the status
+item stays 🛑 for as long as it is out; that is the emergency-stop surface being
+honest about what a click would do, see `docs/overlay-effects.md`.
+
 There is also a **`🔥 Whip` menu row** with ⌃W shown in its hint column. It
 is not redundant: on a Mac that has not granted Accessibility the tap is not
 installed, and the menu is then the only way in. (The same rationale as a

@@ -87,10 +87,15 @@ this one only routes.
 - **The 💥 menu is not a second surface.** Four rows: 🔥 Whip (⌃W),
   `Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)` and Quit with the build stamp —
   plus ⚠️ Accessibility while that grant is missing. **Stop-all is the icon
-  itself** since 2026-09-13: while anything is running the 💥 turns 🛑 and a
-  plain click stops everything, right-click (or ⌃-click) opens the menu in
-  either state, and the icon *polls* `EffectsEngine.isAnythingRunning` because
-  the self-termination rule means most effects end with nobody announcing it.
+  itself** since 2026-09-13, and it is an EMERGENCY stop: while anything is
+  running the 💥 turns 🛑 and a plain click stops everything (layered effects,
+  sound, progress bar and an armed 🔥 whip, in one `stopAll()`), right-click (or
+  ⌃-click) opens the menu in either state. The click decides on a **live** read
+  of `EffectsEngine.isAnythingRunning`, never on the drawn icon — the icon
+  *polls* that same accessor every 0.3 s (the self-termination rule means most
+  effects end with nobody announcing it), and answering a panicked click from a
+  lamp that is up to 300 ms stale would open a menu over exactly the demo that
+  needs killing.
   The menu is therefore detached (`statusItem.menu` nil, re-attached for one
   `performClick`) — an attached `NSMenu` swallows the button's action
   (`docs/overlay-effects.md`).

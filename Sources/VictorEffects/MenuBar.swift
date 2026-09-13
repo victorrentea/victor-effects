@@ -24,9 +24,12 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// 🛑 Stop all. No longer a row: this fires on a plain click of the status
     /// item while it is showing 🛑 (see `statusItemClicked`).
     var onStopAll: (() -> Void)?
-    /// Is anything on screen or audible right now? Polled (see
-    /// `startBusyPolling`) to pick between 💥 and 🛑. Wired by `AppDelegate` to
-    /// `EffectsEngine`, which already answers this for `GET /state`.
+    /// Is anything on screen or audible **right now**? Wired by `AppDelegate`
+    /// to `EffectsEngine`, which already answers this for `GET /state`.
+    ///
+    /// Asked from two places for two different reasons: the 0.3 s poll, to pick
+    /// which icon to draw, and `statusItemClicked`, to decide what a click
+    /// means. The second one is a live read on purpose — see there.
     var isBusy: (() -> Bool)?
     /// 🔥 Whip — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
@@ -43,14 +46,17 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private var accessibilitySeparator: NSMenuItem!
 
     /// The two faces of the status item. 🛑 means "something is running, and a
-    /// click here stops it"; 💥 means "nothing is running, a click opens the
-    /// menu". Nothing else is ever drawn there.
+    /// click here stops it" — including an armed 🔥 whip, which is a *mode* and
+    /// stays up until it is dismissed, so the bar sits on 🛑 for as long as the
+    /// whip is out. That is the honest answer: a click there does take it down.
+    /// 💥 means "nothing is running, a click opens the menu". Nothing else is
+    /// ever drawn there.
     private static let idleIcon = "💥"
     private static let busyIcon = "🛑"
 
-    /// Which of the two is on screen right now. The **click rule reads this,
-    /// not `isBusy`**: what a click does must be what the icon was promising
-    /// when the mouse went down, even if the last effect ended in between.
+    /// Which of the two faces is currently drawn. **Display only** — the click
+    /// rule deliberately does NOT consult it (see `statusItemClicked`); it
+    /// exists so the poll can skip redrawing an icon that has not changed.
     private var showingBusyIcon = false
 
     /// How often the icon asks whether anything is still running.
@@ -113,7 +119,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     /// The whole click rule, in one place:
     ///
-    /// | | 💥 idle | 🛑 running |
+    /// | | nothing running | something running |
     /// |---|---|---|
     /// | left click | menu | **stop everything** |
     /// | right click / ⌃-click | menu | menu |
@@ -122,6 +128,22 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// the property that mattered: Quit must never be more than one gesture
     /// away, and "hold ⌃, or use the other button" is a rule that does not
     /// depend on what is happening on screen at the time.
+    ///
+    /// **The rows of that table are chosen by `isBusy()`, asked right here, at
+    /// click time — NOT by which icon happens to be drawn.** They disagree for
+    /// up to `busyPollInterval`, and that window is precisely the one that
+    /// matters: an effect starts, the bar still shows 💥 for a third of a
+    /// second, and a hand that is already moving lands in it. Reading the drawn
+    /// icon would answer that click by *opening a menu* over a demo that has
+    /// just gone wrong in front of a room. This is an emergency stop, and an
+    /// emergency stop is allowed to look momentarily inconsistent with its own
+    /// lamp; it is not allowed to miss. The reverse mismatch is harmless in the
+    /// same way — a stale 🛑 over a screen that just went quiet answers with a
+    /// `stopAll()` that stops nothing.
+    ///
+    /// (The icon is still worth drawing, and worth drawing *promptly*: the room
+    /// is learning the shortcuts by heart, so this is the one surface a demo can
+    /// always be aborted from, and 🛑 is what says so without a word.)
     ///
     /// ⌃-click is spelled out rather than assumed: AppKit turns a control-click
     /// into a contextual-menu event for an ordinary view, but a status item
@@ -134,8 +156,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
                 || $0.modifierFlags.contains(.control)
         } ?? true   // no event to inspect (a synthetic call): the harmless half
 
-        guard !wantsMenu, showingBusyIcon else { openMenu(); return }
+        guard !wantsMenu, isBusy?() == true else { openMenu(); return }
 
+        // One click, everything: layered effects, the routed sound, the progress
+        // bar and an armed 🔥 whip all go down in this one call (`stopAll`).
         onStopAll?()
         // Repaint now instead of waiting up to `busyPollInterval` for the poll
         // to notice: the click is supposed to feel like the thing that stopped
