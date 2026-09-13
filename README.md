@@ -138,13 +138,24 @@ responsibility. The soundboard audio is never committed for exactly that reason.
 `claude-icon.png` and `copilot-icon.png` are third-party logos used for an
 optional mascot.
 
+## See them
+
+Every effect, fired over a real editor window and labelled with the route that
+fires it:
+**[effects-gallery.mp4](https://github.com/victorrentea/victor-effects/releases/latest/download/effects-gallery.mp4)**.
+
+It is a release asset rather than a file in the repo — a montage of fifty
+effects outweighs the entire source tree. `tools/record-gallery.sh` records and
+republishes it; `docs/gallery.md` explains how.
+
 ## Documentation
 
 `docs/` carries the reasoning, not just the interface: the effect catalogue and
 why each one looks the way it does (`overlay-effects.md`), the whip
 (`whip.md`), sound routing and the Bluetooth mitigations (`sound-routing.md`),
 the HTTP contract (`http-api.md`), the panel (`thumbnail-panel.md`), the
-headless test hooks (`testing.md`) and deployment (`deployment.md`).
+gallery video (`gallery.md`), the headless test hooks (`testing.md`) and
+deployment (`deployment.md`).
 
 ## Licence
 
