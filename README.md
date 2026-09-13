@@ -21,11 +21,15 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A 💥 appears in the menu bar — five rows: `🛑 Stop all`, `🔥 Whip Agent` (⌃W),
-`Show Effect Panel   (Right ⌘)`, `Show Video Panel   (Right ⌘⇧)` and
-`Quit – built <timestamp>`, which tells you which binary is running. (A sixth,
+A 💥 appears in the menu bar — four rows: `🔥 Whip` (⌃W),
+`Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)` and
+`Quit – built <timestamp>`, which tells you which binary is running. (A fifth,
 `⚠️ Grant Accessibility`, appears only while the grant is missing.) The log is
 `/tmp/victor-effects.log`.
+
+**Stop-all is the icon, not a row.** While anything is running the 💥 turns 🛑
+and a plain click stops everything; right-click (or ⌃-click) opens the menu in
+either state. See `docs/overlay-effects.md`.
 
 ## Permissions
 

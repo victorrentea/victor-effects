@@ -27,7 +27,45 @@ own — silent and fixed-length, because no routed sound's duration was there to
 end a looping effect. It went on 2026-09-12 along with `menuEffect` itself: the
 thumbnail panel shows the same effects as *pictures*, on a board the room
 already knows from the tablet, and a menu of words for a board of pictures was
-only a second list to keep in step. `🛑 Stop all` is what stayed.
+only a second list to keep in step. `🛑 Stop all` is what stayed — and on
+2026-09-13 it stopped being a row too.
+
+### 🛑 The status item IS stop-all
+
+The menu-bar icon has two faces, and it is the one surface that answers
+`/effect/stop-all` without opening anything:
+
+| | 💥 nothing running | 🛑 something running |
+|---|---|---|
+| left click | opens the menu | **stops everything** |
+| right click, or ⌃-click | opens the menu | opens the menu |
+
+Right-click is the rule that does not depend on the screen: Quit and the two
+panel rows stay one gesture away whatever is playing, which is why the 🛑 state
+is allowed to take the left click at all. A click is honoured against **the face
+that was drawn**, not against a fresh reading — what you clicked is what
+happens, even if the last effect happened to end in the meantime.
+
+The two mechanics worth knowing before editing `MenuBar`:
+
+- **The menu is detached** (`statusItem.menu` stays nil). An attached `NSMenu`
+  opens on mouse-*down* and swallows the button's action entirely, so no click
+  could ever mean "stop". It is re-attached for the length of one
+  `performClick(nil)` and detached again the moment that returns. The button
+  also needs `sendAction(on: [.leftMouseUp, .rightMouseUp])` — the default mask
+  is left-up alone, so a right-click would otherwise do nothing at all.
+- **The icon polls**, every 0.3 s, and this follows from the lifecycle rule
+  below rather than from laziness: effects self-terminate, so usually *nothing*
+  calls `stopAll()` and there is no event to listen for. An icon that waited to
+  be told would sit on 🛑 forever after any effect that simply ran out. The
+  question it asks is `EffectsEngine.isAnythingRunning`, which is deliberately
+  the same four things `stopAll()` clears — routed sound, `activeEffects`, the
+  progress bar, the whip — and the same state `GET /state` publishes. The icon
+  promises a click will clear the screen, so watching a wider set than stop-all
+  can clear would make it lie. (The overlays kept outside `activeEffects` on
+  purpose — the 🕳️ iris, the 🪚 chainsaw cursor, the spiral hearts — therefore do
+  not raise it, and neither do untracked spawns like rising emoji or confetti,
+  which are gone before a hand reaches the menu bar.)
 
 Everything is drawn as `CALayer`s on `OverlayPanel`'s `hostLayer` — one
 click-through, all-spaces panel covering `Screens.overlayScreen()` (the

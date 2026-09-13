@@ -442,8 +442,9 @@ cancellable handle to keep in sync.
 
 ## Menu and test hooks
 
-Two menu rows, one per page: **`Show Effect Panel   (Right ⌘)`** and **`Show
-Video Panel   (Right ⌘⇧)`**. Plain rows, always enabled, with the gesture
+Two menu rows, one per page: **`Effects   (Right ⌘)`** and **`Videos
+  (Right ⌘⇧)`** (the `Show ` prefix went on 2026-09-13 — it was the same word on
+both rows, and a menu row is a verb already). Plain rows, always enabled, with the gesture
 written into the title — `NSMenuItem` cannot take a bare modifier as a key
 equivalent (`keyEquivalentModifierMask` needs a key to hang off), and an
 attributed title with a grey run was the other candidate: its secondary colour

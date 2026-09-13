@@ -203,6 +203,11 @@ final class ProgressBarOverlay {
     }
 
     /// Remove the bar (and its decorations) immediately (no fade).
+    /// Is a bar on screen? `bar` is nil'd the moment the fill reaches the right
+    /// edge and the fade starts (see `fadeOut`), so this goes false when the
+    /// interval ends by itself and not only on `cancel()`.
+    var isRunning: Bool { bar != nil }
+
     func cancel() {
         fadeWork?.cancel()
         fadeWork = nil

@@ -4,9 +4,16 @@ import Foundation
 
 /// The 💥 status item. Deliberately tiny compared to the addons menu it was cut
 /// from, and smaller again since the panel arrived: a 39-row ⭐️ Effects submenu
-/// was a menu of words for a board of pictures, so what is left is the panic
-/// row, the two features that need a no-Accessibility fallback (the panel, one
-/// row per page, and ⌃W), and Quit.
+/// was a menu of words for a board of pictures, so what is left is the two
+/// features that need a no-Accessibility fallback (the panel, one row per page,
+/// and ⌃W), and Quit.
+///
+/// The panic row went the same way, but *upwards* rather than out: stop-all is
+/// now **the icon itself**. While anything is running the 💥 turns 🛑 and a
+/// left click stops everything, which is one gesture instead of two (click,
+/// aim, click) at the exact moment nobody wants to aim — the effect is on the
+/// screen the room is watching. A menu row that is only ever wanted while the
+/// menu is hard to read was the wrong home for it.
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Quit row always says which binary is actually running.
@@ -14,9 +21,14 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     // MARK: callbacks (AppDelegate wires them)
 
-    /// 🛑 Stop all — the panic row, and the only thing left of the effect menu.
+    /// 🛑 Stop all. No longer a row: this fires on a plain click of the status
+    /// item while it is showing 🛑 (see `statusItemClicked`).
     var onStopAll: (() -> Void)?
-    /// 🔥 Whip Agent — the menu equivalent of ⌃W, kept for a Mac that has not
+    /// Is anything on screen or audible right now? Polled (see
+    /// `startBusyPolling`) to pick between 💥 and 🛑. Wired by `AppDelegate` to
+    /// `EffectsEngine`, which already answers this for `GET /state`.
+    var isBusy: (() -> Bool)?
+    /// 🔥 Whip — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
     var onWhip: (() -> Void)?
     /// One of the two panel rows was clicked: show that page of the thumbnail
@@ -28,6 +40,32 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private var menu: NSMenu!
     private var whipItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
+    private var accessibilitySeparator: NSMenuItem!
+
+    /// The two faces of the status item. 🛑 means "something is running, and a
+    /// click here stops it"; 💥 means "nothing is running, a click opens the
+    /// menu". Nothing else is ever drawn there.
+    private static let idleIcon = "💥"
+    private static let busyIcon = "🛑"
+
+    /// Which of the two is on screen right now. The **click rule reads this,
+    /// not `isBusy`**: what a click does must be what the icon was promising
+    /// when the mouse went down, even if the last effect ended in between.
+    private var showingBusyIcon = false
+
+    /// How often the icon asks whether anything is still running.
+    ///
+    /// A poll, not a notification, and that is the point: by the
+    /// **self-termination rule** every effect schedules its own removal, so
+    /// most of the time nothing calls `stopAll()` at all — the last effect just
+    /// stops existing. An icon that only changed when someone *told* it to
+    /// would be stuck on 🛑 forever after any normally-ending effect. Asking is
+    /// the only way to see an ending nobody announced. 0.3 s is below the
+    /// threshold where the bar looks stale and far above the cost of reading
+    /// four booleans (the timer does not even fire while the menu is open —
+    /// menu tracking runs the run loop in its own mode).
+    private static let busyPollInterval: TimeInterval = 0.3
+    private var busyTimer: Timer?
 
     /// A row that shows a gesture on the right, and the two strings
     /// `layOutHints` re-lays it out from.
@@ -52,8 +90,104 @@ final class MenuBar: NSObject, NSMenuDelegate {
     func setup() {
         buildMenu()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = Self.emojiIcon("💥", pt: 15)
+
+        // **`statusItem.menu` is deliberately left nil.** Setting it hands the
+        // button to `NSMenu`: AppKit opens the menu on mouse-DOWN and the
+        // button's own `action` never fires, so there is no way to make a click
+        // mean "stop everything" while a menu is attached. Detaching it moves
+        // the decision here, and the menu is re-attached for the length of one
+        // `performClick` when it is actually wanted (`openMenu`).
+        if let button = statusItem.button {
+            button.image = Self.emojiIcon(Self.idleIcon, pt: 15)
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            // Both buttons, and on mouse-UP: the default mask is
+            // `.leftMouseUp` alone, so without this a right-click on the item
+            // does nothing at all — and the right-click is the escape hatch
+            // that keeps the menu reachable while 🛑 owns the left one.
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+
+        startBusyPolling()
+    }
+
+    /// The whole click rule, in one place:
+    ///
+    /// | | 💥 idle | 🛑 running |
+    /// |---|---|---|
+    /// | left click | menu | **stop everything** |
+    /// | right click / ⌃-click | menu | menu |
+    ///
+    /// So the menu is reachable in *both* states by the same gesture, which is
+    /// the property that mattered: Quit must never be more than one gesture
+    /// away, and "hold ⌃, or use the other button" is a rule that does not
+    /// depend on what is happening on screen at the time.
+    ///
+    /// ⌃-click is spelled out rather than assumed: AppKit turns a control-click
+    /// into a contextual-menu event for an ordinary view, but a status item
+    /// button delivers it as a plain left click carrying `.control`, so nothing
+    /// converts it for us.
+    @objc private func statusItemClicked() {
+        let event = NSApp.currentEvent
+        let wantsMenu = event.map {
+            $0.type == .rightMouseUp || $0.type == .rightMouseDown
+                || $0.modifierFlags.contains(.control)
+        } ?? true   // no event to inspect (a synthetic call): the harmless half
+
+        guard !wantsMenu, showingBusyIcon else { openMenu(); return }
+
+        onStopAll?()
+        // Repaint now instead of waiting up to `busyPollInterval` for the poll
+        // to notice: the click is supposed to feel like the thing that stopped
+        // it, and a 🛑 that lingers a third of a second reads as a miss. The
+        // poll is still what has the last word — if something survived the
+        // stop, the next tick puts 🛑 back.
+        refreshIcon()
+    }
+
+    /// Show the menu the way a detached menu has to be shown: attach, click the
+    /// button *for* AppKit, detach again. The detach happens as soon as
+    /// `performClick` returns — that call is modal for as long as the menu is
+    /// up, so by then the menu is closed and the button is free for the next
+    /// click to reach `statusItemClicked` again.
+    ///
+    /// `menuWillOpen` still fires from inside this (verified after the switch —
+    /// `layOutHints` depends on it, and a menu whose hint column is laid out
+    /// from a delegate that never runs comes out with no hints at all).
+    private func openMenu() {
+        // The one-bool guard is insurance on the assumption the whole dance
+        // rests on: that an attached `NSMenu` SWALLOWS `performClick` instead of
+        // sending the button's action. If that ever stopped being true, the
+        // action would land back in `statusItemClicked`, which would call this
+        // again — a menu bar hung in a loop, from a line that looks like a
+        // no-op. Cheaper to make it impossible than to debug it in a room.
+        guard !openingMenu else { return }
+        openingMenu = true
         statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+        openingMenu = false
+    }
+    private var openingMenu = false
+
+    // MARK: the 💥 / 🛑 icon
+
+    private func startBusyPolling() {
+        busyTimer?.invalidate()
+        // Main thread: the timer is scheduled from `applicationDidFinishLaunching`
+        // on the main run loop, so both the `isBusy` read (which walks
+        // animator/SoundManager state that is main-thread-only) and the image
+        // swap happen there.
+        busyTimer = Timer.scheduledTimer(withTimeInterval: Self.busyPollInterval, repeats: true) { [weak self] _ in
+            self?.refreshIcon()
+        }
+    }
+
+    private func refreshIcon() {
+        let busy = isBusy?() ?? false
+        guard busy != showingBusyIcon else { return }   // no needless redraws
+        showingBusyIcon = busy
+        statusItem?.button?.image = Self.emojiIcon(busy ? Self.busyIcon : Self.idleIcon, pt: 15)
     }
 
     private func buildMenu() {
@@ -69,20 +203,26 @@ final class MenuBar: NSObject, NSMenuDelegate {
         accessibilityItem.isHidden = true
         menu.addItem(accessibilityItem)
 
-        let stopItem = NSMenuItem(title: "🛑 Stop all", action: #selector(stopAllAction), keyEquivalent: "")
-        stopItem.target = self
-        stopItem.isEnabled = true
-        menu.addItem(stopItem)
-
-        menu.addItem(.separator())
+        // The ⚠️ row's separator, and it comes and goes with it. With the panic
+        // row gone this separator would otherwise be the FIRST visible item of
+        // the menu whenever Accessibility is granted — a stray line above
+        // "Effects" — because AppKit only collapses separators it has a reason
+        // to, and a hidden item above one is not such a reason.
+        accessibilitySeparator = .separator()
+        accessibilitySeparator.isHidden = true
+        menu.addItem(accessibilitySeparator)
 
         // The two panel rows. Plain rows and never a checkbox: the panel is
         // always armed now, so the only question a row can answer is "show me
         // that page", and one row per page is how the hold's two pages are
         // taught to a mouse. Their gesture is shown in the right-hand
         // column, the strip ⌃W sits in — see `layOutHints`.
-        addPanelRow(title: "Show Effect Panel", hint: "→⌘", page: .effects)
-        addPanelRow(title: "Show Video Panel", hint: "→⌘⇧", page: .videos)
+        //
+        // One word each, no "Show " in front: the verb was the same on both
+        // rows and a menu row is a verb already. What is left is the only part
+        // that differs — which board, and the gesture that brings it up.
+        addPanelRow(title: "Effects", hint: "→⌘", page: .effects)
+        addPanelRow(title: "Videos", hint: "→⌘⇧", page: .videos)
 
         // 🔥 Whip — ⌃W belongs to the event tap; this row is the fallback when
         // Accessibility is not granted (and the place the shortcut is taught).
@@ -96,11 +236,11 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // reach that far. All three in one scheme, or none. What is lost is a
         // shortcut that only ever fired while the menu was already open — the
         // real ⌃W is the event tap's, and this row is here for the mouse.
-        whipItem = NSMenuItem(title: "🔥 Whip Agent", action: #selector(whipAction), keyEquivalent: "")
+        whipItem = NSMenuItem(title: "🔥 Whip", action: #selector(whipAction), keyEquivalent: "")
         whipItem.target = self
         whipItem.isEnabled = true
         menu.addItem(whipItem)
-        hintRows.append(HintRow(item: whipItem, title: "🔥 Whip Agent", hint: "⌃W"))
+        giveHint("⌃W", to: whipItem)
 
         menu.addItem(.separator())
 
@@ -114,6 +254,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// Shown/hidden by `AppDelegate`'s 30 s Accessibility retry.
     func setAccessibilityTrusted(_ trusted: Bool) {
         accessibilityItem?.isHidden = trusted
+        accessibilitySeparator?.isHidden = trusted
     }
 
     // MARK: NSMenuDelegate
@@ -173,7 +314,20 @@ final class MenuBar: NSObject, NSMenuDelegate {
         item.isEnabled = true
         item.representedObject = page
         menu.addItem(item)
-        hintRows.append(HintRow(item: item, title: title, hint: hint))
+        giveHint(hint, to: item)
+    }
+
+    /// Put `hint` in the right-hand column of an already-built row.
+    ///
+    /// It takes the row, never a title, because `layOutHints` re-lays each row
+    /// from `HintRow.title`: a hint registered with a *second copy* of the
+    /// title would quietly rename the row back to that copy the first time the
+    /// menu opened. Reading `item.title` here means there is only ever one
+    /// place a row's words are written down. (The renames of 2026-09-13 —
+    /// `Show Effect Panel` → `Effects`, `🔥 Whip Agent` → `🔥 Whip` — are
+    /// exactly the edit that would have hit that trap.)
+    private func giveHint(_ hint: String, to item: NSMenuItem) {
+        hintRows.append(HintRow(item: item, title: item.title, hint: hint))
     }
 
     /// Right-aligns every gesture hint in one column down the right edge.

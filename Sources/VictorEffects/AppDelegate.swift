@@ -61,6 +61,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menuBar.setup()
         menuBar.onStopAll = { [weak self] in self?.engine.stopAll() }
+        // The 🛑 face of the status item. Handed the engine's own answer rather
+        // than a flag this class would have to keep in step: anything that
+        // starts or ends an effect — a route, a tile press, the panel, an
+        // effect's own self-termination timer — moves it without knowing the
+        // menu bar exists.
+        menuBar.isBusy = { [weak self] in self?.engine.isAnythingRunning ?? false }
         menuBar.onWhip = { [weak self] in self?.engine.toggleWhip() }
         menuBar.onShowPanel = { [weak self] page in self?.panelController.showFromMenu(page: page) }
         menuBar.onQuit = { [weak self] in self?.tearDownForReplacement() }

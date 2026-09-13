@@ -35,7 +35,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 
 ## 🔥 Whip
 
-- `GET /test/whip` — show the 🔥 whip on the screen under the cursor (same as ⌃W and the `🔥 Whip Agent` menu row). NB it stays up until Esc, a second call, or `/effect/stop-all`
+- `GET /test/whip` — show the 🔥 whip on the screen under the cursor (same as ⌃W and the `🔥 Whip` menu row). NB it stays up until Esc, a second call, or `/effect/stop-all`
 - `GET /test/whip/crack` — crack it: the scripted flick (`forceCrack`) plus one of `whip_A..E.mp3`. A no-op while the whip is hidden, not an error. It does **not** fire the typing macro — that only happens on a real click, and it types into whatever app has focus (`docs/whip.md`)
 
 ## Thumbnail panel

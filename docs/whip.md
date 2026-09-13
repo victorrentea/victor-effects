@@ -27,7 +27,7 @@ backwards** in terminals and editors for as long as this app runs.
 the `!hasCmd` clause is there so a dictation app that owns ⌘⌃W for "paste
 transcript" keeps it. Both can run at once only because of that one clause.
 
-There is also a **`🔥 Whip Agent` menu row** with ⌃W as its `keyEquivalent`. It
+There is also a **`🔥 Whip` menu row** with ⌃W shown in its hint column. It
 is not redundant: on a Mac that has not granted Accessibility the tap is not
 installed, and the menu is then the only way in. (The same rationale as a
 "mail the clipboard" row in the app this was cut from — a menu row is the

@@ -247,6 +247,29 @@ final class EffectsEngine {
         }
     }
 
+    /// Is anything running that a `stopAll()` would take down? The 💥/🛑 status
+    /// item asks this a few times a second.
+    ///
+    /// Deliberately **the same four things `stopAll` below touches, in the same
+    /// order** — and nothing else. The icon is a promise that clicking it
+    /// clears the screen, so the set it watches and the set it clears have to
+    /// be one set; a fifth thing here would mean a 🛑 that a click cannot
+    /// honour. All four are state that already existed and that `GET /state`
+    /// already publishes (`playing`, `activeEffects`, `whipShowing`), so there
+    /// is no second copy of "what is running" to drift.
+    ///
+    /// What it does NOT see is the handful of overlays kept outside
+    /// `activeEffects` on purpose (the 🕳️ iris, the 🪚 chainsaw cursor, the
+    /// spiral hearts…) and the short spawns that were never tracked at all
+    /// (rising emoji, confetti). The first group is a real gap of at most one
+    /// icon; the second is gone before a hand could reach the menu bar.
+    var isAnythingRunning: Bool {
+        SoundManager.shared.isTabletSoundPlaying
+            || !animator.activeEffectNames.isEmpty
+            || progressBar.isRunning
+            || whipIsShowing
+    }
+
     func stopAll() {
         SoundManager.shared.stopTabletSound()
         playing = nil

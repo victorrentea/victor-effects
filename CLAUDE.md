@@ -84,9 +84,16 @@ this one only routes.
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
-- **The 💥 menu is not a second surface.** Five rows: 🛑 Stop all, 🔥 Whip Agent
-  (⌃W), `Show Effect Panel   (Right ⌘)`, `Show Video Panel   (Right ⌘⇧)` and
-  Quit with the build stamp — plus ⚠️ Accessibility while that grant is missing.
+- **The 💥 menu is not a second surface.** Four rows: 🔥 Whip (⌃W),
+  `Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)` and Quit with the build stamp —
+  plus ⚠️ Accessibility while that grant is missing. **Stop-all is the icon
+  itself** since 2026-09-13: while anything is running the 💥 turns 🛑 and a
+  plain click stops everything, right-click (or ⌃-click) opens the menu in
+  either state, and the icon *polls* `EffectsEngine.isAnythingRunning` because
+  the self-termination rule means most effects end with nobody announcing it.
+  The menu is therefore detached (`statusItem.menu` nil, re-attached for one
+  `performClick`) — an attached `NSMenu` swallows the button's action
+  (`docs/overlay-effects.md`).
   The 39-row ⭐️ Effects submenu went on 2026-09-12, and with it the panel's
   checkbox, its "show now" and "Reload tiles.json" rows and "Open config
   folder": the panel shows the same effects as *pictures*, in the layout the
