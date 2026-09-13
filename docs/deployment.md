@@ -12,7 +12,7 @@ pkill -f "Victor Effects"; open "/Applications/Victor Effects.app"
 load-bearing:
 
 - **The `BUILD_TIME` stamp.** A `sed` rewrites `MenuBar.BUILD_TIME` in place
-  before the build, so the `Quit – built …` row always says which binary is
+  before the build, so the disabled `Version: …` row above Quit always says which binary is
   actually running. When that row disagrees with what you just changed, you are
   looking at an old process.
 - **No sounds step.** Unlike the app this was extracted from, nothing

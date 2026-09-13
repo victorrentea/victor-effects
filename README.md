@@ -21,10 +21,10 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A 💥 appears in the menu bar — four rows: `🔥 Whip` (⌃W),
-`Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)` and
-`Quit – built <timestamp>`, which tells you which binary is running. (A fifth,
-`⚠️ Grant Accessibility`, appears only while the grant is missing.) The log is
+A 💥 appears in the menu bar — five rows: `🔥 Whip` (⌃W),
+`Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)`, a disabled
+`Version: <timestamp>`, which tells you which binary is running, and `Quit` (⌘Q).
+(A sixth, `⚠️ Grant Accessibility`, appears only while the grant is missing.) The log is
 `/tmp/victor-effects.log`.
 
 **Stop-all is the icon, not a row.** While anything is running — including an

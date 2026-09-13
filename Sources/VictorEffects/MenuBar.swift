@@ -16,8 +16,8 @@ import Foundation
 /// menu is hard to read was the wrong home for it.
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
-    /// Quit row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 13, 12:58"
+    /// Version row always says which binary is actually running.
+    static let BUILD_TIME = "Sep 13, 22:04"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -268,8 +268,17 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit – built " + MenuBar.BUILD_TIME,
-                                  action: #selector(quitApp), keyEquivalent: "")
+        // The build stamp on its own disabled row, above Quit (2026-09-13). It
+        // used to be inlined into the Quit title to save a line; Victor asked
+        // for the two to be separated, and for Quit to carry ⌘Q like any app.
+        // The shortcut only fires while the menu is open (a status-item app
+        // never becomes key), but the hint is what makes the row read as Quit.
+        let versionItem = NSMenuItem(title: "Version: " + MenuBar.BUILD_TIME,
+                                     action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         quitItem.isEnabled = true
         menu.addItem(quitItem)
