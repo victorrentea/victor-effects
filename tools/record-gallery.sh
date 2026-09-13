@@ -45,6 +45,12 @@ DRY_RUN=0
 PUBLISH=0
 TAG="gallery"
 
+# The arguments as they arrived, captured before the parse loop `shift`s them
+# away. The hands-off re-exec relaunches this script, and relaunching it with
+# `"$@"` *after* parsing hands it an empty list — which is how the first
+# `--only fireworks` run silently became a recording of the whole catalogue.
+ORIG_ARGS=("$@")
+
 usage() {
   sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
   cat <<'EOF'
@@ -99,11 +105,26 @@ api() { curl -fsS --max-time 3 "$BASE$1"; }
 # does not produce black frames — it produces no frames at all, and the run ends
 # with 40 empty clips and no error.
 # ---------------------------------------------------------------------------
+
+# A locked screen is not a smaller version of this working — it is the failure
+# that looks like success. macOS draws the lock screen over everything and
+# ScreenCaptureKit faithfully records *that*, so the effects fire underneath,
+# invisible, and the run ends with fifty perfectly valid clips of a wallpaper
+# and a clock. It happened on the very first real run, and the clips even passed
+# a "do the frames differ" check, because the clock and the cursor move.
+# caffeinate cannot help: it stops the display sleeping, not the session locking.
+screen_is_locked() {
+  ioreg -n Root -d1 -a 2>/dev/null | grep -A1 CGSSessionScreenIsLocked | grep -q '<true/>'
+}
+if [ "$DRY_RUN" = 0 ] && screen_is_locked; then
+  die "the screen is locked — everything recorded would be the lock screen. Unlock the Mac and run this again."
+fi
+
 if [ "$DRY_RUN" = 0 ] && [ -z "${GALLERY_LOCKED:-}" ]; then
   HANDS_OFF="${HANDS_OFF:-$HOME/bin/hands-off}"
   [ -x "$HANDS_OFF" ] || die "$HANDS_OFF is missing — it is what puts the 🔒 on screen while this records. Install victor-macos-addons or set HANDS_OFF."
   exec "$HANDS_OFF" run "recording the Victor Effects gallery" -- \
-       caffeinate -disu env GALLERY_LOCKED=1 "$0" "$@"
+       caffeinate -disu env GALLERY_LOCKED=1 "$0" ${ORIG_ARGS[@]+"${ORIG_ARGS[@]}"}
 fi
 
 # ---------------------------------------------------------------------------
@@ -285,7 +306,10 @@ fi
 BACKDROP_PNG="$OUT/backdrop.png"
 if [ "$USE_BACKDROP" = 1 ]; then
   [ -f "$BACKDROP_FILE" ] || die "no backdrop file at $BACKDROP_FILE"
-  say "opening the backdrop in $BACKDROP_APP…"
+  # Braced on purpose: bash's variable-name scan runs on past `$BACKDROP_APP`
+  # into the bytes of the `…` that follows it, and under `set -u` that is a
+  # fatal "unbound variable" for a name nobody ever wrote.
+  say "opening the backdrop in ${BACKDROP_APP}…"
   open -a "$BACKDROP_APP" "$BACKDROP_FILE" 2>/dev/null \
     || say "  (could not open $BACKDROP_APP — recording over whatever is on screen)"
   sleep 3
@@ -319,6 +343,11 @@ for name in $PLAN; do
   raw="$OUT/raw-$slug.mp4"
   clip="$OUT/clip-$(printf '%02d' "$i")-$slug.mp4"
   fifo="$OUT/.stop.$$"
+
+  # Re-checked every effect, not just once at the start: a seven-minute run is
+  # long enough for the session to lock halfway through, and everything after
+  # that point would be clips of a wallpaper.
+  screen_is_locked && die "the screen locked mid-run after $((i - 1)) clips — unlock and re-run (the clips so far are in $OUT)"
 
   api /effect/stop-all >/dev/null 2>&1
   sleep "$SETTLE"

@@ -40,6 +40,21 @@ rebuild — or break — the app.
 | `MAX_CLIP` | 16 s | longer than anything in the catalogue that self-terminates, so it only ever catches an effect that is stuck |
 | `WIDTH` | 1440 px | the retina panel is 3456 px wide; four times the pixels of a clip anybody watches |
 
+## The failure that looks like success
+
+**A locked screen produces a perfect gallery of nothing.** macOS draws the lock
+screen over every window, ScreenCaptureKit records it faithfully, and the
+effects fire underneath where nothing can see them. The first real run came back
+with twenty valid, correctly labelled, correctly timed clips of a wallpaper and
+a clock — and they passed a frame-by-frame "these are not duplicates" check,
+because the clock ticks and the cursor moves. caffeinate is no defence: it keeps
+the display awake, not the session unlocked.
+
+So the script reads `CGSSessionScreenIsLocked` out of `ioreg` before it starts
+*and* before every effect, and dies rather than film a wallpaper. The run needs
+a Mac that is logged in **and unlocked**, which is also the one thing a 03:00
+LaunchAgent has to be set up to guarantee.
+
 ## Three things that are not obvious
 
 **The effect list is parsed out of `EffectsEngine.swift`.** Not out of

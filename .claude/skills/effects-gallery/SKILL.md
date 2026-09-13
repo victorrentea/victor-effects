@@ -30,6 +30,15 @@ recording is of his actual display. So:
 - Tell him the mouse is unusable for the duration. Several effects are anchored
   to the cursor (chainsaw, fire, whip, red button) and a hand on the mouse mid-run
   shows up in the film.
+- **The Mac must be unlocked, not merely awake.** This is the failure that looks
+  like success: macOS draws the lock screen over everything, ScreenCaptureKit
+  records *that*, and the effects fire underneath where no camera can see them.
+  The first real run produced twenty flawless clips of a wallpaper and a clock —
+  and they even passed a "do the frames differ?" check, because the clock and the
+  cursor move. caffeinate does not help; it stops the display sleeping, not the
+  session locking. The script now refuses to start while locked and re-checks
+  before every effect, so a session that locks mid-run stops the run instead of
+  filling the rest of the gallery with wallpaper.
 
 ## Running it
 
