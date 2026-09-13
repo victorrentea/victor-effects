@@ -35,7 +35,7 @@ rebuild — or break — the app.
 | constant | value | why |
 |---|---|---|
 | `SETTLE` | 1.0 s | the previous effect's `stop-all` has to finish *drawing* before the next capture starts, or the last frame of snow opens the confetti clip |
-| `WARMUP` | 0.8 s | `SCStream.startCapture` returns before the first frame arrives; fire the effect earlier and its opening is missing |
+| `WARMUP` | 0.8 s | `SCStream.startCapture` returns before the first frame arrives; fire the effect earlier and its opening is missing. Measured good on a real fireworks run: the first burst is in frame |
 | `MIN_CLIP` | 3.0 s | counter-strike is ~1.4 s. A clip that short reads as a glitch in a montage |
 | `MAX_CLIP` | 16 s | longer than anything in the catalogue that self-terminates, so it only ever catches an effect that is stuck |
 | `WIDTH` | 1440 px | the retina panel is 3456 px wide; four times the pixels of a clip anybody watches |
@@ -54,6 +54,21 @@ So the script reads `CGSSessionScreenIsLocked` out of `ioreg` before it starts
 *and* before every effect, and dies rather than film a wallpaper. The run needs
 a Mac that is logged in **and unlocked**, which is also the one thing a 03:00
 LaunchAgent has to be set up to guarantee.
+
+## What a good run looks like
+
+Measured on the first visible one, `--only fireworks` over a VS Code window:
+**1440×930, 9.1 s, 159 frames out of ScreenCaptureKit** (≈17/s — SCK pushes on
+change, not on a clock), normalised by the `fps` filter to 273 frames of CFR 30,
+1.0 MB. Frames at 1 s, 3 s and 5 s each show a different burst over readable
+code; by 7 s the effect is over and the backdrop is clean. That is the shape to
+compare against when a run looks wrong.
+
+Two things that will be in the frames unless someone clears them first: the
+periodic Sequoia consent panel (*"Terminal is requesting to bypass the system
+private window picker"*), which lands centre-screen and does **not** stop the
+capture, and notification banners in the top right. Fire one throwaway effect to
+get the prompt out of the way, and switch on a Focus mode, before a full run.
 
 ## Three things that are not obvious
 

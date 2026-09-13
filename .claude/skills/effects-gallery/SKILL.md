@@ -40,6 +40,20 @@ recording is of his actual display. So:
   before every effect, so a session that locks mid-run stops the run instead of
   filling the rest of the gallery with wallpaper.
 
+## Two things to clear off the screen first
+
+Both were in every frame of the first good run, and neither is something the
+script can fix for you:
+
+- **The ScreenCaptureKit consent prompt.** Sequoia re-asks periodically —
+  *"Terminal is requesting to bypass the system private window picker"* — and it
+  opens a panel dead centre over the backdrop. It does not block the capture, so
+  the run succeeds with a dialog in the middle of all fifty clips. Fire one
+  throwaway `--only confetti` first, click **Allow**, then do the real run.
+- **Notification banners.** Two *Background Items Added* banners sat in the top
+  right corner of the whole fireworks clip. Turn on a Focus mode before a full
+  gallery run.
+
 ## Running it
 
 ```bash
