@@ -1093,18 +1093,21 @@ rule from the start.
   hand-the-crosshair-over dance existed to make the click seamless; with nothing under the
   mouse to hand over there is no seam to hide.
 
-- **☢️ Only the newest crosshair is on screen** (`retirePlantedReticles`, called at the top
-  of `plantBombAtCursor`, 2026-09-09). A target used to stand for the whole 1.10 s of its
-  own fuse, so clicking in a rhythm — which is exactly what the effect invites — papered
-  the desktop with red rings. Past three or four of them the eye cannot tell which is the
-  one being aimed *now*, which is the only thing a crosshair is for. Each click therefore
-  takes down every target still burning and plants the one that replaces them.
-  What is emphatically **not** cancelled is the raid: the bombs already in the air keep
-  falling and still explode on the points they were aimed at (`point` was captured at
-  click time and the deferred strike closes over it), so the rhythm of blasts is
-  untouched — it is only the pile of stale reticles that goes. The strike-time pop-and-fade
-  is skipped for a retired target (`reticle.superlayer != nil`), since there is nothing
-  left on screen to pop.
+- **☢️ Every target stands until its own bomb lands** (2026-09-14, undoing the
+  one-crosshair rule of 2026-09-09 — `retirePlantedReticles` is gone, and with it the call
+  at the top of `plantBombAtCursor`). For five days a click took down every crosshair still
+  burning and planted the one that replaced it, on the reading that a rhythm of clicks
+  papered the desktop with red rings the eye could no longer sort. The reading was wrong
+  about what the rings are for: **the pile IS the raid.** A chain of clicks is someone
+  marking four places and then watching four bombs come down on them in turn, and a mark
+  that vanishes the instant the next one is made marks nothing — the room loses which
+  points are still coming, and the one ring that mattered, the one under the bomb visibly
+  falling, is the first to go. It also cost the pop-and-fade, the single frame that ties a
+  blast to the ring it grew under (it was skipped whenever a target had been retired).
+  Each reticle now burns its own 1.10 s fuse, grows and turns for the length of it, and is
+  popped by its own strike (`strikeFadeReticle`). The `reticle.superlayer != nil` check
+  stays for the one case left: `stopBombSession` tore the layer down while the strike was
+  still pending.
 
 - **☢️ One boom per bomb** (sfx #03 `03_explosion.mp3` → `explosion`,
   `showExplosionGif` / `plantBombAtCursor`): every click plants a target that grows and

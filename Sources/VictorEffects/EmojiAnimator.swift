@@ -2875,14 +2875,19 @@ class EmojiAnimator {
         guard _bombSessionActive, !_bombBigDropped else { return }
         let point = mousePointInHostLayer()
 
-        // Only ever ONE target on screen. Clicking in a rhythm used to leave every
-        // crosshair standing for the length of its own fuse, so half a dozen fast
-        // clicks papered the desktop with red rings that had nothing left to say —
-        // the eye cannot tell which of them is the one being aimed now. The bombs
-        // already in the air are untouched: they keep falling and still explode on
-        // the points they were aimed at, which is the part that was worth keeping.
-        retirePlantedReticles()
-
+        // **Every target stays until its own bomb lands** (Victor, 2026-09-14),
+        // which undoes the one-crosshair rule of 2026-09-09 — `retirePlantedReticles`
+        // and its call from here are gone.
+        //
+        // That rule read the pile of rings as clutter; the pile is the raid. A
+        // chain of clicks is someone marking four places and then watching four
+        // bombs come down on them one after another, and a mark that vanishes the
+        // instant the next one is made stops being a mark of anything — the room
+        // loses which points are still coming, and the target that *is* under the
+        // falling bomb is the one that already went. What went with it was the
+        // pop-and-fade, the only frame that ties a blast to the ring it grew
+        // under. So each reticle now burns its own fuse and is taken off by its
+        // own strike below, exactly as a single click always did.
         let reticle = Self.makeBombReticleLayer(armed: true)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -2915,19 +2920,12 @@ class EmojiAnimator {
             self._bombPlanted.removeAll { $0 === reticle }
             self.consumeFallingBomb(bomb)
             self.spawnBombBlast(at: point)
-            // Retired by a later click — there is nothing on screen left to pop.
+            // The one frame that ties the blast to the ring it grew under: the
+            // target pops as the fireball opens. The `superlayer` check is the
+            // only case left where there is nothing to pop — `stopBombSession`
+            // tore every layer down while this strike was still pending.
             if reticle.superlayer != nil { self.strikeFadeReticle(reticle) }
         }
-    }
-
-    /// Take down every crosshair still burning down its fuse. Called by the next
-    /// click, which is about to plant the one that replaces them.
-    private func retirePlantedReticles() {
-        for reticle in _bombPlanted {
-            reticle.removeAllAnimations()
-            reticle.removeFromSuperlayer()
-        }
-        _bombPlanted.removeAll()
     }
 
     /// Give the bomb just planted its own boom, so a rhythm of clicks comes back
