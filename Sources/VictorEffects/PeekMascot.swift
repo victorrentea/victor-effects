@@ -184,3 +184,92 @@ final class PeekHitPanel: NSPanel {
         orderOut(nil)
     }
 }
+
+/// The white rim the mascot wears on its way in.
+///
+/// Both PNGs are cut-outs with a real alpha channel, which is what lets the
+/// robot float over the desktop instead of arriving on a card — but a cut-out
+/// only reads as well as the desktop behind it lets it. The Claude mark is a
+/// mid-orange (#D97757) and the Copilot one is near-black line art; on a dark
+/// editor, a dark slide or a terminal filling the top-left quarter, the
+/// silhouette dissolves into the background and the wave lands on nobody.
+///
+/// So the mascot is stroked in white before it is ever shown — the same trick a
+/// sticker uses, and the reason stickers survive being put on any surface. A
+/// white rim is the one colour that separates from a dark background *and* from
+/// the two mascots, which are warm-orange and near-black; the alternative,
+/// tinting the background, would mean a card, and the card is precisely what the
+/// cut-out was for.
+///
+/// The rim is built from the image's own alpha: the silhouette is stamped in
+/// white at a ring of offsets and the original is drawn on top, which is the
+/// cheap approximation of a morphological dilate. **Two rings, not one** — a
+/// single ring at the full radius leaves gaps in features thinner than the rim
+/// (the robot's legs and arms are only a few dozen pixels wide), because a point
+/// just outside a thin limb is not reachable by shifting that limb by the full
+/// radius in any one direction.
+///
+/// Pure functions over a `CGImage` so the geometry can be asserted off-screen.
+enum PeekMascotOutline {
+    /// Rim thickness as a fraction of the source image's **height**, matching
+    /// how `claudePeekFrame` sizes the mascot: the icon is drawn at 21% of the
+    /// screen height, so a rim measured off the height is the same number of
+    /// projected points whichever mascot is on duty and whatever the PNG's own
+    /// resolution turns out to be. 2% lands at ~4 pt on the projector — thick
+    /// enough to be a border from the back of the room, thin enough that it is
+    /// still the robot's outline and not a blob.
+    static let widthFraction: CGFloat = 0.02
+
+    /// Rim thickness in source pixels, never below 3 so a small PNG still gets
+    /// a rim rather than a suggestion of one.
+    static func ringWidth(forHeight height: Int) -> Int {
+        max(3, Int((CGFloat(height) * widthFraction).rounded()))
+    }
+
+    /// The mascot with a white rim around it, padded by the rim on all four
+    /// sides so the stroke has somewhere to live. Nil only if a bitmap context
+    /// cannot be made, in which case the caller shows the bare cut-out.
+    static func outlined(_ image: CGImage) -> CGImage? {
+        let pad = ringWidth(forHeight: image.height)
+        let size = CGSize(width: image.width, height: image.height)
+        guard let silhouette = whiteSilhouette(image),
+              let ctx = context(width: image.width + 2 * pad, height: image.height + 2 * pad)
+        else { return nil }
+
+        let steps = 16
+        for ring in [CGFloat(pad), CGFloat(pad) / 2] {
+            for i in 0..<steps {
+                let angle = 2 * CGFloat.pi * CGFloat(i) / CGFloat(steps)
+                ctx.draw(silhouette, in: CGRect(
+                    x: CGFloat(pad) + cos(angle) * ring,
+                    y: CGFloat(pad) + sin(angle) * ring,
+                    width: size.width, height: size.height))
+            }
+        }
+        ctx.draw(image, in: CGRect(x: CGFloat(pad), y: CGFloat(pad), width: size.width, height: size.height))
+        return ctx.makeImage()
+    }
+
+    /// The image's alpha channel painted solid white: draw it, then fill white
+    /// through `.sourceIn`, which keeps the destination's alpha and replaces
+    /// every colour under it. Cheaper and more faithful than re-deriving the
+    /// shape, because it is literally the shape that will be drawn on top.
+    private static func whiteSilhouette(_ image: CGImage) -> CGImage? {
+        guard let ctx = context(width: image.width, height: image.height) else { return nil }
+        let rect = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        ctx.draw(image, in: rect)
+        ctx.setBlendMode(.sourceIn)
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
+        ctx.fill(rect)
+        return ctx.makeImage()
+    }
+
+    private static func context(width: Int, height: Int) -> CGContext? {
+        CGContext(
+            data: nil, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )
+    }
+}

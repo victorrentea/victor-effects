@@ -9058,11 +9058,23 @@ class EmojiAnimator {
         schedulePeekExit(layer: layer)
     }
 
-    /// Load a mascot's cut-out PNG out of the bundle.
+    /// Already-stroked mascots, kept because the rim is built once per PNG and
+    /// this key is pressed many times a day; the images are a few hundred KB
+    /// each and the app is restarted several times an hour anyway.
+    private static var peekImageCache: [PeekMascot: CGImage] = [:]
+
+    /// Load a mascot's cut-out PNG out of the bundle, wearing its white rim
+    /// (`PeekMascotOutline` — why a cut-out alone is not enough on a dark
+    /// screen). If the rim cannot be built the bare cut-out still shows: a
+    /// mascot that is hard to see beats no mascot at all.
     private static func peekImage(_ mascot: PeekMascot) -> CGImage? {
+        if let cached = peekImageCache[mascot] { return cached }
         guard let url = Bundle.module.url(forResource: mascot.rawValue, withExtension: "png"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let stroked = PeekMascotOutline.outlined(image) ?? image
+        peekImageCache[mascot] = stroked
+        return stroked
     }
 
     /// Arm the self-termination, guarded by BOTH layer identity and generation:
