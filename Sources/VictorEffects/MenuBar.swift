@@ -6,7 +6,15 @@ import Foundation
 /// from, and smaller again since the panel arrived: a 39-row ⭐️ Effects submenu
 /// was a menu of words for a board of pictures, so what is left is the two
 /// features that need a no-Accessibility fallback (the panel, one row per page,
-/// and ⌃W), and Quit.
+/// and ⌃W), the one feature with no other surface at all (the Bluetooth
+/// keep-alive, whose tone is inaudible by design), and Quit.
+///
+/// **Two columns, and every row is in both.** A glyph of emoji width opens each
+/// title, and each gesture is right-aligned down a single tab stop
+/// (`layOutHints`) — including ⌘Q, which is why no row here carries a real
+/// `keyEquivalent`: AppKit draws those in a column of their own that no tab
+/// stop can reach into, and one native ⌘Q was enough to pull the right edge
+/// crooked (2026-09-14).
 ///
 /// The panic row went the same way, but *upwards* rather than out: stop-all is
 /// now **the icon itself**. While anything is running the 💥 turns 🛑 and a
@@ -17,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 14, 21:32"
+    static let BUILD_TIME = "Sep 14, 21:45"
 
     // MARK: callbacks (AppDelegate wires them)
 
