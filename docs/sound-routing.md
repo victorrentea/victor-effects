@@ -179,3 +179,20 @@ Scope is deliberately narrow: only the *active* output, and only speakers that
 actually standby-mute. It is distinct from the wake-up compensation above —
 that one warms the link immediately before each individual sound, this one stops
 the speaker ever falling into standby *between* sounds.
+
+**The 🔵 / ⚪️ / 🚫 menu row** (2026-09-14). The keep-alive is the one thing in
+this app with a row of its own that nothing routes to, and it earned it twice
+over: the tone is inaudible by design, so a working keep-alive and a broken one
+looked identical outside the log, and "stop playing into that speaker" has to be
+possible in the middle of a recording or a call without quitting the app. The
+row is a live read at menu-open time — 🔵 the tone is playing, ⚪️ armed but the
+default output is not a speaker that needs it, 🚫 switched off (or no
+`bluetoothSpeakerNameMatch` configured, which can never become ⚪️: idle promises
+a speaker it would start for). Clicking toggles the switch and takes the tone
+down *now*, not at the next tick. The choice is persisted (`KeepAliveSettings`,
+`UserDefaults` key `BluetoothKeepAlive.enabled`, **default on**) because this app
+is restarted several times an hour and the reason to switch it off outlives a
+relaunch; the 30 s poll keeps running while it is off, since that poll is what
+notices the switch coming back. The three-way mapping is pure
+(`BluetoothKeepAlive.state(enabled:configured:playing:)`) and pinned by
+`BluetoothKeepAliveStateTests`.

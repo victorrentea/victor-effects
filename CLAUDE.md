@@ -84,9 +84,17 @@ this one only routes.
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
-- **The 💥 menu is not a second surface.** Four rows: 🔥 Whip (⌃W),
-  `Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)` and Quit with the build stamp —
-  plus ⚠️ Accessibility while that grant is missing. **Stop-all is the icon
+- **The 💥 menu is not a second surface.** Five rows: `✨ Effects` (Right ⌘),
+  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🔵 Keep Speaker Awake` (the Bluetooth
+  keep-alive's switch — `docs/sound-routing.md`) and ⏻ Quit with the build stamp
+  — plus ⚠️ Accessibility while that grant is missing. **No row carries a
+  `keyEquivalent`**: `NSMenu` draws key equivalents in a column outside the
+  titles that a tab stop cannot reach, so one native ⌘Q left every hint an icon
+  and a half short of it (fixed 2026-09-14, `MenuBar.layOutHints`). Gestures are
+  hints in an attributed title; ⌘Q is claimed by `menuHasKeyEquivalent` for the
+  length of one open menu; every row opens with a glyph of emoji width (Quit's ⏻
+  is an SF Symbol *image*, 21 pt, the way addons does it) so the words line up
+  on the left the way the gestures line up on the right. **Stop-all is the icon
   itself** since 2026-09-13, and it is an EMERGENCY stop: while anything is
   running the 💥 turns 🛑 and a plain click stops everything (layered effects,
   sound, progress bar and an armed 🔥 whip, in one `stopAll()`), right-click (or

@@ -26,8 +26,49 @@ import Foundation
 /// output device's transport type *and* its name, and emit through the normal
 /// default route (AVAudioPlayer), so nothing plays when the default output is
 /// wired/built-in, the "🔊OS Output" loopback, or a non-JBL Bluetooth device.
-/// No menu toggle — it self-gates on the name.
+///
+/// It still self-gates on the name; the **menu row** added on 2026-09-14 is a
+/// switch *over* that gate, not a second copy of it. Two things earned it a
+/// row: the tone is by design inaudible, so "is it running?" had no answer
+/// short of the log, and it is the one thing in this app that plays into a
+/// speaker nobody asked to hear from — a recording, a call, or a speaker
+/// someone else is using is exactly when it has to be possible to stop it
+/// without quitting the app. Off is remembered (`KeepAliveSettings`), because
+/// the reason to switch it off outlives a relaunch.
 final class BluetoothKeepAlive {
+    /// What the menu row shows, and the only three answers there are.
+    ///
+    /// The vocabulary is deliberately the log's: 🔵 is the same "active" the
+    /// tick has always logged, ⚪️ the same "idle". `off` is the new one — the
+    /// switch, not the speaker.
+    enum State {
+        /// The tone is playing: a matching speaker is the default output.
+        case running
+        /// Armed, but the default output is not a speaker that needs it.
+        case idle
+        /// Switched off in the menu (or no speaker name configured at all).
+        case off
+
+        var emoji: String {
+            switch self {
+            case .running: return "🔵"
+            case .idle: return "⚪️"
+            case .off: return "🚫"
+            }
+        }
+    }
+
+    /// The three-way answer, from the three facts that decide it. Pure and
+    /// static so `BluetoothKeepAliveStateTests` can hold it to the table
+    /// without a speaker, a player or a run loop.
+    ///
+    /// `configured` (an empty `bluetoothSpeakerNameMatch`) reads as `off`
+    /// rather than `idle` on purpose: idle promises "the moment a JBL becomes
+    /// the output, this starts", and with no name to match nothing ever will.
+    static func state(enabled: Bool, configured: Bool, playing: Bool) -> State {
+        guard enabled, configured else { return .off }
+        return playing ? .running : .idle
+    }
     /// How often we re-check the default output (and that our loop is still
     /// running). Not the tone's cadence any more — the tone never stops.
     private static let interval: TimeInterval = 30
@@ -52,6 +93,35 @@ final class BluetoothKeepAlive {
     /// heartbeat).
     private var lastWasTarget = false
 
+    /// Is the switch on? Main-thread read for the menu; the tick reads the same
+    /// stored value off its own queue (`UserDefaults` is thread-safe).
+    var isEnabled: Bool { KeepAliveSettings.isEnabled }
+
+    /// What the menu row draws. Main thread only — `player` is.
+    var state: State {
+        Self.state(enabled: KeepAliveSettings.isEnabled,
+                   configured: !Self.nameMatch.isEmpty,
+                   playing: player?.isPlaying == true)
+    }
+
+    /// The menu row's click. Switching **off** takes the tone down now rather
+    /// than at the next tick: the row is reached in the middle of whatever made
+    /// it necessary (a recording started, someone else took the speaker), and a
+    /// switch that keeps playing for another half minute is not a switch.
+    func setEnabled(_ on: Bool) {
+        KeepAliveSettings.isEnabled = on
+        guard on else {
+            stopLoop()
+            // Forget the last edge so switching back on logs "active" again
+            // instead of staying quiet because the speaker never changed.
+            lastWasTarget = false
+            overlayInfo("🚫 BT keep-alive switched off in the menu")
+            return
+        }
+        overlayInfo("🔵 BT keep-alive switched on in the menu")
+        queue.async { [weak self] in self?.tick() }
+    }
+
     func start() {
         // No speaker name configured = nothing to keep awake. Bailing here (and
         // not just never matching) means the poll and the tone never exist on a
@@ -67,10 +137,22 @@ final class BluetoothKeepAlive {
         timer.setEventHandler { [weak self] in self?.tick() }
         pollTimer = timer
         timer.resume()
+        guard KeepAliveSettings.isEnabled else {
+            overlayInfo("🚫 BT keep-alive poll started but the menu switch is off (turn it back on in the 💥 menu)")
+            return
+        }
         overlayInfo("🔵 BT keep-alive started (continuous tone while default output is a Bluetooth '\(Self.nameMatch)' speaker, re-checked every \(Int(Self.interval))s)")
     }
 
     private func tick() {
+        // Switched off in the menu: the poll stays alive (it is what notices
+        // the switch coming back on, and it costs one coalesced wakeup every
+        // 30 s) but nothing plays. Taking the timer down instead would leave
+        // the app with no way back on short of a relaunch.
+        guard KeepAliveSettings.isEnabled else {
+            DispatchQueue.main.async { [weak self] in self?.stopLoop() }
+            return
+        }
         let (isBT, name) = BluetoothOutput.defaultOutput()
         let match = Self.nameMatch
         let isTarget = isBT && !match.isEmpty
@@ -114,4 +196,19 @@ final class BluetoothKeepAlive {
         player = nil
     }
 
+}
+
+/// The menu switch, persisted — same reasoning as `PeekMascotStore`: this app
+/// is rebuilt and restarted several times an hour, and a switch a `pkill` undoes
+/// is not a switch. **Defaults to on**, so a Mac that has never touched the row
+/// behaves exactly as it did before the row existed.
+enum KeepAliveSettings {
+    private static let key = "BluetoothKeepAlive.enabled"
+
+    static var isEnabled: Bool {
+        // `object(forKey:)`, not `bool(forKey:)`: the latter cannot tell "never
+        // set" from "set to false", and the default here is true.
+        get { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
 }

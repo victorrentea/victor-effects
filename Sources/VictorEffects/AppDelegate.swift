@@ -69,6 +69,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBar.isBusy = { [weak self] in self?.engine.isAnythingRunning ?? false }
         menuBar.onWhip = { [weak self] in self?.engine.toggleWhip() }
         menuBar.onShowPanel = { [weak self] page in self?.panelController.showFromMenu(page: page) }
+        // Same shape as `isBusy`: the row asks the keep-alive what it is doing
+        // at the moment it is drawn, so a speaker connecting or dropping never
+        // has to find the menu bar to correct it.
+        menuBar.keepAliveState = { [weak self] in self?.keepAlive?.state ?? .off }
+        menuBar.onToggleKeepAlive = { [weak self] in
+            guard let keepAlive = self?.keepAlive else { return }
+            // The switch, not the state: `idle` is switched ON with no speaker
+            // in range, and clicking it has to mean "off", not "on again".
+            keepAlive.setEnabled(!keepAlive.isEnabled)
+        }
         menuBar.onQuit = { [weak self] in self?.tearDownForReplacement() }
 
         // Warm the manifest (a few MB of SHA-256) off the main thread: /ping is

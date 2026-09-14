@@ -34,6 +34,11 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// 🔥 Whip — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
     var onWhip: (() -> Void)?
+    /// The 🔵/⚪️/🚫 keep-alive row: what to draw, and what a click means.
+    /// Asked at menu-open time (like `isBusy`) rather than pushed, so nothing
+    /// has to remember to tell the menu bar when a speaker connects.
+    var keepAliveState: (() -> BluetoothKeepAlive.State)?
+    var onToggleKeepAlive: (() -> Void)?
     /// One of the two panel rows was clicked: show that page of the thumbnail
     /// panel. The mouse-only way in, for a Mac without the Accessibility grant.
     var onShowPanel: ((PanelPage) -> Void)?
@@ -42,6 +47,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var menu: NSMenu!
     private var whipItem: NSMenuItem!
+    private var keepAliveItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
     private var accessibilitySeparator: NSMenuItem!
 
@@ -79,15 +85,29 @@ final class MenuBar: NSObject, NSMenuDelegate {
         let item: NSMenuItem
         let title: String
         let hint: String
+        /// How far the row's own text starts to the right of every other row's,
+        /// i.e. the width of its `image` box (0 for the emoji rows, which carry
+        /// their glyph *inside* the title). A tab stop is measured from where
+        /// the text begins, so an image row needs its stop pulled left by
+        /// exactly this much or its hint lands one icon further right than the
+        /// rest of the column. Measured in `imageColumn`, never assumed.
+        let indent: CGFloat
     }
     private var hintRows: [HintRow] = []
     private var hintTabStop: CGFloat = 0
 
     /// What `NSMenu` adds around a title: a menu holding one item whose title
-    /// has a right tab stop at L comes out L + 30 wide, and a native key
-    /// equivalent is right-aligned against that same inset. Measured, not
+    /// has a right tab stop at L comes out L + 30 wide. Measured, not
     /// documented — hence `layOutHints` re-deriving the stop from the
     /// menu's own width instead of trusting this number on its own.
+    ///
+    /// A native key equivalent is **not** right-aligned against this inset —
+    /// the comment here used to say it was, and the crooked ⌘Q of 2026-09-14
+    /// was that sentence being wrong. `NSMenu` gives key equivalents a column
+    /// of their own outside the title column entirely: the same probe shows a
+    /// menu at tab stop 200 coming out 230 pt wide with no key equivalent and
+    /// 277 with one ⌘Q in it — the extra 47 pt sitting to the right of every
+    /// title, where a tab stop cannot follow. Hence: no row here has one.
     private static let titleInsets: CGFloat = 30
     /// Smallest gap between a title and its hint, so a long title pushes the
     /// menu wider instead of running into the column.
@@ -245,8 +265,15 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // One word each, no "Show " in front: the verb was the same on both
         // rows and a menu row is a verb already. What is left is the only part
         // that differs — which board, and the gesture that brings it up.
-        addPanelRow(title: "Effects", hint: "→⌘", page: .effects)
-        addPanelRow(title: "Videos", hint: "→⌘⇧", page: .videos)
+        //
+        // Every row in this menu now opens with a glyph in the same column —
+        // ✨ 🎦 🔥 🔵 ⚠️, and ⏻ on Quit — because a menu where only *some* rows
+        // do reads as the others being indented (2026-09-14: "🔥 Whip" next to
+        // a bare "Effects" was the whole of what looked crooked). One emoji
+        // each, the same width, so the words start on one line down the left
+        // edge exactly the way the gestures end on one line down the right.
+        addPanelRow(title: "✨ Effects", hint: "→⌘", page: .effects)
+        addPanelRow(title: "🎦 Videos", hint: "→⌘⇧", page: .videos)
 
         // 🔥 Whip — ⌃W belongs to the event tap; this row is the fallback when
         // Accessibility is not granted (and the place the shortcut is taught).
@@ -266,6 +293,22 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.addItem(whipItem)
         giveHint("⌃W", to: whipItem)
 
+        // 🔵 Keep Speaker Awake — the Bluetooth keep-alive's switch and its only
+        // lamp. It belongs in *this* app (moved here with the effects split) for
+        // the same reason the soundboard did: it is audio. It gets a row, unlike
+        // everything else that self-gates, because its tone is inaudible by
+        // design — without the row there is no way to tell a working keep-alive
+        // from a broken one — and because "stop playing into that speaker" is a
+        // thing that has to be possible in the middle of a recording or a call.
+        //
+        // No hint column: there is no key to teach. The title is rewritten on
+        // every open (`refreshKeepAliveRow`), which is also why it is built with
+        // an empty one — the state is a live read, never a stored flag here.
+        keepAliveItem = NSMenuItem(title: "", action: #selector(toggleKeepAliveAction), keyEquivalent: "")
+        keepAliveItem.target = self
+        keepAliveItem.isEnabled = true
+        menu.addItem(keepAliveItem)
+
         menu.addItem(.separator())
 
         // The build stamp on its own disabled row, above Quit (2026-09-13). It
@@ -278,10 +321,39 @@ final class MenuBar: NSObject, NSMenuDelegate {
         versionItem.isEnabled = false
         menu.addItem(versionItem)
 
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
+        // ⌘Q is drawn as a hint like every other gesture here, and Quit carries
+        // **no `keyEquivalent`** — that is what fixes the crooked right edge
+        // (2026-09-14). `NSMenu` gives key equivalents a column of their own to
+        // the RIGHT of every title, so the one native shortcut in the menu was
+        // adding ~47 pt the tab stop knew nothing about: ⌘Q sat hard against
+        // the menu's edge while →⌘ / →⌘⇧ / ⌃W stopped an icon and a half short
+        // of it. Two columns for one kind of information, and no tab stop can
+        // reach into the second one — measured, see `layOutHints`.
+        //
+        // The shortcut itself is not lost: `menuHasKeyEquivalent` claims ⌘Q
+        // while the menu is open, which is the only time it could ever have
+        // fired (a status-item app never becomes key).
+        //
+        // ⏻ comes from SF Symbols as an *image*, copied from addons' Quit row
+        // (which copied Walkie Talkie's): the text glyph ⏻ is ~12 pt against an
+        // emoji's 19 and would sit visibly narrow in a column of emoji, while an
+        // image lands in the menu's own icon box, 21 pt wide — near enough to
+        // an emoji that the words stay aligned.
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "")
+        quitItem.image = Self.symbolIcon("power")
         quitItem.target = self
         quitItem.isEnabled = true
         menu.addItem(quitItem)
+        giveHint("⌘Q", to: quitItem)
+    }
+
+    /// An SF Symbol sized for a menu row's icon box. Template, so AppKit paints
+    /// it in the menu's own text colour and inverts it on the highlighted row.
+    private static func symbolIcon(_ name: String) -> NSImage? {
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
+        let sized = image.withSymbolConfiguration(.init(pointSize: 13, weight: .regular)) ?? image
+        sized.isTemplate = true
+        return sized
     }
 
     /// Shown/hidden by `AppDelegate`'s 30 s Accessibility retry.
@@ -292,7 +364,35 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     // MARK: NSMenuDelegate
 
-    func menuWillOpen(_ menu: NSMenu) { layOutHints() }
+    /// The keep-alive row is retitled BEFORE the hints are laid out, never
+    /// after: its title is one of the widths `layOutHints` measures the column
+    /// from, and a row that changes width after the measurement moves the
+    /// column it was supposed to help place.
+    func menuWillOpen(_ menu: NSMenu) {
+        menuIsOpen = true
+        refreshKeepAliveRow()
+        layOutHints()
+    }
+
+    func menuDidClose(_ menu: NSMenu) { menuIsOpen = false }
+
+    /// ⌘Q, for the length of one open menu — the shortcut Quit's row gave up
+    /// its native `keyEquivalent` for (see `buildMenu`). Claimed here and
+    /// nowhere else on purpose: this app has no main menu and never becomes
+    /// key, so an unconditional claim could only ever surprise someone — the
+    /// thumbnail panel is the one window it owns, and ⌘Q over it must keep
+    /// meaning whatever the front app means by it.
+    func menuHasKeyEquivalent(_ menu: NSMenu, for event: NSEvent,
+                              target: AutoreleasingUnsafeMutablePointer<AnyObject?>,
+                              action: UnsafeMutablePointer<Selector?>) -> Bool {
+        guard menuIsOpen,
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+              event.charactersIgnoringModifiers?.lowercased() == "q" else { return false }
+        target.pointee = self
+        action.pointee = #selector(quitApp)
+        return true
+    }
+    private var menuIsOpen = false
 
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
         for row in hintRows {
@@ -303,6 +403,32 @@ final class MenuBar: NSObject, NSMenuDelegate {
     // MARK: actions
 
     @objc private func whipAction() { onWhip?() }
+
+    @objc private func toggleKeepAliveAction() {
+        onToggleKeepAlive?()
+        // Repaint straight away rather than waiting for the next open: on the
+        // way *off* the row is the only confirmation that the tone stopped, and
+        // AppKit keeps the menu up for the length of the flash it gives the
+        // clicked row.
+        refreshKeepAliveRow()
+    }
+
+    /// One row, one live read. The label names what the switch does, not the
+    /// mechanism — "Bluetooth keep-alive" is what it is called in the log and in
+    /// `BluetoothKeepAlive`, but the row has to say what it is *for* to someone
+    /// looking at it mid-workshop with a JBL on the table.
+    private func refreshKeepAliveRow() {
+        guard let keepAliveItem else { return }
+        let state = keepAliveState?() ?? .off
+        keepAliveItem.title = "\(state.emoji) Keep Speaker Awake"
+        keepAliveItem.toolTip = {
+            switch state {
+            case .running: return "A near-silent tone is playing into the Bluetooth speaker so its amp never mutes and the next sound is not clipped. Click to switch it off."
+            case .idle: return "Armed, but the default output is not a Bluetooth speaker that needs it. Click to switch it off."
+            case .off: return "Switched off: nothing is played into the speaker, and the first sound after a silence may be clipped. Click to switch it back on."
+            }
+        }()
+    }
 
     @objc private func showPanelAction(_ sender: NSMenuItem) {
         guard let page = sender.representedObject as? PanelPage else { return }
@@ -359,7 +485,25 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// `Show Effect Panel` → `Effects`, `🔥 Whip Agent` → `🔥 Whip` — are
     /// exactly the edit that would have hit that trap.)
     private func giveHint(_ hint: String, to item: NSMenuItem) {
-        hintRows.append(HintRow(item: item, title: item.title, hint: hint))
+        hintRows.append(HintRow(item: item, title: item.title, hint: hint,
+                                indent: Self.imageColumn(for: item.image)))
+    }
+
+    /// How much an `NSMenuItem.image` pushes that row's text to the right,
+    /// asked of `NSMenu` itself instead of being written down: build the same
+    /// row twice, once with the image and once without, and take the
+    /// difference. (21 pt for the 13 pt ⏻ on this Mac — but a number that comes
+    /// from the OS cannot go stale the way the same number typed here would.)
+    private static func imageColumn(for image: NSImage?) -> CGFloat {
+        guard let image else { return 0 }
+        func width(_ img: NSImage?) -> CGFloat {
+            let probe = NSMenu()
+            let row = NSMenuItem(title: "X", action: nil, keyEquivalent: "")
+            row.image = img
+            probe.addItem(row)
+            return probe.size.width
+        }
+        return width(image) - width(nil)
     }
 
     /// Right-aligns every gesture hint in one column down the right edge.
@@ -387,7 +531,8 @@ final class MenuBar: NSObject, NSMenuDelegate {
         }
         var width = menu.size.width
         for row in hintRows {
-            let text = (row.title as NSString).size(withAttributes: [.font: font]).width
+            let text = row.indent
+                + (row.title as NSString).size(withAttributes: [.font: font]).width
                 + Self.hintGap
                 + (row.hint as NSString).size(withAttributes: [.font: font]).width
             width = max(width, text + Self.titleInsets)
@@ -403,7 +548,9 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// changes, so the row does not move while the pointer crosses it.
     private func hintTitle(_ row: HintRow, highlighted: Bool) -> NSAttributedString {
         let style = NSMutableParagraphStyle()
-        style.tabStops = [NSTextTab(textAlignment: .right, location: hintTabStop, options: [:])]
+        // Minus the row's own icon box: the tab stop is measured from where the
+        // row's text starts, and on an image row that is one icon in.
+        style.tabStops = [NSTextTab(textAlignment: .right, location: hintTabStop - row.indent, options: [:])]
         let font = NSFont.menuFont(ofSize: 0)
         let result = NSMutableAttributedString(
             string: row.title + "\t",

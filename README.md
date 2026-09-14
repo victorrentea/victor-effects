@@ -21,11 +21,16 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A 💥 appears in the menu bar — five rows: `🔥 Whip` (⌃W),
-`Effects   (Right ⌘)`, `Videos   (Right ⌘⇧)`, a disabled
-`Version: <timestamp>`, which tells you which binary is running, and `Quit` (⌘Q).
-(A sixth, `⚠️ Grant Accessibility`, appears only while the grant is missing.) The log is
-`/tmp/victor-effects.log`.
+A 💥 appears in the menu bar — six rows: `✨ Effects` (Right ⌘),
+`🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🔵 Keep Speaker Awake` (the Bluetooth
+keep-alive's switch and its only lamp — 🔵 playing, ⚪️ armed, 🚫 off), a disabled
+`Version: <timestamp>`, which tells you which binary is running, and `⏻ Quit` (⌘Q).
+(A seventh, `⚠️ Grant Accessibility`, appears only while the grant is missing.)
+Every row opens with a glyph in one column and ends its gesture in another: the
+gestures are drawn as right-aligned **hints**, not as key equivalents, because
+`NSMenu` puts a real key equivalent in a column of its own that no tab stop can
+reach — one native ⌘Q was enough to knock the whole right edge crooked. The log
+is `/tmp/victor-effects.log`.
 
 **Stop-all is the icon, not a row.** While anything is running — including an
 armed 🔥 whip — the 💥 turns 🛑, and a plain click stops everything at once;
