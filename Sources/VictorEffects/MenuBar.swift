@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 14, 21:45"
+    static let BUILD_TIME = "Sep 14, 22:05"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -42,7 +42,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// 🔥 Whip — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
     var onWhip: (() -> Void)?
-    /// The 🔵/⚪️/🚫 keep-alive row: what to draw, and what a click means.
+    /// The ✅/⚪️/🚫 keep-alive row: what to draw, and what a click means.
     /// Asked at menu-open time (like `isBusy`) rather than pushed, so nothing
     /// has to remember to tell the menu bar when a speaker connects.
     var keepAliveState: (() -> BluetoothKeepAlive.State)?
@@ -275,7 +275,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // that differs — which board, and the gesture that brings it up.
         //
         // Every row in this menu now opens with a glyph in the same column —
-        // ✨ 🎦 🔥 🔵 ⚠️, and ⏻ on Quit — because a menu where only *some* rows
+        // ✨ 🎦 🔥 ✅ ⚠️, and ⏻ on Quit — because a menu where only *some* rows
         // do reads as the others being indented (2026-09-14: "🔥 Whip" next to
         // a bare "Effects" was the whole of what looked crooked). One emoji
         // each, the same width, so the words start on one line down the left
@@ -301,7 +301,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.addItem(whipItem)
         giveHint("⌃W", to: whipItem)
 
-        // 🔵 Keep Speaker Awake — the Bluetooth keep-alive's switch and its only
+        // ✅ Keep Speaker Awake — the Bluetooth keep-alive's switch and its only
         // lamp. It belongs in *this* app (moved here with the effects split) for
         // the same reason the soundboard did: it is audio. It gets a row, unlike
         // everything else that self-gates, because its tone is inaudible by

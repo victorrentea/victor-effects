@@ -1,7 +1,7 @@
 import XCTest
 @testable import VictorEffects
 
-/// The 🔵/⚪️/🚫 row is the keep-alive's only visible surface — the tone it
+/// The ✅/⚪️/🚫 row is the keep-alive's only visible surface — the tone it
 /// controls is inaudible by design — so the mapping from the three facts to the
 /// three glyphs is the whole contract, and it is pure precisely so it can be
 /// held to a table here without a speaker in the room.
@@ -29,7 +29,7 @@ final class BluetoothKeepAliveStateTests: XCTestCase {
 
     func testEachStateHasItsOwnGlyph() {
         let glyphs = [KA.State.running, .idle, .off].map(\.emoji)
-        XCTAssertEqual(glyphs, ["🔵", "⚪️", "🚫"])
+        XCTAssertEqual(glyphs, ["✅", "⚪️", "🚫"])
         XCTAssertEqual(Set(glyphs).count, 3, "two states drawn the same way is a row that cannot be read")
     }
 }

@@ -38,9 +38,11 @@ import Foundation
 final class BluetoothKeepAlive {
     /// What the menu row shows, and the only three answers there are.
     ///
-    /// The vocabulary is deliberately the log's: 🔵 is the same "active" the
-    /// tick has always logged, ⚪️ the same "idle". `off` is the new one — the
-    /// switch, not the speaker.
+    /// ✅ rather than the log's 🔵 for `running` (Victor, 2026-09-14): a row
+    /// that is a switch should read like a ticked box, and a tick is the one
+    /// glyph nobody has to learn. The other two stay in the log's vocabulary —
+    /// ⚪️ is its "idle" — and 🚫 is the new answer the log never had to give,
+    /// because it is about the switch, not the speaker.
     enum State {
         /// The tone is playing: a matching speaker is the default output.
         case running
@@ -51,7 +53,7 @@ final class BluetoothKeepAlive {
 
         var emoji: String {
             switch self {
-            case .running: return "🔵"
+            case .running: return "✅"
             case .idle: return "⚪️"
             case .off: return "🚫"
             }
