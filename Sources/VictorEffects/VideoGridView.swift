@@ -229,14 +229,14 @@ final class VideoGridView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        PanelCursor.pinHand()
+        PanelCursor.pinArrow()
         hover(at: convert(event.locationInWindow, from: nil))
     }
     override func mouseMoved(with event: NSEvent) {
-        PanelCursor.pinHand()
+        PanelCursor.pinArrow()
         hover(at: convert(event.locationInWindow, from: nil))
     }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
     override func mouseExited(with event: NSEvent) {
         releaseCursor()
         clearHover()
@@ -436,11 +436,11 @@ final class VideoTileView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         setHovered(true)
-        PanelCursor.pinHand()
+        PanelCursor.pinArrow()
     }
 
     override func mouseExited(with event: NSEvent) { setHovered(false) }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 
     /// Callable by the grid, which resolves the hover from the pointer's
     /// position — see `TileView.setHovered`.

@@ -70,6 +70,8 @@ final class EffectsRouter {
     /// `/test/thumbnail-panel/hover` — what the hover mark actually is right
     /// now, optionally after resolving it at an explicit point.
     case panelHover(NSPoint?)
+        /// `/test/thumbnail-panel/cursor` — why the pointer is the shape it is.
+        case panelCursor
         case state
         case configReload
         case unknown
@@ -156,6 +158,7 @@ final class EffectsRouter {
         case "/config/reload":      return .configReload
         case "/test/thumbnail-panel":       return .panelShow(page(q("page")))
         case "/test/thumbnail-panel/hide":  return .panelHide
+        case "/test/thumbnail-panel/cursor":  return .panelCursor
         case "/test/thumbnail-panel/hover":
             if let xs = q("x"), let ys = q("y"), let x = Double(xs), let y = Double(ys) {
                 return .panelHover(NSPoint(x: x, y: y))
@@ -335,6 +338,9 @@ final class EffectsRouter {
         case .panelPress(let n, let page):
             guard let press = onPanelPress else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
             return .json(press(n, page))
+
+        case .panelCursor:
+            return .json(PanelCursor.diagnosticJSON())
 
         case .panelHover(let point):
             guard let hover = onPanelHover else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }

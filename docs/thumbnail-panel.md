@@ -125,8 +125,13 @@ testing are exactly the ones the machine writing the rule does not have.
 - **Several** → **never the overlay screen** (`isOverlay`, i.e.
   `Screens.overlayScreen()` — the built-in retina, the one mirrored to the
   room), and among the rest **prefer a non-primary** one. Tie-break: the screen
-  under the mouse, else the largest. Frame = that screen's `visibleFrame` inset
-  by 24 pt (`inset`).
+  under the mouse, else the largest. Frame = that screen's **`fullFrame`** — the
+  whole display, menu bar and Dock included — with `inset` at **0** since
+  2026-09-14. Both were margins: 24 pt of breathing room plus the polite
+  `visibleFrame`, which together left a band of desktop down the sides of a board
+  that is supposed to BE that screen while the key is held. With a screen to
+  itself the panel has nothing to breathe away from.
+  `testTheSecondScreenIsCoveredEdgeToEdge` is the guard.
 - Fallbacks, in order: if every screen is the overlay screen, use them all; if
   the only non-overlay screen *is* the primary, use it.
 
@@ -148,6 +153,11 @@ grid is 7 rows of 81 pt: 1152 × **623**, so 96 pt of nothing were being framed.
 - The `anchor` comes from the placement: **`.bottom`** for the single-screen
   corner layout (the bottom-right corner must not move — only the top comes
   down) and **`.centred`** for the filled-screen layout.
+- **`.centred` is no longer hugged at all** (2026-09-14). Hugging is for the
+  corner layout, where the panel shares a screen and every point it does not need
+  belongs to the slide behind it. On a screen the panel owns, trimming it to the
+  grid was the *other* way desktop stayed visible around the board.
+  `testAPanelThatOwnsItsScreenIsNeverHugged`.
 - Hugging is **stable**: re-measuring at the hugged height gives the same cell,
   so a second show does not creep the board smaller. `testHuggingIsStable`.
 
@@ -211,6 +221,27 @@ guard: it parses these three files with their comments stripped, so deleting
 `.cursorUpdate` from one options array fails the build instead of silently going
 back to borrowing the cursor.
 
+**A pointing hand was tried on 2026-09-14 and could not be delivered — do not
+spend another afternoon on it.** Every cell is a button, so the hand is what it
+*should* be. But this is an accessory app and the panel deliberately never becomes
+key, so the **active** application owns the pointer's shape and re-asserts its own
+between our events. The failure is invisible for as long as our answer is
+`NSCursor.arrow`, because losing the fight and the default look identical — ask for
+a hand and the loss is suddenly on screen. `NSCursor.current` cheerfully reported
+the hand while the glass showed the shape of whatever was underneath;
+`GET /test/thumbnail-panel/cursor` is what proved it (`appActive:false`,
+`currentIsWanted:true`, wrong cursor on screen), and it is still there for the next
+person. Repeating the `set()` on a 50 ms timer did not help: an inactive app does
+not win, however often it asks.
+
+The two ways to actually get it both cost more than the hand is worth, and Victor
+chose the arrow over both: let the panel become key (it is `.nonactivatingPanel`,
+so this works without activating the app — but the caret leaves the app being
+demonstrated while the key is held, which is the whole reason `canBecomeKey` is
+`false`), or hide the real cursor and draw our own inside the panel. The pin stays
+regardless, because the point was never "arrow" — it is **our** answer instead of
+the window underneath's.
+
 ## The grid (page 1)
 
 `ThumbnailGridView` lays the tiles out in **`tiles.json`'s own array order**,
@@ -253,23 +284,36 @@ on a layer, versus a redraw loop in a drawing method:
   (`highlightGutter`) towards a neighbour, i.e. exactly to its edge, so the whole
   black channel between two tiles lights up with no hairline left down the middle
   of it — and **all the way to the rim of the board where there is no neighbour**
-  (`TileView.highlightOutsets`, per side, handed to each cell by the grid). The
-  uniform 6 pt was right between tiles and wrong on the perimeter: the space
-  outside column 0 is `padding` **plus** whatever the centring left over after the
-  cell was floored, so on a 1400 pt panel 8 pt of black survived beside an edge
-  sound tile and **42 pt** beside an edge video tile, whose widths are quantised
-  to multiples of 16. A hovered tile on the rim was the only one still sitting in
-  black on three sides out of four. A cell that merely has no neighbour in its own
-  **ragged last row** is not an edge cell and keeps the plain gap, or the last
-  tile of a short row would stretch to the rim while the full rows above it did
-  not. It is painted by `gutterLayer`, the FIRST sublayer, so
+  (`TileView.highlightOutsets`, per side, handed to each cell by the grid), and
+  **capped at one gap on every side — the mark is a strict frame, never a flood.**
+  For one build an edge cell reached all the way to the rim so that no black
+  survived beside it; that reads fine while the leftover margin is a few points
+  and absurd when it is not. Once the panel filled a whole 1080 pt screen, page 2's
+  five 16:9 rows left a deep band above and below the grid, and hovering the top or
+  bottom row painted that entire band green. The cap still takes a *thin* margin
+  whole — where there is less than a gap between the cell and the board's edge,
+  the reach is that margin and no black hairline survives. It is painted by
+  `gutterLayer`, the FIRST sublayer, so
   the artwork always sits on top of it — a frame around the picture, never a wash
   over it. The tile is raised by `zPosition` while marked, because tiles are
   siblings and the later ones draw on top: without it the fill would be clipped
   away on two sides out of four. `zPosition` and not a reorder of the subviews,
   since the grid lays out by the *index* of its `tileViews` array. The view's own
   layer must **not** set `masksToBounds` — a layer clips its sublayers to itself,
-  and this one deliberately paints outside its bounds;
+  and this one deliberately paints outside its bounds. **Saying so in a comment is
+  not enough, and for weeks it was the only thing saying it.** `NSView.clipsToBounds`
+  arrived in macOS 14 defaulting to **true** and drives the backing layer's
+  `masksToBounds`, so every tile was quietly clipping the green ring away at its own
+  edge: nothing lit up on either screen while `gutterLayer` sat there at opacity 1,
+  correctly sized. Setting it early does nothing either — `wantsLayer = true` only
+  *promises* a layer, AppKit builds it lazily at the first `layer?` access, and the
+  fresh layer arrives carrying the default. It is therefore assigned **after the
+  sublayers, at the end of `init`, and again in `layout()`** (a re-created layer
+  comes back clipping). `testATileNeverClipsItsOwnHoverMark` is the guard.
+  `PanelContentView` is the other clipper, for its 18 pt rounded corners — so
+  `setFillsScreen(_:)` squares them off when the board covers a whole display,
+  where a floating card has nothing to float over and the rounding would slice the
+  corner tiles' mark;
 - **mouse-down** = the same fill in red (`pressColor`), which is now the only
   press feedback there is;
 - one decision makes both marks (`updateHighlight`), because releasing a press
@@ -295,7 +339,15 @@ completion, `resize(to:)` and `setPage(_:)`. `clearHover()` runs from
 window ordering out owes its views no `mouseExited`, and a tile left green is
 still green on the next show, on a tile the mouse is not on.
 `testTheTileUnderAMouseThatNeverMovedIsStillHighlighted` and
-`testTheHoverFillLeavesNoBlackOnTheRimOfTheBoard` are the guards.
+`testTheHoverFillIsAStrictFrameEvenOnADeepMargin` are the guards.
+
+**The `/test/thumbnail-panel/hover[?x=&y=]` hook is what found the clipping bug**,
+and is the reason to reach for it next time. Every geometry test passed while the
+board stayed black, because they assert the arithmetic of the outsets and cannot
+see a layer. The hook reports the *live* mark — `opacity`, the `gutter` and `cell`
+frames, `zPosition`, and the named list of ancestors clipping it — so "on with
+opacity 0", "zero frame" and "clipped away" are three different answers from a
+shell with nobody looking at the screen. It named `TileView` as its own clipper.
 
 What was here until 2026-09-12 was the opposite arrangement — a 5 pt white ring
 over a 7 pt dark rim, a 20 % wash, a 1.04 scale-up and a white glow, all *inside*

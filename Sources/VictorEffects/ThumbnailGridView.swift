@@ -228,7 +228,7 @@ final class ThumbnailGridView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        PanelCursor.pinHand()
+        PanelCursor.pinArrow()
         hover(at: convert(event.locationInWindow, from: nil))
     }
     /// Re-asserted on every move: the panel appearing *under* a stationary mouse
@@ -237,10 +237,10 @@ final class ThumbnailGridView: NSView {
     /// pointer's position on every move, which is the only reading that cannot
     /// go stale.
     override func mouseMoved(with event: NSEvent) {
-        PanelCursor.pinHand()
+        PanelCursor.pinArrow()
         hover(at: convert(event.locationInWindow, from: nil))
     }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
     override func mouseExited(with event: NSEvent) {
         releaseCursor()
         clearHover()
@@ -280,79 +280,70 @@ final class ThumbnailGridView: NSView {
 /// window the user cannot even see. That part of the policy is unchanged: we
 /// must answer, every time, or somebody else does.
 ///
-/// **The answer was the arrow until 14 Sep 2026, and Victor reversed it.** The
-/// old reasoning was that the board is one continuous surface, so a shape that
-/// changed as the pointer crossed it would be noise. The board it describes no
-/// longer exists: every cell is a button, the hover mark now lights the cell
-/// under the pointer, and a hand is what says "this thing is clickable" to a
-/// room watching over a shoulder. The shape no longer flickers *within* the
-/// board either — the hand is pinned by the grid and by the panel itself, not
-/// only by the tiles, so crossing a gap between two cells never drops it.
+/// **A pointing hand was tried on 14 Sep 2026 and could not be delivered.**
+/// Every cell is a button, so the hand is what it should be — but this app is an
+/// accessory and the panel deliberately never becomes key, so the ACTIVE
+/// application owns the pointer's shape and re-asserts its own between our
+/// events. `NSCursor.current` reported our hand while the screen showed the
+/// shape of whatever was underneath; `/test/thumbnail-panel/cursor` is what
+/// proved it (`appActive:false`, `currentIsWanted:true`, and the wrong cursor on
+/// the glass). Repeating the `set()` on a timer did not help — an inactive app
+/// simply does not win.
+///
+/// The two ways to actually get it both cost more than they are worth: let the
+/// panel become key (it is `.nonactivatingPanel`, so that works — but the caret
+/// leaves the app being demonstrated while the key is held), or hide the real
+/// cursor and draw our own. Victor chose the arrow over both.
+///
+/// So the shape is the arrow — and the pinning still matters, because the point
+/// was never "arrow" but "OUR answer, not the window underneath's".
 enum PanelCursor {
     /// The one shape the board shows. Named once so the pin, the release and
     /// the test all mean the same cursor.
-    static var cursor: NSCursor { .pointingHand }
+    static var cursor: NSCursor { .arrow }
 
-    /// True when the last `pinHand()` found the hand already in place, i.e.
+    /// True when the last `pinArrow()` found our shape already in place, i.e.
     /// nothing underneath had taken the cursor. Read by the test hook and
     /// reported by `/test/thumbnail-panel`, because this is the one fact about
     /// the cursor a headless check can actually observe.
-    private(set) static var lastFoundHand = true
+    private(set) static var lastFoundWanted = true
     /// How many times the pin had to CORRECT the cursor rather than confirm it.
     /// One or two is the panel opening under a pointer somebody else had shaped;
     /// a number that climbs while the mouse sits still is a fight.
     private(set) static var corrections = 0
 
-    /// Re-asserts the hand on a timer for as long as the board is up.
-    ///
-    /// **A `set()` from this app does not stick.** Victor Effects is an
-    /// accessory app and the panel deliberately never becomes key, so the
-    /// ACTIVE application still owns the pointer's shape: it re-asserts its own
-    /// cursor on its own schedule and ours is wiped between our events. That
-    /// went unnoticed for as long as the board's answer was `NSCursor.arrow`,
-    /// because losing the fight and the default look identical. Ask for a hand
-    /// and the loss is suddenly visible.
-    ///
-    /// Events alone cannot win it — `cursorUpdate` and `mouseMoved` only fire
-    /// when the pointer MOVES, and the pointer resting on a tile is the normal
-    /// case for a held key. So the pin repeats while the panel is visible and
-    /// the pointer is over it, and stops the moment it is not.
-    private static var pinTimer: Timer?
-    /// Set by the panel: is the pointer over the board at this instant?
-    static var pointerIsOverBoard: () -> Bool = { false }
-
-    static func startPinning() {
-        stopPinning()
-        // `.common` because the gesture that raises the board is a key being
-        // HELD, and a default-mode timer stops running during event tracking.
-        let timer = Timer(timeInterval: 0.05, repeats: true) { _ in
-            guard pointerIsOverBoard() else { return }
-            cursor.set()
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        pinTimer = timer
-    }
-
-    static func stopPinning() {
-        pinTimer?.invalidate()
-        pinTimer = nil
+    /// `GET /test/thumbnail-panel/cursor` — the facts that decide whether a
+    /// `set()` from this process can reach the glass: is this app the ACTIVE one
+    /// (an inactive app does not own the pointer's shape), and what the cursor
+    /// is as far as this process is concerned. **`currentIsWanted` is not proof
+    /// the screen agrees** — that mismatch is exactly what killed the pointing
+    /// hand; read it together with `appActive`.
+    static func diagnosticJSON() -> String {
+        let current = String(describing: NSCursor.current)
+        let wanted = String(describing: cursor)
+        return "{\"ok\":true,"
+            + "\"appActive\":\(NSApp.isActive),"
+            + "\"corrections\":\(corrections),"
+            + "\"currentIsWanted\":\(NSCursor.current == cursor),"
+            + "\"current\":\"\(current.replacingOccurrences(of: "\"", with: ""))\","
+            + "\"wanted\":\"\(wanted.replacingOccurrences(of: "\"", with: ""))\"}"
     }
 
     /// Idempotent, and called on every move — so it logs the corrections, not
     /// the confirmations, or a single hover would fill the log.
-    static func pinHand() {
-        let wasHand = NSCursor.current == cursor
-        lastFoundHand = wasHand
-        if !wasHand {
+    static func pinArrow() {
+        let wasWanted = NSCursor.current == cursor
+        lastFoundWanted = wasWanted
+        if !wasWanted {
             corrections += 1
-            effectsInfo("panel cursor: found \(NSCursor.current) under the pointer, pinned the hand (correction #\(corrections))")
+            effectsInfo("panel cursor: found \(NSCursor.current) under the pointer, pinned ours (correction #\(corrections))")
         }
         cursor.set()
     }
 
     /// For tests: the counters are process-wide.
     static func resetForTesting() {
-        lastFoundHand = true
+        lastFoundWanted = true
         corrections = 0
     }
 }

@@ -122,38 +122,22 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         }
     }
 
-    /// The hand has to be RE-asserted, not set once. An accessory app whose
-    /// panel never becomes key loses the pointer's shape back to the active
-    /// application between events, and `cursorUpdate`/`mouseMoved` only fire
-    /// when the pointer moves — while a held key with a still mouse is the
-    /// normal way this board is used.
-    func testTheHandIsHeldForAsLongAsTheBoardIsUp() throws {
-        let cursorSource = try code("Sources/VictorEffects/ThumbnailGridView.swift")
-        XCTAssertTrue(cursorSource.contains("static func startPinning()"),
-                      "PanelCursor no longer re-asserts the cursor; a single set() does not stick")
-
-        let panel = try code("Sources/VictorEffects/ThumbnailPanel.swift")
-        XCTAssertTrue(panel.contains("PanelCursor.startPinning()"),
-                      "the panel shows the board without starting the cursor pin")
-        XCTAssertEqual(
-            panel.components(separatedBy: "PanelCursor.stopPinning()").count - 1, 2,
-            """
-            Every way the board leaves the screen must stop the pin — the slide \
-            out AND the instant hide. A timer still asking for a hand over a \
-            panel that is gone would fight whatever is underneath.
-            """
-        )
-    }
-
-    func testTheBoardShowsAPointingHand() throws {
+    /// **A pointing hand was tried on 14 Sep 2026 and could not be delivered.**
+    /// An accessory app whose panel never becomes key does not own the pointer's
+    /// shape: `NSCursor.current` reported our hand while the screen showed the
+    /// window underneath's, and repeating the `set()` on a timer did not change
+    /// that. Getting it would cost either the caret leaving the demonstrated app
+    /// (letting the panel become key) or a hand-drawn fake cursor; Victor chose
+    /// the arrow over both. The pin stays, because the point was never "arrow"
+    /// but "our answer rather than the window underneath's".
+    func testTheBoardShowsAnArrow() throws {
         let swift = try code("Sources/VictorEffects/ThumbnailGridView.swift")
         XCTAssertTrue(
-            swift.contains("static var cursor: NSCursor { .pointingHand }"),
+            swift.contains("static var cursor: NSCursor { .arrow }"),
             """
-            PanelCursor no longer pins the pointing hand. Every cell on the \
-            board is a button and Victor asked for the hand on 14 Sep 2026 — \
-            if this is being changed back, change the doc comment that explains \
-            the reversal too.
+            PanelCursor's shape changed. A shape other than the arrow cannot \
+            actually reach the screen from this app — see the note on \
+            PanelCursor and /test/thumbnail-panel/cursor before trying again.
             """
         )
     }
@@ -184,7 +168,7 @@ final class ThumbnailPanelCursorTests: XCTestCase {
                 "\(path) takes `.cursorUpdate` events and never implements cursorUpdate(with:)"
             )
             XCTAssertTrue(
-                swift.contains("PanelCursor.pinHand()"),
+                swift.contains("PanelCursor.pinArrow()"),
                 "\(path) should pin the cursor through PanelCursor, so there is one cursor policy and one log"
             )
         }
@@ -261,29 +245,39 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         XCTAssertGreaterThan(h.g - max(h.r, h.b), 0.5, "and unmistakably green")
     }
 
-    /// **No black is left around the tile under the pointer.**
+    /// **The mark is a strict frame, never a flood.**
     ///
-    /// The fill reached one `gap` on all four sides, which is exactly right
-    /// between two tiles and wrong on the rim of the board: the margin outside
-    /// column 0 is `padding` plus whatever the centring left over after the cell
-    /// was floored (page 1) or quantised to a multiple of 16 (page 2) — 8 pt of
-    /// surviving black beside an edge sound tile on a 1400 pt panel, and 42 pt
-    /// beside an edge video tile. An edge cell's fill therefore runs to the grid
-    /// view's own edge, which is the panel's rounded card.
-    func testTheHoverFillLeavesNoBlackOnTheRimOfTheBoard() {
+    /// For one build an edge cell's fill ran all the way to the rim, so that no
+    /// black survived beside it. That is fine while the leftover margin is a few
+    /// points and absurd when it is not: with the panel filling a 1080 pt screen,
+    /// page 2's five 16:9 rows leave a deep band above and below the grid, and
+    /// hovering the top or bottom row painted that whole band green. The reach is
+    /// capped at one gap on every side — edge or not.
+    func testTheHoverFillIsAStrictFrameEvenOnADeepMargin() {
+        // A board far taller than its grid: 200 pt of empty above the top row.
+        let bounds = NSRect(x: 0, y: 0, width: 400, height: 500)
+        let topLeft = NSRect(x: 100, y: 220, width: 80, height: 80)
+        let o = TileView.highlightOutsets(cell: topLeft, in: bounds,
+                                          row: 0, col: 0, rows: 3, cols: 3)
+        XCTAssertEqual(o.top, ThumbnailGridView.gap, accuracy: 0.001,
+                       "a deep empty band above the grid must NOT be flooded green")
+        XCTAssertEqual(o.left, ThumbnailGridView.gap, accuracy: 0.001,
+                       "a wide empty margin beside the grid must NOT be flooded green")
+        XCTAssertEqual(o.right, ThumbnailGridView.gap, accuracy: 0.001)
+        XCTAssertEqual(o.bottom, ThumbnailGridView.gap, accuracy: 0.001)
+    }
+
+    /// The cap is the margin when the margin is the thinner of the two, so a
+    /// board fitted tight around its grid still leaves no black hairline.
+    func testTheFillTakesAThinMarginWholeRatherThanOverrunIt() {
         let bounds = NSRect(x: 0, y: 0, width: 400, height: 300)
-        // Top-left cell of a 3×3 grid whose centring left 20 pt over each way.
-        let corner = NSRect(x: 20, y: 200, width: 80, height: 80)
+        // Only 2 pt of margin to the left of column 0 — less than one gap.
+        let corner = NSRect(x: 2, y: 200, width: 80, height: 80)
         let o = TileView.highlightOutsets(cell: corner, in: bounds,
                                           row: 0, col: 0, rows: 3, cols: 3)
         XCTAssertEqual(corner.minX - o.left, bounds.minX, accuracy: 0.001,
-                       "the fill must reach the left edge of the board, not stop 6 pt out")
-        XCTAssertEqual(corner.maxY + o.top, bounds.maxY, accuracy: 0.001,
-                       "the fill must reach the top edge of the board")
-        // ...and towards a neighbour it is still exactly the gap, so the two
-        // tiles' marks meet with no hairline and no overlap.
-        XCTAssertEqual(o.right, ThumbnailGridView.gap, accuracy: 0.001)
-        XCTAssertEqual(o.bottom, ThumbnailGridView.gap, accuracy: 0.001)
+                       "with less than a gap of margin the fill takes all of it")
+        XCTAssertLessThanOrEqual(o.left, ThumbnailGridView.gap)
     }
 
     /// An interior cell is unchanged — the mark is still one gap on every side,
@@ -308,14 +302,14 @@ final class ThumbnailPanelCursorTests: XCTestCase {
                                           row: 3, col: 2, rows: 4, cols: 5)
         XCTAssertEqual(o.right, ThumbnailGridView.gap, accuracy: 0.001,
                        "a short last row keeps the plain gutter on its open side")
-        XCTAssertEqual(cell.minY - o.bottom, bounds.minY, accuracy: 0.001,
-                       "but it is the bottom row, so downwards it still reaches the rim")
+        XCTAssertEqual(o.bottom, ThumbnailGridView.gap, accuracy: 0.001,
+                       "and the bottom row keeps it too — the frame is even on every side")
     }
 
-    /// Both grids must hand their cells the per-side reach — a grid that kept
-    /// the uniform inset would go back to framing its edge tiles in black, and
-    /// nothing in the compiler notices.
-    func testBothGridsGiveTheirEdgeCellsTheWiderReach() throws {
+    /// Both grids must hand their cells the per-side reach — a grid that
+    /// hard-coded one inset could not take a thin margin whole, and nothing in
+    /// the compiler notices.
+    func testBothGridsMeasureTheirCellsReach() throws {
         for path in ["Sources/VictorEffects/ThumbnailGridView.swift",
                      "Sources/VictorEffects/VideoGridView.swift"] {
             XCTAssertTrue(try code(path).contains("TileView.highlightOutsets"),

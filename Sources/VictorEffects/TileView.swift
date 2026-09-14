@@ -104,28 +104,31 @@ final class TileView: NSView {
     /// How far the fill reaches beyond the cell, **per side**.
     ///
     /// One gap towards a neighbour — that is the whole channel between the two
-    /// tiles, with no hairline left down the middle of it. But on the PERIMETER
-    /// of the grid there is no neighbour, and the space out there is not one gap
+    /// tiles, with no hairline left down the middle of it. On the PERIMETER
+    /// there is no neighbour, and the leftover margin out there is not one gap
     /// wide: it is `padding` plus whatever the centring left over after the cell
-    /// size was floored (page 1) or quantised to a multiple of 16 (page 2). On a
-    /// 1400 pt panel that is 8 pt of black beside an edge sound tile and **42 pt**
-    /// beside an edge video tile — a hovered tile on the rim of the board was the
-    /// only one still sitting in black on three sides out of four.
+    /// size was floored (page 1) or quantised to a multiple of 16 (page 2).
     ///
-    /// So an edge cell's fill runs all the way to the grid view's own edge, which
-    /// is the panel's content view, which is the rounded dark card — there is
-    /// nothing left for it to leave black. A cell that merely has no neighbour
-    /// *in its own ragged last row* is NOT an edge cell and keeps the plain gap,
-    /// or the last tile of a short row would stretch to the rim while the tiles
-    /// above it did not.
+    /// **An edge cell ran all the way to the rim for one build, and that was
+    /// wrong.** It reads fine while the leftover is a few points, and absurd the
+    /// moment it is not: once the panel filled a whole 1080 pt screen, page 2's
+    /// five 16:9 rows left a deep band above and below the grid, and hovering
+    /// anything in the top or bottom row flooded that entire band green. Victor's
+    /// words for it were "colorează tot ce-i deasupra și tot de sub, dar trebuie
+    /// un border strict".
+    ///
+    /// So the reach is **capped at one gap**, on every side, edge or not: a strict
+    /// even frame around the cell. It still takes the whole margin where the
+    /// margin is thinner than a gap — there the cap is the margin, and no black
+    /// hairline survives between the mark and the board's edge.
     static func highlightOutsets(cell: NSRect, in bounds: NSRect,
                                  row: Int, col: Int, rows: Int, cols: Int) -> NSEdgeInsets {
         let g = highlightGutter
         return NSEdgeInsets(
-            top:    row == 0 ? max(g, bounds.maxY - cell.maxY) : g,
-            left:   col == 0 ? max(g, cell.minX - bounds.minX) : g,
-            bottom: row == rows - 1 ? max(g, cell.minY - bounds.minY) : g,
-            right:  col == cols - 1 ? max(g, bounds.maxX - cell.maxX) : g)
+            top:    row == 0 ? min(g, bounds.maxY - cell.maxY) : g,
+            left:   col == 0 ? min(g, cell.minX - bounds.minX) : g,
+            bottom: row == rows - 1 ? min(g, cell.minY - bounds.minY) : g,
+            right:  col == cols - 1 ? min(g, bounds.maxX - cell.maxX) : g)
     }
     /// Hover: bright, saturated green — nothing else on the board is this
     /// colour (the usage dots are a darker green, the star amber, the playing
@@ -419,14 +422,14 @@ final class TileView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         setHovered(true)
-        PanelCursor.pinHand()
+        PanelCursor.pinArrow()
     }
 
     override func mouseExited(with event: NSEvent) { setHovered(false) }
 
     /// AppKit asking "what is the cursor here?" — the one moment it is polite to
     /// answer, and the answer is always the pointing hand. See `PanelCursor`.
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 
     /// **Not private, and not only called from `mouseEntered`.** A tracking area
     /// that appears UNDER a pointer which never moved is not entered, and the
