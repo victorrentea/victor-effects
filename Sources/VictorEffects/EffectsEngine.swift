@@ -247,7 +247,7 @@ final class EffectsEngine {
         }
     }
 
-    /// Is anything running that a `stopAll()` would take down? The 💥/🛑 status
+    /// Is anything running that a `stopAll()` would take down? The 🌟/🛑 status
     /// item asks this a few times a second.
     ///
     /// Deliberately **the same four things `stopAll` below touches, in the same

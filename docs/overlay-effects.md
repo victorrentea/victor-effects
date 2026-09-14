@@ -21,7 +21,7 @@ switch (`EffectsEngine.fireEffect`):
   visual goes with it (`SoundEffectMap`). Changing a pairing is a Mac-side
   edit; no client is redeployed.
 
-**There is no longer a fourth door through the menu.** The 💥 menu used to carry
+**There is no longer a fourth door through the menu.** The 🌟 menu used to carry
 a 39-row ⭐️ Effects submenu, fired through an `EffectsEngine.menuEffect` of its
 own — silent and fixed-length, because no routed sound's duration was there to
 end a looping effect. It went on 2026-09-12 along with `menuEffect` itself: the
@@ -35,7 +35,7 @@ only a second list to keep in step. `🛑 Stop all` is what stayed — and on
 The menu-bar icon has two faces, and it is the one surface that answers
 `/effect/stop-all` without opening anything:
 
-| | nothing running (💥) | something running (🛑) |
+| | nothing running (🌟) | something running (🛑) |
 |---|---|---|
 | left click | opens the menu | **stops everything, in one call** |
 | right click, or ⌃-click | opens the menu | opens the menu |
@@ -51,7 +51,7 @@ is allowed to take the left click at all.
 **Which row of that table applies is decided by a LIVE read of
 `isAnythingRunning`, at click time — not by the icon that happens to be drawn.**
 The two disagree for up to one poll interval, and that window is the whole
-point: an effect starts, the bar still says 💥 for a third of a second, and a
+point: an effect starts, the bar still says 🌟 for a third of a second, and a
 hand that is already moving lands in it. Honouring the drawn icon there would
 answer the click by opening a menu over a demo that has just gone wrong in front
 of a room. This is an emergency stop: it is allowed to look momentarily

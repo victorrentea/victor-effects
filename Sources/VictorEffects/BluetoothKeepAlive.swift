@@ -140,7 +140,7 @@ final class BluetoothKeepAlive {
         pollTimer = timer
         timer.resume()
         guard KeepAliveSettings.isEnabled else {
-            overlayInfo("🚫 BT keep-alive poll started but the menu switch is off (turn it back on in the 💥 menu)")
+            overlayInfo("🚫 BT keep-alive poll started but the menu switch is off (turn it back on in the 🌟 menu)")
             return
         }
         overlayInfo("🔵 BT keep-alive started (continuous tone while default output is a Bluetooth '\(Self.nameMatch)' speaker, re-checked every \(Int(Self.interval))s)")
