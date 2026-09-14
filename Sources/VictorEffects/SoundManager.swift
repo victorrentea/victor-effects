@@ -19,6 +19,34 @@ class SoundManager {
     /// take the edge off, short enough that the room hears the new sound clean.
     static let interruptFade: TimeInterval = 0.2
 
+    /// Run `work` on the main thread — **inline when we are already on it.**
+    ///
+    /// Every stop below used to be a bare `DispatchQueue.main.async`, which is
+    /// correct for a caller arriving off-thread and a REORDERING BUG for one
+    /// that is already on the main thread: the block does not run when it is
+    /// asked for, it runs when the main thread next drains, which is after the
+    /// caller has finished everything else it came to do.
+    ///
+    /// That is what silenced the soundboard. `SoundboardPress.press` is
+    /// deliberately sequential — `/effect/stop-all`, then `/sound/play`, then
+    /// `/sound/pressed` — and it calls `EffectsRouter.dispatch` **directly on
+    /// the main thread**, with no socket in between. So the stop only *enqueued*
+    /// a fade, the play then installed the new `tabletPlayer` in the same turn,
+    /// and the deferred block woke up afterwards, found the tile's brand-new
+    /// sound in `tabletPlayer` and faded it out over `interruptFade`. A clip
+    /// that started and died 0.2 s later, every press, from the panel only —
+    /// the tablet's identical sequence arrives as three separate HTTP requests,
+    /// and the main queue drains between them, so the stop lands where it was
+    /// meant to and the bug never showed in the room.
+    ///
+    /// This is the same scar `SoundboardPress` already carries in its own note
+    /// ("firing stop-all and the paired effect from two threads lets the stop
+    /// land *after* the effect and wipe it") — the press was made sequential and
+    /// the sound manager was still free to defer.
+    static func onMain(_ work: @escaping () -> Void) {
+        if Thread.isMainThread { work() } else { DispatchQueue.main.async(execute: work) }
+    }
+
     /// Players that are mid-fade and no longer reachable from `players` /
     /// `tabletPlayer`. They live here purely so ARC does not deallocate them —
     /// a released AVAudioPlayer stops dead, which is the exact hard cut the fade
@@ -496,7 +524,7 @@ class SoundManager {
     /// `fade: 0` forces the old abrupt stop for a caller that truly needs silence
     /// on the instant.
     func stopTabletSound(fade: TimeInterval = SoundManager.interruptFade) {
-        DispatchQueue.main.async { [weak self] in
+        Self.onMain { [weak self] in
             guard let self else { return }
             if let player = self.tabletPlayer { self.fadeOutAndStop(player, over: fade) }
             self.tabletPlayer = nil
@@ -512,7 +540,7 @@ class SoundManager {
     /// Stop any overlapping instances of a given sound immediately (e.g. interrupt
     /// the break-timer gong when the user closes the watch mid-strike).
     func stopOverlapping(_ filename: String, fade: TimeInterval = 0) {
-        DispatchQueue.main.async { [weak self] in
+        Self.onMain { [weak self] in
             guard let self, let url = self.soundURL(for: filename) else { return }
             let matching = self.overlappingPlayers.filter { $0.url == url }
             // Dropped from the pool FIRST, then faded: `fadeOutAndStop` is what
@@ -531,7 +559,7 @@ class SoundManager {
     /// and other stacking clips ride the SEPARATE overlapping pool and are left
     /// alone (stop those by name via `stopOverlapping`).
     func stopAllPlayers(fade: TimeInterval = SoundManager.interruptFade) {
-        DispatchQueue.main.async { [weak self] in
+        Self.onMain { [weak self] in
             guard let self else { return }
             let all = Array(self.players.values)
             self.players.removeAll()

@@ -162,15 +162,29 @@ final class ThumbnailPanelPlacementTests: XCTestCase {
         XCTAssertEqual(hugged.height, 300)
     }
 
-    func testHugStaysCentredOnAFilledScreen() throws {
+    /// **This test used to assert that a filled screen hugs, centred.** Victor
+    /// asked on 14 Sep 2026 for the panel to BE the second screen; hugging it to
+    /// the grid was one of the two things leaving desktop visible around the
+    /// board (the other was `inset`). A panel with a screen to itself keeps
+    /// every point of it.
+    func testAPanelThatOwnsItsScreenIsNeverHugged() throws {
         let retinaScreen = screen("Color LCD", retina, primary: true, overlay: true)
         let asusScreen = screen("ASUS", asus)
         let p = try XCTUnwrap(ThumbnailPanelPlacement.choose(screens: [retinaScreen, asusScreen]))
         XCTAssertEqual(p.anchor, .centred)
-        let hugged = ThumbnailPanelPlacement.hug(p.frame, toContentHeight: 400, anchor: .centred)
-        XCTAssertEqual(hugged.midY, p.frame.midY, accuracy: 1)
-        XCTAssertEqual(hugged.height, 400)
-        XCTAssertEqual(hugged.width, p.frame.width)
+        XCTAssertEqual(ThumbnailPanelPlacement.hug(p.frame, toContentHeight: 400, anchor: .centred),
+                       p.frame)
+    }
+
+    func testTheSecondScreenIsCoveredEdgeToEdge() throws {
+        // Menu bar and Dock included: `fullFrame`, not `visibleFrame`.
+        let full = NSRect(x: 1728, y: 0, width: 1920, height: 1080)
+        let retinaScreen = screen("Color LCD", retina, primary: true, overlay: true)
+        let asusScreen = PanelScreen(name: "ASUS", visibleFrame: asus, fullFrame: full,
+                                     isPrimary: false, isOverlay: false)
+        let p = try XCTUnwrap(ThumbnailPanelPlacement.choose(screens: [retinaScreen, asusScreen]))
+        XCTAssertEqual(p.frame, full,
+                       "the board must cover the whole display it was given, with no desktop showing")
     }
 
     func testHugNeverGrowsTheFrame() {
@@ -178,7 +192,7 @@ final class ThumbnailPanelPlacementTests: XCTestCase {
         // every point it was given and must not be handed more.
         let frame = NSRect(x: 0, y: 0, width: 800, height: 400)
         XCTAssertEqual(ThumbnailPanelPlacement.hug(frame, toContentHeight: 900, anchor: .bottom), frame)
-        XCTAssertEqual(ThumbnailPanelPlacement.hug(frame, toContentHeight: 400, anchor: .centred), frame)
+        XCTAssertEqual(ThumbnailPanelPlacement.hug(frame, toContentHeight: 900, anchor: .centred), frame)
     }
 
     func testTheSlideIsFasterThanTheHoldThatAsksForIt() {

@@ -247,6 +247,8 @@ final class ThumbnailPanelController {
                                                        anchor: placement.anchor)
 
         shownPage = page
+        // A `.centred` placement is the one that was handed a whole display.
+        panel.setFillsScreen(placement.anchor == .centred)
         let offscreen = placement.screen.visibleFrame.maxX
         offscreenX = offscreen
         lastPlacement = placement
@@ -422,7 +424,20 @@ final class ThumbnailPanelController {
         return press.press(tile)
     }
 
-    /// Claims the four hook points the router left open for this work item.
+    /// `GET /test/thumbnail-panel/hover` — the live state of the hover mark on
+    /// whichever page is up. The panel must be showing: the mark is a layer, and
+    /// a layer on a window that is ordered out is not a thing anybody can check.
+    func hoverProbe(at point: NSPoint?) -> String {
+        guard let panel, panel.isVisible else {
+            return "{\"ok\":false,\"reason\":\"panel-not-visible\"}"
+        }
+        let body = shownPage == .effects
+            ? panel.grid.hoverProbeJSON(at: point)
+            : panel.videoGrid.hoverProbeJSON(at: point)
+        return "{\"ok\":true,\"probe\":\(body)}"
+    }
+
+    /// Claims the hook points the router left open for this work item.
     func claimRouterHooks() {
         router.onPanelShow = { [weak self] page in
             self?.showForTest(page: page) ?? "{\"ok\":false}"
@@ -430,6 +445,9 @@ final class ThumbnailPanelController {
         router.onPanelHide = { [weak self] in self?.hide() }
         router.onPanelPress = { [weak self] n, page in
             self?.pressTile(number: n, page: page) ?? "{\"ok\":false,\"reason\":\"no-panel\"}"
+        }
+        router.onPanelHover = { [weak self] point in
+            self?.hoverProbe(at: point) ?? "{\"ok\":false,\"reason\":\"no-panel\"}"
         }
         router.panelVisible = { [weak self] in self?.isVisible ?? false }
     }

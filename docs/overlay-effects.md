@@ -375,8 +375,13 @@ rule from the start.
   backdrop **used to be a flat 70% black wash**, which only dimmed the desktop
   and said nothing; the tile is a set that has lost its signal, so it now shows
   what such a set shows. The noise is **translucent** (`TvStatic.defaultAlpha`,
-  0.55) so whatever is being demoed still reads through it, and **animated at 16
-  fps** — 6 bitmaps rendered ONCE at a **quarter** of the screen's resolution
+  **0.40** — it was 0.55, dropped because the demo underneath has to stay
+  followable while the gag plays), **swells in over 1 s**
+  (`TvStatic.fadeInDuration`, `.easeInEaseOut` on `opacity`) rather than slamming
+  on, so the signal *degrades* into noise instead of the screen cutting to it —
+  the grain is already boiling underneath from frame one, what rises is only the
+  veil, and it is at full strength well before the tube starts closing — and is
+  **animated at 16 fps** — 6 bitmaps rendered ONCE at a **quarter** of the screen's resolution
   (binary black/white, not random greys, which average into a flat wash once
   translucent), cached per screen size, and cycled by a `CAKeyframeAnimation` on
   `contents` with `calculationMode = .discrete`. Nothing is generated while it is

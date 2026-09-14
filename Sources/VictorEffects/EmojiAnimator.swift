@@ -4023,7 +4023,9 @@ class EmojiAnimator {
         // has lost its signal, and static is what that looks like — a 70% black
         // rectangle just dimmed the desktop and said nothing. Translucent
         // (TvStatic.defaultAlpha) so what is being demoed still reads through it,
-        // and animated (see TvStatic) so it boils instead of sitting there.
+        // animated (see TvStatic) so it boils instead of sitting there, and faded
+        // in over TvStatic.fadeInDuration so the signal degrades into noise
+        // instead of the screen cutting to it.
         if let staticLayer = TvStatic.makeLayer(in: bounds) {
             container.addSublayer(staticLayer)
         }

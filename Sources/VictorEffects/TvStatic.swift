@@ -26,8 +26,16 @@ enum TvStatic {
     /// averages out into flat grey — 16 keeps it boiling and visibly random.
     static let fps: Double = 16
     /// Enough to read as a switched-off set, sheer enough to keep the desktop
-    /// legible underneath.
-    static let defaultAlpha: Float = 0.55
+    /// legible underneath. Deliberately on the sheer side of that trade: the
+    /// thing under the static is a live demo, and it has to stay followable
+    /// while the gag plays.
+    static let defaultAlpha: Float = 0.40
+    /// The static does not slam on — it swells in over this long, the way a set
+    /// losing its signal degrades into noise rather than cutting to it. Long
+    /// enough to read as a fade (under ~0.4s the eye just sees a hard cut), and
+    /// it runs concurrently with the game-over picture and the sound, so the
+    /// screen is at full grain well before the tube starts closing.
+    static let fadeInDuration: Double = 1.0
     /// The noise is rendered at 1/4 the screen's size and scaled back up. The
     /// chunkier pixel is the look, and it is 16× less memory and drawing.
     static let downscale: CGFloat = 4
@@ -64,10 +72,12 @@ enum TvStatic {
         return built
     }
 
-    /// A full-bounds layer showing looping static. Returns nil only if the noise
-    /// could not be rendered, which leaves the caller's backdrop simply absent
-    /// rather than crashing an effect mid-press.
-    static func makeLayer(in bounds: CGRect, alpha: Float = defaultAlpha) -> CALayer? {
+    /// A full-bounds layer showing looping static, swelling in over
+    /// `fadeIn` seconds. Returns nil only if the noise could not be rendered,
+    /// which leaves the caller's backdrop simply absent rather than crashing an
+    /// effect mid-press.
+    static func makeLayer(in bounds: CGRect, alpha: Float = defaultAlpha,
+                          fadeIn: Double = fadeInDuration) -> CALayer? {
         let images = frames(for: bounds.size)
         guard let first = images.first else { return nil }
 
@@ -78,6 +88,20 @@ enum TvStatic {
         layer.magnificationFilter = .nearest   // square pixels = static, not mush
         layer.minificationFilter = .nearest
         layer.opacity = alpha
+
+        // Swell in rather than appear. The grain is already boiling underneath
+        // (the flicker below starts at the same instant), so what rises is the
+        // veil, not the animation — the picture behind is eaten by noise instead
+        // of being replaced by it. `opacity` stays at `alpha`, so nothing has to
+        // be held past the animation and a removal mid-fade is still clean.
+        if fadeIn > 0 {
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0
+            fade.toValue = alpha
+            fade.duration = fadeIn
+            fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            layer.add(fade, forKey: "tvStaticFadeIn")
+        }
 
         guard images.count > 1 else { return layer }
         let flicker = CAKeyframeAnimation(keyPath: "contents")

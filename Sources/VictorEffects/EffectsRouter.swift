@@ -67,6 +67,9 @@ final class EffectsRouter {
         case panelShow(PanelPage)
         case panelHide
         case panelPress(Int, PanelPage)
+    /// `/test/thumbnail-panel/hover` — what the hover mark actually is right
+    /// now, optionally after resolving it at an explicit point.
+    case panelHover(NSPoint?)
         case state
         case configReload
         case unknown
@@ -153,6 +156,11 @@ final class EffectsRouter {
         case "/config/reload":      return .configReload
         case "/test/thumbnail-panel":       return .panelShow(page(q("page")))
         case "/test/thumbnail-panel/hide":  return .panelHide
+        case "/test/thumbnail-panel/hover":
+            if let xs = q("x"), let ys = q("y"), let x = Double(xs), let y = Double(ys) {
+                return .panelHover(NSPoint(x: x, y: y))
+            }
+            return .panelHover(nil)
         case "/effect/progress-bar/stop":   return .progressBarStop
         case "/effect/emoji":
             let count = Int(q("count") ?? "1") ?? 1
@@ -212,6 +220,7 @@ final class EffectsRouter {
     var onPanelShow: ((PanelPage) -> String)?
     var onPanelHide: (() -> Void)?
     var onPanelPress: ((Int, PanelPage) -> String)?
+    var onPanelHover: ((NSPoint?) -> String)?
     var panelMonitorActive: () -> Bool = { false }
     var panelVisible: () -> Bool = { false }
 
@@ -326,6 +335,10 @@ final class EffectsRouter {
         case .panelPress(let n, let page):
             guard let press = onPanelPress else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
             return .json(press(n, page))
+
+        case .panelHover(let point):
+            guard let hover = onPanelHover else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
+            return .json(hover(point))
 
         case .effectsAssets:
             // Sorted so the body is stable: a client caches it and only repaints

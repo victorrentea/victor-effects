@@ -101,7 +101,7 @@ final class ThumbnailPanel: NSPanel {
     /// Never key, never main — see the class note. Overridden rather than set,
     /// because `NSPanel` decides this by asking, not by reading a stored flag.
     ///
-    /// This is also why the arrow over the board is pinned from tracking areas
+    /// This is also why the hand over the board is pinned from tracking areas
     /// (`PanelCursor`) and NOT with `addCursorRect`/`invalidateCursorRects`:
     /// cursor *rects* are dispatched to the key window only, so on this panel
     /// they would never fire once and the cursor would keep being decided by the
@@ -114,8 +114,29 @@ final class ThumbnailPanel: NSPanel {
     /// The window is parked off to the right **at its final size** and only its
     /// origin is animated: the content view never resizes, so 91 tiles are laid
     /// out once instead of on every frame of the slide.
+    /// Square off the card's corners when the board covers a whole display.
+    ///
+    /// The 18 pt radius is what makes the panel read as a card floating over a
+    /// slide, which is right in the corner layout. On a screen the board owns
+    /// edge to edge there is nothing to float over, and the rounding costs
+    /// twice: four notches of desktop at the corners, and — because the same
+    /// layer must clip to draw the radius — the corner tiles' hover mark sliced
+    /// off against it.
+    func setFillsScreen(_ fills: Bool) {
+        contentView?.layer?.cornerRadius = fills ? 0 : 18
+        contentView?.layer?.masksToBounds = !fills
+    }
+
     func show(at frame: NSRect, slidingFrom offscreenX: CGFloat) {
         slideGeneration += 1
+
+        // Keep asking for the hand for as long as the board is up: the active
+        // application keeps taking the pointer's shape back. See `PanelCursor`.
+        PanelCursor.pointerIsOverBoard = { [weak self] in
+            guard let self, self.isVisible else { return false }
+            return self.frame.contains(NSEvent.mouseLocation)
+        }
+        PanelCursor.startPinning()
 
         setFrame(NSRect(x: offscreenX, y: frame.minY,
                         width: frame.width, height: frame.height), display: false)
@@ -194,6 +215,7 @@ final class ThumbnailPanel: NSPanel {
         // The board usually disappears while the mouse is still on it (the key
         // was released), and a window ordering out does not owe the view a
         // `mouseExited`. Without this the pointing hand outlives the panel.
+        PanelCursor.stopPinning()
         grid.releaseCursor()
         videoGrid.releaseCursor()
         // Same reason: no `mouseExited` arrives, and a tile left green here is
@@ -207,19 +229,20 @@ final class ThumbnailPanel: NSPanel {
         slideGeneration += 1
         orderOut(nil)
         alphaValue = 1
+        PanelCursor.stopPinning()
         grid.releaseCursor()
         videoGrid.releaseCursor()
         clearHover()
     }
 }
 
-/// The panel's own content view: dark rounded card, and the same arrow.
+/// The panel's own content view: dark rounded card, and the same hand.
 ///
 /// The grid fills it, so in practice the pointer is over `ThumbnailGridView`
 /// nearly always — but "nearly" is the gap the old behaviour lived in. The
 /// padding around the grid, the empty-manifest message, and the frames between
 /// the panel appearing and the grid laying out are all this view, and over every
-/// one of them the cursor must already be the arrow rather than borrow the shape
+/// one of them the cursor must already be the hand rather than borrow the shape
 /// of the window underneath.
 final class PanelContentView: NSView {
     override func updateTrackingAreas() {
@@ -234,7 +257,7 @@ final class PanelContentView: NSView {
     /// The panel never becomes key, so every click on it is a "first mouse".
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseEntered(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func mouseMoved(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func mouseEntered(with event: NSEvent) { PanelCursor.pinHand() }
+    override func mouseMoved(with event: NSEvent) { PanelCursor.pinHand() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
 }

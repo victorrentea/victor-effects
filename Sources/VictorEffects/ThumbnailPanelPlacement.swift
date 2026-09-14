@@ -10,11 +10,26 @@ import AppKit
 struct PanelScreen: Equatable {
     let name: String
     let visibleFrame: NSRect
+    /// The WHOLE display, menu bar and Dock included — what a panel that owns
+    /// the screen covers. `visibleFrame` is the polite area an ordinary window
+    /// gets; this panel is not an ordinary window.
+    let fullFrame: NSRect
     /// `NSScreen.screens[0]` — the one macOS calls main, with the menu bar.
     let isPrimary: Bool
     /// The screen the effects overlay covers (`Screens.overlayScreen()`), which
     /// on this rig is the built-in retina — the one mirrored to the room.
     let isOverlay: Bool
+
+    /// `fullFrame` defaults to `visibleFrame` so the corner layout's tests, which
+    /// only ever cared about the polite area, keep describing one rectangle.
+    init(name: String, visibleFrame: NSRect, fullFrame: NSRect? = nil,
+         isPrimary: Bool, isOverlay: Bool) {
+        self.name = name
+        self.visibleFrame = visibleFrame
+        self.fullFrame = fullFrame ?? visibleFrame
+        self.isPrimary = isPrimary
+        self.isOverlay = isOverlay
+    }
 }
 
 /// Where the thumbnail panel goes. Pure, so the four layouts that matter are
@@ -28,7 +43,12 @@ struct PanelScreen: Equatable {
 /// of the audience, which is the one place it must never be.
 enum ThumbnailPanelPlacement {
     /// Gap between the panel and the screen edges when it fills a screen.
-    static let inset: CGFloat = 24
+    ///
+    /// **Zero since 14 Sep 2026.** It was 24 pt of breathing room, and what
+    /// Victor saw on the second screen was a band of desktop down each side of
+    /// a board that is supposed to BE that screen while the key is held. When
+    /// the panel has a screen to itself there is nothing to breathe away from.
+    static let inset: CGFloat = 0
     /// Gap in the single-screen, bottom-right corner layout.
     static let margin: CGFloat = 16
     /// Fraction of a shared screen the panel takes, as a numerator over 3.
@@ -61,6 +81,12 @@ enum ThumbnailPanelPlacement {
     /// and wants every point it was given.
     static func hug(_ frame: NSRect, toContentHeight height: CGFloat,
                     anchor: VerticalAnchor) -> NSRect {
+        // A panel that owns its screen is never hugged: trimming it to the grid
+        // is the OTHER way the second screen ended up with desktop showing
+        // around the board. Hugging is for the corner layout, where the panel
+        // shares a screen and every point it does not need belongs to the slide
+        // behind it.
+        guard anchor != .centred else { return frame }
         let h = min(frame.height, max(0, height)).rounded(.down)
         guard h < frame.height else { return frame }
         let y: CGFloat
@@ -100,9 +126,12 @@ enum ThumbnailPanelPlacement {
         let nonPrimary = pool.filter { !$0.isPrimary }
         if !nonPrimary.isEmpty { pool = nonPrimary }
 
+        // The whole display, not the polite `visibleFrame`: with a screen to
+        // itself the panel covers the menu bar and the Dock too, which is what
+        // "full screen" means to the person holding the key down.
         let chosen = pick(from: pool, mouse: mouse)
         return Placement(screen: chosen,
-                         frame: chosen.visibleFrame.insetBy(dx: inset, dy: inset),
+                         frame: chosen.fullFrame.insetBy(dx: inset, dy: inset),
                          anchor: .centred)
     }
 
@@ -125,6 +154,7 @@ enum ThumbnailPanelPlacement {
         return NSScreen.screens.enumerated().map { index, screen in
             PanelScreen(name: screen.localizedName,
                         visibleFrame: screen.visibleFrame,
+                        fullFrame: screen.frame,
                         isPrimary: index == 0,
                         isOverlay: screen == overlay)
         }

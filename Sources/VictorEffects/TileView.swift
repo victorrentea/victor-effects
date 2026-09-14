@@ -154,6 +154,65 @@ final class TileView: NSView {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
     }
 
+    /// What the hover mark IS at this instant, reported by
+    /// `GET /test/thumbnail-panel/hover`.
+    ///
+    /// The geometry tests could all pass while the green stayed invisible on
+    /// screen — they assert the arithmetic of the outsets, not that
+    /// `gutterLayer` ever reaches the glass. This is the missing half: the live
+    /// opacity, the live frame, and whether anything above this layer is
+    /// clipping it away. A mark that is "on" with opacity 0, a zero frame, or a
+    /// clipping ancestor is a different bug each time, and from a shell they are
+    /// tellable apart.
+    struct HoverProbe {
+        let n: Int
+        let hovered: Bool
+        let opacity: Float
+        let gutter: NSRect
+        let cell: NSRect
+        let clipped: Bool
+        let clippers: [String]
+        let z: CGFloat
+
+        var json: String {
+            "{\"n\":\(n),\"hovered\":\(hovered),\"opacity\":\(opacity),"
+            + "\"gutter\":{\"x\":\(Int(gutter.minX)),\"y\":\(Int(gutter.minY)),"
+            + "\"w\":\(Int(gutter.width)),\"h\":\(Int(gutter.height))},"
+            + "\"cell\":{\"x\":\(Int(cell.minX)),\"y\":\(Int(cell.minY)),"
+            + "\"w\":\(Int(cell.width)),\"h\":\(Int(cell.height))},"
+            + "\"clipped\":\(clipped),\"clippers\":[\(clippers.map { "\"\($0)\"" }.joined(separator: ","))],\"z\":\(Int(z))}"
+        }
+    }
+
+    /// True when this view or any ancestor up to the window clips its sublayers,
+    /// which would swallow a mark painted outside the cell's own bounds.
+    static func clipsAnywhere(_ view: NSView) -> Bool { !clippers(view).isEmpty }
+
+    /// The ancestors (this view included) that clip their sublayers, named.
+    /// "Something clips" is not a diagnosis — a mark painted outside the cell
+    /// dies at the FIRST such view above it, and which one that is decides
+    /// whether the fix is a corner radius, a grid, or the panel's own card.
+    static func clippers(_ view: NSView) -> [String] {
+        var names: [String] = []
+        var v: NSView? = view
+        while let current = v {
+            if current.layer?.masksToBounds == true {
+                names.append(String(describing: type(of: current)))
+            }
+            v = current.superview
+        }
+        return names
+    }
+
+    var hoverProbe: HoverProbe {
+        HoverProbe(n: tile.n, hovered: isHovered,
+                   opacity: gutterLayer.opacity,
+                   gutter: gutterLayer.frame, cell: frame,
+                   clipped: Self.clipsAnywhere(self),
+                   clippers: Self.clippers(self),
+                   z: layer?.zPosition ?? 0)
+    }
+
     /// The desktop effect this tile's asset fires, or nil — **the catalogue's
     /// answer, in process**. The panel used to be the one surface that drew the
     /// board without the ⭐ the tablet has had for weeks: same grid, same
@@ -251,6 +310,19 @@ final class TileView: NSView {
             layer?.addSublayer(star)
             starLayer = star
         }
+
+        // **Last, and again in `layout()`.** `NSView.clipsToBounds` arrived in
+        // macOS 14 defaulting to TRUE and drives the backing layer's
+        // `masksToBounds`. Setting it early does nothing: `wantsLayer = true`
+        // only *promises* a layer, AppKit builds it lazily at the first
+        // `layer?` access, and the fresh layer arrives carrying the default —
+        // so the assignment has to come after the sublayers, once the layer
+        // exists. This is why the hover mark was invisible on both screens
+        // while `gutterLayer` sat at opacity 1 correctly sized: every tile was
+        // clipping the green ring away at its own edge. A comment saying
+        // "NOT masksToBounds" had been standing guard over it for weeks.
+        clipsToBounds = false
+        layer?.masksToBounds = false
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -259,6 +331,11 @@ final class TileView: NSView {
 
     override func layout() {
         super.layout()
+        // Re-asserted every layout: AppKit re-creates the backing layer on some
+        // display changes (a screen arriving, a scale change), and a re-created
+        // layer comes back clipping. See the note at the end of `init`.
+        clipsToBounds = false
+        layer?.masksToBounds = false
         let side = bounds.width
         // Layer geometry is set outside an animation: a resize would otherwise
         // slide every sublayer into place over a quarter second.
@@ -342,14 +419,14 @@ final class TileView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         setHovered(true)
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
     }
 
     override func mouseExited(with event: NSEvent) { setHovered(false) }
 
     /// AppKit asking "what is the cursor here?" — the one moment it is polite to
-    /// answer, and the answer is always the arrow. See `PanelCursor`.
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    /// answer, and the answer is always the pointing hand. See `PanelCursor`.
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
 
     /// **Not private, and not only called from `mouseEntered`.** A tracking area
     /// that appears UNDER a pointer which never moved is not entered, and the

@@ -294,7 +294,7 @@ enum RedButton {
 ///    in a square wastes 21 % of its own area on those corners, and the button is
 ///    half the screen high.
 ///  - **The cursor is the pointing hand**, where the thumbnail panel's
-///    `PanelCursor` pins the arrow. Same mechanism (a tracking area's
+///    `PanelCursor` pins its own shape. Same mechanism (a tracking area's
 ///    `cursorUpdate`, because a borderless non-activating panel does not own the
 ///    pointer's shape just by being on top), opposite answer: the board is a
 ///    surface, this is a button, and it has to *look* pressable before anyone
@@ -611,7 +611,7 @@ final class RedButtonController {
         // single `.set()` at the boundary survives exactly until the next mouse
         // event — which is why the hand used to flicker back to an I-beam or an
         // arrow while the pointer was sitting on the artwork. `PanelCursor` in
-        // `ThumbnailGridView` pins the arrow the same way, for the same reason.
+        // `ThumbnailGridView` pins its hand the same way, for the same reason.
         if inside { NSCursor.pointingHand.set() }
         guard inside != hovering else { return }
         hovering = inside

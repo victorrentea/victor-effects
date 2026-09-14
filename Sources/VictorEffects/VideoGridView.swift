@@ -203,7 +203,16 @@ final class VideoGridView: NSView {
 
     func clearHover() { hover(at: nil) }
 
-    // MARK: - The cursor is an arrow, and stays one
+    /// The hook's answer for this page — see `ThumbnailGridView.hoverProbeJSON`.
+    func hoverProbeJSON(at point: NSPoint?) -> String {
+        if let point { hover(at: point) } else { syncHoverToMouse() }
+        let marked = tileViews.filter { $0.hoverProbe.hovered }.map { $0.hoverProbe.json }
+        return "{\"page\":\"videos\",\"tiles\":\(tileViews.count),"
+            + "\"bounds\":{\"w\":\(Int(bounds.width)),\"h\":\(Int(bounds.height))},"
+            + "\"hovered\":[\(marked.joined(separator: ","))]}"
+    }
+
+    // MARK: - The cursor is a pointing hand, and stays one
 
     /// Same policy and the same reasons as `ThumbnailGridView` — see the note
     /// there. `.cursorUpdate` is what stops the window *underneath* the panel
@@ -220,14 +229,14 @@ final class VideoGridView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
         hover(at: convert(event.locationInWindow, from: nil))
     }
     override func mouseMoved(with event: NSEvent) {
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
         hover(at: convert(event.locationInWindow, from: nil))
     }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
     override func mouseExited(with event: NSEvent) {
         releaseCursor()
         clearHover()
@@ -304,6 +313,16 @@ final class VideoTileView: NSView {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
     }
 
+    /// The same live reading as `TileView.hoverProbe`, for the same hook.
+    var hoverProbe: TileView.HoverProbe {
+        TileView.HoverProbe(n: tile.n, hovered: isHovered,
+                            opacity: gutterLayer.opacity,
+                            gutter: gutterLayer.frame, cell: frame,
+                            clipped: TileView.clipsAnywhere(self),
+                            clippers: TileView.clippers(self),
+                            z: layer?.zPosition ?? 0)
+    }
+
     init(tile: VideoTile) {
         self.tile = tile
         super.init(frame: .zero)
@@ -355,12 +374,20 @@ final class VideoTileView: NSView {
         titleLayer.shadowOffset = CGSize(width: 2, height: -2)
         titleLayer.truncationMode = .end
         layer?.addSublayer(titleLayer)
+
+        // After the sublayers, so the backing layer exists — the same macOS 14
+        // `clipsToBounds` trap documented at the end of `TileView.init`.
+        clipsToBounds = false
+        layer?.masksToBounds = false
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func layout() {
         super.layout()
+        // See `TileView.layout()`: a re-created backing layer comes back clipping.
+        clipsToBounds = false
+        layer?.masksToBounds = false
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
@@ -409,11 +436,11 @@ final class VideoTileView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         setHovered(true)
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
     }
 
     override func mouseExited(with event: NSEvent) { setHovered(false) }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
 
     /// Callable by the grid, which resolves the hover from the pointer's
     /// position — see `TileView.setHovered`.

@@ -179,7 +179,19 @@ final class ThumbnailGridView: NSView {
     /// tile the pointer was on stays green and is still green on the next show.
     func clearHover() { hover(at: nil) }
 
-    // MARK: - The cursor is an arrow, and stays one
+    /// `GET /test/thumbnail-panel/hover[?x=&y=]` — resolve the hover (at a given
+    /// point in view coordinates, or against the real pointer) and report what
+    /// the mark actually became. The geometry unit tests cannot see a layer; this
+    /// can, from a shell, with nobody looking at the screen.
+    func hoverProbeJSON(at point: NSPoint?) -> String {
+        if let point { hover(at: point) } else { syncHoverToMouse() }
+        let marked = tileViews.filter { $0.hoverProbe.hovered }.map { $0.hoverProbe.json }
+        return "{\"page\":\"effects\",\"tiles\":\(tileViews.count),"
+            + "\"bounds\":{\"w\":\(Int(bounds.width)),\"h\":\(Int(bounds.height))},"
+            + "\"hovered\":[\(marked.joined(separator: ","))]}"
+    }
+
+    // MARK: - The cursor is a pointing hand, and stays one
 
     /// Every tile is clickable, so the cursor belongs to the grid and not to the
     /// tiles: with 6 pt of `gap` between them, a per-tile cursor would flick back
@@ -216,7 +228,7 @@ final class ThumbnailGridView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
         hover(at: convert(event.locationInWindow, from: nil))
     }
     /// Re-asserted on every move: the panel appearing *under* a stationary mouse
@@ -225,10 +237,10 @@ final class ThumbnailGridView: NSView {
     /// pointer's position on every move, which is the only reading that cannot
     /// go stale.
     override func mouseMoved(with event: NSEvent) {
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
         hover(at: convert(event.locationInWindow, from: nil))
     }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
     override func mouseExited(with event: NSEvent) {
         releaseCursor()
         clearHover()
@@ -237,10 +249,10 @@ final class ThumbnailGridView: NSView {
     /// Hand the cursor back to whoever is underneath. An imperative `set()`
     /// bypasses AppKit's own cursor restoration, so both ways out have to say so
     /// explicitly: leaving the grid, and the panel being ordered out from under a
-    /// cursor that then never gets a `mouseExited` at all. The arrow is also what
-    /// the panel itself shows now, so this no longer *changes* anything the eye
-    /// can see — it hands ownership back, and the window underneath reasserts its
-    /// own cursor on the next move.
+    /// cursor that then never gets a `mouseExited` at all. The arrow here is not
+    /// the board's shape — it is the neutral shape to leave behind now that the
+    /// board shows a hand; the window underneath reasserts its own on the next
+    /// move.
     func releaseCursor() { NSCursor.arrow.set() }
 
     private func showEmptyMessage() {
@@ -257,40 +269,90 @@ final class ThumbnailGridView: NSView {
     }
 }
 
-/// The panel's cursor policy, in one place: **over the board it is an arrow**.
+/// The panel's cursor policy, in one place: **over the board it is a pointing
+/// hand**.
 ///
 /// A borderless non-activating panel does not own the pointer's shape by being
 /// on top of the screen. The shape is decided by whoever answers the cursor
 /// question for the spot under the pointer, and with no answer from us that is
 /// the window UNDER the overlay — so the board used to show an I-beam over a
 /// terminal and a pointing hand over a browser link, a pointer reacting to a
-/// window the user cannot even see.
+/// window the user cannot even see. That part of the policy is unchanged: we
+/// must answer, every time, or somebody else does.
+///
+/// **The answer was the arrow until 14 Sep 2026, and Victor reversed it.** The
+/// old reasoning was that the board is one continuous surface, so a shape that
+/// changed as the pointer crossed it would be noise. The board it describes no
+/// longer exists: every cell is a button, the hover mark now lights the cell
+/// under the pointer, and a hand is what says "this thing is clickable" to a
+/// room watching over a shoulder. The shape no longer flickers *within* the
+/// board either — the hand is pinned by the grid and by the panel itself, not
+/// only by the tiles, so crossing a gap between two cells never drops it.
 enum PanelCursor {
-    /// True when the last `pinArrow()` found the arrow already in place, i.e.
+    /// The one shape the board shows. Named once so the pin, the release and
+    /// the test all mean the same cursor.
+    static var cursor: NSCursor { .pointingHand }
+
+    /// True when the last `pinHand()` found the hand already in place, i.e.
     /// nothing underneath had taken the cursor. Read by the test hook and
     /// reported by `/test/thumbnail-panel`, because this is the one fact about
     /// the cursor a headless check can actually observe.
-    private(set) static var lastFoundArrow = true
+    private(set) static var lastFoundHand = true
     /// How many times the pin had to CORRECT the cursor rather than confirm it.
     /// One or two is the panel opening under a pointer somebody else had shaped;
     /// a number that climbs while the mouse sits still is a fight.
     private(set) static var corrections = 0
 
+    /// Re-asserts the hand on a timer for as long as the board is up.
+    ///
+    /// **A `set()` from this app does not stick.** Victor Effects is an
+    /// accessory app and the panel deliberately never becomes key, so the
+    /// ACTIVE application still owns the pointer's shape: it re-asserts its own
+    /// cursor on its own schedule and ours is wiped between our events. That
+    /// went unnoticed for as long as the board's answer was `NSCursor.arrow`,
+    /// because losing the fight and the default look identical. Ask for a hand
+    /// and the loss is suddenly visible.
+    ///
+    /// Events alone cannot win it — `cursorUpdate` and `mouseMoved` only fire
+    /// when the pointer MOVES, and the pointer resting on a tile is the normal
+    /// case for a held key. So the pin repeats while the panel is visible and
+    /// the pointer is over it, and stops the moment it is not.
+    private static var pinTimer: Timer?
+    /// Set by the panel: is the pointer over the board at this instant?
+    static var pointerIsOverBoard: () -> Bool = { false }
+
+    static func startPinning() {
+        stopPinning()
+        // `.common` because the gesture that raises the board is a key being
+        // HELD, and a default-mode timer stops running during event tracking.
+        let timer = Timer(timeInterval: 0.05, repeats: true) { _ in
+            guard pointerIsOverBoard() else { return }
+            cursor.set()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pinTimer = timer
+    }
+
+    static func stopPinning() {
+        pinTimer?.invalidate()
+        pinTimer = nil
+    }
+
     /// Idempotent, and called on every move — so it logs the corrections, not
     /// the confirmations, or a single hover would fill the log.
-    static func pinArrow() {
-        let wasArrow = NSCursor.current == NSCursor.arrow
-        lastFoundArrow = wasArrow
-        if !wasArrow {
+    static func pinHand() {
+        let wasHand = NSCursor.current == cursor
+        lastFoundHand = wasHand
+        if !wasHand {
             corrections += 1
-            effectsInfo("panel cursor: found \(NSCursor.current) under the pointer, pinned the arrow (correction #\(corrections))")
+            effectsInfo("panel cursor: found \(NSCursor.current) under the pointer, pinned the hand (correction #\(corrections))")
         }
-        NSCursor.arrow.set()
+        cursor.set()
     }
 
     /// For tests: the counters are process-wide.
     static func resetForTesting() {
-        lastFoundArrow = true
+        lastFoundHand = true
         corrections = 0
     }
 }

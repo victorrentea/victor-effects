@@ -62,4 +62,29 @@ final class TvStaticTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(TvStatic.fps, 12)
         XCTAssertLessThanOrEqual(TvStatic.fps, 20)
     }
+
+    /// The veil swells in instead of slamming on, and it settles sheer enough
+    /// that the demo underneath is still followable. Both are one constant away
+    /// from silently regressing to a hard cut over an opaque wash.
+    func testStaticSwellsInAndSettlesSheer() throws {
+        let layer = try XCTUnwrap(TvStatic.makeLayer(in: screen))
+
+        let fade = try XCTUnwrap(layer.animation(forKey: "tvStaticFadeIn") as? CABasicAnimation)
+        XCTAssertEqual(fade.keyPath, "opacity")
+        XCTAssertEqual(fade.fromValue as? Float, 0)               // starts invisible
+        XCTAssertEqual(fade.toValue as? Float, TvStatic.defaultAlpha)
+        XCTAssertEqual(fade.duration, TvStatic.fadeInDuration, accuracy: 0.0001)
+        // Under ~0.4s the eye reads a cut, not a fade; past the game-over sound
+        // (~1.6s) the tube would start closing on a half-risen screen.
+        XCTAssertGreaterThanOrEqual(TvStatic.fadeInDuration, 0.4)
+        XCTAssertLessThanOrEqual(TvStatic.fadeInDuration, 1.5)
+        // Sheer: more than half the desktop's light still gets through.
+        XCTAssertLessThan(TvStatic.defaultAlpha, 0.5)
+
+        // fadeIn: 0 is the opt-out, for a caller that wants the static up on the
+        // very first frame.
+        let instant = try XCTUnwrap(TvStatic.makeLayer(in: screen, fadeIn: 0))
+        XCTAssertNil(instant.animation(forKey: "tvStaticFadeIn"))
+        XCTAssertEqual(instant.opacity, TvStatic.defaultAlpha)
+    }
 }

@@ -60,19 +60,102 @@ final class ThumbnailPanelCursorTests: XCTestCase {
             .joined(separator: "\n")
     }
 
+    // MARK: - The hover mark must actually reach the glass
+
+    /// **The bug the geometry tests could not see.** Every outset assertion
+    /// passed while the green was invisible on screen: `gutterLayer` was the
+    /// right size, at opacity 1, and then clipped away at the tile's own edge,
+    /// because `NSView.clipsToBounds` defaults to TRUE on macOS 14 and quietly
+    /// sets `masksToBounds` on the backing layer.
+    ///
+    /// The mark is painted OUTSIDE the cell by design, so a tile that clips is
+    /// a tile with no hover mark at all — on either screen, at every size.
+    func testATileNeverClipsItsOwnHoverMark() {
+        let tile = Tile(n: 1, asset: "x.mp3", image: "x.png", label: nil, restartable: false)
+        let view = TileView(tile: tile)
+        view.frame = NSRect(x: 0, y: 0, width: 120, height: 120)
+        view.layoutSubtreeIfNeeded()
+
+        XCTAssertFalse(
+            view.clipsToBounds,
+            """
+            TileView clips to its bounds, so the hover ring painted in the \
+            gutter around it is cut off and nothing lights up. macOS 14 \
+            defaults clipsToBounds to true — it must be set to false \
+            explicitly, and a comment saying "NOT masksToBounds" does not do it.
+            """
+        )
+        XCTAssertFalse(
+            TileView.clippers(view).contains("TileView"),
+            "TileView still clips its sublayers by some other route"
+        )
+    }
+
+    func testAVideoTileNeverClipsItsOwnHoverMark() {
+        let tile = VideoTile(n: 1, id: "v1", title: "t", startSeconds: 0, thumb: nil)
+        let view = VideoTileView(tile: tile)
+        view.frame = NSRect(x: 0, y: 0, width: 160, height: 90)
+        view.layoutSubtreeIfNeeded()
+        XCTAssertFalse(view.clipsToBounds, "VideoTileView clips its own hover ring away")
+    }
+
     // MARK: - The cursor
 
-    func testNothingOverThePanelAsksForAPointingHand() throws {
+    /// **This test used to assert the opposite.** Until 14 Sep 2026 the policy
+    /// was "no pointing hand anywhere on the board"; Victor reversed it, because
+    /// every cell is a button and the hand is what says so. The promise is kept
+    /// in the same place rather than deleted: exactly ONE file may name a
+    /// cursor shape for the board, so the policy cannot drift back a view at a
+    /// time.
+    func testOnlyPanelCursorChoosesTheBoardsShape() throws {
         for path in Self.panelSources {
+            let swift = try code(path)
+            guard !path.hasSuffix("ThumbnailGridView.swift") else { continue }
             XCTAssertFalse(
-                try code(path).contains("pointingHand"),
+                swift.contains("pointingHand"),
                 """
-                \(path) asks for a pointing hand. The board is one surface of 91 \
-                buttons and the pointer must not change shape anywhere on it — \
-                including into a hand. Pin NSCursor.arrow via PanelCursor.pinArrow().
+                \(path) names a cursor shape itself. The board's shape is \
+                PanelCursor's single decision — call PanelCursor.pinHand() and \
+                let it own which cursor that is.
                 """
             )
         }
+    }
+
+    /// The hand has to be RE-asserted, not set once. An accessory app whose
+    /// panel never becomes key loses the pointer's shape back to the active
+    /// application between events, and `cursorUpdate`/`mouseMoved` only fire
+    /// when the pointer moves — while a held key with a still mouse is the
+    /// normal way this board is used.
+    func testTheHandIsHeldForAsLongAsTheBoardIsUp() throws {
+        let cursorSource = try code("Sources/VictorEffects/ThumbnailGridView.swift")
+        XCTAssertTrue(cursorSource.contains("static func startPinning()"),
+                      "PanelCursor no longer re-asserts the cursor; a single set() does not stick")
+
+        let panel = try code("Sources/VictorEffects/ThumbnailPanel.swift")
+        XCTAssertTrue(panel.contains("PanelCursor.startPinning()"),
+                      "the panel shows the board without starting the cursor pin")
+        XCTAssertEqual(
+            panel.components(separatedBy: "PanelCursor.stopPinning()").count - 1, 2,
+            """
+            Every way the board leaves the screen must stop the pin — the slide \
+            out AND the instant hide. A timer still asking for a hand over a \
+            panel that is gone would fight whatever is underneath.
+            """
+        )
+    }
+
+    func testTheBoardShowsAPointingHand() throws {
+        let swift = try code("Sources/VictorEffects/ThumbnailGridView.swift")
+        XCTAssertTrue(
+            swift.contains("static var cursor: NSCursor { .pointingHand }"),
+            """
+            PanelCursor no longer pins the pointing hand. Every cell on the \
+            board is a button and Victor asked for the hand on 14 Sep 2026 — \
+            if this is being changed back, change the doc comment that explains \
+            the reversal too.
+            """
+        )
     }
 
     func testEveryViewUnderThePointerAnswersTheCursorQuestion() throws {
@@ -101,15 +184,15 @@ final class ThumbnailPanelCursorTests: XCTestCase {
                 "\(path) takes `.cursorUpdate` events and never implements cursorUpdate(with:)"
             )
             XCTAssertTrue(
-                swift.contains("PanelCursor.pinArrow()"),
-                "\(path) should pin the arrow through PanelCursor, so there is one cursor policy and one log"
+                swift.contains("PanelCursor.pinHand()"),
+                "\(path) should pin the cursor through PanelCursor, so there is one cursor policy and one log"
             )
         }
     }
 
     /// The tempting fix that cannot work here, nailed down so nobody spends an
     /// afternoon on it twice.
-    func testTheArrowIsNotPinnedWithCursorRects() throws {
+    func testTheCursorIsNotPinnedWithCursorRects() throws {
         for path in Self.panelSources {
             XCTAssertFalse(
                 try code(path).contains("addCursorRect"),
