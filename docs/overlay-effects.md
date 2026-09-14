@@ -876,8 +876,8 @@ rule from the start.
   place the choice is made**; `showHeartbeat` asks once and wires up whichever it is told.
 
   The cat is deliberately the dog's opposite. It **has no long neck**, so it does not
-  follow the cursor at all: `HeartbeatCatCorner` parks it in a **bottom corner** and there
-  it animates its GIF for as long as the heart beats. No poll, no timer, nothing to
+  follow the cursor at all: `HeartbeatCatCorner` places it once **on the floor of the
+  screen, beside the beat**, and there it animates its GIF for as long as the heart beats. No poll, no timer, nothing to
   cancel: it is a **sibling** of the capture layer (so the lub-dub never bulges it, the
   dog's reason) and a sublayer of the tracked `heartbeat` container, which means the
   container's own self-stop is its self-stop too.
@@ -885,21 +885,36 @@ rule from the start.
   Three numbers, all settled at the instant the effect starts and never revisited
   (Victor, 2026-09-11):
 
-  - **Which corner** — `onRight` gives the cat the half the mouse is *not* in, so it never
-    lands under the pointer and therefore never under the lens the beat is bulging. Read
-    off the same `anchor` the first lens centre uses, i.e. the cursor as it was before the
-    capture. In the right corner the layer is **mirrored about its own centre**
-    (`facing`), so it sits the same way relative to the corner it is in instead of facing
-    off the edge. The dog re-asks nothing either, but for the dog that was a fix; for a
-    cat that never moves there was never a question.
+  - **Which side** — `onRight` gives the cat the half the mouse is *not* in, so it leans
+    in from the roomy side rather than standing on the pointer. Read off the same `anchor`
+    the first lens centre uses, i.e. the cursor as it was before the capture. On the
+    beat's right the layer is **mirrored about its own centre** (`facing`), so it sits the
+    same way relative to the edge it came from instead of facing off it. The dog re-asks
+    nothing either, but for the dog that was a fix; for a cat that never moves there was
+    never a question.
+  - **How far along the floor** — until 2026-09-14 this was simply "flush to the far
+    corner", which on a wide screen parked the cat a screen away from the thing it is
+    supposed to be scared of. Now `originX` **slides it along the bottom toward the beat**
+    and stops when its near edge is `nearGap` from the cursor — `(lens radius + 18) × 0.7`,
+    the dog's own `clearMargin` / `closeness` borrowed whole so the two companions keep one
+    ratio to the lens and cannot drift apart. Under the radius on purpose: the ear leans
+    *into* the ring, where a `CIBumpDistortion` barely moves a pixel. **The frame wins
+    over the gap** — the cat never walks off the side of the screen, so with the beat near
+    the middle the (now doubled) cat cannot reach its gap and falls back to the corner,
+    overlapping the lens instead. That is the opposite bargain from the sink below: a tail
+    clipped by the floor reads as a cat in the room, a body clipped by the side edge reads
+    as half a cat.
   - **How big** — aspect-fit inside **half the width by half the height (a quarter of the
-    screen's area)**, then taken down by `scale` = **0.7**. The unscaled fit put a cat
-    690 pt wide in the corner and it read as the subject rather than as company for the
-    beat — `heartbeatDogScale`'s lesson, learned again one corner over. The asset's 1.40
-    aspect is squarer than the box on any wide screen, so **height** is what binds: on the
-    1728 × 1117 built-in panel the cat measures **549 × 391 at (0, −35)** (logged on every
-    run), and on the 1512 × 982 the heartbeat tests use as their fixture, ≈ 483 × 344. The
-    slack is spent away from its corner either way.
+    screen's area)**, then scaled by `scale` = **1.4**. It was 0.7 from 2026-09-11, when
+    the unscaled fit put a cat 690 pt wide in the corner and it read as the subject rather
+    than as company for the beat (`heartbeatDogScale`'s lesson, learned again one corner
+    over); **doubled on 2026-09-14** — the *linear* size, the unit every other "twice as
+    big" in this effect has used, see `HeartbeatBump.diameterFraction`. The result is past
+    the box it was fitted into, which is fine: the box is only the aspect reference. The
+    asset's 1.40 aspect is squarer than the box on any wide screen, so **height** is what
+    binds: on the 1728 × 1117 built-in panel the cat now measures **1098 × 782** (logged
+    on every run, with its slid x), and on the 1512 × 982 the heartbeat tests use as their
+    fixture, ≈ 966 × 687.
   - **How low** — sunk by `sinkFraction` = **9 % of its own height** below the floor of
     the screen. The GIF's tail sweeps the bottom of its own frame, and a cat sitting
     exactly on the edge reads as a sticker laid on the desktop; letting the tail run off
@@ -907,8 +922,8 @@ rule from the start.
     clamp back up — the opposite of the dog's hard "bottom edge never lifted off the
     floor" rule, which exists because the dog's photo is cropped at the chest.
 
-  The chosen corner and the resulting frame are logged on every run, so a screenshot is
-  never needed to tell which side it took.
+  The chosen side and the resulting frame are logged on every run, so a screenshot is
+  never needed to tell which side it took or how far in it tucked.
 
   **The asset is `scared_cat.gif` in `EffectsConfig.assetsDir`** — a downloaded GIF, so it
   is *not in this repo*, same rule as `brother_full.gif`. Drop it there or the cat's turn
