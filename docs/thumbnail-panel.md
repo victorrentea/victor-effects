@@ -249,11 +249,20 @@ on a layer, versus a redraw loop in a drawing method:
   star on one screen and not on the other;
 - **playing** = a red border whose opacity pulses, `playingBorderWidth` thick;
 - **hover** = the **gutter around the cell filled bright green** (`#39FF14`), and
-  **the picture does not move**. The mark reaches exactly one `gap` outwards
-  (`highlightGutter`), i.e. up to the neighbours' edges, so the whole black
-  channel around the tile lights up with no hairline left down the middle of it;
-  at the edges of the grid it eats 6 of the 10 pt of `padding`, which is the same
-  mark seen from outside. It is painted by `gutterLayer`, the FIRST sublayer, so
+  **the picture does not move**. The mark reaches one `gap` outwards
+  (`highlightGutter`) towards a neighbour, i.e. exactly to its edge, so the whole
+  black channel between two tiles lights up with no hairline left down the middle
+  of it — and **all the way to the rim of the board where there is no neighbour**
+  (`TileView.highlightOutsets`, per side, handed to each cell by the grid). The
+  uniform 6 pt was right between tiles and wrong on the perimeter: the space
+  outside column 0 is `padding` **plus** whatever the centring left over after the
+  cell was floored, so on a 1400 pt panel 8 pt of black survived beside an edge
+  sound tile and **42 pt** beside an edge video tile, whose widths are quantised
+  to multiples of 16. A hovered tile on the rim was the only one still sitting in
+  black on three sides out of four. A cell that merely has no neighbour in its own
+  **ragged last row** is not an edge cell and keeps the plain gap, or the last
+  tile of a short row would stretch to the rim while the full rows above it did
+  not. It is painted by `gutterLayer`, the FIRST sublayer, so
   the artwork always sits on top of it — a frame around the picture, never a wash
   over it. The tile is raised by `zPosition` while marked, because tiles are
   siblings and the later ones draw on top: without it the fill would be clipped
@@ -265,6 +274,28 @@ on a layer, versus a redraw loop in a drawing method:
   press feedback there is;
 - one decision makes both marks (`updateHighlight`), because releasing a press
   has to fall back to the hover the mouse is still inside rather than to nothing.
+
+**Which tile is hovered is resolved from the pointer's position, not only from
+`mouseEntered`.** The two answer different questions — "the pointer crossed into
+this tile" against "which tile is the pointer on" — and they differ exactly when
+the **board** moves and the mouse does not, which is the whole gesture: a panel
+sliding in, hugging to a new height, or flipping page under a held key delivers
+no enter at all, because a tracking area that appears under a stationary pointer
+is never entered. **This is why the highlight looked broken on a two-screen
+desk**: there the panel fills the second screen, so it lands under wherever the
+pointer already was; on one screen it takes the bottom-right corner, the pointer
+usually has to travel in, a real enter arrives and the bug hides. (The cursor had
+already been given this treatment — `PanelCursor` is re-asserted on `mouseMoved`
+for the same reason — and the hover simply never was.) So both grids carry
+`hover(at:)` (one point in, one tile lit) and `syncHoverToMouse()` (the same
+against `NSEvent.mouseLocation`, with no event in hand), and
+`ThumbnailPanel` calls it at the three moments the board moves: the slide-in
+completion, `resize(to:)` and `setPage(_:)`. `clearHover()` runs from
+`finishSlideOut` and `hideNow` for the mirror reason `releaseCursor()` does — a
+window ordering out owes its views no `mouseExited`, and a tile left green is
+still green on the next show, on a tile the mouse is not on.
+`testTheTileUnderAMouseThatNeverMovedIsStillHighlighted` and
+`testTheHoverFillLeavesNoBlackOnTheRimOfTheBoard` are the guards.
 
 What was here until 2026-09-12 was the opposite arrangement — a 5 pt white ring
 over a 7 pt dark rim, a 20 % wash, a 1.04 scale-up and a white glow, all *inside*
@@ -344,7 +375,7 @@ Mirrored from `MainActivity.renderVideoTiles`, not invented:
 | `#NN` | white bold at 10% of the tile | white bold at 10% of the **sound** tile |
 | label | optional word, centred | **the title**, centred across the picture, at 20% of the tile |
 | ⭐ | top-right when the asset animates the desktop | — (videos are not in the catalogue) |
-| hover / press | green / red fill of the surrounding gutter — the same mark on both pages, and neither moves the picture ||
+| hover / press | green / red fill of the surrounding gutter, out to the neighbours or to the rim of the board — the same mark on both pages, and neither moves the picture ||
 
 - **The badge is scaled off the soundboard tile, never off the video tile it is
   drawn on.** `TileNumberBadge` on the tablet says the same thing in the same

@@ -73,6 +73,16 @@ final class TileView: NSView {
     private var isHovered = false
     private var isPressed = false
 
+    /// Set by the grid, which is the only thing that knows whether this cell has
+    /// a neighbour on a given side or the rim of the board — see
+    /// `TileView.highlightOutsets`.
+    var highlightOutsets = NSEdgeInsets(top: TileView.highlightGutter,
+                                        left: TileView.highlightGutter,
+                                        bottom: TileView.highlightGutter,
+                                        right: TileView.highlightGutter) {
+        didSet { needsLayout = true }
+    }
+
     /// **The picture never moves.** Hover and press are painted in the BLACK
     /// GUTTER around the tile, not on the tile.
     ///
@@ -90,6 +100,33 @@ final class TileView: NSView {
     /// hairline left in the middle of it. (At the edges of the grid it eats 6 of
     /// the 10 pt of `padding`, which is the same mark seen from the outside.)
     static var highlightGutter: CGFloat { ThumbnailGridView.gap }
+
+    /// How far the fill reaches beyond the cell, **per side**.
+    ///
+    /// One gap towards a neighbour — that is the whole channel between the two
+    /// tiles, with no hairline left down the middle of it. But on the PERIMETER
+    /// of the grid there is no neighbour, and the space out there is not one gap
+    /// wide: it is `padding` plus whatever the centring left over after the cell
+    /// size was floored (page 1) or quantised to a multiple of 16 (page 2). On a
+    /// 1400 pt panel that is 8 pt of black beside an edge sound tile and **42 pt**
+    /// beside an edge video tile — a hovered tile on the rim of the board was the
+    /// only one still sitting in black on three sides out of four.
+    ///
+    /// So an edge cell's fill runs all the way to the grid view's own edge, which
+    /// is the panel's content view, which is the rounded dark card — there is
+    /// nothing left for it to leave black. A cell that merely has no neighbour
+    /// *in its own ragged last row* is NOT an edge cell and keeps the plain gap,
+    /// or the last tile of a short row would stretch to the rim while the tiles
+    /// above it did not.
+    static func highlightOutsets(cell: NSRect, in bounds: NSRect,
+                                 row: Int, col: Int, rows: Int, cols: Int) -> NSEdgeInsets {
+        let g = highlightGutter
+        return NSEdgeInsets(
+            top:    row == 0 ? max(g, bounds.maxY - cell.maxY) : g,
+            left:   col == 0 ? max(g, cell.minX - bounds.minX) : g,
+            bottom: row == rows - 1 ? max(g, cell.minY - bounds.minY) : g,
+            right:  col == cols - 1 ? max(g, bounds.maxX - cell.maxX) : g)
+    }
     /// Hover: bright, saturated green — nothing else on the board is this
     /// colour (the usage dots are a darker green, the star amber, the playing
     /// border red), so it cannot be read as a state the tile is *in*.
@@ -228,8 +265,12 @@ final class TileView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
-        // Outwards by one gap, into the gutter this cell owns.
-        gutterLayer.frame = bounds.insetBy(dx: -Self.highlightGutter, dy: -Self.highlightGutter)
+        // Outwards into the gutter this cell owns — one gap towards a
+        // neighbour, all the way to the board's rim where there is none.
+        gutterLayer.frame = NSRect(x: bounds.minX - highlightOutsets.left,
+                                   y: bounds.minY - highlightOutsets.bottom,
+                                   width: bounds.width + highlightOutsets.left + highlightOutsets.right,
+                                   height: bounds.height + highlightOutsets.bottom + highlightOutsets.top)
         borderLayer.frame = bounds
         let numberSize = max(9, side * 0.10)
         numberLayer.fontSize = numberSize
@@ -300,17 +341,22 @@ final class TileView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        setHover(true)
+        setHovered(true)
         PanelCursor.pinArrow()
     }
 
-    override func mouseExited(with event: NSEvent) { setHover(false) }
+    override func mouseExited(with event: NSEvent) { setHovered(false) }
 
     /// AppKit asking "what is the cursor here?" — the one moment it is polite to
     /// answer, and the answer is always the arrow. See `PanelCursor`.
     override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 
-    private func setHover(_ on: Bool) {
+    /// **Not private, and not only called from `mouseEntered`.** A tracking area
+    /// that appears UNDER a pointer which never moved is not entered, and the
+    /// panel appearing under a stationary mouse is the normal case for a hold
+    /// gesture — so the grid re-resolves the hover from the pointer's position
+    /// and says so here. See `ThumbnailGridView.syncHoverToMouse`.
+    func setHovered(_ on: Bool) {
         guard on != isHovered else { return }
         isHovered = on
         updateHighlight()

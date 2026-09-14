@@ -133,9 +133,51 @@ final class ThumbnailGridView: NSView {
             // Row 0 is the TOP row (the tablet's first row), and this view is
             // not flipped, so rows count down from the top of the grid.
             let y = originY + gridHeight - CGFloat(row + 1) * cell - CGFloat(row) * Self.gap
-            view.frame = NSRect(x: x, y: y, width: cell, height: cell)
+            let frame = NSRect(x: x, y: y, width: cell, height: cell)
+            // The grid is the only thing that knows where the rim is: the margin
+            // left of column 0 is `padding` PLUS whatever centring a floored
+            // cell left over, not one gap. Set before the frame so the tile's
+            // own `layout()` has it first time.
+            view.highlightOutsets = TileView.highlightOutsets(
+                cell: frame, in: bounds, row: row, col: col, rows: m.rows, cols: cols)
+            view.frame = frame
+        }
+        // The board has just been laid out under a pointer that may not have
+        // moved — re-resolve which tile it is on rather than wait for an enter
+        // that is not coming.
+        syncHoverToMouse()
+    }
+
+    // MARK: - Hover, resolved from where the pointer IS
+
+    /// Light the tile containing `point` and no other; `nil` lights none.
+    ///
+    /// Hover used to be `mouseEntered`/`mouseExited` on the tiles and nothing
+    /// else, which answers "the pointer crossed into this tile" — a different
+    /// question from "which tile is the pointer on". They differ exactly when
+    /// the BOARD moves instead of the mouse: a panel sliding in, hugging to a
+    /// new height, or flipping page under a held key delivers no enter at all.
+    /// On one screen the board takes the bottom-right two thirds, so the pointer
+    /// is usually outside it and has to travel in — the enter arrives and the
+    /// bug hides. On two screens the board FILLS the second screen, so it lands
+    /// under wherever the pointer already was and nothing ever lit up.
+    func hover(at point: NSPoint?) {
+        for view in tileViews {
+            view.setHovered(point.map { view.frame.contains($0) } ?? false)
         }
     }
+
+    /// Re-resolve the hover against the real pointer, with no event to hand.
+    /// Called after every move of the window the grid is in, and from `layout`.
+    func syncHoverToMouse() {
+        guard let window, window.isVisible, !isHidden else { hover(at: nil); return }
+        let local = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
+        hover(at: bounds.contains(local) ? local : nil)
+    }
+
+    /// A window ordering out owes its views no `mouseExited`, so without this the
+    /// tile the pointer was on stays green and is still green on the next show.
+    func clearHover() { hover(at: nil) }
 
     // MARK: - The cursor is an arrow, and stays one
 
@@ -173,13 +215,24 @@ final class ThumbnailGridView: NSView {
     /// as well as on `TileView` because the gaps between tiles are the grid.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseEntered(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func mouseEntered(with event: NSEvent) {
+        PanelCursor.pinArrow()
+        hover(at: convert(event.locationInWindow, from: nil))
+    }
     /// Re-asserted on every move: the panel appearing *under* a stationary mouse
     /// is the normal case for a hold gesture, and that delivers moves without an
-    /// enter.
-    override func mouseMoved(with event: NSEvent) { PanelCursor.pinArrow() }
+    /// enter. The hover rides along for the same reason — the grid sees the
+    /// pointer's position on every move, which is the only reading that cannot
+    /// go stale.
+    override func mouseMoved(with event: NSEvent) {
+        PanelCursor.pinArrow()
+        hover(at: convert(event.locationInWindow, from: nil))
+    }
     override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func mouseExited(with event: NSEvent) { releaseCursor() }
+    override func mouseExited(with event: NSEvent) {
+        releaseCursor()
+        clearHover()
+    }
 
     /// Hand the cursor back to whoever is underneath. An imperative `set()`
     /// bypasses AppKit's own cursor restoration, so both ways out have to say so

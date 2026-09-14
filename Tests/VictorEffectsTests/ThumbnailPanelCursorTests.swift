@@ -178,6 +178,97 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         XCTAssertGreaterThan(h.g - max(h.r, h.b), 0.5, "and unmistakably green")
     }
 
+    /// **No black is left around the tile under the pointer.**
+    ///
+    /// The fill reached one `gap` on all four sides, which is exactly right
+    /// between two tiles and wrong on the rim of the board: the margin outside
+    /// column 0 is `padding` plus whatever the centring left over after the cell
+    /// was floored (page 1) or quantised to a multiple of 16 (page 2) — 8 pt of
+    /// surviving black beside an edge sound tile on a 1400 pt panel, and 42 pt
+    /// beside an edge video tile. An edge cell's fill therefore runs to the grid
+    /// view's own edge, which is the panel's rounded card.
+    func testTheHoverFillLeavesNoBlackOnTheRimOfTheBoard() {
+        let bounds = NSRect(x: 0, y: 0, width: 400, height: 300)
+        // Top-left cell of a 3×3 grid whose centring left 20 pt over each way.
+        let corner = NSRect(x: 20, y: 200, width: 80, height: 80)
+        let o = TileView.highlightOutsets(cell: corner, in: bounds,
+                                          row: 0, col: 0, rows: 3, cols: 3)
+        XCTAssertEqual(corner.minX - o.left, bounds.minX, accuracy: 0.001,
+                       "the fill must reach the left edge of the board, not stop 6 pt out")
+        XCTAssertEqual(corner.maxY + o.top, bounds.maxY, accuracy: 0.001,
+                       "the fill must reach the top edge of the board")
+        // ...and towards a neighbour it is still exactly the gap, so the two
+        // tiles' marks meet with no hairline and no overlap.
+        XCTAssertEqual(o.right, ThumbnailGridView.gap, accuracy: 0.001)
+        XCTAssertEqual(o.bottom, ThumbnailGridView.gap, accuracy: 0.001)
+    }
+
+    /// An interior cell is unchanged — the mark is still one gap on every side,
+    /// which is the whole channel and no more.
+    func testAnInteriorCellStillReachesExactlyItsNeighbours() {
+        let bounds = NSRect(x: 0, y: 0, width: 400, height: 300)
+        let middle = NSRect(x: 106, y: 114, width: 80, height: 80)
+        let o = TileView.highlightOutsets(cell: middle, in: bounds,
+                                          row: 1, col: 1, rows: 3, cols: 3)
+        for side in [o.top, o.left, o.bottom, o.right] {
+            XCTAssertEqual(side, ThumbnailGridView.gap, accuracy: 0.001)
+        }
+    }
+
+    /// A ragged last row must not stretch its final tile to the rim while the
+    /// full rows above it stop at the gap: 18 videos, 5 to a row, leaves three
+    /// in row 3 and the one at column 2 has no neighbour but is not an edge.
+    func testARaggedLastRowDoesNotStretchToTheRim() {
+        let bounds = NSRect(x: 0, y: 0, width: 400, height: 300)
+        let cell = NSRect(x: 20, y: 20, width: 80, height: 45)
+        let o = TileView.highlightOutsets(cell: cell, in: bounds,
+                                          row: 3, col: 2, rows: 4, cols: 5)
+        XCTAssertEqual(o.right, ThumbnailGridView.gap, accuracy: 0.001,
+                       "a short last row keeps the plain gutter on its open side")
+        XCTAssertEqual(cell.minY - o.bottom, bounds.minY, accuracy: 0.001,
+                       "but it is the bottom row, so downwards it still reaches the rim")
+    }
+
+    /// Both grids must hand their cells the per-side reach — a grid that kept
+    /// the uniform inset would go back to framing its edge tiles in black, and
+    /// nothing in the compiler notices.
+    func testBothGridsGiveTheirEdgeCellsTheWiderReach() throws {
+        for path in ["Sources/VictorEffects/ThumbnailGridView.swift",
+                     "Sources/VictorEffects/VideoGridView.swift"] {
+            XCTAssertTrue(try code(path).contains("TileView.highlightOutsets"),
+                          "\(path) must measure each cell's reach to its neighbours or the rim")
+        }
+    }
+
+    /// **The tile under the pointer lights up even when the pointer never
+    /// moved.** Hover was `mouseEntered` and nothing else, which answers "the
+    /// pointer crossed into this tile" rather than "which tile is the pointer
+    /// on" — and those differ exactly when the board moves instead of the mouse.
+    /// A panel sliding in, hugging to a new height or flipping page under a held
+    /// key delivers no enter at all. On one screen the board takes the
+    /// bottom-right corner and the pointer usually travels in, so a real enter
+    /// hides the bug; on two screens it fills the second screen and lands under
+    /// wherever the pointer already was, and nothing ever lit up.
+    func testTheTileUnderAMouseThatNeverMovedIsStillHighlighted() throws {
+        for path in ["Sources/VictorEffects/ThumbnailGridView.swift",
+                     "Sources/VictorEffects/VideoGridView.swift"] {
+            let swift = try code(path)
+            XCTAssertTrue(swift.contains("func syncHoverToMouse"),
+                          "\(path) must be able to resolve the hover with no event in hand")
+            XCTAssertTrue(swift.contains("NSEvent.mouseLocation"),
+                          "\(path) must ask where the pointer actually is")
+            XCTAssertTrue(swift.contains("func hover(at point: NSPoint?)"),
+                          "\(path) must resolve the hover from a POINT, not only from enter/exit")
+        }
+        let panel = try code("Sources/VictorEffects/ThumbnailPanel.swift")
+        // The three moments the board moves and the mouse does not.
+        XCTAssertGreaterThanOrEqual(
+            panel.components(separatedBy: "syncHoverToMouse()").count - 1, 4,
+            "the panel must re-resolve the hover when it lands, when it resizes and when it flips page")
+        XCTAssertTrue(panel.contains("clearHover()"),
+                      "a panel ordered out owes its grids no mouseExited — the hover must be cleared")
+    }
+
     /// Both pages share one mark, because it is one pointer over one panel.
     func testTheVideoPageUsesTheSameHoverMark() throws {
         let swift = try code("Sources/VictorEffects/VideoGridView.swift")

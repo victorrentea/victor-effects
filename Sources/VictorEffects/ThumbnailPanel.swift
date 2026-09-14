@@ -75,6 +75,27 @@ final class ThumbnailPanel: NSPanel {
         visible.frame = contentView?.bounds ?? visible.frame
         visible.needsLayout = true
         visible.layoutSubtreeIfNeeded()
+        // The page changed under a key that is still held, i.e. under a pointer
+        // that has not moved. Nothing will send an enter; ask instead.
+        syncHoverToMouse()
+    }
+
+    /// Re-resolve which tile the pointer is on. **Every one of the three callers
+    /// is a moment when the BOARD moves and the mouse does not** — the slide
+    /// landing, the hug resizing, the page flipping — and a tracking area that
+    /// appears under a stationary pointer is never entered. This is why the
+    /// highlight looked broken on a two-screen desk in particular: there the
+    /// panel fills the second screen, so it lands under wherever the pointer
+    /// already was, while on one screen it takes the bottom-right corner and the
+    /// pointer usually has to travel in and trigger a real enter.
+    func syncHoverToMouse() {
+        grid.syncHoverToMouse()
+        videoGrid.syncHoverToMouse()
+    }
+
+    private func clearHover() {
+        grid.clearHover()
+        videoGrid.clearHover()
     }
 
     /// Never key, never main — see the class note. Overridden rather than set,
@@ -112,12 +133,16 @@ final class ThumbnailPanel: NSPanel {
         // refuses key status, by activating this app.
         orderFrontRegardless()
 
-        NSAnimationContext.runAnimationGroup { ctx in
+        NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = Self.slideInDuration
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             animator().setFrame(frame, display: true)
             animator().alphaValue = 1
-        }
+        }, completionHandler: { [weak self] in
+            // The board has landed, possibly right under a pointer that never
+            // moved — which is the whole gesture. Light the tile it is on.
+            self?.syncHoverToMouse()
+        })
     }
 
     /// Resize in place, un-animated: the page switch changes how tall the grid
@@ -129,6 +154,7 @@ final class ThumbnailPanel: NSPanel {
         visible.frame = contentView?.bounds ?? visible.frame
         visible.needsLayout = true
         visible.layoutSubtreeIfNeeded()
+        syncHoverToMouse()
     }
 
     /// Slide back out to `offscreenX` and then order out.
@@ -170,6 +196,9 @@ final class ThumbnailPanel: NSPanel {
         // `mouseExited`. Without this the pointing hand outlives the panel.
         grid.releaseCursor()
         videoGrid.releaseCursor()
+        // Same reason: no `mouseExited` arrives, and a tile left green here is
+        // still green on the next show, on whichever tile the mouse is not on.
+        clearHover()
     }
 
     /// Instant, un-animated. The panic path: the feature was switched off, or
@@ -180,6 +209,7 @@ final class ThumbnailPanel: NSPanel {
         alphaValue = 1
         grid.releaseCursor()
         videoGrid.releaseCursor()
+        clearHover()
     }
 }
 

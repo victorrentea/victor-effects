@@ -172,9 +172,36 @@ final class VideoGridView: NSView {
             // Row 0 is the TOP row (the tablet's first row); this view is not
             // flipped, so rows count down from the top of the grid.
             let y = originY + m.size.height - CGFloat(row + 1) * m.cellHeight - CGFloat(row) * Self.gap
-            view.frame = NSRect(x: x, y: y, width: m.cellWidth, height: m.cellHeight)
+            let frame = NSRect(x: x, y: y, width: m.cellWidth, height: m.cellHeight)
+            // Page 2 needs this more than page 1 does: cell widths here are
+            // quantised to multiples of 16, so the centring leaves tens of points
+            // of black beside the outer columns — 42 pt on a 1400 pt panel — and
+            // a 6 pt gutter covered almost none of it.
+            view.highlightOutsets = TileView.highlightOutsets(
+                cell: frame, in: bounds, row: row, col: col, rows: m.rows, cols: cols)
+            view.frame = frame
+        }
+        syncHoverToMouse()
+    }
+
+    // MARK: - Hover, resolved from where the pointer IS
+
+    /// The same rule as page 1 and for the same reason — see
+    /// `ThumbnailGridView.hover(at:)`. It is one pointer over one panel, and the
+    /// board landing under a mouse that never moved is the normal case.
+    func hover(at point: NSPoint?) {
+        for view in tileViews {
+            view.setHovered(point.map { view.frame.contains($0) } ?? false)
         }
     }
+
+    func syncHoverToMouse() {
+        guard let window, window.isVisible, !isHidden else { hover(at: nil); return }
+        let local = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
+        hover(at: bounds.contains(local) ? local : nil)
+    }
+
+    func clearHover() { hover(at: nil) }
 
     // MARK: - The cursor is an arrow, and stays one
 
@@ -192,10 +219,19 @@ final class VideoGridView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseEntered(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func mouseMoved(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func mouseEntered(with event: NSEvent) {
+        PanelCursor.pinArrow()
+        hover(at: convert(event.locationInWindow, from: nil))
+    }
+    override func mouseMoved(with event: NSEvent) {
+        PanelCursor.pinArrow()
+        hover(at: convert(event.locationInWindow, from: nil))
+    }
     override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func mouseExited(with event: NSEvent) { releaseCursor() }
+    override func mouseExited(with event: NSEvent) {
+        releaseCursor()
+        clearHover()
+    }
 
     func releaseCursor() { NSCursor.arrow.set() }
 
@@ -237,6 +273,15 @@ final class VideoTileView: NSView {
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
     private var isPressed = false
+
+    /// Per-side reach of the hover/press fill, handed down by the grid — see
+    /// `TileView.highlightOutsets`.
+    var highlightOutsets = NSEdgeInsets(top: TileView.highlightGutter,
+                                        left: TileView.highlightGutter,
+                                        bottom: TileView.highlightGutter,
+                                        right: TileView.highlightGutter) {
+        didSet { needsLayout = true }
+    }
 
     /// The soundboard tile width, handed down by the grid — see
     /// `VideoGridView.badgeUnit`.
@@ -319,7 +364,10 @@ final class VideoTileView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer.frame = bounds
-        gutterLayer.frame = bounds.insetBy(dx: -TileView.highlightGutter, dy: -TileView.highlightGutter)
+        gutterLayer.frame = NSRect(x: bounds.minX - highlightOutsets.left,
+                                   y: bounds.minY - highlightOutsets.bottom,
+                                   width: bounds.width + highlightOutsets.left + highlightOutsets.right,
+                                   height: bounds.height + highlightOutsets.bottom + highlightOutsets.top)
         borderLayer.frame = bounds
         let scale = window?.backingScaleFactor ?? 2
 
@@ -360,14 +408,16 @@ final class VideoTileView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        setHover(true)
+        setHovered(true)
         PanelCursor.pinArrow()
     }
 
-    override func mouseExited(with event: NSEvent) { setHover(false) }
+    override func mouseExited(with event: NSEvent) { setHovered(false) }
     override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
 
-    private func setHover(_ on: Bool) {
+    /// Callable by the grid, which resolves the hover from the pointer's
+    /// position — see `TileView.setHovered`.
+    func setHovered(_ on: Bool) {
         guard on != isHovered else { return }
         isHovered = on
         updateHighlight()
