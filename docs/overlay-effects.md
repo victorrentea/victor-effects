@@ -875,52 +875,56 @@ rule from the start.
   restart beginning again at the dog is the correct cold start, not a bug. It is **the one
   place the choice is made**; `showHeartbeat` asks once and wires up whichever it is told.
 
-  The cat is deliberately the dog's opposite. It **has no long neck**, so it does not
-  follow the cursor at all: `HeartbeatCatCorner` places it once **on the floor of the
-  screen, beside the beat**, and there it animates its GIF for as long as the heart beats. No poll, no timer, nothing to
-  cancel: it is a **sibling** of the capture layer (so the lub-dub never bulges it, the
-  dog's reason) and a sublayer of the tracked `heartbeat` container, which means the
-  container's own self-stop is its self-stop too.
-
-  Three numbers, all settled at the instant the effect starts and never revisited
-  (Victor, 2026-09-11):
+  The cat began (2026-09-11) as the dog's opposite: it **has no long neck**, so it did not
+  follow anything — parked in the far bottom corner for the whole beat. That lasted until
+  2026-09-14, when Victor asked for it to **translate the way the dog does** and to keep a
+  **similar distance to the beat**. The file is now `HeartbeatCatFollow` and the cat polls
+  the mouse on the dog's own timer (`watchHeartbeatCat`, 50 ms, 0.16 s eased slide,
+  `HeartbeatDogFollow.minStep`). What is left of "no long neck": the cat never rides up to
+  the cursor's height, it stays flat on the floor and only walks sideways. It is a
+  **sibling** of the capture layer (so the lub-dub never bulges it, the dog's reason) and a
+  sublayer of the tracked `heartbeat` container, which means the container's own self-stop
+  is its self-stop too — and the timer stops itself as soon as that container is no longer
+  the active heartbeat.
 
   - **Which side** — `onRight` gives the cat the half the mouse is *not* in, so it leans
     in from the roomy side rather than standing on the pointer. Read off the same `anchor`
-    the first lens centre uses, i.e. the cursor as it was before the capture. On the
-    beat's right the layer is **mirrored about its own centre** (`facing`), so it sits the
-    same way relative to the edge it came from instead of facing off it. The dog re-asks
-    nothing either, but for the dog that was a fix; for a cat that never moves there was
-    never a question.
-  - **How far along the floor** — until 2026-09-14 this was simply "flush to the far
-    corner", which on a wide screen parked the cat a screen away from the thing it is
-    supposed to be scared of. Now `originX` **slides it along the bottom toward the beat**
-    and stops when its near edge is `nearGap` from the cursor — `(lens radius + 18) × 0.7`,
-    the dog's own `clearMargin` / `closeness` borrowed whole so the two companions keep one
-    ratio to the lens and cannot drift apart. Under the radius on purpose: the ear leans
-    *into* the ring, where a `CIBumpDistortion` barely moves a pixel. **The frame wins
-    over the gap** — the cat never walks off the side of the screen, so with the beat near
-    the middle the (now doubled) cat cannot reach its gap and falls back to the corner,
-    overlapping the lens instead. That is the opposite bargain from the sink below: a tail
-    clipped by the floor reads as a cat in the room, a body clipped by the side edge reads
-    as half a cat.
+    the first lens centre uses, i.e. the cursor as it was before the capture, so the cat is
+    already in place before its first frame. On the beat's right the layer is **mirrored
+    about its own centre** (`facing`). Decided **once** and then kept — `makeLayer` hands
+    the side to the watcher rather than letting it ask again, because the mirror is baked
+    into the layer: a mid-effect switch would be a cat flipping *and* teleporting across
+    the beat in one frame, the dog's 2026-09-09 glitch exactly.
+  - **How far from the beat** — the cat's near **top corner** stands on the dog's own
+    circle: `nearGap` = `(lens radius + clearMargin) × closeness` = `(r + 18) × 0.7`, read
+    off `HeartbeatDogFollow` rather than copied, so "a similar distance" stays similar
+    instead of drifting. Under the lens radius on purpose — the corner leans *into* the
+    ring, where a `CIBumpDistortion` barely moves a pixel. And the dog's trade comes with
+    it: **standing below the beat already pays part of the clearance**, so a beat high on
+    the screen lets the cat walk in almost directly underneath it, while a beat down near
+    the floor pushes it out to the full gap. Where the two part company is the failure
+    case — the dog may hang its rump off the screen rather than give up the distance, the
+    cat may not: **the frame wins**, and a beat close to the cat's own edge simply parks it
+    flush in the corner it used to live in.
   - **How big** — aspect-fit inside **half the width by half the height (a quarter of the
-    screen's area)**, then scaled by `scale` = **1.4**. It was 0.7 from 2026-09-11, when
-    the unscaled fit put a cat 690 pt wide in the corner and it read as the subject rather
-    than as company for the beat (`heartbeatDogScale`'s lesson, learned again one corner
-    over); **doubled on 2026-09-14** — the *linear* size, the unit every other "twice as
-    big" in this effect has used, see `HeartbeatBump.diameterFraction`. The result is past
-    the box it was fitted into, which is fine: the box is only the aspect reference. The
-    asset's 1.40 aspect is squarer than the box on any wide screen, so **height** is what
-    binds: on the 1728 × 1117 built-in panel the cat now measures **1098 × 782** (logged
-    on every run, with its slid x), and on the 1512 × 982 the heartbeat tests use as their
-    fixture, ≈ 966 × 687.
+    screen's area)**, then taken down by `scale` = **0.7**. The unscaled fit put a cat
+    690 pt wide in the corner and it read as the subject rather than as company for the
+    beat — `heartbeatDogScale`'s lesson, learned again one corner over. It spent a few
+    minutes at **1.4** on 2026-09-14 ("de două ori mai mare") and came straight back ("și
+    să fie totuși 2x mai mică"): at 1.4 the cat is 1098 pt wide on the built-in panel and
+    cannot both stay on screen and stay off the lens. **The follow is what the size was
+    really buying** — a cat that walks over to the beat does not need to be huge to be near
+    it. The asset's 1.40 aspect is squarer than the box on any wide screen, so **height**
+    is what binds: on the 1728 × 1117 built-in panel the cat measures **549 × 391** (logged
+    on every run with its starting x), and on the 1512 × 982 the heartbeat tests use as
+    their fixture, ≈ 483 × 344.
   - **How low** — sunk by `sinkFraction` = **9 % of its own height** below the floor of
-    the screen. The GIF's tail sweeps the bottom of its own frame, and a cat sitting
-    exactly on the edge reads as a sticker laid on the desktop; letting the tail run off
-    the edge puts it *in* the room. **The clipping is the effect**, not a placement to
-    clamp back up — the opposite of the dog's hard "bottom edge never lifted off the
-    floor" rule, which exists because the dog's photo is cropped at the chest.
+    the screen, and never anything else: the beat's height moves the cat sideways, never
+    up. The GIF's tail sweeps the bottom of its own frame, and a cat sitting exactly on the
+    edge reads as a sticker laid on the desktop; letting the tail run off the edge puts it
+    *in* the room. **The clipping is the effect**, not a placement to clamp back up — the
+    opposite of the dog's hard "bottom edge never lifted off the floor" rule, which exists
+    because the dog's photo is cropped at the chest.
 
   The chosen side and the resulting frame are logged on every run, so a screenshot is
   never needed to tell which side it took or how far in it tucked.

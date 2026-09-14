@@ -5013,23 +5013,30 @@ class EmojiAnimator {
                 // filters apply to a layer *and its sublayers*), so the screen
                 // bulges under the cursor while the dog beside it stays undistorted.
                 // 🐶/🐱 The companion alternates run to run — the choice itself
-                // lives in `HeartbeatCompanion`, this is only the wiring. The cat
-                // sits still in the bottom-left corner (no follow timer); the dog
-                // is the one that trots after the beat. A cat asked for but
-                // missing from assetsDir falls back to the dog.
-                var companion: CALayer?
+                // lives in `HeartbeatCompanion`, this is only the wiring. Both
+                // animals now follow the beat (Victor, 2026-09-14: the cat
+                // translates the way the dog does); they differ in what they
+                // track — the dog's face rides at the cursor's height, the cat
+                // stays flat on the floor. A cat asked for but missing from
+                // assetsDir falls back to the dog.
+                var companion: (layer: CALayer, onRight: Bool)?
                 if HeartbeatCompanion.next() == .cat {
                     // `anchor` is the cursor as it was when the effect started,
                     // before the capture — which is exactly the "decide once at
-                    // start" the cat's corner wants.
-                    companion = HeartbeatCatCorner.makeLayer(bounds: bounds,
-                                                             cursorX: anchor.x * bounds.width)
+                    // start" the cat's side wants, and it puts the cat in the
+                    // right place before its first frame instead of sliding it in
+                    // from somewhere nobody saw.
+                    companion = HeartbeatCatFollow.makeLayer(
+                        bounds: bounds,
+                        cursor: CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height))
                     if companion == nil {
-                        overlayInfo("💓 \(HeartbeatCatCorner.assetName) not in \(EffectsConfig.shared.assetsDir.path) — falling back to the 🐶")
+                        overlayInfo("💓 \(HeartbeatCatFollow.assetName) not in \(EffectsConfig.shared.assetsDir.path) — falling back to the 🐶")
                     }
                 }
                 if let cat = companion {
-                    container.addSublayer(cat)
+                    container.addSublayer(cat.layer)
+                    self.watchHeartbeatCat(cat.layer, onRight: cat.onRight, effect: container,
+                                           bounds: bounds, until: clock0 + totalDuration)
                 } else if let dog = Self.makeHeartbeatDogLayer(bounds: bounds) {
                     overlayInfo("💓 companion: 🐶 following dog")
                     container.addSublayer(dog)
@@ -5315,6 +5322,68 @@ class EmojiAnimator {
                        repeating: Self.heartbeatDogPollInterval)
         timer.setEventHandler {
             if !advance(true) { timer.cancel() }
+        }
+        timer.resume()
+    }
+
+    /// 🐱 The cat walks after the beat, on the same timer and the same eased
+    /// slide as the dog (Victor, 2026-09-14: "să se translateze cum se
+    /// translatează câinele"). Until that ask the cat was placed once and never
+    /// touched again — `HeartbeatCatFollow` carries the history of why.
+    ///
+    /// Two things it does NOT copy from `watchHeartbeatDog`, both because the
+    /// cat's placement is simpler than the dog's:
+    ///
+    /// - **No first-poll placement.** `makeLayer` already put the cat beside the
+    ///   beat from the same `anchor` the first lens centre uses, so the layer is
+    ///   correct before its first frame and this timer only has to keep it there.
+    /// - **No side vote.** The side came with the layer — it is baked into the
+    ///   mirror (`HeartbeatCatFollow.facing`), so re-deciding it here would flip
+    ///   the cat and teleport it across the beat in one frame, which is the very
+    ///   glitch the dog stopped doing on 2026-09-09.
+    ///
+    /// Only x actually moves: the cat is pinned to the floor, so
+    /// `HeartbeatCatFollow.position` returns the same y every time. The timer
+    /// stops itself the moment this is no longer the active heartbeat, so a
+    /// stop-all — or the next press — never leaves it polling.
+    private func watchHeartbeatCat(_ cat: CALayer, onRight: Bool, effect: CALayer,
+                                   bounds: CGRect, until deadline: CFTimeInterval) {
+        let size = cat.bounds.size
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+
+        // Returns false once this effect is over — the timer's cue to stop.
+        let advance: () -> Bool = { [weak self, weak cat, weak effect] in
+            guard let self = self, let cat = cat, let effect = effect,
+                  self.activeEffects["heartbeat"] === effect,
+                  CACurrentMediaTime() < deadline else { return false }
+            let rel = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+                                       panelOrigin: self.hostLayer.bounds.origin,
+                                       hostLayer: self.hostLayer)
+            let cursor = CGPoint(x: rel.x * bounds.width, y: rel.y * bounds.height)
+            let to = HeartbeatCatFollow.position(size: size, in: bounds,
+                                                 onRight: onRight, cursor: cursor)
+            let from = cat.presentation()?.position ?? cat.position
+            let dx = to.x - from.x, dy = to.y - from.y
+            guard (dx * dx + dy * dy).squareRoot() >= HeartbeatDogFollow.minStep else { return true }
+
+            let slide = CABasicAnimation(keyPath: "position")
+            slide.fromValue = NSValue(point: NSPoint(x: from.x, y: from.y))
+            slide.toValue = NSValue(point: NSPoint(x: to.x, y: to.y))
+            slide.duration = Self.heartbeatDogFollowDuration
+            slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)   // set the model value, no implicit slide
+            cat.position = to
+            CATransaction.commit()
+            cat.add(slide, forKey: "catWalk")
+            return true
+        }
+
+        timer.schedule(deadline: .now() + Self.heartbeatDogPollInterval,
+                       repeating: Self.heartbeatDogPollInterval)
+        timer.setEventHandler {
+            if !advance() { timer.cancel() }
         }
         timer.resume()
     }

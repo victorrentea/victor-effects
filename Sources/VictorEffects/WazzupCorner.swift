@@ -4,7 +4,7 @@ import QuartzCore
 /// 👅 Pure geometry for the Ghostface mask that leans into the **bottom-left
 /// corner** while tile 69 ("wazzup") plays.
 ///
-/// Same bargain as `HeartbeatCatCorner`: every decision is a function of the
+/// Same bargain as `HeartbeatCatFollow`: every decision is a function of the
 /// overlay bounds and the image's own aspect, so it can be tested without a
 /// screen. Unlike the cat, the corner is **fixed** — the mask is cut out facing
 /// right-ish (it was mirrored on the way into `assetsDir`, see `assetName`), so
