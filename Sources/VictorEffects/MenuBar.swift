@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// The 🌟 status item. Deliberately tiny compared to the addons menu it was cut
+/// The ⭐ status item. Deliberately tiny compared to the addons menu it was cut
 /// from, and smaller again since the panel arrived: a 39-row ⭐️ Effects submenu
 /// was a menu of words for a board of pictures, so what is left is the two
 /// features that need a no-Accessibility fallback (the panel, one row per page,
@@ -17,7 +17,7 @@ import Foundation
 /// crooked (2026-09-14).
 ///
 /// The panic row went the same way, but *upwards* rather than out: stop-all is
-/// now **the icon itself**. While anything is running the 🌟 turns 🛑 and a
+/// now **the icon itself**. While anything is running the ⭐ turns 🛑 and a
 /// left click stops everything, which is one gesture instead of two (click,
 /// aim, click) at the exact moment nobody wants to aim — the effect is on the
 /// screen the room is watching. A menu row that is only ever wanted while the
@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 14, 22:33"
+    static let BUILD_TIME = "Sep 15, 01:15"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -63,9 +63,9 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// click here stops it" — including an armed 🔥 whip, which is a *mode* and
     /// stays up until it is dismissed, so the bar sits on 🛑 for as long as the
     /// whip is out. That is the honest answer: a click there does take it down.
-    /// 🌟 means "nothing is running, a click opens the menu". Nothing else is
+    /// ⭐ means "nothing is running, a click opens the menu". Nothing else is
     /// ever drawn there.
-    private static let idleIcon = "🌟"
+    private static let idleIcon = "⭐"
     private static let busyIcon = "🛑"
 
     /// Which of the two faces is currently drawn. **Display only** — the click
@@ -160,7 +160,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// **The rows of that table are chosen by `isBusy()`, asked right here, at
     /// click time — NOT by which icon happens to be drawn.** They disagree for
     /// up to `busyPollInterval`, and that window is precisely the one that
-    /// matters: an effect starts, the bar still shows 🌟 for a third of a
+    /// matters: an effect starts, the bar still shows ⭐ for a third of a
     /// second, and a hand that is already moving lands in it. Reading the drawn
     /// icon would answer that click by *opening a menu* over a demo that has
     /// just gone wrong in front of a room. This is an emergency stop, and an
@@ -222,7 +222,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
     private var openingMenu = false
 
-    // MARK: the 🌟 / 🛑 icon
+    // MARK: the ⭐ / 🛑 icon
 
     private func startBusyPolling() {
         busyTimer?.invalidate()
@@ -575,7 +575,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
 
     /// An emoji rendered into a status-item-sized image. A plain `button.title`
     /// works too but sits on a different baseline than every icon-based item in
-    /// the bar, so 🌟 ends up visibly lower than its neighbours.
+    /// the bar, so ⭐ ends up visibly lower than its neighbours.
     static func emojiIcon(_ emoji: String, pt: CGFloat) -> NSImage? {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size)

@@ -84,7 +84,7 @@ this one only routes.
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
-- **The 🌟 menu is not a second surface.** Five rows: `✨ Effects` (Right ⌘),
+- **The ⭐ menu is not a second surface.** Five rows: `✨ Effects` (Right ⌘),
   `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✅ Keep Speaker Awake` (the Bluetooth
   keep-alive's switch — `docs/sound-routing.md`) and ⏻ Quit with the build stamp
   — plus ⚠️ Accessibility while that grant is missing. **No row carries a
@@ -96,7 +96,7 @@ this one only routes.
   is an SF Symbol *image*, 21 pt, the way addons does it) so the words line up
   on the left the way the gestures line up on the right. **Stop-all is the icon
   itself** since 2026-09-13, and it is an EMERGENCY stop: while anything is
-  running the 🌟 turns 🛑 and a plain click stops everything (layered effects,
+  running the ⭐ turns 🛑 and a plain click stops everything (layered effects,
   sound, progress bar and an armed 🔥 whip, in one `stopAll()`), right-click (or
   ⌃-click) opens the menu in either state. The click decides on a **live** read
   of `EffectsEngine.isAnythingRunning`, never on the drawn icon — the icon

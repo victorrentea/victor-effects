@@ -21,7 +21,7 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A 🌟 appears in the menu bar — six rows: `✨ Effects` (Right ⌘),
+A ⭐ appears in the menu bar — six rows: `✨ Effects` (Right ⌘),
 `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✅ Keep Speaker Awake` (the Bluetooth
 keep-alive's switch and its only lamp — ✅ playing, ⚪️ armed, 🚫 off), a disabled
 `Version: <timestamp>`, which tells you which binary is running, and `⏻ Quit` (⌘Q).
@@ -33,7 +33,7 @@ reach — one native ⌘Q was enough to knock the whole right edge crooked. The 
 is `/tmp/victor-effects.log`.
 
 **Stop-all is the icon, not a row.** While anything is running — including an
-armed 🔥 whip — the 🌟 turns 🛑, and a plain click stops everything at once;
+armed 🔥 whip — the ⭐ turns 🛑, and a plain click stops everything at once;
 right-click (or ⌃-click) opens the menu in either state. The click asks what is
 running at that instant rather than trusting the icon, so it cannot miss an
 effect that started a moment ago. See `docs/overlay-effects.md`.

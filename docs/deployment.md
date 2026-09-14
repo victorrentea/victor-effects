@@ -118,7 +118,7 @@ only by selecting them in System Settings and pressing `−`.
 
 ## Two apps, side by side
 
-Effects (🌟, `ro.victorrentea.victor-effects`, port 55124) and addons (💬,
+Effects (⭐, `ro.victorrentea.victor-effects`, port 55124) and addons (💬,
 `ro.victorrentea.macos-addons`, port 55123) are **separate processes with
 separate bundle ids, separate LaunchAgents and separate TCC grants**. Nothing
 orders their startup and neither waits for the other: the proxy answers
