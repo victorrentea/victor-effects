@@ -4124,18 +4124,25 @@ class EmojiAnimator {
 
     // MARK: - Wazzup (sfx #69, 69_scream_ghost.mp3)
 
-    /// 👅 The tongue-out Ghostface mask leaning in from the **bottom-left
-    /// corner** for exactly as long as the clip runs.
+    /// 👅 The tongue-out Ghostface mask, sliding in from off-screen into the
+    /// **bottom-left corner** and staying for the build-up plus the clip.
     ///
-    /// Deliberately a still and nothing else: the clip is the joke, the mask is
-    /// the punchline standing next to it. No entrance animation and no drift —
-    /// anything moving down there would pull the room's eyes off the slide the
-    /// clip is interrupting, which is the opposite of what a five-second gag is
-    /// for. Only the last 0.35 s fade, so it leaves with the sound instead of
-    /// blinking out.
+    /// Reworked 2026-09-16 at Victor's request: it used to pop in as a still and
+    /// play alongside the scream immediately — he found that landed as a loud
+    /// image, not a scare. Now the mask glides in (`wazzupSlideDuration`,
+    /// `WazzupCorner.slideInStartFrame` → `frame`, ease-out so it settles rather
+    /// than stops dead), holds still for `wazzupStillness`, and only THEN does
+    /// the scream play — the silence after the slide is the scare, the sound is
+    /// just the punctuation. The AUDIO is what is actually delayed (by
+    /// `wazzupLeadIn` on the routed `/sound/play/69_scream_ghost.mp3` path, see
+    /// `EffectsEngine.playSound`) rather than the visual, same mechanism and
+    /// same reasoning as tile #22's `minigunAimLeadIn`: the number belongs to
+    /// the animation's own timeline, not to the tablet-tunable
+    /// `sound-timing.json`. Only the last 0.35 s fade at the very end, so it
+    /// leaves with the sound instead of blinking out.
     ///
-    /// Geometry (which corner, how big) lives in `WazzupCorner` so it can be
-    /// tested without a screen.
+    /// Geometry (which corner, how big, where the slide starts) lives in
+    /// `WazzupCorner` so it can be tested without a screen.
     func showWazzup(playSound: Bool = true) {
         if cancelIfRunning("wazzup", sound: playSound ? WazzupCorner.soundName : nil) { return }
 
@@ -4149,20 +4156,38 @@ class EmojiAnimator {
         }
 
         // Linger exactly as long as the ghost track; fall back to its measured length.
-        var duration = WazzupCorner.fallbackDuration
+        var clipDuration = WazzupCorner.fallbackDuration
         if let soundURL = SoundManager.shared.soundURL(for: WazzupCorner.soundName) {
             let d = AVURLAsset(url: soundURL).duration
-            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+            if d.isNumeric { clipDuration = CMTimeGetSeconds(d) }
         }
+        // The mask is on screen for the build-up too, not just the clip — the
+        // scream only starts once the slide has settled and the stillness has
+        // run out (`wazzupLeadIn`), so the total lifetime must cover both or the
+        // mask would vanish mid-scream (or linger long after it).
+        let duration = Self.wazzupLeadIn + clipDuration
 
-        let box = WazzupCorner.frame(imageSize: img.size, in: hostLayer.bounds)
+        let endBox = WazzupCorner.frame(imageSize: img.size, in: hostLayer.bounds)
+        let startBox = WazzupCorner.slideInStartFrame(imageSize: img.size, in: hostLayer.bounds)
         let layer = CALayer()
-        layer.frame = box
+        layer.frame = endBox  // model value is the RESTING frame; the animation below only presents the entrance
         layer.contents = img
         layer.contentsGravity = .resizeAspect
         hostLayer.addSublayer(layer)
-        overlayInfo(String(format: "👅 wazzup: bottom-left, %.0f×%.0f at (%.0f, %.0f), %.2fs",
-                           box.width, box.height, box.minX, box.minY, duration))
+        overlayInfo(String(format: "👅 wazzup: sliding into bottom-left, %.0f×%.0f, %.2fs slide + %.2fs stillness, then %.2fs scream",
+                           endBox.width, endBox.height, Self.wazzupSlideDuration, Self.wazzupStillness, clipDuration))
+
+        // Horizontal-only: same convention as the claude-peek slide-in
+        // (`position.x`, not `frame`, which CALayer does not animate cleanly).
+        // No fillMode override needed — the model value is already the resting
+        // position, so removal-on-completion just stops presenting the
+        // in-flight offset and reveals the (already correct) model.
+        let slideIn = CABasicAnimation(keyPath: "position.x")
+        slideIn.fromValue = layer.position.x - (endBox.minX - startBox.minX)
+        slideIn.toValue = layer.position.x
+        slideIn.duration = Self.wazzupSlideDuration
+        slideIn.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        layer.add(slideIn, forKey: "wazzupSlideIn")
 
         let fadeOut = CABasicAnimation(keyPath: "opacity")
         fadeOut.fromValue = 1.0
@@ -4173,10 +4198,38 @@ class EmojiAnimator {
         fadeOut.isRemovedOnCompletion = false
         layer.add(fadeOut, forKey: "wazzupFade")
 
-        if playSound { SoundManager.shared.play(WazzupCorner.soundName) }
+        // Only reached by a call this codebase never actually makes today (see
+        // `wazzupLeadIn`'s doc) — kept delayed the same way for consistency, so
+        // if a future caller ever passes playSound: true it still gets the
+        // slide/beat/scream choreography instead of a scream over a mid-slide mask.
+        if playSound {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.wazzupLeadIn) {
+                SoundManager.shared.play(WazzupCorner.soundName)
+            }
+        }
         trackEffect("wazzup", layer: layer, duration: duration,
                     sound: playSound ? WazzupCorner.soundName : nil)
     }
+
+    /// How long the mask takes to glide in from off-screen to its resting
+    /// corner — long enough to read as a deliberate creep (compare the
+    /// claude-peek mascot's snappy 0.45 s slide) without dragging the room's
+    /// patience out past the point where the eventual scream stops landing.
+    static let wazzupSlideDuration: Double = 0.8
+
+    /// Dead air after the slide settles and before the scream. This is the
+    /// whole point of the rework — Victor, verbatim: "după ce face slide, să
+    /// mai stai jumătate de secundă, până dai play la efect. Pentru că e foarte
+    /// scary efectul respectiv." The silence sells the scare; without it the
+    /// scream just overlaps a still-moving image and reads as noise, not a jump.
+    static let wazzupStillness: Double = 0.5
+
+    /// Total head start the visual has on the audio: slide + stillness. This is
+    /// what actually delays the scream (see `EffectsEngine.playSound`'s
+    /// `69_scream_ghost.mp3` case, which passes it as `lead` to
+    /// `SoundManager.playTabletSound`) — the mask itself starts sliding
+    /// immediately on press, same as it always has.
+    static let wazzupLeadIn: Double = wazzupSlideDuration + wazzupStillness
 
     // MARK: - Blood drip overlay (sfx #40, 40_joker.mp3)
 

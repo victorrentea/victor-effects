@@ -8,7 +8,7 @@ private let H: CGFloat = 982
 private let bounds = CGRect(x: 0, y: 0, width: W, height: H)
 
 /// The cut-out `wazzup.png` is 209 × 271 — taller than it is wide, so HEIGHT is
-/// the binding dimension of the fifth-area box on the retina.
+/// the binding dimension of the box on the retina.
 private let maskSize = CGSize(width: 209, height: 271)
 
 final class WazzupCornerTests: XCTestCase {
@@ -19,12 +19,12 @@ final class WazzupCornerTests: XCTestCase {
         XCTAssertEqual(f.minY, 0, accuracy: 0.001, "flush to the bottom edge")
     }
 
-    /// The point of `boxSideFraction`: the BOX is a fifth of the screen's area,
-    /// which is √0.2 of each side and not 0.2 of each side.
-    func testTheBoxIsAFifthOfTheScreensArea() {
-        let side = WazzupCorner.boxSideFraction
-        XCTAssertEqual(side * side, 0.2, accuracy: 1e-9)
-        XCTAssertEqual(W * side * H * side, W * H * 0.2, accuracy: 0.01)
+    /// The point of `boxSideFraction`: it is the old fifth-of-the-screen's-area
+    /// box (√0.2 per side) scaled 1.2× — Victor's "make it 20 % bigger" read as
+    /// 20 % bigger to the eye (per side), not 20 % more area.
+    func testTheBoxIsTwentyPercentBiggerPerSideThanTheOldFifthAreaBox() {
+        let oldSide = (0.2 as CGFloat).squareRoot()
+        XCTAssertEqual(WazzupCorner.boxSideFraction, oldSide * 1.2, accuracy: 1e-9)
     }
 
     /// Aspect-fit means the mask fills the binding dimension exactly and falls
@@ -51,6 +51,33 @@ final class WazzupCornerTests: XCTestCase {
         let f = WazzupCorner.frame(imageSize: .zero, in: bounds)
         XCTAssertEqual(f.origin, .zero)
         XCTAssertEqual(f.width, W * WazzupCorner.boxSideFraction, accuracy: 0.001)
+    }
+
+    /// The start of the slide must be fully off-screen (right edge exactly at
+    /// the left screen edge), not a corner that is still partly visible —
+    /// otherwise it would read as a pop-in with a wobble, not a slide.
+    func testSlideStartsFullyOffTheLeftEdge() {
+        let start = WazzupCorner.slideInStartFrame(imageSize: maskSize, in: bounds)
+        XCTAssertEqual(start.maxX, 0, accuracy: 0.001, "right edge flush with the screen's left edge")
+    }
+
+    /// The slide is purely horizontal: same size, same vertical position as the
+    /// resting frame, shifted left by exactly its own width so it travels the
+    /// shortest distance that still starts fully hidden.
+    func testSlideStartMatchesTheRestingFrameExceptShiftedLeftByItsWidth() {
+        let end = WazzupCorner.frame(imageSize: maskSize, in: bounds)
+        let start = WazzupCorner.slideInStartFrame(imageSize: maskSize, in: bounds)
+        XCTAssertEqual(start.width, end.width, accuracy: 0.001)
+        XCTAssertEqual(start.height, end.height, accuracy: 0.001)
+        XCTAssertEqual(start.minY, end.minY, accuracy: 0.001, "purely horizontal, no vertical drift")
+        XCTAssertEqual(end.minX - start.minX, end.width, accuracy: 0.001, "travels exactly its own width")
+    }
+
+    /// A degenerate image must not turn the slide start into a NaN frame either.
+    func testSlideStartIsSafeForADegenerateImage() {
+        let start = WazzupCorner.slideInStartFrame(imageSize: .zero, in: bounds)
+        XCTAssertFalse(start.minX.isNaN)
+        XCTAssertEqual(start.maxX, 0, accuracy: 0.001)
     }
 
     /// The tablet's tile 69 is what fires this; the mapping is the whole wiring.

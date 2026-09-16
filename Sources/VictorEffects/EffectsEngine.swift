@@ -419,6 +419,22 @@ final class EffectsEngine {
             effectsInfo("🔫 minigun audio scheduled +\(EmojiAnimator.minigunAimLeadIn)s, durationMs \(Int(duration * 1000))")
             return remember(Int(duration * 1000))
         }
+        // Tile #69 (👻 wazzup ghost): the mask starts sliding in immediately
+        // (`showWazzup`, fired by the client's separate `/sound/pressed`
+        // request), but the SCREAM must wait until the slide has settled and
+        // the stillness beat has run out — Victor's ask, and the whole point of
+        // the rework: silence after the slide is what sells the scare, not the
+        // scream landing over a still-moving image. Same mechanism as tile
+        // #22's aim lead-in: the number is owned by the animation's own
+        // timeline (`EmojiAnimator.wazzupLeadIn`), not by the tablet-tunable
+        // `sound-timing.json`.
+        if name == WazzupCorner.soundName {
+            guard let duration = SoundManager.shared.playTabletSound(
+                name, volume: volume,
+                lead: EmojiAnimator.wazzupLeadIn) else { return nil }
+            effectsInfo("👻 wazzup scream scheduled +\(EmojiAnimator.wazzupLeadIn)s (before any BT compensation), durationMs \(Int(duration * 1000))")
+            return remember(Int(duration * 1000))
+        }
         // Tile #27 (👏 applause): the clip is played 30 % shorter (tail faded)
         // so the audible clapping matches the trimmed GIF.
         if name == "27_clapping.mp3" {
