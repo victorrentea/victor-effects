@@ -198,4 +198,21 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/videos"), .unknown)       // stayed with the other app
         XCTAssertEqual(route("/"), .unknown)
     }
+
+    // MARK: - /press/<n>, the production spelling of the tile-press hook
+
+    func testPressAliasRoutesToTheTilePressHook() {
+        // The training daemon's secret FX link presses tiles by number. It must
+        // not have to depend on a path spelled /test/.
+        XCTAssertEqual(EffectsRouter.route(forPath: "/press/69"),
+                       .panelPress(69, .effects))
+    }
+
+    func testPressAliasRejectsANonNumber() {
+        XCTAssertEqual(EffectsRouter.route(forPath: "/press/wazzup"), .unknown)
+    }
+
+    func testPressAliasRejectsAnEmptyNumber() {
+        XCTAssertEqual(EffectsRouter.route(forPath: "/press/"), .unknown)
+    }
 }

@@ -207,6 +207,15 @@ final class EffectsRouter {
                 return .panelPress(n, page(q("page")))
             }
         }
+        // The production spelling of the press above. `onPanelPress` is a
+        // historical name — the hook has never consulted the panel, and the
+        // training daemon's secret FX link presses tiles with no panel in
+        // sight. Same case, so there is one handler and nothing to drift.
+        if pathOnly.hasPrefix("/press/") {
+            if let n = Int(pathOnly.dropFirst("/press/".count)) {
+                return .panelPress(n, .effects)
+            }
+        }
         if pathOnly.hasPrefix("/tiles/") {
             let rel = String(pathOnly.dropFirst("/tiles/".count))
             if !rel.isEmpty { return .tileImage(rel) }
