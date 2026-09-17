@@ -186,6 +186,22 @@ final class EmojiAnimatorTests: XCTestCase {
                              "seeking before the start of the file would silence the copy")
     }
 
+    /// Why the first aimed bomb TAKES the head clip over instead of being left
+    /// uncovered under it (Victor, 2026-09-17: one bomb, two booms).
+    ///
+    /// The head clip only scores an aimed bomb whose fireball lands on its own
+    /// blast — i.e. one planted within `bombBoomLead` of the press. But aiming
+    /// stays open until `bombAutoDropDelay`, and every click in between produced
+    /// a head blast with nothing under it plus the bomb's own, a beat apart. The
+    /// gap is not a tuning accident: `bombAutoDropDelay` is the instant the big
+    /// bomb clears the top edge and `bombBoomLead` is a property of the clip, so
+    /// nothing keeps them equal and no re-tuning can close it. Hence the
+    /// handover, which does not depend on either number.
+    func testHeadClipCannotScoreEveryBombTheAimingWindowAllows() {
+        XCTAssertGreaterThan(EmojiAnimator.bombAutoDropDelay, EmojiAnimator.bombBoomLead,
+                             "if this ever failed, ducking the copy by arithmetic would suffice")
+    }
+
     /// The big bomb crosses the top edge of the screen exactly on the deadline for
     /// aiming — "once you can see it falling it is too late to click". Stated as
     /// geometry: at the shared speed, its whole fall covers exactly the distance
@@ -272,11 +288,13 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertLessThan(EmojiAnimator.bombFallingZ, EmojiAnimator.bombBlastZ)
     }
 
-    /// The lead-in is a whole second of gun-only silence (raised from 0.5 s on
-    /// 2026-09-11) and it is also what the routed clip is delayed by, so the
-    /// reticle, the first hole and the first frame of noise coincide.
-    func testMinigunAllowsOneSecondAimLeadInAndSmallerBulletHoles() {
-        XCTAssertEqual(EmojiAnimator.minigunAimLeadIn, 1.0, accuracy: 0.001)
+    /// There is no aiming beat: the gun is drawn mid-burst, so the moment it is
+    /// on screen the bullets have to be flying and the noise sounding (Victor,
+    /// 2026-09-17 — it was 0.5 s, then 1.0 s of gun-only silence). The same
+    /// number delays the routed clip, which is why reticle, first hole and first
+    /// frame of noise coincide however it is set.
+    func testMinigunFiresTheInstantTheGunAppears() {
+        XCTAssertEqual(EmojiAnimator.minigunAimLeadIn, 0, accuracy: 0.001)
         XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.7, accuracy: 0.001)
     }
 

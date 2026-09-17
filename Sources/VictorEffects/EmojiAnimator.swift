@@ -94,16 +94,16 @@ class EmojiAnimator {
     private var _bombSessionActive = false
     private var _bombPlantedAny = false               // false → the big bomb may still be the one that lands
     private var _bombBigDropped = false               // true → the big one is falling; aiming is over
-    private var _bombRunStartedAt: Date = .distantPast // press time — the head boom's t=0, which is what a per-bomb boom is measured against
     private var _bombInputTap: CFMachPort?
     private var _bombInputTapSource: CFRunLoopSource?
 
     // 🔫 Minigun aiming reticle: during the bullet-holes (#22) burst a bigger,
     // always-red copy of the sniper crosshair tracks the cursor (where the
     // bullets cluster), real cursor hidden. No arming/fuse — it's red from the
-    // first frame and just follows until the burst ends. It only *appears*
-    // `minigunAimLeadIn` in, though: the gun is raised first, and the pointer
-    // becomes the crosshair as the first round goes off.
+    // first frame and just follows until the burst ends. It appears on the same
+    // instant as the gun, the first hole and the first frame of noise —
+    // `minigunAimLeadIn` is 0, and the reveal path still honours it if a beat is
+    // ever put back.
     private var _minigunReticleLayer: CALayer?
     private var _minigunReticleTimer: Timer?
     private var _minigunReticleHidCursor = false      // balance hide/unhide of the real cursor
@@ -2657,17 +2657,21 @@ class EmojiAnimator {
         stopBombSession(fade: 0)
         _bombEpoch &+= 1
         let epoch = _bombEpoch
-        // The boom starts at the head of the run, as before — but it is no longer
-        // the ONLY one. The tablet owns that first clip on the routed path
-        // (playSound: false) and plays a single copy per tile press; every bomb
-        // planted after it is out of that copy's reach, so the Mac lays its own
-        // boom under each one (see playBombBoom). Both come out of the Mac's
-        // speakers whenever the tablet routes its audio here, which is the setup
-        // the room actually runs.
+        // The head clip. It is the **full-screen nuke's** sound and nothing
+        // else's: its blast at `explosionBlastOnset` is what `bombAutoDropDelay`
+        // and the big bomb's fall are derived from. A press left alone therefore
+        // ends on it exactly as it always has — and the first click, which
+        // cancels the nuke, also takes this clip off and hands the raid's sound
+        // to the bomb that was aimed (`playBombBoom`). Each further bomb lays its
+        // own boom under the one before it.
+        //
+        // On the routed path the tablet owns this clip (playSound: false) and
+        // plays it in its own HTTP request; it still comes out of this Mac's
+        // speakers, which is why the handover has to be able to reach either
+        // player — see `SoundManager.stopWherever`.
         if playSound { SoundManager.shared.play("03_explosion.mp3") }
 
         _bombSessionActive = true
-        _bombRunStartedAt = Date()
         _bombPending = 0
         _bombPlantedAny = false
         _bombBigDropped = false
@@ -2830,7 +2834,9 @@ class EmojiAnimator {
     /// The press nobody aimed: the original full-screen nuke. It is counted like
     /// any other bomb so the run still ends through `finishBomb`, and it carries
     /// no `playBombBoom` — the head clip is its sound, which is the entire reason
-    /// its timing has to be exact.
+    /// its timing has to be exact. Reaching here at all means no click ever came,
+    /// so the head clip is still playing: the handover in `playBombBoom` only
+    /// fires on a click, and a click before this point would have cancelled it.
     ///
     /// This fires at `bombAutoDropDelay`, i.e. the instant the bomb clears the top
     /// edge. From here the fall is `explosionBlastOnset - explosionWhistleForeground`
@@ -2910,9 +2916,12 @@ class EmojiAnimator {
                                     fullScreen: false, fall: fuse)
 
         _bombPlanted.append(reticle)
+        // The FIRST click is what cancels the full-screen nuke, so it is also
+        // what orphans the head clip that was scoring it — see `playBombBoom`.
+        let firstOfTheRaid = !_bombPlantedAny
         _bombPlantedAny = true
         _bombPending += 1
-        playBombBoom()
+        playBombBoom(takingOverFromHeadClip: firstOfTheRaid)
 
         let epoch = _bombEpoch
         DispatchQueue.main.asyncAfter(deadline: .now() + fuse) { [weak self] in
@@ -2932,29 +2941,63 @@ class EmojiAnimator {
     /// as a rhythm of explosions instead of one clip covering all of them.
     ///
     /// Three things keep that from turning into noise:
-    /// * the first `bombBoomLead` seconds of the run are skipped — a bomb clicked
-    ///   that early already explodes on the head boom's own blast and is covered;
     /// * the copy is seeked to `bombBoomLead` so ITS blast arrives with ITS
-    ///   fireball, and swells in over the whole fuse rather than banging in at
-    ///   once — which also means the fuse is scored by the tail of the whistle,
-    ///   under the bomb that is visibly falling;
+    ///   fireball — which also means the fuse is scored by the tail of the
+    ///   whistle, under the bomb that is visibly falling;
+    /// * every copy after the first swells in over the whole fuse rather than
+    ///   banging in at once;
     /// * simultaneous copies are thinned by 1/√n (n = bombs still in the air,
     ///   this one included), the equal-power law: two booms together then land at
     ///   about the loudness of one, not twice it.
-    private func playBombBoom() {
-        guard Date().timeIntervalSince(_bombRunStartedAt) > Self.bombBoomLead else { return }
+    ///
+    /// **`takingOverFromHeadClip` is the fix for the double boom** (Victor,
+    /// 2026-09-17: "când pun o singură bombă … parcă se aude sunetul de două ori
+    /// picând"). The head clip started at the press belongs to the **full-screen
+    /// nuke** — that is the only thing its 1.52 s blast is timed to. The first
+    /// click cancels the nuke (`_bombPlantedAny`), so from that instant the head
+    /// clip is scoring a bomb that will never fall, and its blast arrives with
+    /// nothing under it — a beat away from the aimed bomb's own, which is what
+    /// the ear hears as one explosion landing twice.
+    ///
+    /// It used to be ducked by arithmetic instead: a bomb planted within
+    /// `bombBoomLead` of the press explodes almost exactly on the head blast, so
+    /// it was left uncovered and given no copy. That is true, but it only covers
+    /// clicks in the first 0.42 s — and the aiming window runs to
+    /// `bombAutoDropDelay` (0.75 s), so every click in the 0.33 s between them
+    /// produced two blasts. Handing the clip over instead is the same idea
+    /// without the window: the head clip is cut (`stopWherever` — it may be the
+    /// Mac's or the tablet's), and this bomb plays the *full* clip level with no
+    /// swell, because it is not layering under anything any more, it IS the
+    /// sound of the raid. The seek keeps its whistle continuous across the
+    /// handover: the head clip is at most `bombAutoDropDelay` in, the copy
+    /// resumes at `bombBoomLead`, both inside the same descending whistle.
+    private func playBombBoom(takingOverFromHeadClip: Bool) {
+        if takingOverFromHeadClip {
+            SoundManager.shared.stopWherever("03_explosion.mp3", fade: Self.bombHeadClipHandoverFade)
+            SoundManager.shared.playOverlapping(
+                "03_explosion.mp3",
+                volume: 1.0,
+                bluetoothCompensated: false,
+                startAt: Self.bombBoomLead)
+            return
+        }
         let volume = max(Self.bombBoomVolumeFloor,
                          Self.bombBoomVolume / Float(max(1, _bombPending)).squareRoot())
         SoundManager.shared.playOverlapping(
             "03_explosion.mp3",
             volume: volume,
-            // The head boom has been sounding for at least `bombBoomLead` seconds,
-            // so the A2DP link is warm; adding the start delay on top would push
-            // the crescendo late off the blast it is supposed to land on.
+            // Something has been sounding since the first bomb was planted, so
+            // the A2DP link is warm; adding the start delay on top would push the
+            // crescendo late off the blast it is supposed to land on.
             bluetoothCompensated: false,
             startAt: Self.bombBoomLead,
             fadeIn: Self.explosionStrikeDelay)
     }
+
+    /// How long the head clip takes to die away when the first click hands the
+    /// raid's sound over to an aimed bomb. Short enough that the two whistles are
+    /// never audibly two, long enough not to click.
+    private static let bombHeadClipHandoverFade: Double = 0.12
 
     /// One bomb has finished burning. The run ends with the LAST one: while any
     /// bomb is still in the air the crosshair stays live and more can be planted,
@@ -3275,17 +3318,23 @@ class EmojiAnimator {
     /// How much bigger the minigun aiming reticle is than the 1.5× nuke reticle —
     /// the bullet-spray crosshair reads as a heftier "machine-gun sight".
     private static let minigunReticleScale: CGFloat = 2.5
-    /// The gun's solo. It rises out of the bottom edge at t=0 and hauls itself
-    /// after the mouse for this long **in silence**, then the reticle, the first
-    /// bullet hole and the noise all arrive on the same instant. Raised from
-    /// 0.5 s to a **full second** (2026-09-11): half a second was not enough
-    /// beat for a room to notice the weapon before it opened fire.
+    /// The gun's solo — **zero since 2026-09-17**, i.e. there is no solo.
     ///
-    /// It is also the delay applied to the *audio* on the routed
-    /// `/sound/play/22_minigun.mp3` path (`EffectsEngine.playSound`), which is
-    /// the only reason the three coincide — the tablet starts the sound in its
-    /// own HTTP request, milliseconds before the one that starts the visual.
-    static let minigunAimLeadIn: Double = 1.0
+    /// It was a silent aiming beat (0.5 s, then a full second from 2026-09-11)
+    /// on the reading that a room needs to notice the weapon before it opens
+    /// fire. Victor's correction: *"machine gun-ul arată ca foc, ca și cum ar
+    /// trage"* — the sprite is drawn mid-burst, muzzle flashing, so a second of
+    /// it hanging there silent doesn't read as taking aim, it reads as the
+    /// effect being broken. The gun, the reticle, the first bullet hole and the
+    /// first frame of noise now all land on t=0.
+    ///
+    /// The constant stays (at 0) rather than being deleted because it is the one
+    /// place those four are tied together: it is also the delay applied to the
+    /// *audio* on the routed `/sound/play/22_minigun.mp3` path
+    /// (`EffectsEngine.playSound`), whose HTTP request is a separate one from the
+    /// one that starts the visual. Putting a beat back means changing one number,
+    /// not re-deriving four call sites.
+    static let minigunAimLeadIn: Double = 0
     static let minigunBulletHoleScale: CGFloat = 0.7
 
     // MARK: The gun itself (minigun.gif)
@@ -6540,10 +6589,10 @@ class EmojiAnimator {
         // with the holes; the resorb pass below skips it by identity.
         let gun = makeMinigunSprite(in: bounds)
         if let gun { container.addSublayer(gun) }
-        // The three lines this and the two below print are how the lead-in is
-        // checked without watching the screen: gun, then a silent gap of
-        // `minigunAimLeadIn`, then reticle + first hole on the same tenth.
-        overlayInfo("🔫 gun up — \(Self.minigunAimLeadIn)s of silence before reticle/holes/sound")
+        // The three lines this and the two below print are how the timing is
+        // checked without watching the screen: with `minigunAimLeadIn` at 0 the
+        // gun, the reticle and the first hole all stamp the same tenth.
+        overlayInfo("🔫 gun up — lead-in \(Self.minigunAimLeadIn)s, then reticle/holes/sound")
 
         let interval = (spawnEnd - spawnStart) / Double(count - 1)
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
@@ -6598,11 +6647,10 @@ class EmojiAnimator {
         // "resorbed" instead of fading out.
         let resorbDuration = 1.0
         let resorbStart = Self.minigunAimLeadIn + spawnEnd + 0.05  // just after the last bullet lands
-        // The gun is the FIRST thing on screen: it swings up out of the bottom
-        // edge immediately, hauls itself after the mouse for the whole aiming
-        // lead-in, opens fire when the sound does, and is gone by the time the
-        // last hole is resorbed. One keyframe track (not two animations) so the
-        // tail can never overtake the head.
+        // The gun swings up out of the bottom edge and opens fire on the same
+        // instant (the aiming lead-in is 0), hauls itself after the mouse for the
+        // burst, and is gone by the time the last hole is resorbed. One keyframe
+        // track (not two animations) so the tail can never overtake the head.
         if let gun {
             let visible = resorbStart + resorbDuration   // gun's entrance is t=0
             let fade = CAKeyframeAnimation(keyPath: "opacity")
@@ -6634,9 +6682,10 @@ class EmojiAnimator {
 
         trackEffect("bullet-holes", layer: container, duration: resorbStart + resorbDuration + 0.1, sound: playSound ? "22_minigun.mp3" : nil)
 
-        // The crosshair takes the pointer over only when the shooting starts —
-        // the lead-in belongs to the gun rising into place. The follow timer
-        // still runs from t=0, which is what steers the gun while it aims.
+        // The crosshair takes the pointer over when the shooting starts, which
+        // is now t=0 as well. `revealAfter` is kept wired to the lead-in so a
+        // reinstated aiming beat moves the crosshair with the first round rather
+        // than leaving it on an unmarked desktop.
         startMinigunReticle(following: gun,
                             revealAfter: Self.minigunAimLeadIn,
                             autoStopAfter: resorbStart + resorbDuration + 0.1)

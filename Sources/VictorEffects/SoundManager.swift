@@ -365,10 +365,12 @@ class SoundManager {
     /// main thread (TabletHttpServer dispatches handlers via DispatchQueue.main.sync).
     /// `lead` overrides the shared `sound-timing.json` head start for this one
     /// call, for a sound whose paired visual owns the number in code rather than
-    /// in the config file (tile #22, whose gun is on screen alone for
-    /// `EmojiAnimator.minigunAimLeadIn` before anything is heard). It is added
-    /// to the returned duration exactly as a configured lead is, so the client's
-    /// completion timer still covers the whole clip.
+    /// in the config file (tile #22 passes `EmojiAnimator.minigunAimLeadIn`,
+    /// which is 0 — an override to *zero* is still an override, and that is the
+    /// point: it keeps a configured lead from drifting away from the animation's
+    /// own timeline). It is added to the returned duration exactly as a
+    /// configured lead is, so the client's completion timer still covers the
+    /// whole clip.
     func playTabletSound(_ filename: String, volume: Float? = nil, lead: TimeInterval? = nil) -> TimeInterval? {
         if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
         // Preempt by fading, not by cutting: the outgoing clip keeps playing
@@ -528,6 +530,34 @@ class SoundManager {
             guard let self else { return }
             if let player = self.tabletPlayer { self.fadeOutAndStop(player, over: fade) }
             self.tabletPlayer = nil
+        }
+    }
+
+    /// Silence one clip wherever it happens to be playing from: this Mac's own
+    /// one-shot pool (`play`) **or** the tablet-routed player. The two paths are
+    /// normally a caller's own business — it knows which one it started — but not
+    /// for a sound the *tablet* starts in its own HTTP request while the Mac owns
+    /// the visual (`03_explosion.mp3`: `showExplosionGif` gets `playSound: false`
+    /// on the routed path and `true` from a local trigger). An animation that has
+    /// to cut that clip short cannot know which pool holds it, and guessing wrong
+    /// leaves the sound running — which is exactly the bug this exists for, the
+    /// ☢️ head boom blasting a second time over an aimed bomb's own.
+    ///
+    /// The tablet player is only touched when it is *this* file: it holds
+    /// whatever tile was last pressed, and stopping it blind would silence an
+    /// unrelated sound.
+    func stopWherever(_ filename: String, fade: TimeInterval = SoundManager.interruptFade) {
+        Self.onMain { [weak self] in
+            guard let self else { return }
+            let url = self.soundURL(for: filename)
+            if let player = self.players[filename] {
+                self.players[filename] = nil
+                self.fadeOutAndStop(player, over: fade)
+            }
+            if let tablet = self.tabletPlayer, let url, tablet.url == url {
+                self.tabletPlayer = nil
+                self.fadeOutAndStop(tablet, over: fade)
+            }
         }
     }
 

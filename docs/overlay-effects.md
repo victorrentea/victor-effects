@@ -477,27 +477,36 @@ rule from the start.
   **by identity** (`hole !== gun`) so the gun doesn't implode along with the bullet holes.
   Its opacity is **one keyframe track** (the wasn't-me pattern) beginning at **t=0**: the gun
   is the first thing on screen, and it has faded out by the time the last hole is resorbed.
-  The **`minigunAimLeadIn` belongs to the gun, not the reticle** — the weapon rises
-  out of the bottom edge and hauls itself after the mouse *before* the
-  pointer turns into the crosshair and the sound + bullets start, which is the order the
-  gesture actually reads in: you see the thing that is about to shoot, then it shoots. The
-  reticle layer and its 60 fps tick are still created on the press (the tick is what steers
-  the gun during the lead-in, and an early layer keeps every `_minigunReticleLayer === reticle`
-  identity guard covering the lead-in, so a cancelling re-press inside it cannot leave a reveal
-  scheduled behind it) — only the crosshair's opacity and the **real cursor's hide** are
-  deferred to `revealAfter`. Hiding the cursor early would have left the desktop with no
-  pointer at all for that silent stretch.
-  - **The lead-in is a full second and it is silent (2026-09-11).** It used to be 0.5 s, and
-    the noise did not respect it at all: the tablet starts the audio in its **own** HTTP
-    request (`/sound/play/22_minigun.mp3`, sent just before `/sound/pressed/…`), so the burst
-    was audible while the gun was still climbing. The routed path now special-cases the tile
-    in `EffectsEngine.playSound` and hands `playTabletSound` an explicit
-    `lead: EmojiAnimator.minigunAimLeadIn` — the one `lead:` override in the app, for the one
-    sound whose head start is owned by animation code instead of `sound-timing.json`. The
-    lead is added to the returned `durationMs` exactly as a configured one is, so the tile
-    stays lit for the whole thing (≈7.4 s now, not 6.4 s) instead of un-highlighting a second
-    early. `spawnStart` also went **0.25 → 0**: reticle, first hole and first frame of noise
-    now land on the same instant, which is the whole point of the silence before them.
+  - **`minigunAimLeadIn` is 0 — the gun fires the instant it appears (2026-09-17).**
+    It was an aiming beat: the weapon rose out of the bottom edge and hauled itself after
+    the mouse *in silence* (0.5 s, then a full second from 2026-09-11) before the pointer
+    turned into the crosshair and the bullets started, on the reading that the gesture reads
+    as "you see the thing that is about to shoot, then it shoots". Victor's correction kills
+    the premise: *"machine gun-ul arată ca foc, ca și cum ar trage"* — `minigun.gif` is drawn
+    **mid-burst**, muzzle flashing and brass already in the air, so a second of it hanging
+    there with no bullets and no noise does not read as taking aim, it reads as the effect
+    having stalled. Gun, reticle, first bullet hole and first frame of noise now all land on
+    **t=0**.
+  - **The number stays, at 0, because it is the only thing tying those four together.**
+    The tablet starts the audio in its **own** HTTP request
+    (`/sound/play/22_minigun.mp3`, sent just before `/sound/pressed/…`), so the routed path
+    special-cases the tile in `EffectsEngine.playSound` and hands `playTabletSound` an
+    explicit `lead: EmojiAnimator.minigunAimLeadIn` — the one `lead:` override in the app,
+    for the one sound whose head start is owned by animation code instead of
+    `sound-timing.json`. An override to **zero is still an override**: it is what stops a
+    configured lead from drifting back onto this clip behind the animation's back. Putting a
+    beat back is one number, not four call sites — `revealAfter` on the crosshair, the
+    audio's `asyncAfter`, the holes' delays and `resorbStart` all still read it. The lead is
+    added to the returned `durationMs` exactly as a configured one is, so with 0 the tile is
+    lit for the clip's own ≈6.4 s.
+  - The reticle layer and its 60 fps tick are created on the press (the tick is what steers
+    the gun, and an early layer keeps every `_minigunReticleLayer === reticle` identity guard
+    covering the whole burst, so a cancelling re-press cannot leave a reveal scheduled behind
+    it) — the crosshair's opacity and the **real cursor's hide** go through `revealAfter`,
+    which at 0 fires inline. That path is what would keep the desktop from being left with no
+    pointer at all if a silent stretch were ever reinstated. `spawnStart` is **0** for the
+    same reason it has been since 2026-09-11: reticle, first hole and first frame of noise
+    land on the same instant.
     Three log lines (`🔫 gun up…`, `🔫 reticle revealed`, `🔫 first bullet hole`) make that
     checkable without watching the screen.
 
@@ -1141,10 +1150,33 @@ rule from the start.
     (`bombBoomLead`, 0.42 s) and its blast arrives with the bomb rather than a beat behind
     it. A third job falls out for free: the copy's first 1.10 s are the *tail of the
     whistle*, so every aimed bomb whistles down for exactly as long as it is falling.
-  - **Which bomb the head boom already owns.** That same offset is how late a target can be
-    planted and still explode on the *head* boom's own blast — so a bomb clicked inside the
-    first `bombBoomLead` seconds gets **no copy at all**; it is already scored. This is why
-    the first bomb sounds exactly as it did before.
+  - **The head clip belongs to the nuke, and the first click takes it away** (2026-09-17,
+    Victor: *"când pun o singură bombă cu mouse-ul click … parcă se aude sunetul de două ori
+    picând"*). The clip started at the press is the **full-screen bomb's** sound — its blast
+    at `explosionBlastOnset` is what `bombAutoDropDelay` and the big bomb's fall are derived
+    from, and nothing else is timed to it. A click cancels that bomb (`_bombPlantedAny`), so
+    from that instant the head clip is scoring something that will never fall: its blast
+    arrives with **nothing under it**, a beat away from the aimed bomb's own, and one bomb
+    comes back as two explosions.
+    So the first plant *hands the clip over*: `playBombBoom(takingOverFromHeadClip:)` cuts
+    the head clip (`SoundManager.stopWherever`, a 0.12 s fade) and plays this bomb's copy at
+    **full level with no swell** — it is not layering under anything any more, it IS the
+    sound of the raid. The whistle stays continuous across the cut: the head clip is at most
+    `bombAutoDropDelay` (0.75 s) in, the copy resumes at `bombBoomLead` (0.42 s), both well
+    inside the same descending whistle.
+    **Why not duck it by arithmetic**, as it was until now? `bombBoomLead` is also how late
+    a target can be planted and still explode on the head blast, so a bomb clicked inside the
+    first 0.42 s was simply given no copy — true, but it only covers clicks that early, while
+    aiming stays open to 0.75 s. Every click in the 0.33 s between them produced the double.
+    The gap is not a tuning accident either: one number is the instant the big bomb clears
+    the top edge, the other is a property of the clip, and nothing keeps them equal —
+    `testHeadClipCannotScoreEveryBombTheAimingWindowAllows` is that argument as an assertion.
+    The handover does not depend on either.
+    `stopWherever` exists because the animation cannot know **which player** holds the head
+    clip: on the routed path the tablet started it (`showExplosionGif(playSound: false)`),
+    on a local trigger this Mac did. It silences the named file in both pools, and touches
+    the tablet player only when it is really playing that file — it holds whatever tile was
+    pressed last.
   - **Loudness.** A copy swells from silence over the whole fuse (`fadeIn:` on
     `playOverlapping`) instead of banging in at full level, at `bombBoomVolume` (0.75)
     thinned by **1/√n** over the bombs still in the air, floored at `bombBoomVolumeFloor`
@@ -1152,9 +1184,9 @@ rule from the start.
     loudness of one, not twice it — the room hears more explosions, not more volume.
 
   The copies are **not Bluetooth-compensated** (`bluetoothCompensated: false`), for the
-  same reason as the 🔥 whip crack but arrived at differently: something has been sounding
-  for at least `bombBoomLead` seconds by then, so the A2DP link is warm, and adding the
-  start delay would push the blast late off the fireball it exists to land on.
+  same reason as the 🔥 whip crack but arrived at differently: the head clip has been
+  sounding since the press, so the A2DP link is warm, and adding the start delay would push
+  the blast late off the fireball it exists to land on.
 
 
 - **🔁 Sketch arrow** (sfx #71 `71_one_more_time.mp3` → `sketch-arrow`,
