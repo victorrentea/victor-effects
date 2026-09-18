@@ -15,17 +15,40 @@ final class RainStormTests: XCTestCase {
 
     // MARK: - The entrances
 
-    /// The band has to close from BOTH sides at once — all of them entering
-    /// from one edge is a wipe, not weather. With an odd count the extra one
-    /// comes from the left, so the two sides are never more than one apart.
-    func testTheCloudsSplitEvenlyBetweenTheTwoSides() {
-        let sides = RainStorm.arrivals(in: bounds).map { $0.fromLeft }
-        let left = sides.filter { $0 }.count
-        let right = sides.count - left
-        XCTAssertEqual(sides.count, RainStorm.cloudCount)
+    /// Three edges, not one. Seven clouds all sliding in horizontally read as a
+    /// curtain being drawn; the sky has to close from the sides AND from above.
+    /// The two sides stay balanced, or the band visibly arrives lopsided.
+    func testTheCloudsComeFromAllThreeEdges() {
+        let entries = RainStorm.arrivals(in: bounds).map { $0.from }
+        XCTAssertEqual(entries.count, RainStorm.cloudCount)
+        let left = entries.filter { $0 == .left }.count
+        let right = entries.filter { $0 == .right }.count
+        let top = entries.filter { $0 == .top }.count
+        XCTAssertGreaterThan(left, 0, "nothing comes in from the left")
+        XCTAssertGreaterThan(right, 0, "nothing comes in from the right")
+        XCTAssertGreaterThan(top, 0, "nothing drops out of the top")
         XCTAssertLessThanOrEqual(abs(left - right), 1, "\(left) from the left, \(right) from the right")
-        XCTAssertGreaterThan(left, 0)
-        XCTAssertGreaterThan(right, 0)
+    }
+
+    /// A falling cloud always has a sliding one beside it. Three in a row
+    /// dropping together is still one thing happening several times, which is
+    /// the failure the mixed entrances exist to avoid.
+    func testNoTwoNeighboursComeFromTheSameEdge() {
+        let entries = RainStorm.cloudEntries
+        for (i, (a, b)) in zip(entries, entries.dropFirst()).enumerated() {
+            XCTAssertNotEqual(a, b, "clouds \(i) and \(i + 1) both come from \(a)")
+        }
+    }
+
+    /// The clouds that fall are the INNER ones — from a side they would have to
+    /// cross most of the screen to reach the middle, which is both the longest
+    /// journey and the one that reads as a wipe.
+    func testTheInnerCloudsAreTheOnesThatFall() {
+        for (i, entry) in RainStorm.cloudEntries.enumerated() where entry.isSide {
+            let centre = RainStorm.cloudCentres[i]
+            let nearestEdge = min(centre, 1 - centre)
+            XCTAssertLessThan(nearestEdge, 0.4, "cloud \(i) sits at \(centre) and still slides in from a side")
+        }
     }
 
     /// Every per-cloud table has to be as long as the band, or a seventh cloud
@@ -43,16 +66,33 @@ final class RainStormTests: XCTestCase {
     /// "Slides in from the side" and "is already half on screen when it starts"
     /// are different pictures. Every cloud begins with its trailing edge exactly
     /// on the screen edge — not a corner still inside it.
-    func testEveryCloudStartsFullyOffItsOwnSide() {
+    func testEveryCloudStartsFullyOutsideOnItsOwnEdge() {
         for (i, a) in RainStorm.arrivals(in: bounds).enumerated() {
-            if a.fromLeft {
+            switch a.from {
+            case .left:
                 XCTAssertEqual(a.start.maxX, 0, accuracy: 0.001, "cloud \(i) should start off the LEFT edge")
-            } else {
+            case .right:
                 XCTAssertEqual(a.start.minX, bounds.width, accuracy: 0.001, "cloud \(i) should start off the RIGHT edge")
+            case .top:
+                XCTAssertGreaterThanOrEqual(a.start.minY, bounds.height - 0.001,
+                                            "cloud \(i) should start ABOVE the top edge")
             }
-            XCTAssertEqual(a.start.minY, a.rest.minY, accuracy: 0.001,
-                           "cloud \(i) arrives horizontally — nothing here may drift it vertically")
             XCTAssertEqual(a.start.size, a.rest.size)
+        }
+    }
+
+    /// One axis each. A cloud that arrived diagonally would be the only thing on
+    /// screen moving in two directions at once, and it is the kind of thing a
+    /// refactor of the start frames would introduce silently.
+    func testEveryCloudTravelsInOneAxisOnly() {
+        for (i, a) in RainStorm.arrivals(in: bounds).enumerated() {
+            if a.isVertical {
+                XCTAssertEqual(a.start.minX, a.rest.minX, accuracy: 0.001, "cloud \(i) falls AND slides")
+                XCTAssertGreaterThan(a.start.minY, a.rest.minY, "cloud \(i) should come DOWN")
+            } else {
+                XCTAssertEqual(a.start.minY, a.rest.minY, accuracy: 0.001, "cloud \(i) slides AND falls")
+                XCTAssertNotEqual(a.start.minX, a.rest.minX, "cloud \(i) does not move at all")
+            }
         }
     }
 

@@ -164,20 +164,46 @@ enum RainStorm {
                      seconds: driftSeconds[i])
     }
 
+    /// Which edge a cloud comes in over.
+    ///
+    /// **Not just the two sides** (Victor, 2026-09-19: *"norii sa vina si de sus
+    /// si din laterale"*). Seven clouds all sliding horizontally read as a
+    /// curtain being drawn; some of them dropping straight down out of the top
+    /// is what makes it read as a sky closing over. The inner ones are the ones
+    /// that fall, which is also the shorter journey for them — from the side
+    /// they had to cross most of the screen to reach the middle.
+    enum Entry {
+        case left, right, top
+
+        var isSide: Bool { self != .top }
+    }
+
     /// One cloud's entrance: where it ends up, where it comes from, and when.
     struct Arrival {
         let rest: CGRect
         let start: CGRect
-        let fromLeft: Bool
+        let from: Entry
         let delay: Double
+
+        /// The property that actually matters at the call site: a cloud coming
+        /// over the top is animated on `position.y`, everything else on
+        /// `position.x`.
+        var isVertical: Bool { from == .top }
     }
 
-    /// The four entrances, in overlay coordinates (**bottom-origin, y up**, like
+    /// Which edge each cloud enters over, by index. Interleaved so a falling
+    /// cloud always has a sliding one beside it: three in a row dropping
+    /// together is a different wrong thing from a curtain, but still one thing
+    /// happening seven times.
+    static let cloudEntries: [Entry] = [.left, .top, .left, .top, .right, .top, .right]
+
+    /// The seven entrances, in overlay coordinates (**bottom-origin, y up**, like
     /// every other layer this app hangs on the panel).
     ///
-    /// Two clouds come from the left and two from the right, and each one starts
-    /// *fully* off-screen — its trailing edge exactly on the screen edge, not a
-    /// corner still poking in.
+    /// Each cloud starts *fully* outside the screen on its own edge — trailing
+    /// edge exactly on that edge, not a corner still poking in — and travels in
+    /// one axis only. A cloud that arrived diagonally would be the only thing on
+    /// screen moving in two directions at once.
     static func arrivals(in bounds: CGRect) -> [Arrival] {
         guard bounds.width > 0, bounds.height > 0 else { return [] }
         let w = bounds.width * cloudWidthFraction
@@ -186,14 +212,17 @@ enum RainStorm {
             let cx = bounds.width * cloudCentres[i]
             let top = bounds.height + h * cloudOverhang[i] - h * cloudDip[i]
             let rest = CGRect(x: cx - w / 2, y: top - h, width: w, height: h)
-            // The left half comes from the left, the right half from the right —
-            // shortest travel, and it is what makes the band close from both
-            // sides at once. With an odd count the extra one comes from the left.
-            let fromLeft = 2 * i < cloudCount
-            let start = fromLeft
-                ? rest.offsetBy(dx: -rest.maxX, dy: 0)
-                : rest.offsetBy(dx: bounds.width - rest.minX, dy: 0)
-            return Arrival(rest: rest, start: start, fromLeft: fromLeft, delay: cloudDelays[i])
+            let entry = cloudEntries[i]
+            let start: CGRect
+            switch entry {
+            case .left:  start = rest.offsetBy(dx: -rest.maxX, dy: 0)
+            case .right: start = rest.offsetBy(dx: bounds.width - rest.minX, dy: 0)
+            // Lifted until its BASE is on the top edge of the screen. Its rest
+            // frame already pokes above that edge (`cloudOverhang`), so this is
+            // a shorter fall than the cloud's own height.
+            case .top:   start = rest.offsetBy(dx: 0, dy: bounds.height - rest.minY)
+            }
+            return Arrival(rest: rest, start: start, from: entry, delay: cloudDelays[i])
         }
     }
 

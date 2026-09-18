@@ -6662,9 +6662,17 @@ class EmojiAnimator {
             layer.contentsGravity = .resize
             container.addSublayer(layer)
 
-            let slide = CABasicAnimation(keyPath: "position.x")
-            slide.fromValue = layer.position.x + (arrival.start.minX - arrival.rest.minX)
-            slide.toValue = layer.position.x
+            // One axis only, chosen by the edge it comes in over: the inner
+            // clouds DROP out of the top, the outer ones slide in from the
+            // sides. A cloud arriving diagonally would be the only thing on
+            // screen moving in two directions at once.
+            let axis = arrival.isVertical ? "position.y" : "position.x"
+            let from = arrival.isVertical
+                ? layer.position.y + (arrival.start.minY - arrival.rest.minY)
+                : layer.position.x + (arrival.start.minX - arrival.rest.minX)
+            let slide = CABasicAnimation(keyPath: axis)
+            slide.fromValue = from
+            slide.toValue = arrival.isVertical ? layer.position.y : layer.position.x
             slide.duration = RainStorm.cloudSlideSeconds
             slide.beginTime = CACurrentMediaTime() + arrival.delay
             slide.timingFunction = CAMediaTimingFunction(name: .easeOut)

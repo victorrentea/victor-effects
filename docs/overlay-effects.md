@@ -338,11 +338,19 @@ rule from the start.
   change to a cloud's width or aspect moves it, and it moved back down to 29 % the moment
   the photographs arrived with a taller sprite.
 
-  **The entrance**: the left half of the band comes from the left, the right half from the
-  right — shortest travel, and it is what makes the ceiling close from both sides at once
-  instead of sweeping across. Each starts *fully* off its own side (trailing edge exactly
-  on the screen edge, not a corner still poking in) and slides 2.3 s on `position.x` with a
-  `.backwards` fill — the same convention the wazzup mask and the claude-peek slide use,
+  **The entrance uses three edges, not two** (Victor, 2026-09-19: *"norii sa vina si de sus
+  si din laterale"*). Seven clouds all sliding in horizontally read as a curtain being
+  drawn; the ceiling has to close from the sides **and** from above. The outer four come in
+  over the left and right edges, the inner three **drop straight down out of the top** —
+  which is also their shorter journey, since from a side they would have had to cross most
+  of the screen to reach the middle. `cloudEntries` interleaves them so a falling cloud
+  always has a sliding one beside it, and a test holds that: three in a row dropping
+  together is a different wrong thing from a curtain, but it is still one thing happening
+  several times. Each starts *fully* outside on its own edge (trailing edge exactly on it,
+  not a corner still poking in), and each travels in **one axis only** — a cloud arriving
+  diagonally would be the only thing on screen moving in two directions at once, which is
+  the sort of thing a refactor of the start frames introduces silently, so it too is a
+  test. The animation is 2.3 s on `position.x` or `position.y` with a `.backwards` fill — the same convention the wazzup mask and the claude-peek slide use,
   because CALayer does not animate `frame` cleanly, and `.backwards` is what parks a
   delayed cloud off-screen instead of showing it at its destination until its turn. The
   delays interleave the two sides (0 / 0.08 / 0.14 / 0.22 / 0.34 / 0.46 / 0.52 s): clouds
