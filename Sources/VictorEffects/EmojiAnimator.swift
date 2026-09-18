@@ -8604,6 +8604,146 @@ class EmojiAnimator {
     /// one demo needed.
     private static var fireRememberedScale: CGFloat = 1
 
+    // MARK: The match the flame is carried on (2026-09-18)
+
+    /// Victor: *"make the mouse turn into a match when I click the effect … the
+    /// fire should be in the pin of the match, and when I click, it leaves the
+    /// fire where it is."*
+    ///
+    /// Before this the pointer was a bare flame hanging in the air, which is
+    /// what he was unhappy with: a flame on nothing reads as a *decal* over the
+    /// slide, and the gesture it invites — clicking to set something alight —
+    /// had nothing doing the lighting. A match gives the flame a **cause**, and
+    /// it gives the click a story: the head is what touches the screen, so the
+    /// fire is left exactly where the head was.
+    ///
+    /// **Drawn, not an asset.** A match is a stick, a burnt neck and a head —
+    /// three shapes — and drawing them means the wheel can size the whole torch
+    /// by recomputing `bounds` from the flame's own width, with no second sheet
+    /// to keep in step with `fire-frames.png`. It is rendered ONCE into a lazy
+    /// static at twice the design size and scaled by `bounds` from then on, the
+    /// same arrangement the sprite frames use.
+    ///
+    /// The numbers are shares of the flame's displayed width, so a candle and a
+    /// bonfire are held on the same match, proportionally.
+    private static let matchDesignLength: CGFloat = 600
+    /// Stick length against the flame's width. The flame cell is 306 × 511, so
+    /// at the default 280 pt the flame stands ~467 pt tall: a match at 0.75 ×
+    /// the width (210 pt) reads as *held up under* it rather than as a twig lost
+    /// beneath a bonfire.
+    private static let matchLengthShare: CGFloat = 0.75
+    /// Thickness against the flame's width — 15:1 against the stick's own
+    /// length, a shade stouter than a real match (19:1, which is what this
+    /// started at) because at 11 pt on a projector the stick read as a *thread*
+    /// under a flame ten times its width. Thicker than this and it is a lollipop
+    /// stick.
+    private static let matchThicknessShare: CGFloat = 0.05
+    /// Tilt from vertical, head at the top. A vertical match reads as a candle
+    /// and a flatter one as a cigarette; 32° is a hand holding one up.
+    private static let matchAngle: CGFloat = 32 * .pi / 180
+
+    /// The drawn match: head at the top-left, stick running down-right, in a box
+    /// tight enough that the anchor below lands on the head.
+    ///
+    /// Returns the image and the head's position in UNIT coordinates of that
+    /// image (CA's origin, bottom-left) — the two always come from the same
+    /// geometry, so a tweak to the angle cannot leave the anchor behind.
+    private static let matchArt: (image: CGImage, headAnchor: CGPoint, size: CGSize)? = {
+        let L = matchDesignLength
+        let T = L * (matchThicknessShare / matchLengthShare)   // thickness at this design length
+        let (size, headAnchor) = matchGeometry(length: L)
+        let head = CGPoint(x: headAnchor.x * size.width, y: headAnchor.y * size.height)
+
+        let px: CGFloat = 2   // drawn at 2×, scaled down by `bounds` from then on
+        guard let ctx = CGContext(data: nil,
+                                  width: Int(size.width * px), height: Int(size.height * px),
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        ctx.scaleBy(x: px, y: px)
+        ctx.setShouldAntialias(true)
+        ctx.translateBy(x: head.x, y: head.y)
+        // Clockwise from vertical: the stick now runs straight DOWN in local
+        // coordinates and lands down-RIGHT on screen, where a right hand holds it.
+        ctx.rotate(by: matchAngle)
+
+        // The wood. A rounded capsule rather than a rectangle: a square-cut end
+        // at projector size is the one detail that says "drawn in code".
+        let stick = CGRect(x: -T / 2, y: -L, width: T, height: L)
+        ctx.setFillColor(CGColor(srgbRed: 0.851, green: 0.714, blue: 0.482, alpha: 1))
+        ctx.addPath(CGPath(roundedRect: stick, cornerWidth: T / 2, cornerHeight: T / 2,
+                           transform: nil))
+        ctx.fillPath()
+        // One shaded edge, so it is a cylinder and not a strip of tape.
+        ctx.setFillColor(CGColor(srgbRed: 0.639, green: 0.494, blue: 0.298, alpha: 0.85))
+        ctx.addPath(CGPath(roundedRect: CGRect(x: T * 0.12, y: -L, width: T * 0.38, height: L),
+                           cornerWidth: T * 0.19, cornerHeight: T * 0.19, transform: nil))
+        ctx.fillPath()
+        // **And a dark rim around the whole stick**, for the mascot's reason
+        // (⌘⌃Q's white one): this is drawn over *whatever is on screen*, and a
+        // pale tan capsule on a pale slide is a stick you have to look for.
+        // Dark rather than white because the wood is light — the rim has to be
+        // the opposite of the thing it is outlining, not of the background.
+        ctx.setStrokeColor(CGColor(srgbRed: 0.35, green: 0.24, blue: 0.13, alpha: 0.9))
+        ctx.setLineWidth(T * 0.11)
+        ctx.addPath(CGPath(roundedRect: stick, cornerWidth: T / 2, cornerHeight: T / 2,
+                           transform: nil))
+        ctx.strokePath()
+
+        // The burnt neck — the finger-width of charred wood under a head that is
+        // already alight. Without it the match looks unused and the flame looks
+        // borrowed.
+        let charLength = L * 0.13
+        ctx.saveGState()
+        ctx.addPath(CGPath(roundedRect: CGRect(x: -T / 2, y: -charLength, width: T, height: charLength),
+                           cornerWidth: T / 2, cornerHeight: T / 2, transform: nil))
+        ctx.clip()
+        if let char = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                 colors: [CGColor(srgbRed: 0.13, green: 0.10, blue: 0.09, alpha: 1),
+                                          CGColor(srgbRed: 0.35, green: 0.26, blue: 0.19, alpha: 0)] as CFArray,
+                                 locations: [0, 1]) {
+            ctx.drawLinearGradient(char, start: CGPoint(x: 0, y: 0),
+                                   end: CGPoint(x: 0, y: -charLength), options: [])
+        }
+        ctx.restoreGState()
+
+        // The head, elongated along the stick the way a real one is.
+        ctx.setFillColor(CGColor(srgbRed: 0.588, green: 0.157, blue: 0.106, alpha: 1))
+        ctx.fillEllipse(in: CGRect(x: -T * 0.78, y: -T * 0.35, width: T * 1.56, height: T * 2.1))
+
+        guard let image = ctx.makeImage() else { return nil }
+        return (image, headAnchor, size)
+    }()
+
+    /// **The box the match is drawn in, and where its head sits inside it** —
+    /// the head in UNIT coordinates (CA's origin, bottom-left), which is the
+    /// layer's `anchorPoint` and therefore the pixel that rides the pointer.
+    ///
+    /// Pure and shared with the drawing, so the two cannot disagree: an anchor
+    /// computed separately from the geometry is how a flame ends up floating an
+    /// inch off the head the first time somebody tries a different angle. It is
+    /// the reason this is a function at all — see `EmojiAnimatorTests`.
+    static func matchGeometry(length L: CGFloat) -> (size: CGSize, headAnchor: CGPoint) {
+        let T = L * (matchThicknessShare / matchLengthShare)
+        let margin = T * 1.3
+        let size = CGSize(width: margin * 2 + L * sin(matchAngle),
+                          height: margin * 2 + L * cos(matchAngle))
+        // The head is one margin in from the left and one down from the top; the
+        // stick runs from it to the opposite corner.
+        return (size, CGPoint(x: margin / size.width, y: (size.height - margin) / size.height))
+    }
+
+    /// The match's box for a given flame width, keeping the drawing's aspect.
+    /// Pure, so the geometry is asserted without a screen — see
+    /// `EmojiAnimatorTests`.
+    static func matchBounds(forFlameWidth width: CGFloat) -> CGRect {
+        let size = matchGeometry(length: width * matchLengthShare).size
+        return CGRect(origin: .zero, size: size)
+    }
+
+    private var _fireMatchLayer: CALayer?
+
     private var _fireLayer: CALayer?
     private var _fireTimer: Timer?
     private var _fireHidCursor = false            // balance hide/unhide of the real cursor
@@ -8684,6 +8824,31 @@ class EmojiAnimator {
         flame.opacity = 1
         flame.add(fadeIn, forKey: "fadeIn")
 
+        // **The match under the flame** (2026-09-18). Its HEAD is the anchor, so
+        // it rides the pointer at exactly the point the flame's root does — the
+        // two are stacked on one pixel, which is what makes the fire look like
+        // it is coming *out of* the head rather than floating over it.
+        // `zPosition` between the planted fires (9 400) and the pointer's flame
+        // (9 500): the stick has to pass behind its own flame, or the head is a
+        // red dot painted on top of the fire.
+        if let art = Self.matchArt {
+            let match = CALayer()
+            match.bounds = Self.matchBounds(forFlameWidth: flame.bounds.width)
+            match.anchorPoint = art.headAnchor
+            match.contents = art.image
+            match.contentsGravity = .resizeAspect
+            match.zPosition = 9_450
+            match.opacity = 0
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            match.position = flame.position
+            CATransaction.commit()
+            hostLayer.addSublayer(match)
+            _fireMatchLayer = match
+            match.opacity = 1
+            match.add(fadeIn, forKey: "fadeIn")
+        }
+
         // Hide the real pointer for the run. The arm step lifts the "frontmost
         // app only" restriction so it also works while the user is in another
         // app (the common case). Balanced in stopFireCursor.
@@ -8698,7 +8863,12 @@ class EmojiAnimator {
             guard let self, self._fireTimer === t else { t.invalidate(); return }
             CATransaction.begin()
             CATransaction.setDisableActions(true)   // follow instantly, no implicit animation
-            self._fireLayer?.position = self.mousePointInHostLayer()
+            let point = self.mousePointInHostLayer()
+            self._fireLayer?.position = point
+            // The same pixel, not a tracked offset: the match's anchor IS its
+            // head, so one position for both is what keeps the flame on the head
+            // at every size the wheel has been left at.
+            self._fireMatchLayer?.position = point
             CATransaction.commit()
         }
         _fireTimer = timer
@@ -8738,6 +8908,8 @@ class EmojiAnimator {
 
         let flame = _fireLayer
         _fireLayer = nil
+        let match = _fireMatchLayer
+        _fireMatchLayer = nil
         // `_fireScale` is NOT reset — `fireRememberedScale` already holds it and
         // the next press reads it back.
 
@@ -8755,12 +8927,80 @@ class EmojiAnimator {
             }
             flame?.removeAllAnimations()
             flame?.removeFromSuperlayer()
+            match?.removeAllAnimations()
+            match?.removeFromSuperlayer()
             restoreCursor()
         }
 
-        guard fade > 0, !(flame == nil && planted.isEmpty) else { teardown(); return }
+        let held = planted + [flame, match].compactMap { $0 }
+        guard fade > 0, !held.isEmpty else { teardown(); return }
 
-        for layer in planted + (flame.map { [$0] } ?? []) {
+        for layer in held {
+            let fadeOut = CABasicAnimation(keyPath: "opacity")
+            fadeOut.fromValue = layer.presentation()?.opacity ?? 1.0
+            fadeOut.toValue = 0.0
+            fadeOut.duration = fade
+            fadeOut.fillMode = .forwards
+            fadeOut.isRemovedOnCompletion = false
+            layer.add(fadeOut, forKey: "fadeOut")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + fade, execute: teardown)
+    }
+
+    /// **Escape blows the match out and leaves the fires he lit** (2026-09-18).
+    ///
+    /// Victor: *"if I click Escape, the match and the fire disappear, and only
+    /// the fire that I've laid on the screen remain behind."* Until now Escape
+    /// was one thing — *stop the whole effect* — and it took the planted fires
+    /// with it, which made planting them pointless: the only way to keep a
+    /// burning screen was to keep holding a match over it.
+    ///
+    /// So Escape is now the **match's** exit, not the effect's. The fires he
+    /// lit go on burning, the real pointer comes straight back, and the sound
+    /// stops either way — Escape means *enough*, and 30 more seconds of
+    /// crackling would be the opposite of that.
+    ///
+    /// **What still puts THEM out**, because nothing here is allowed to live
+    /// forever (the self-termination rule): the clip's own length, which is
+    /// already scheduled and is deliberately NOT cancelled here — that is why
+    /// this does not touch `_fireGeneration` — plus a second Escape, the
+    /// tablet's stop and `stopAllActiveEffects`. With nothing planted there is
+    /// nothing to keep, so Escape is the full stop it always was.
+    fileprivate func escapeFire() {
+        // Reaches the routed tablet clip; a press the tablet chose to play on
+        // its OWN speaker is not ours to stop.
+        SoundManager.shared.stopTabletSound()
+        SoundManager.shared.stopAllPlayers()
+        guard _fireLayer != nil, !_firePlanted.isEmpty else { stopFireCursor(); return }
+        blowOutMatch()
+    }
+
+    /// The match half of the teardown: the pointer's flame, the stick and the
+    /// hidden cursor. The planted fires and the tap are left standing — the tap
+    /// because a second Escape has to be able to clear the screen, and it passes
+    /// clicks and scrolls through from this moment on (`_fireLayer == nil` is
+    /// the whole test, so there is no second flag to keep in step).
+    private func blowOutMatch(fade: Double = 0.25) {
+        _fireTimer?.invalidate(); _fireTimer = nil
+
+        let flame = _fireLayer
+        _fireLayer = nil
+        let match = _fireMatchLayer
+        _fireMatchLayer = nil
+        let going = [flame, match].compactMap { $0 }
+
+        let teardown = { [weak self] in
+            for layer in going {
+                layer.removeAllAnimations()
+                layer.removeFromSuperlayer()
+            }
+            guard let self, self._fireHidCursor else { return }
+            NSCursor.unhide()
+            CGDisplayShowCursor(CGMainDisplayID())
+            self._fireHidCursor = false
+        }
+        guard fade > 0, !going.isEmpty else { teardown(); return }
+        for layer in going {
             let fadeOut = CABasicAnimation(keyPath: "opacity")
             fadeOut.fromValue = layer.presentation()?.opacity ?? 1.0
             fadeOut.toValue = 0.0
@@ -8847,17 +9087,17 @@ class EmojiAnimator {
             }
             if type == .keyDown,
                CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 {   // Esc
-                DispatchQueue.main.async {
-                    animator.stopFireCursor()
-                    // Put the sound out with the flame. Escape means "enough",
-                    // and 30 more seconds of crackling over a silent desktop is
-                    // the opposite of that. Reaches the routed tablet clip; a
-                    // press the tablet decided to play on its OWN speaker is not
-                    // ours to stop.
-                    SoundManager.shared.stopTabletSound()
-                    SoundManager.shared.stopAllPlayers()
-                }
+                // First press blows the match out and leaves the fires he lit;
+                // a second one clears them. See `escapeFire`.
+                DispatchQueue.main.async { animator.escapeFire() }
                 return nil   // consume — the user is dismissing the fire, not their app
+            }
+            // **Once the match is out, the mouse is his again.** The tap stays
+            // alive only for the second Escape, so consuming clicks here would
+            // take the pointer away from him while he is looking at a desktop
+            // that already has its arrow back.
+            if animator._fireLayer == nil {
+                return Unmanaged.passUnretained(event)
             }
             if type == .leftMouseDown {
                 DispatchQueue.main.async { animator.plantFireAtCursor() }
@@ -8928,6 +9168,9 @@ class EmojiAnimator {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             flame.bounds = Self.fireBounds(for: frame, scale: scale)
+            // The match grows with its flame — a fixed-size match under a
+            // wheel-sized fire is the proportion breaking in front of the room.
+            self._fireMatchLayer?.bounds = Self.matchBounds(forFlameWidth: flame.bounds.width)
             CATransaction.commit()
         }
     }

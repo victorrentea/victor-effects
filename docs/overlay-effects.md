@@ -570,6 +570,9 @@ rule from the start.
 - **🔥 Fire cursor** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
   the chainsaw's trick with a flame — the real pointer is hidden and a 40-frame fire
   sprite burns on it, chasing `NSEvent.mouseLocation` at 60 fps on the built-in screen.
+  **Since 2026-09-18 the pointer is a MATCH with that flame on its head**, a click lays a
+  fire where the head was, and Escape blows the match out and leaves those fires burning
+  — see *The match* below.
   A first press starts **280 pt wide** (`fireBaseWidth`) — halved to 140 on 2026-09-09
   because the flame stopped reading as a *pointer*, then put back to 280 on 2026-09-10 at
   Victor's request. What makes 280 workable now is the rest of that change: the wheel size
@@ -586,6 +589,30 @@ rule from the start.
     half-transparent, which over a slide reads as a washed-out stain instead of fire *on
     top of* it. Same sheet-not-gif reasoning as the chainsaw — gif's 1-bit alpha would
     fringe the glow black on every desktop. Sliced once into a lazy static (`fireFrames`).
+  - **The match** (2026-09-18, `matchArt` / `matchGeometry` / `matchBounds`). Victor asked
+    for the cursor to *become* a match with the fire on its head, because a flame hanging in
+    the air reads as a decal over the slide and the gesture it invites — clicking to set
+    something alight — had nothing doing the lighting. It is **drawn, not an asset**: a
+    stick, a burnt neck and a head, rendered ONCE into a lazy static at 2× the design size
+    and scaled by `bounds` from then on, so the wheel sizes the whole torch with no second
+    sprite sheet to keep in step with `fire-frames.png`.
+    - **Its head is the layer's `anchorPoint`**, so the match and the flame's root are the
+      same pixel and the fire really does come out of the head at every wheel size. The
+      anchor and the drawing come out of one pure function (`matchGeometry`) for exactly that
+      reason — an anchor computed separately is how the flame ends up floating an inch off
+      the head the first time somebody tries another angle. Asserted in `EmojiAnimatorTests`.
+    - **Proportions are shares of the flame's width**, so a candle and a bonfire are held on
+      the same match: length **0.75 ×** (210 pt under the default 280 pt flame, which stands
+      ~467 pt tall), thickness **0.05 ×** — a shade stouter than a real match's 19:1, because
+      at 11 pt on a projector the stick read as a thread. Tilt **32°** from vertical, head
+      up, stick down-right where a right hand holds it; flatter reads as a cigarette.
+    - **A dark rim around the stick**, for the mascot's reason (⌘⌃Q's white one): this is
+      drawn over whatever is on screen, and a pale tan capsule on a pale slide is a stick you
+      have to look for. Dark because the wood is light — the rim is the opposite of the thing
+      it outlines, not of the background.
+    - **`zPosition` 9 450**: above the planted fires (9 400), below the pointer's own flame
+      (9 500). The stick has to pass *behind* its flame, or the head is a red dot painted on
+      top of the fire.
   - **Anchor**: `(0.5, 0.10)` — the flame's **root**, near the bottom edge and centred, so
     the fire grows *upward out of* the pointer rather than swallowing it. Deliberately not
     the chainsaw's teeth anchor: a flame anchored on its own bite point puts half the smoke
@@ -597,13 +624,25 @@ rule from the start.
     (2026-09-10; 140 between 09-09 and 09-10),
     `zPosition` 9500, 0.12 s fade-in / 0.25 s fade-out with the real cursor restored only
     after the fade.
-  - **Escape puts it out.** This is the first effect with a *user* exit, and it needs one:
-    36 s is far too long to sit through if the tile lands at the wrong moment. Escape is
-    taken by a **`CGEventTap`, not an `NSEvent` global monitor** — a monitor can only
-    observe, and an Escape that also closed the user's dialog would make the effect cost
-    something. The keypress is **consumed**, and it stops the routed clip too
-    (`stopTabletSound` + `stopAllPlayers`); a press the tablet chose to play on its **own**
-    speaker is not ours to stop.
+  - **Escape blows the MATCH out; the fires he lit stay** (2026-09-18, Victor: *"if I click
+    Escape, the match and the fire disappear, and only the fire that I've laid on the screen
+    remain behind"*). Until then Escape was the whole effect's exit and took the planted
+    fires with it, which made planting them pointless — the only way to keep a burning screen
+    was to go on holding a match over it. So the first Escape runs `blowOutMatch`: the
+    pointer's flame, the stick and the hidden cursor go, the planted fires go on burning, and
+    the tap stays alive **passing clicks and scrolls through** (`_fireLayer == nil` is the
+    whole test — no second flag to keep in step). A **second** Escape clears them. With
+    nothing planted, the first Escape is the full stop it always was.
+    - **What still puts the planted fires out on their own**: the clip's own length, whose
+      timer is deliberately *not* cancelled by `blowOutMatch` (it does not touch
+      `_fireGeneration`), plus the tablet's stop and `stopAllActiveEffects`. The
+      self-termination rule holds — nothing here can be left burning by a lost message.
+    - This is the first effect with a *user* exit, and it needs one: 36 s is far too long to
+      sit through if the tile lands at the wrong moment. Escape is taken by a **`CGEventTap`,
+      not an `NSEvent` global monitor** — a monitor can only observe, and an Escape that also
+      closed the user's dialog would make the effect cost something. The keypress is
+      **consumed**, and it stops the routed clip too (`stopTabletSound` + `stopAllPlayers`);
+      a press the tablet chose to play on its **own** speaker is not ours to stop.
   - **The wheel sizes it while it burns.** Same tap: one notch is a **multiply** by 1.10,
     so a step feels the same at a candle and at a bonfire. The clamp is 0.30 × at the
     bottom and **the screen** at the top (2026-09-10; it was a flat 3.50 ×): `fireMaxScale`

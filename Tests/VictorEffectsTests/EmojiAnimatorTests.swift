@@ -403,6 +403,54 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertEqual(layer.shadowColor, EmojiAnimator.nsColor(fromHex: "#36e264")?.cgColor)
     }
 
+    // MARK: - 🔥 The match the flame is carried on (2026-09-18)
+
+    /// The head is the layer's anchor, so it is the pixel that rides the
+    /// pointer — and the flame's root rides the same one. If this drifts, the
+    /// fire floats off the match and the click plants it somewhere the user did
+    /// not point at. Near the top-left because the stick hangs down-RIGHT, where
+    /// a right hand holds it.
+    func testMatchHeadIsTheAnchorAtTheTopLeft() {
+        let (size, head) = EmojiAnimator.matchGeometry(length: 600)
+        XCTAssertTrue(size.width > 0 && size.height > 0, "the match has to have a box")
+        XCTAssertTrue((0...1).contains(head.x) && (0...1).contains(head.y),
+                      "the head must be INSIDE the drawing, or the anchor is off the layer")
+        XCTAssertLessThan(head.x, 0.25, "the head sits at the left edge; the stick runs right")
+        XCTAssertGreaterThan(head.y, 0.80, "the head sits at the top; the stick hangs down")
+    }
+
+    /// The tilt is 32° from vertical — a hand holding a match up. Flatter and it
+    /// reads as a cigarette, so the box must stay taller than it is wide.
+    func testMatchHangsMoreDownThanSideways() {
+        let (size, _) = EmojiAnimator.matchGeometry(length: 600)
+        XCTAssertGreaterThan(size.height, size.width,
+                             "a match tilted past 45° stops reading as held up")
+    }
+
+    /// The wheel sizes the flame and the match together: one flame width in,
+    /// one proportional match out. A fixed-size match under a wheel-sized fire
+    /// is the proportion breaking in front of the room.
+    func testMatchScalesWithTheFlame() {
+        let small = EmojiAnimator.matchBounds(forFlameWidth: 280)
+        let big = EmojiAnimator.matchBounds(forFlameWidth: 560)
+        XCTAssertEqual(big.width, small.width * 2, accuracy: 0.001)
+        XCTAssertEqual(big.height, small.height * 2, accuracy: 0.001)
+        XCTAssertEqual(small.height / small.width, big.height / big.width, accuracy: 0.001,
+                       "the drawing's aspect has to survive the resize")
+    }
+
+    /// The stick is 0.75 × the flame's width. At the default 280 pt flame that
+    /// is a 210 pt match under a ~467 pt flame — held up under it, rather than a
+    /// twig lost beneath a bonfire.
+    func testMatchLengthIsThreeQuartersOfTheFlameWidth() {
+        let box = EmojiAnimator.matchBounds(forFlameWidth: 280)
+        // The box is the stick's own bounding box plus a margin on each side, so
+        // its diagonal is at least the stick's length and not much more.
+        let diagonal = (box.width * box.width + box.height * box.height).squareRoot()
+        XCTAssertGreaterThan(diagonal, 280 * 0.75)
+        XCTAssertLessThan(diagonal, 280 * 0.75 * 1.35)
+    }
+
     func testSpawnEmojiWithoutGlowHasNoHalo() {
         let host = CALayer()
         let animator = EmojiAnimator(hostLayer: host)
