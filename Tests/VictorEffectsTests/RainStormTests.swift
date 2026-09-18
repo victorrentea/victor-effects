@@ -248,13 +248,42 @@ final class RainStormTests: XCTestCase {
 
     // MARK: - The sprites
 
-    func testACloudRendersAndIsCachedAtTheSizeItWasAskedFor() throws {
+    /// Every sprite in the band has to actually be in the bundle. A missing one
+    /// is not a crash — `cloudImage` draws instead — which is exactly why it
+    /// needs a test: the failure is a cloud that silently stops being a
+    /// photograph, and nobody would notice from one press.
+    func testEverySpriteIsInTheBundleAndIsTheAspectTheGeometryAssumes() throws {
+        for i in 0..<RainStorm.cloudCount {
+            let photo = try XCTUnwrap(RainStorm.cloudPhoto(index: i), "cloud-\(i).png is missing from the bundle")
+            let aspect = CGFloat(photo.height) / CGFloat(photo.width)
+            XCTAssertEqual(aspect, RainStorm.cloudAspect, accuracy: 0.01,
+                           "cloud-\(i).png is \(photo.width)×\(photo.height); cloudAspect says \(RainStorm.cloudAspect)")
+        }
+    }
+
+    /// The sprites are cut out, so most of each one has to be TRANSPARENT. A
+    /// fully opaque sprite means the matte failed and the cloud shipped with its
+    /// sky still attached — which on screen is a rectangle of sky, not a cloud.
+    func testTheSpritesAreCutOutAndNotJustCroppedPhotographs() throws {
+        for i in 0..<RainStorm.cloudCount {
+            let photo = try XCTUnwrap(RainStorm.cloudPhoto(index: i))
+            XCTAssertEqual(photo.alphaInfo != .none, true, "cloud-\(i).png has no alpha channel at all")
+        }
+    }
+
+    /// The drawn cloud is the fallback for a missing sprite, and it still has to
+    /// render — at exactly the size asked for, with the blur's slack on every
+    /// side, because the caller insets the layer frame by exactly that.
+    func testTheDrawnFallbackStillRendersAtTheSizeItWasAskedFor() throws {
         let size = CGSize(width: 400, height: 400 * RainStorm.cloudAspect)
-        let image = try XCTUnwrap(RainStorm.cloudImage(index: 0, size: size, scale: 2))
-        // The canvas carries the blur's slack on every side — the caller insets
-        // the layer frame by exactly that, so the two have to agree.
+        let image = try XCTUnwrap(RainStorm.drawnCloud(index: 0, size: size, scale: 2))
         let pad = size.width * 2 * RainStorm.spritePadding
         XCTAssertEqual(CGFloat(image.width), (size.width * 2 + pad * 2).rounded(), accuracy: 2)
+    }
+
+    func testTheSecondAskHitsTheCache() throws {
+        let size = CGSize(width: 400, height: 400 * RainStorm.cloudAspect)
+        let image = try XCTUnwrap(RainStorm.cloudImage(index: 0, size: size, scale: 2))
         XCTAssertTrue(RainStorm.cloudImage(index: 0, size: size, scale: 2) === image, "second ask must hit the cache")
     }
 

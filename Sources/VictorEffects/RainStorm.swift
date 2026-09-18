@@ -1,8 +1,9 @@
 import AppKit
 import CoreImage
+import ImageIO
 import QuartzCore
 
-/// ⛈️ The storm that rolls in on tile #20: four clouds slide in from the two
+/// ⛈️ The storm that rolls in on tile #20: seven clouds slide in from the two
 /// sides onto the top edge, the desktop goes dark under them, and it rains for
 /// the length of the clip.
 ///
@@ -12,13 +13,21 @@ import QuartzCore
 /// `TvStatic`, so the layout can be tested without a screen and the press costs
 /// no rendering after the first one.
 ///
-/// **The clouds are drawn, not photographed.** A cut-out photo would have to be
-/// licensed to sit in a public repo, and it would arrive at one resolution for
-/// a band that is 46 % of whatever screen the overlay lands on. Drawing them is
-/// also what buys four clouds that are visibly *different* from each other out
-/// of one function: the silhouette is a seeded pile of lobes, so cloud #3 is not
-/// cloud #1 shifted sideways, which is the tell that gives a repeated sprite
-/// away when two of them overlap along the same edge.
+/// **The clouds are photographs** (`Resources/clouds/cloud-0…6.png`), cut out of
+/// two public-domain skies — see that folder's `CREDITS.md`. The drawn ones they
+/// replaced are still here as [cloudImage]'s fallback and are still what a
+/// missing sprite gets: a seeded pile of lobes with a gradient and a blur, good
+/// enough that nobody in a room would have called it wrong, and visibly not a
+/// photograph once a real cumulus is beside it.
+///
+/// Finding the photographs was most of the work, and the reason is worth
+/// writing down: the matte is keyed off the SKY, so a picture only works if its
+/// sky is a saturated, even blue right up to the cloud's edge. Almost every
+/// cloud photograph is hazy near its subject — pale blue against white cloud is
+/// no key at all — and a scored sweep of ~50 public-domain candidates produced
+/// exactly three usable ones. Hence three cumulus FORMS across seven sprites,
+/// mirrored and re-cropped, arranged so no two neighbours in the band share a
+/// form and a mirror never sits beside its original.
 enum RainStorm {
 
     // MARK: - The clip
@@ -93,11 +102,19 @@ enum RainStorm {
     /// band's base, which is where an overcast sky actually looks ragged.
     static let cloudCount = 7
 
-    /// Each cloud is a bit over a quarter of the screen wide, so consecutive
-    /// ones still overlap by half their width and the band is continuous rather
-    /// than seven separate blobs in a row.
-    static let cloudWidthFraction: CGFloat = 0.28
-    static let cloudAspect: CGFloat = 0.58        // height ÷ width
+    /// Each cloud is about a third of the screen wide, so consecutive ones
+    /// overlap by more than half their width and the band is continuous rather
+    /// than seven separate blobs in a row. It went up from 0.28 when the drawn
+    /// clouds became photographs: a drawn one was a solid slab of alpha and
+    /// butted cleanly against its neighbour, while a CUT-OUT has a ragged
+    /// silhouette that feathers to nothing at its own edges — two of those
+    /// meeting leave a notch of bright desktop between them unless they overlap
+    /// much harder.
+    static let cloudWidthFraction: CGFloat = 0.34
+    /// Height ÷ width. **This is the sprite files' own aspect** (1200 × 780), not
+    /// a free parameter: the photographs are cut to it, base-anchored, so the
+    /// box never squashes a cloud. Change one and the other has to follow.
+    static let cloudAspect: CGFloat = 0.65
 
     /// Where the clouds come to rest, as fractions of the screen width. The
     /// outermost two deliberately hang off the edges: a cloud that stops neatly
@@ -110,8 +127,8 @@ enum RainStorm {
     /// are what keep the band from looking like seven things aligned on a ruler
     /// — and together with the smaller clouds they are what "a bit higher" is:
     /// the band now hangs about 23 % of the way down instead of a third.
-    static let cloudOverhang: [CGFloat] = [0.30, 0.22, 0.34, 0.24, 0.32, 0.20, 0.28]
-    static let cloudDip: [CGFloat] = [0.00, 0.10, 0.04, 0.13, 0.02, 0.11, 0.06]
+    static let cloudOverhang: [CGFloat] = [0.46, 0.42, 0.50, 0.44, 0.48, 0.40, 0.45]
+    static let cloudDip: [CGFloat] = [0.00, 0.07, 0.03, 0.09, 0.02, 0.08, 0.05]
 
     // MARK: - The drift that never stops
 
@@ -276,6 +293,25 @@ enum RainStorm {
     static func cloudImage(index: Int, size: CGSize, scale: CGFloat) -> CGImage? {
         let key = "\(index)@\(Int(size.width * scale))x\(Int(size.height * scale))"
         if let cached = spriteCache[key] { return cached }
+        // The photograph, when there is one. Cached under the same key as the
+        // drawing it replaces, so the caller never learns which it got — and,
+        // unlike the drawing, it is one bitmap whatever size it is asked for:
+        // the layer scales it, which is what `contentsGravity` is for.
+        if let photo = cloudPhoto(index: index) {
+            spriteCache[key] = photo
+            return photo
+        }
+        return drawnCloud(index: index, size: size, scale: scale).map {
+            spriteCache[key] = $0
+            return $0
+        }
+    }
+
+    /// The fallback: a cloud built out of nothing but numbers, at exactly the
+    /// size asked for. Kept as its own entry point so it can be tested even on a
+    /// machine where the sprites are present, and so the reason it still exists
+    /// stays visible — a missing PNG must cost a worse cloud, never no storm.
+    static func drawnCloud(index: Int, size: CGSize, scale: CGFloat) -> CGImage? {
         guard size.width > 1, size.height > 1 else { return nil }
 
         let px = CGSize(width: size.width * scale, height: size.height * scale)
@@ -324,13 +360,27 @@ enum RainStorm {
         ctx.restoreGState()
 
         guard let sharp = ctx.makeImage() else { return nil }
-        let blurred = blur(sharp, radius: px.width * blurFraction) ?? sharp
-        spriteCache[key] = blurred
-        return blurred
+        return blur(sharp, radius: px.width * blurFraction) ?? sharp
+    }
+
+    /// The cut-out sprite for this cloud, or nil if the bundle has none — in
+    /// which case [cloudImage] draws one instead. A storm with drawn clouds is a
+    /// worse storm; a storm that refuses to run because a PNG is missing is no
+    /// storm at all.
+    static func cloudPhoto(index: Int) -> CGImage? {
+        guard let url = Bundle.module.url(forResource: "cloud-\(index % cloudCount)",
+                                          withExtension: "png",
+                                          subdirectory: "Resources/clouds"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        return image
     }
 
     /// Slack around the sprite, as a fraction of its width, so the blur has
-    /// somewhere to go.
+    /// somewhere to go. **Photographic sprites carry their own margin** (they are
+    /// trimmed to their cloud and then placed in a fixed box), so this applies to
+    /// the drawn fallback; the caller insets by it either way, which costs a
+    /// photograph 6 % of transparent edge and nothing else.
     static let spritePadding: CGFloat = 0.06
     /// Blur radius, as a fraction of the sprite's width. Enough to turn the
     /// outline into vapour, not so much that the lobes melt into one pillow.
