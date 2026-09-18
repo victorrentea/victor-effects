@@ -15,10 +15,29 @@ final class RainStormTests: XCTestCase {
 
     // MARK: - The entrances
 
-    func testTwoCloudsComeFromEachSide() {
+    /// The band has to close from BOTH sides at once — all of them entering
+    /// from one edge is a wipe, not weather. With an odd count the extra one
+    /// comes from the left, so the two sides are never more than one apart.
+    func testTheCloudsSplitEvenlyBetweenTheTwoSides() {
         let sides = RainStorm.arrivals(in: bounds).map { $0.fromLeft }
-        XCTAssertEqual(sides.filter { $0 }.count, 2)
-        XCTAssertEqual(sides.filter { !$0 }.count, 2)
+        let left = sides.filter { $0 }.count
+        let right = sides.count - left
+        XCTAssertEqual(sides.count, RainStorm.cloudCount)
+        XCTAssertLessThanOrEqual(abs(left - right), 1, "\(left) from the left, \(right) from the right")
+        XCTAssertGreaterThan(left, 0)
+        XCTAssertGreaterThan(right, 0)
+    }
+
+    /// Every per-cloud table has to be as long as the band, or a seventh cloud
+    /// would read the sixth's numbers — or crash on the subscript.
+    func testEveryPerCloudTableIsAsLongAsTheBand() {
+        XCTAssertEqual(RainStorm.cloudCentres.count, RainStorm.cloudCount)
+        XCTAssertEqual(RainStorm.cloudOverhang.count, RainStorm.cloudCount)
+        XCTAssertEqual(RainStorm.cloudDip.count, RainStorm.cloudCount)
+        XCTAssertEqual(RainStorm.cloudDelays.count, RainStorm.cloudCount)
+        XCTAssertEqual(RainStorm.driftX.count, RainStorm.cloudCount)
+        XCTAssertEqual(RainStorm.driftY.count, RainStorm.cloudCount)
+        XCTAssertEqual(RainStorm.driftSeconds.count, RainStorm.cloudCount)
     }
 
     /// "Slides in from the side" and "is already half on screen when it starts"
@@ -60,6 +79,16 @@ final class RainStormTests: XCTestCase {
         }
     }
 
+    /// The band hangs in the TOP QUARTER or so. This is what "a bit higher"
+    /// was: seven smaller clouds instead of four big ones, so the ceiling stops
+    /// eating a third of the desktop under it.
+    func testTheBandStaysOutOfTheTopThird() {
+        let lowest = RainStorm.arrivals(in: bounds).map { $0.rest.minY }.min()!
+        let depth = (bounds.height - lowest) / bounds.height
+        XCTAssertLessThan(depth, 0.28, "the ceiling hangs \(Int(depth * 100))% down — too much of the demo is under cloud")
+        XCTAssertGreaterThan(depth, 0.12, "the ceiling hangs \(Int(depth * 100))% down — too thin to read as overcast")
+    }
+
     /// Staggered, or the band arrives as one image cut down the middle.
     func testTheCloudsDoNotAllArriveTogether() {
         let delays = RainStorm.arrivals(in: bounds).map { $0.delay }
@@ -70,6 +99,43 @@ final class RainStormTests: XCTestCase {
     func testDegenerateBoundsProduceNoClouds() {
         XCTAssertTrue(RainStorm.arrivals(in: .zero).isEmpty)
         XCTAssertEqual(RainStorm.rainLineY(in: .zero), 0, "no clouds to ask ⇒ the bounds' own top edge")
+    }
+
+    // MARK: - The drift that never stops
+
+    /// A cloud that parks is a picture. Every one of them has to keep moving,
+    /// and by an amount that is noticeable only if you look for it.
+    func testEveryCloudKeepsDriftingByALittle() {
+        for i in 0..<RainStorm.cloudCount {
+            let drift = RainStorm.drift(for: i, in: bounds)
+            XCTAssertNotEqual(drift.dx, 0, "cloud \(i) parks")
+            XCTAssertLessThan(abs(drift.dx), bounds.width * 0.035, "cloud \(i) sways far enough to be a slide")
+            XCTAssertLessThan(abs(drift.dy), bounds.height * 0.02, "cloud \(i) bobs far enough to be a bounce")
+            XCTAssertGreaterThan(drift.seconds, 5, "cloud \(i) sways fast enough to read as a wobble")
+        }
+    }
+
+    /// Seven clouds breathing in step is one object wobbling, which is more
+    /// obviously artificial than not moving at all. Distinct periods, and no
+    /// pair a small multiple of the other.
+    func testTheCloudsDoNotBreatheInStep() {
+        let periods = RainStorm.driftSeconds
+        XCTAssertEqual(Set(periods).count, periods.count)
+        for (i, a) in periods.enumerated() {
+            for b in periods[(i + 1)...] {
+                let ratio = max(a, b) / min(a, b)
+                XCTAssertGreaterThan(abs(ratio - ratio.rounded()), 0.04,
+                                     "\(a)s and \(b)s resynchronise every few cycles")
+            }
+        }
+    }
+
+    /// Consecutive clouds must not sway the same way, or their overlap opens
+    /// and closes as one seam instead of the band churning.
+    func testNeighbouringCloudsSwayAgainstEachOther() {
+        for (a, b) in zip(RainStorm.driftX, RainStorm.driftX.dropFirst()) {
+            XCTAssertLessThan(a * b, 0, "\(a) and \(b) sway together")
+        }
     }
 
     // MARK: - Where the rain comes out
@@ -195,5 +261,85 @@ final class RainStormTests: XCTestCase {
     func testADropIsATallThinStreak() throws {
         let drop = try XCTUnwrap(RainStorm.dropImage(scale: 2))
         XCTAssertGreaterThan(drop.height, drop.width * 4, "rain reads as lines, not as dots")
+    }
+
+    // MARK: - The flight of one drop
+    //
+    // This is the bug the emitter had, written down. It expressed the fall as
+    // `emissionLongitude` — an angle whose zero and whose sign are a convention
+    // rather than a coordinate — and on this layer it came out sideways: a dense
+    // band of streaks sliding LEFT under the cloud base, never reaching the
+    // floor. A start and an end point cannot be misread, and these assert it
+    // without opening a window.
+
+    func testADropActuallyFallsToTheFloor() {
+        for depth in stride(from: CGFloat(0), through: 1, by: 0.25) {
+            let drop = RainStorm.drop(in: bounds, lineY: RainStorm.rainLineY(in: bounds),
+                                      depth: depth, atX: bounds.midX)
+            XCTAssertLessThan(drop.end.y, drop.start.y, "depth \(depth): the drop must go DOWN")
+            XCTAssertLessThanOrEqual(drop.end.y, 0, "depth \(depth): it must leave through the bottom edge")
+            XCTAssertGreaterThan(drop.start.y, bounds.midY, "depth \(depth): it must be born up at the cloud base")
+        }
+    }
+
+    /// Down first, sideways second — the whole point. The vertical travel has
+    /// to dwarf the horizontal one, and the lean has to be to the LEFT (Victor,
+    /// 2026-09-19: "fall down… and perhaps slightly diagonally to left a bit").
+    func testTheDropLeansLeftAndOnlyALittle() {
+        let drop = RainStorm.drop(in: bounds, lineY: RainStorm.rainLineY(in: bounds),
+                                  depth: 0.5, atX: bounds.midX)
+        let dx = drop.end.x - drop.start.x
+        let dy = drop.start.y - drop.end.y
+        XCTAssertLessThan(dx, 0, "the wind blows left")
+        XCTAssertGreaterThan(dy, abs(dx) * 8, "it is falling, not drifting: \(dy) down for \(abs(dx)) across")
+    }
+
+    /// The streak has to lie ALONG its path. A vertical sprite travelling at an
+    /// angle reads as a drop sliding sideways, which is the other half of what
+    /// the emitter got wrong.
+    func testTheStreakIsTiltedOntoItsOwnPath() {
+        let drop = RainStorm.drop(in: bounds, lineY: RainStorm.rainLineY(in: bounds),
+                                  depth: 0.5, atX: bounds.midX)
+        let dx = drop.end.x - drop.start.x
+        let dy = drop.start.y - drop.end.y
+        XCTAssertEqual(drop.angle, atan2(dx, dy), accuracy: 0.0001)
+        XCTAssertLessThan(abs(drop.angle), 0.2, "a 12° lean is weather; more is a gale")
+    }
+
+    /// Near drops are bigger, faster and brighter than far ones — one number
+    /// carries all of it, so a drop can never read as a contradiction.
+    func testDepthDrivesSizeSpeedAndBrightnessTogether() {
+        let line = RainStorm.rainLineY(in: bounds)
+        let far = RainStorm.drop(in: bounds, lineY: line, depth: 0, atX: bounds.midX)
+        let near = RainStorm.drop(in: bounds, lineY: line, depth: 1, atX: bounds.midX)
+        XCTAssertGreaterThan(near.size.height, far.size.height)
+        XCTAssertGreaterThan(near.size.width, far.size.width)
+        XCTAssertGreaterThan(near.opacity, far.opacity)
+        XCTAssertLessThan(near.seconds, far.seconds, "the near drop covers more ground in less time")
+        XCTAssertGreaterThan(far.seconds, 0.2)
+        XCTAssertLessThan(far.seconds, 3.0, "a drop that hangs for seconds is snow")
+    }
+
+    /// The entry span has to reach past the UPWIND edge by as much as the lean
+    /// carries a drop across, or the far side of the screen is visibly drier
+    /// than the near side.
+    func testTheEntrySpanCoversBothEdgesOnceTheWindHasHadItsWay() {
+        var landedLeft = false, landedRight = false
+        for _ in 0..<4000 {
+            let drop = RainStorm.randomDrop(in: bounds)
+            if min(drop.start.x, drop.end.x) <= 0 { landedLeft = true }
+            if max(drop.start.x, drop.end.x) >= bounds.width { landedRight = true }
+        }
+        XCTAssertTrue(landedLeft, "nothing rains past the left edge")
+        XCTAssertTrue(landedRight, "nothing rains past the right edge")
+    }
+
+    /// The downpour must be a downpour, and the spawner must be able to deliver
+    /// it in whole drops per tick.
+    func testTheDownpourIsDenseEnoughToReadAsRain() {
+        XCTAssertGreaterThan(RainStorm.dropsPerSecond, 100)
+        XCTAssertGreaterThan(RainStorm.dropsPerSecond / RainStorm.dropSpawnHz, 2,
+                             "fewer than a couple of drops a tick and the rain arrives in visible pulses")
+        XCTAssertGreaterThanOrEqual(RainStorm.dropSpawnHz, 20, "the spawn tick would be visible as a stutter")
     }
 }

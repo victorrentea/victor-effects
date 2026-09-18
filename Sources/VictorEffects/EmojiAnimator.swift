@@ -6595,6 +6595,15 @@ class EmojiAnimator {
     /// the key out from under whatever ran next.
     private var stormSelfStop: DispatchWorkItem?
 
+    /// Drops the rain. One repeating timer releasing a handful of layers a tick,
+    /// rather than a `CAEmitterLayer`: the emitter expressed its direction as
+    /// `emissionLongitude`, an angle whose zero and whose sign are a convention
+    /// rather than a coordinate, and on this layer it came out sideways — a
+    /// dense band of streaks sliding LEFT under the cloud base instead of rain
+    /// reaching the floor. A drop now flies between two POINTS (`RainStorm.Drop`),
+    /// which cannot be misread and can be asserted without opening a window.
+    private var stormRainTimer: Timer?
+
     /// ⛈️ Four clouds slide in from both sides onto the top edge, the desktop
     /// dims under them, and rain falls out of the cloud base for as long as the
     /// clip plays — with lightning on the thunder rolls.
@@ -6661,6 +6670,24 @@ class EmojiAnimator {
             slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
             slide.fillMode = .backwards
             layer.add(slide, forKey: "stormSlide")
+
+            // …and it never quite settles. ADDITIVE, on `position` rather than
+            // `position.x`, and beginning only once the slide has landed: the
+            // two would otherwise both be driving the same property, and an
+            // additive delta on top of a resting model value is the one form
+            // that cannot fight it. Removed-on-completion is left off — the sway
+            // repeats for the rest of the clip and the container fade takes it.
+            let drift = RainStorm.drift(for: index, in: bounds)
+            let sway = CABasicAnimation(keyPath: "position")
+            sway.fromValue = NSValue(point: .zero)
+            sway.toValue = NSValue(point: NSPoint(x: drift.dx, y: drift.dy))
+            sway.duration = drift.seconds
+            sway.beginTime = CACurrentMediaTime() + arrival.delay + RainStorm.cloudSlideSeconds
+            sway.autoreverses = true
+            sway.repeatCount = .greatestFiniteMagnitude
+            sway.isAdditive = true
+            sway.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            layer.add(sway, forKey: "stormDrift")
         }
 
         // 3. Lightning, one stutter per thunder roll in the clip. Above the
@@ -6680,16 +6707,37 @@ class EmojiAnimator {
             flash.add(strike, forKey: "stormFlash\(onset)")
         }
 
-        // 4. The rain, ramping up rather than switching on.
-        if let rain = RainStorm.rainLayer(in: bounds, scale: scale) {
-            container.addSublayer(rain)
-            let ramp = CABasicAnimation(keyPath: "birthRate")
-            ramp.fromValue = 0
-            ramp.toValue = 1
-            ramp.duration = RainStorm.rainRampSeconds
-            ramp.beginTime = CACurrentMediaTime() + RainStorm.rainLeadIn
-            ramp.fillMode = .backwards
-            rain.add(ramp, forKey: "stormRain")
+        // 4. The rain, ramping up rather than switching on: the tick rate is
+        // fixed and the number of drops it releases is what grows, so the sky
+        // is dry until there are clouds to rain out of and the downpour then
+        // builds. Drops go in a sublayer of their own so they sit ABOVE the
+        // flash and the clouds — only drops in front of the gloom read from the
+        // back of a room.
+        let rain = CALayer()
+        rain.frame = bounds
+        container.addSublayer(rain)
+        if let dropImage = RainStorm.dropImage(scale: scale) {
+            let started = Date()
+            let timer = Timer.scheduledTimer(withTimeInterval: 1 / RainStorm.dropSpawnHz, repeats: true) { [weak self, weak rain] timer in
+                guard let self, let rain, self.activeEffects["storm"] === container else {
+                    timer.invalidate()
+                    return
+                }
+                let elapsed = Date().timeIntervalSince(started)
+                guard elapsed >= RainStorm.rainLeadIn else { return }
+                let ramp = min(1, (elapsed - RainStorm.rainLeadIn) / RainStorm.rainRampSeconds)
+                let perTick = RainStorm.dropsPerSecond / RainStorm.dropSpawnHz * ramp
+                // The fractional part is spent as a probability, or a light
+                // ramp would round to zero drops on every tick and the rain
+                // would start abruptly at half strength instead of building.
+                var count = Int(perTick)
+                if Double.random(in: 0..<1) < perTick - Double(count) { count += 1 }
+                for _ in 0..<count {
+                    self.spawnRainDrop(into: rain, bounds: bounds, image: dropImage, scale: scale)
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            stormRainTimer = timer
         }
 
         overlayInfo(String(format: "⛈️ storm: %d clouds in over %.1fs, rain from %.1fs, %.1fs clip",
@@ -6708,6 +6756,38 @@ class EmojiAnimator {
         DispatchQueue.main.asyncAfter(deadline: .now() + clip, execute: selfStop)
     }
 
+    /// One drop, falling from the cloud base to just past the bottom edge.
+    ///
+    /// The streak is ROTATED to lie along its own path. A vertical sprite
+    /// travelling at an angle reads as a drop sliding sideways rather than
+    /// leaning into a wind — which was half of what was wrong with the emitter
+    /// this replaced.
+    private func spawnRainDrop(into container: CALayer, bounds: CGRect, image: CGImage, scale: CGFloat) {
+        let drop = RainStorm.randomDrop(in: bounds)
+        let layer = CALayer()
+        layer.bounds = CGRect(origin: .zero, size: drop.size)
+        layer.position = drop.start
+        layer.contents = image
+        layer.contentsScale = scale
+        layer.opacity = drop.opacity
+        layer.transform = CATransform3DMakeRotation(drop.angle, 0, 0, 1)
+        container.addSublayer(layer)
+
+        let fall = CABasicAnimation(keyPath: "position")
+        fall.fromValue = NSValue(point: drop.start)
+        fall.toValue = NSValue(point: drop.end)
+        fall.duration = drop.seconds
+        // Linear, and deliberately so: over two thirds of a second the
+        // acceleration of real rain is invisible, while an ease of any kind is
+        // not — it reads as the drop slowing down near the floor.
+        fall.timingFunction = CAMediaTimingFunction(name: .linear)
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak layer] in layer?.removeFromSuperlayer() }
+        layer.add(fall, forKey: "stormDropFall")
+        CATransaction.commit()
+    }
+
     /// Wired to `storm/stop` — the clip stopped on the tablet.
     func stopStorm() {
         clearStorm(fadeDuration: RainStorm.fadeOutSeconds)
@@ -6716,6 +6796,11 @@ class EmojiAnimator {
     private func clearStorm(fadeDuration: CFTimeInterval) {
         stormSelfStop?.cancel()
         stormSelfStop = nil
+        // Before the container goes: a repeating timer holding a reference to a
+        // detached layer would keep dropping rain into nothing for as long as
+        // the app runs.
+        stormRainTimer?.invalidate()
+        stormRainTimer = nil
         guard let container = activeEffects["storm"] else { return }
         activeEffects.removeValue(forKey: "storm")
         guard fadeDuration > 0 else { container.removeFromSuperlayer(); return }

@@ -50,10 +50,10 @@ enum RainStorm {
     /// Slow enough to read as weather arriving rather than as a wipe.
     static let cloudSlideSeconds: Double = 2.3
 
-    /// The four clouds do not arrive together — that reads as one image cut in
-    /// half. Index → its head start, so the outer pair leads and the inner pair
-    /// closes the gap behind it.
-    static let cloudDelays: [Double] = [0.00, 0.30, 0.15, 0.45]
+    /// The clouds do not arrive together — that reads as one image cut in half.
+    /// Index → its head start, interleaved so the band closes from both sides
+    /// at once rather than sweeping across.
+    static let cloudDelays: [Double] = [0.00, 0.34, 0.14, 0.46, 0.22, 0.52, 0.08]
 
     /// The desktop dims to this, over [darkenSeconds]. Not black: what is being
     /// darkened is a live demo, and the room still has to be able to read it —
@@ -85,24 +85,67 @@ enum RainStorm {
 
     // MARK: - The cloud band
 
-    static let cloudCount = 4
+    /// **Seven, not four** (Victor, 2026-09-19: *"be more, smaller, and a bit
+    /// higher"*). Four clouds at nearly half the screen each made a ceiling
+    /// a third of the way down the desktop — plenty of weather, but it ate the
+    /// demo underneath, and at that size the seven lobes of one cloud read as
+    /// individual bubbles. Smaller clouds also mean more *edges* along the
+    /// band's base, which is where an overcast sky actually looks ragged.
+    static let cloudCount = 7
 
-    /// Each cloud is nearly half the screen wide, so four of them overlap into
-    /// one continuous ceiling instead of four separate blobs in a row.
-    static let cloudWidthFraction: CGFloat = 0.44
+    /// Each cloud is a bit over a quarter of the screen wide, so consecutive
+    /// ones still overlap by half their width and the band is continuous rather
+    /// than seven separate blobs in a row.
+    static let cloudWidthFraction: CGFloat = 0.28
     static let cloudAspect: CGFloat = 0.58        // height ÷ width
 
     /// Where the clouds come to rest, as fractions of the screen width. The
-    /// outer two deliberately hang off the edges: a cloud that stops neatly
+    /// outermost two deliberately hang off the edges: a cloud that stops neatly
     /// inside the frame reads as a sticker, one that is cut by the screen edge
     /// reads as part of a sky that continues past it.
-    static let cloudCentres: [CGFloat] = [0.08, 0.36, 0.64, 0.92]
+    static let cloudCentres: [CGFloat] = [0.04, 0.20, 0.36, 0.52, 0.68, 0.84, 1.00]
 
     /// How far each cloud's top is pushed above the top edge, as a fraction of
     /// its own height, and how far its base is dropped below the others. Both
-    /// are what keep the band from looking like four things aligned on a ruler.
-    static let cloudOverhang: [CGFloat] = [0.34, 0.24, 0.38, 0.26]
-    static let cloudDip: [CGFloat] = [0.00, 0.09, 0.03, 0.12]
+    /// are what keep the band from looking like seven things aligned on a ruler
+    /// — and together with the smaller clouds they are what "a bit higher" is:
+    /// the band now hangs about 23 % of the way down instead of a third.
+    static let cloudOverhang: [CGFloat] = [0.30, 0.22, 0.34, 0.24, 0.32, 0.20, 0.28]
+    static let cloudDip: [CGFloat] = [0.00, 0.10, 0.04, 0.13, 0.02, 0.11, 0.06]
+
+    // MARK: - The drift that never stops
+
+    /// **A cloud that parks is a picture; a cloud that keeps breathing is
+    /// weather.** Once its slide lands, each cloud drifts on for the rest of the
+    /// clip — a slow sideways sway with a little rise and fall under it,
+    /// additive on top of its resting position so it never fights the slide that
+    /// put it there.
+    ///
+    /// Every cloud gets its OWN period, and the periods are deliberately not
+    /// multiples of each other: seven clouds breathing in step is a single
+    /// object wobbling, which is more obviously artificial than not moving at
+    /// all. The amplitudes are small on purpose — this is meant to be noticed
+    /// only if you look.
+    struct Drift {
+        let dx: CGFloat
+        let dy: CGFloat
+        /// One leg of the sway; it autoreverses, so a full cycle is twice this.
+        let seconds: Double
+    }
+
+    /// Sideways sway as a fraction of the screen width, per cloud.
+    static let driftX: [CGFloat] = [0.020, -0.014, 0.016, -0.022, 0.013, -0.018, 0.024]
+    /// Rise and fall as a fraction of the screen height, per cloud.
+    static let driftY: [CGFloat] = [-0.006, 0.009, 0.005, -0.008, 0.007, -0.005, 0.004]
+    /// Seconds per leg. Co-prime-ish so the band never resynchronises.
+    static let driftSeconds: [Double] = [7.0, 9.5, 8.3, 11.0, 6.7, 10.4, 12.1]
+
+    static func drift(for index: Int, in bounds: CGRect) -> Drift {
+        let i = index % cloudCount
+        return Drift(dx: bounds.width * driftX[i],
+                     dy: bounds.height * driftY[i],
+                     seconds: driftSeconds[i])
+    }
 
     /// One cloud's entrance: where it ends up, where it comes from, and when.
     struct Arrival {
@@ -126,7 +169,10 @@ enum RainStorm {
             let cx = bounds.width * cloudCentres[i]
             let top = bounds.height + h * cloudOverhang[i] - h * cloudDip[i]
             let rest = CGRect(x: cx - w / 2, y: top - h, width: w, height: h)
-            let fromLeft = i < cloudCount / 2
+            // The left half comes from the left, the right half from the right —
+            // shortest travel, and it is what makes the band close from both
+            // sides at once. With an odd count the extra one comes from the left.
+            let fromLeft = 2 * i < cloudCount
             let start = fromLeft
                 ? rest.offsetBy(dx: -rest.maxX, dy: 0)
                 : rest.offsetBy(dx: bounds.width - rest.minX, dy: 0)
@@ -304,19 +350,21 @@ enum RainStorm {
     // MARK: - Rain
 
     /// One drop, as a streak: rain read from across a room is lines, not dots.
-    /// White and nearly opaque at the head, transparent at the tail, so a drop
-    /// looks like it is moving even in a still frame.
+    /// White and nearly opaque at the head (the BOTTOM of the image — the drop
+    /// falls head first), transparent at the tail, so a drop looks like it is
+    /// moving even in a still frame. Drawn once per scale and stretched to each
+    /// drop's own length by its layer.
     static func dropImage(scale: CGFloat) -> CGImage? {
         let key = "drop@\(Int(scale * 100))"
         if let cached = spriteCache[key] { return cached }
-        let w = max(2, Int(2 * scale)), h = max(8, Int(26 * scale))
+        let w = max(2, Int(3 * scale)), h = max(8, Int(48 * scale))
         guard let ctx = CGContext(data: nil, width: w, height: h,
                                   bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
               let gradient = CGGradient(colorSpace: CGColorSpaceCreateDeviceRGB(),
-                                        colorComponents: [0.82, 0.88, 1.0, 0.95,
-                                                          0.82, 0.88, 1.0, 0.0],
+                                        colorComponents: [0.86, 0.91, 1.0, 0.95,
+                                                          0.86, 0.91, 1.0, 0.0],
                                         locations: [0, 1], count: 2) else { return nil }
         ctx.drawLinearGradient(gradient,
                                start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: CGFloat(h)),
@@ -326,50 +374,80 @@ enum RainStorm {
         return image
     }
 
-    /// Drops per second at full downpour. Tuned on a 1512-point-wide retina:
-    /// dense enough to be unmistakably rain, sparse enough that the demo behind
-    /// it is still legible.
-    static let dropsPerSecond: Float = 900
-    /// Points per second. Real rain is far faster; at real speed the streaks
-    /// blur into vertical lines and stop reading as individual drops.
-    static let dropSpeed: CGFloat = 1500
+    /// Drops released per second at full downpour, and how often the spawner
+    /// wakes up. One timer dropping a handful of layers per tick rather than
+    /// 3 600 pre-scheduled work items for the length of the clip.
+    static let dropsPerSecond: Double = 330
+    static let dropSpawnHz: Double = 30
 
-    /// The emitter, positioned on the cloud base and wide enough to keep raining
-    /// while the wind pushes the drops sideways.
-    static func rainLayer(in bounds: CGRect, scale: CGFloat) -> CAEmitterLayer? {
-        guard let drop = dropImage(scale: scale) else { return nil }
+    /// How far a drop leans while it falls, as a fraction of the distance it
+    /// covers — **negative is to the left**, which is the way this storm blows
+    /// (Victor, 2026-09-19: *"fall down… and perhaps slightly diagonally to left
+    /// a bit"*). 6 % is about 3.4°: enough to read as weather with a wind in it,
+    /// far short of the sideways drift this replaced.
+    static let dropLean: CGFloat = -0.06
+
+    /// Points per second, far drop → near drop. Real rain is several times
+    /// this; at real speed the streaks smear into continuous lines and stop
+    /// reading as individual drops.
+    static let dropSpeedFar: CGFloat = 900
+    static let dropSpeedNear: CGFloat = 2000
+
+    /// One drop's whole flight, in overlay coordinates (**bottom-origin, y up**).
+    ///
+    /// This is deliberately a pair of POINTS and not an angle. The emitter this
+    /// replaced expressed the same thing as `emissionLongitude`, whose zero and
+    /// whose sign are a convention rather than a coordinate — and it came out
+    /// sideways on screen: a dense band of streaks sliding LEFT under the cloud
+    /// base instead of rain reaching the floor. A start and an end cannot be
+    /// misread, cannot flip with a layer's geometry, and can be asserted in a
+    /// test that never opens a window.
+    struct Drop {
+        /// Centre of the streak when it is born, and when it is spent.
+        let start: CGPoint
+        let end: CGPoint
+        let size: CGSize
+        let seconds: Double
+        let opacity: Float
+        /// The streak's own tilt, so it lies ALONG its path. A vertical sprite
+        /// travelling at an angle reads as a drop sliding sideways, which is
+        /// half of what was wrong with the emitter.
+        let angle: CGFloat
+    }
+
+    /// `depth` 0 = far (small, slow, faint), 1 = near (big, fast, bright) — the
+    /// same one-number-carries-everything trick the snow uses, so a drop can
+    /// never read as a contradiction. `x` is where it enters, in points.
+    static func drop(in bounds: CGRect, lineY: CGFloat, depth: CGFloat, atX x: CGFloat) -> Drop {
+        let length = 18 + depth * 46
+        let width = 1.1 + depth * 1.7
+        let speed = dropSpeedFar + depth * (dropSpeedNear - dropSpeedFar)
+
+        // Born just inside the cloud base and spent just past the bottom edge,
+        // so neither end of the streak is ever seen appearing or stopping.
+        let startY = lineY + length
+        let endY = -length
+        let fall = startY - endY
+        let drift = fall * dropLean
+
+        return Drop(start: CGPoint(x: x, y: startY),
+                    end: CGPoint(x: x + drift, y: endY),
+                    size: CGSize(width: width, height: length),
+                    seconds: Double(fall / speed),
+                    opacity: Float(0.28 + depth * 0.52),
+                    angle: atan2(drift, fall))
+    }
+
+    /// A random drop for this frame's spawn. The entry span reaches past the
+    /// **upwind** edge by as much as the lean will carry a drop across, so the
+    /// far side of the screen is not left visibly drier than the near side.
+    static func randomDrop(in bounds: CGRect) -> Drop {
         let lineY = rainLineY(in: bounds)
-
-        let cell = CAEmitterCell()
-        cell.contents = drop
-        cell.birthRate = dropsPerSecond
-        // Long enough to clear the tallest screen from the cloud base, whatever
-        // the wind does to the path.
-        cell.lifetime = Float(bounds.height / dropSpeed) * 1.6 + 0.4
-        cell.velocity = dropSpeed
-        cell.velocityRange = dropSpeed * 0.22
-        // Straight down is 90° in emitter space; the offset is the wind.
-        cell.emissionLongitude = -.pi / 2 + 0.10
-        cell.emissionRange = 0.06
-        cell.scale = 1.0
-        cell.scaleRange = 0.45
-        cell.alphaRange = 0.35
-        cell.alphaSpeed = -0.25
-
-        let layer = CAEmitterLayer()
-        layer.frame = bounds
-        layer.emitterShape = .line
-        layer.emitterMode = .surface
-        layer.emitterPosition = CGPoint(x: bounds.midX, y: lineY)
-        layer.emitterSize = CGSize(width: bounds.width * 1.35, height: 1)
-        layer.emitterCells = [cell]
-        layer.renderMode = .additive
-        // The layer's own birthRate is a MULTIPLIER over the cell's, and it is
-        // left at 1 on purpose: the caller ramps it from 0 with a `.backwards`
-        // animation, so the sky is dry until there are clouds to rain out of and
-        // the downpour then builds instead of switching on. Parking the model
-        // value at 0 here would mean a storm that stops raining the moment that
-        // animation is removed.
-        return layer
+        let reach = abs(dropLean) * (lineY + bounds.height * 0.1)
+        let lo = dropLean < 0 ? -bounds.width * 0.02 : -reach
+        let hi = dropLean < 0 ? bounds.width + reach : bounds.width * 1.02
+        return drop(in: bounds, lineY: lineY,
+                    depth: CGFloat.random(in: 0...1),
+                    atX: CGFloat.random(in: lo...hi))
     }
 }

@@ -305,22 +305,43 @@ rule from the start.
   vertical edge — the one thing that gives a drawn cloud away. `RainStormTests` holds both
   ends of that budget.
 
-  **The band is a ceiling, not four blobs in a row.** Each cloud is 44 % of the screen
-  wide and they rest at 8 / 36 / 64 / 92 % of it, so they overlap into one continuous
-  overcast and the outer two hang off the screen edges — a cloud that stops neatly inside
-  the frame reads as a sticker, one cut by the edge reads as sky that continues past it.
-  Every cloud also **overhangs the top edge** (`cloudOverhang`, 24–38 % of its own height)
-  and sits at its own depth (`cloudDip`), so the band's base is ragged rather than ruled.
-  A test walks the four spans and fails on any gap: a hole in the ceiling is a strip of
-  bright desktop with rain falling in front of it and nothing above it.
+  **The band is a ceiling, not seven blobs in a row.** Each cloud is 28 % of the screen
+  wide and they rest every 16 % of it, so consecutive ones overlap by half their width and
+  the outermost two hang off the screen edges — a cloud that stops neatly inside the frame
+  reads as a sticker, one cut by the edge reads as sky that continues past it. Every cloud
+  also **overhangs the top edge** (`cloudOverhang`, 20–34 % of its own height) and sits at
+  its own depth (`cloudDip`), so the band's base is ragged rather than ruled. A test walks
+  the spans and fails on any gap: a hole in the ceiling is a strip of bright desktop with
+  rain falling in front of it and nothing above it. A second one holds the band's depth
+  between 12 % and 28 % of the screen.
 
-  **The entrance**: two clouds from the left, two from the right, each starting *fully*
-  off its own side (trailing edge exactly on the screen edge, not a corner still poking
-  in) and sliding 2.3 s on `position.x` with a `.backwards` fill — the same convention the
-  wazzup mask and the claude-peek slide use, because CALayer does not animate `frame`
-  cleanly, and `.backwards` is what parks a delayed cloud off-screen instead of showing it
-  at its destination until its turn. They are staggered 0 / 0.15 / 0.30 / 0.45 s: four
-  clouds arriving together read as one image cut in half.
+  **Seven, not four** (Victor, 2026-09-19: *"be more, smaller, and a bit higher"*). The
+  first cut was four clouds at 44 % each, and it was wrong twice: a ceiling a third of the
+  way down the desktop ate the demo underneath it, and at that size one cloud's seven
+  lobes read as individual bubbles rather than as billows. Smaller clouds also buy more
+  *edges* along the band's base, which is where an overcast sky actually looks ragged.
+
+  **The entrance**: the left half of the band comes from the left, the right half from the
+  right — shortest travel, and it is what makes the ceiling close from both sides at once
+  instead of sweeping across. Each starts *fully* off its own side (trailing edge exactly
+  on the screen edge, not a corner still poking in) and slides 2.3 s on `position.x` with a
+  `.backwards` fill — the same convention the wazzup mask and the claude-peek slide use,
+  because CALayer does not animate `frame` cleanly, and `.backwards` is what parks a
+  delayed cloud off-screen instead of showing it at its destination until its turn. The
+  delays interleave the two sides (0 / 0.08 / 0.14 / 0.22 / 0.34 / 0.46 / 0.52 s): clouds
+  arriving together read as one image cut in half.
+
+  **And then they never quite settle.** A cloud that parks is a picture; a cloud that keeps
+  breathing is weather. Once its slide lands, each one drifts for the rest of the clip — a
+  sideways sway of 1.3–2.4 % of the screen width with a little rise and fall under it,
+  `autoreverses`, forever. It is **additive, on `position` rather than `position.x`, and
+  begins only after the slide has finished**: the two would otherwise both be driving the
+  same property, and an additive delta on top of a resting model value is the one form that
+  cannot fight the animation that put the cloud there. Every cloud has its own period
+  (6.7–12.1 s) and no pair is a small multiple of another — seven clouds breathing in step
+  is one object wobbling, which is more obviously artificial than not moving at all — and
+  neighbours sway in *opposite* directions, so their overlap churns instead of opening and
+  closing as one seam. All three properties are tests.
 
   **The gloom** is a black layer ramping to **0.62** over 2.4 s. Not black — what is being
   darkened is a live demo and the room still has to be able to read it, the same trade
@@ -328,16 +349,34 @@ rule from the start.
   thunder** (2.70 s): a screen still visibly darkening when the lightning goes off reads
   as the flash dimming the desktop, which is backwards.
 
-  **The rain** is one `CAEmitterLayer` rather than hundreds of layers, emitting from a
-  line on the **lowest** cloud base (`rainLineY`) so no drop is ever born in clear sky
-  above a cloud that is still covering it. Drops are 26 px streaks — rain read from across
-  a room is lines, not dots — bright at the head and transparent at the tail, so a drop
-  looks like it is moving even in a still frame; 900/s at 1500 pt/s with a slight wind,
-  `renderMode = .additive`. The emitter's own `birthRate` is the multiplier: it is **left
-  at 1 in the model** and ramped from 0 by the caller (1.5 s lead-in, 2.6 s ramp), so the
-  sky is dry until there are clouds to rain out of and the downpour then builds instead of
-  switching on — parking the model value at 0 would mean a storm that stops raining the
-  moment that animation is removed.
+  **The rain falls between two POINTS, and that is the whole lesson.** The first cut was a
+  `CAEmitterLayer`, which expresses direction as `emissionLongitude` — an angle whose zero
+  and whose sign are a *convention* rather than a coordinate. On this layer it came out
+  sideways: a dense band of vertical streaks sliding **left** under the cloud base, never
+  reaching the floor, which is exactly what it looked like in the room. `RainStorm.Drop`
+  now carries a `start` and an `end`, which cannot be misread, cannot flip with a layer's
+  geometry, and can be asserted in a test that never opens a window — `testADropActually
+  FallsToTheFloor` and `testTheDropLeansLeftAndOnlyALittle` are that bug written down.
+
+  Drops are born on the **lowest** cloud base (`rainLineY`) so none is ever born in clear
+  sky above a cloud that is still covering it, and spent just past the bottom edge, so
+  neither end of a streak is ever seen appearing or stopping. One number — `depth` 0…1 —
+  carries length (18→64 pt), width, speed (900→2000 pt/s) and brightness together, the
+  same trick the snow uses, so a drop can never read as a contradiction. Each leans **6 %
+  of its own fall to the left** (about 3.4°, Victor: *"perhaps slightly diagonally to left
+  a bit"*) and the streak is **rotated onto its own path** — a vertical sprite travelling
+  at an angle reads as a drop sliding sideways, which was the other half of what the
+  emitter got wrong. The entry span reaches past the upwind edge by as much as the lean
+  will carry a drop across, or the far side of the screen would be visibly drier.
+
+  330 drops/s are released by one repeating timer at 30 Hz, not by 6 000 pre-scheduled
+  work items; the tick rate is fixed and the *count* per tick is what ramps (1.5 s lead-in,
+  2.6 s ramp), with the fractional part spent as a probability so a light ramp does not
+  round to zero and start the rain abruptly at half strength. The fall is timed **linear**:
+  over two thirds of a second the acceleration of real rain is invisible, while an ease of
+  any kind is not — it reads as the drop slowing down near the floor. The timer is
+  identity-guarded against `activeEffects["storm"]` and invalidated by `clearStorm`, or it
+  would keep dropping rain into a detached layer for as long as the app runs.
 
   **The lightning** fires on `thunderOnsets` — 2.70 / 5.45 / 9.40 / 14.45 s, measured off
   the clip with a 50 ms RMS envelope, keeping the four loudest rolls and dropping two that
