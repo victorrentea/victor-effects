@@ -9239,6 +9239,13 @@ class EmojiAnimator {
     private var _fireInputTapSource: CFRunLoopSource?
     private var _fireScrollAccum: CGFloat = 0     // trackpad pixels → notches
     private var _firePlanted: [CALayer] = []      // fires struck by clicking, oldest first; the LAST is the wheel's
+    private var _fireLastPlantPoint: CGPoint?     // where the last one was struck; the drag measures from here
+
+    /// How far the match has to travel before a drag plants the next fire.
+    /// Small enough that a sweep reads as a continuous line of flame, large
+    /// enough that the flames stay separate fires rather than one smeared blob
+    /// — and that a second of wrist movement doesn't exhaust `fireMaxPlanted`.
+    private static let fireDragSpacing: CGFloat = 50
 
     /// Ceiling on planted fires. Never reached by hand — it exists so a stuck
     /// mouse button (or a tablet demo where the trackpad gets leaned on) can't
@@ -9390,6 +9397,7 @@ class EmojiAnimator {
         // cursor also clears the desktop, and no sweep can take them separately.
         let planted = _firePlanted
         _firePlanted = []
+        _fireLastPlantPoint = nil
 
         let teardown = {
             for layer in planted {
@@ -9506,9 +9514,10 @@ class EmojiAnimator {
         copy.contents = first
         copy.contentsGravity = .resizeAspect
         copy.zPosition = 9_400                     // under the match, over every other effect
+        let point = mousePointInHostLayer()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        copy.position = mousePointInHostLayer()
+        copy.position = point
         CATransaction.commit()
 
         let burn = CAKeyframeAnimation(keyPath: "contents")
@@ -9521,12 +9530,33 @@ class EmojiAnimator {
 
         hostLayer.addSublayer(copy)
         _firePlanted.append(copy)
+        _fireLastPlantPoint = point
 
         while _firePlanted.count > Self.fireMaxPlanted {
             let oldest = _firePlanted.removeFirst()
             oldest.removeAllAnimations()
             oldest.removeFromSuperlayer()
         }
+    }
+
+    /// **Dragging draws a line of fire** (2026-09-19). With the button held, the
+    /// match leaves a fire behind every `fireDragSpacing` points of travel, so a
+    /// sweep sets a whole edge of the screen alight instead of costing one click
+    /// per flame — the gesture of dragging a match along a fuse.
+    ///
+    /// The spacing is the whole trick. A drag reports 60+ events a second, so
+    /// without it one sweep would stack flames on top of each other and hit
+    /// `fireMaxPlanted` before the wrist stopped moving. It is measured from the
+    /// last fire *planted*, never from the last event, so a slow drag spaces the
+    /// fires exactly like a fast one: speed changes when the next one appears,
+    /// never how far apart they stand.
+    fileprivate func plantFireIfDragged() {
+        guard _fireMatchLayer != nil else { return }
+        guard let last = _fireLastPlantPoint else { plantFireAtCursor(); return }
+        let here = mousePointInHostLayer()
+        let dx = here.x - last.x, dy = here.y - last.y
+        guard dx * dx + dy * dy >= Self.fireDragSpacing * Self.fireDragSpacing else { return }
+        plantFireAtCursor()
     }
 
     /// Layer box for a given wheel scale, keeping the sprite's aspect ratio.
@@ -9549,6 +9579,7 @@ class EmojiAnimator {
         let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
             | CGEventMask(1 << CGEventType.keyDown.rawValue)
             | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseDragged.rawValue)
             | CGEventMask(1 << CGEventType.leftMouseUp.rawValue)
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         let callback: CGEventTapCallBack = { _, type, event, refcon in
@@ -9575,6 +9606,11 @@ class EmojiAnimator {
             if type == .leftMouseDown {
                 DispatchQueue.main.async { animator.plantFireAtCursor() }
                 return nil   // consume — while he holds the match, a click means "burn here"
+            }
+            if type == .leftMouseDragged {
+                // He struck one on the way down; keep laying them as he sweeps.
+                DispatchQueue.main.async { animator.plantFireIfDragged() }
+                return nil   // consume — the down was ours, so the drag is ours too
             }
             if type == .leftMouseUp {
                 // The down was swallowed above, so delivering the up alone would

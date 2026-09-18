@@ -817,9 +817,20 @@ rule from the start.
   - **A click strikes a fire** (`plantFireAtCursor`). It stands at the head's pixel, rooted
     there by `fireRootAnchor` `(0.5, 0.10)` — the flame's **root**, near the bottom edge and
     centred, so it grows *upward out of* the spot rather than swallowing it. `zPosition`
-    9 400, under the match and over every other effect. `fireMaxPlanted` (60) is never
-    reached by hand; it exists so a stuck mouse button can't grow the layer tree for 36 s,
-    and past it the oldest fire goes out, which reads as having burnt itself out.
+    9 400, under the match and over every other effect. `fireMaxPlanted` (60) is the
+    ceiling — out of reach for single clicks, reachable by a long drag — and past it the
+    oldest fire goes out, which reads as having burnt itself out rather than as a limit.
+  - **Dragging draws a line of fire** (2026-09-19, `plantFireIfDragged`). With the button
+    held down the match keeps laying fires as it sweeps, one every **`fireDragSpacing`
+    (50 pt)** of travel: the gesture of dragging a match along a fuse, instead of one click
+    per flame when he wants an edge of the screen alight. The spacing is the whole trick —
+    a drag reports 60+ events a second, so without it a single sweep would stack flames on
+    the same pixel and exhaust `fireMaxPlanted` before the wrist stopped moving. It is
+    measured from the last fire **planted**, never from the last event, so a slow drag
+    spaces them exactly like a fast one: speed changes *when* the next fire appears, never
+    how far apart they stand. The tap consumes `leftMouseDragged` for the same reason it
+    consumes the down and the up — the pair (and everything between) goes or stays together,
+    or the app underneath gets half a gesture.
   - **The wheel sizes the fire he just struck, in place** (2026-09-19, Victor: *"then I can
     zoom with the wheel to increase the size of that fire"*). Until then the wheel sized the
     pointer and a click planted at that size, which is backwards: he only knows how big a
