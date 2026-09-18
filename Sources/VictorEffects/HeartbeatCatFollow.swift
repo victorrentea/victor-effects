@@ -73,7 +73,15 @@ enum HeartbeatCatFollow {
     /// follow is what the size was really buying**: a cat that walks over to the
     /// beat does not need to be huge to be near it. Same linear unit as every
     /// "twice as big" in this effect — see `HeartbeatBump.diameterFraction`.
-    static let scale: CGFloat = 0.7
+    ///
+    /// **1.5× on 2026-09-19** (Victor: "make the cat one point five X larger"),
+    /// so 0.7 → 1.05 and the cat draws ~724 × 516 instead of ~483 × 344. That is
+    /// deliberately short of the 1.4 that was rejected: it is the same linear
+    /// unit, and half way there is where a cat still reads as company rather than
+    /// as the subject. What makes the extra size affordable now is the live
+    /// re-capture — the screen under the cat keeps moving, so a bigger silhouette
+    /// no longer covers a frozen picture.
+    static let scale: CGFloat = 1.05
 
     /// How far the cat is pushed **below** the floor of the screen, as a fraction
     /// of its own height. The GIF's tail sweeps the bottom of its frame, and a cat

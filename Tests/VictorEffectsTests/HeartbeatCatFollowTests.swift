@@ -11,8 +11,8 @@ private let bounds = CGRect(x: 0, y: 0, width: W, height: H)
 /// so height is the binding dimension on the retina.
 private let catSize = CGSize(width: 486, height: 346)
 
-/// The cat as it is actually drawn here: ≈ 483 × 344, its top edge ≈ 313 above
-/// the floor once the sink is taken off.
+/// The cat as it is actually drawn here: ≈ 724 × 516 since the 1.5× of
+/// 2026-09-19, its top edge ≈ 469 above the floor once the sink is taken off.
 private let drawn = HeartbeatCatFollow.size(imageSize: catSize, in: bounds)
 private let gap = HeartbeatCatFollow.nearGap(in: bounds)
 private let top = HeartbeatCatFollow.topY(height: drawn.height)
@@ -170,13 +170,14 @@ final class HeartbeatCatFollowTests: XCTestCase {
     }
 
     /// The real asset (1.40) is squarer than the retina's half-box (756 × 491 =
-    /// 1.54), so **height** is what binds; at 0.7 of that fit the cat draws
-    /// ~483 × 344 — the size it was given on 2026-09-11 and came back to on
-    /// 2026-09-14, once the follow made a big cat unnecessary.
+    /// 1.54), so **height** is what binds; at 1.05 of that fit the cat draws
+    /// ~724 × 516. The numbers are pinned rather than recomputed on purpose: the
+    /// scale has been asked for four times now (0.7 → 1.4 → 0.7 → 1.05), and a
+    /// test that only re-derives the formula would have passed every time.
     func testTheRealCatIsBoundByTheBoxHeightAndTakenDownByTheScale() {
         XCTAssertEqual(drawn.height, H / 2 * HeartbeatCatFollow.scale, accuracy: 0.001)
-        XCTAssertEqual(drawn.width, 482.77, accuracy: 0.5)
-        XCTAssertEqual(drawn.height, 343.7, accuracy: 0.5)
+        XCTAssertEqual(drawn.width, 724.15, accuracy: 0.5)
+        XCTAssertEqual(drawn.height, 515.55, accuracy: 0.5)
     }
 
     /// A wider-than-the-box asset is limited by the width instead — still whole,

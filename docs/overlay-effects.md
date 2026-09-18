@@ -279,6 +279,97 @@ rule from the start.
   which `stopAllActiveEffects` calls explicitly (they live outside `activeEffects`,
   like the spiral hearts'). `/test/snow`, `/test/snow/stop` and `/effect/snow`
   fire it silently.
+- **⛈️ Storm** (tile #20 `20_storm.mp3` → `storm` / `storm/stop`, `showStorm`,
+  `RainStorm.swift`): **four clouds slide in from the two sides onto the top edge, the
+  desktop goes dark under them, and it rains for the length of the clip** (18.9 s, read
+  off the mp3 via `AVURLAsset`) — with lightning on the thunder rolls inside it. Victor's
+  ask, 2026-09-19, and it took the one square the board had left: #20 used to be the
+  `N/A` row holding #19's second trombone take (`docs/sound-routing.md`).
+
+  **The clouds are drawn, not photographed.** A cut-out photo would have to be licensed
+  to sit in a public repo, and it would arrive at one resolution for a band that is 44 %
+  of whatever screen the overlay lands on. Drawing them is also what buys four clouds
+  that are visibly *different* from one another out of one function: each silhouette is a
+  **seeded** pile of seven lobes (`RainStorm.lobes`), fat in the middle and tapering to
+  the ends, closed at the base by a rounded slab — without the slab the gaps between
+  lobes show as notches along the bottom and the thing reads as a caterpillar. Seeded and
+  not random: the sprite cache is keyed on the cloud's index, so a shape that rolled fresh
+  dice would pop on a re-press or between two screens. Each sprite is filled with a
+  vertical gradient (slate at the top, near-black at the base — a cloud heavy enough to
+  rain is lit from above and dark underneath), given a soft highlight per lobe so the mass
+  has volume, and then **Gaussian-blurred whole**, which is what turns the outline into
+  vapour instead of a cut edge. The blur is why the canvas carries `spritePadding` (6 % of
+  the width) of slack on every side, and why every lobe is placed by its **own radius**
+  (`x = r + (1 - 2r)·t`) rather than on a fixed span: spacing them evenly hung the small
+  end lobes off the side of the bitmap, where the blur clips them into a ruler-straight
+  vertical edge — the one thing that gives a drawn cloud away. `RainStormTests` holds both
+  ends of that budget.
+
+  **The band is a ceiling, not four blobs in a row.** Each cloud is 44 % of the screen
+  wide and they rest at 8 / 36 / 64 / 92 % of it, so they overlap into one continuous
+  overcast and the outer two hang off the screen edges — a cloud that stops neatly inside
+  the frame reads as a sticker, one cut by the edge reads as sky that continues past it.
+  Every cloud also **overhangs the top edge** (`cloudOverhang`, 24–38 % of its own height)
+  and sits at its own depth (`cloudDip`), so the band's base is ragged rather than ruled.
+  A test walks the four spans and fails on any gap: a hole in the ceiling is a strip of
+  bright desktop with rain falling in front of it and nothing above it.
+
+  **The entrance**: two clouds from the left, two from the right, each starting *fully*
+  off its own side (trailing edge exactly on the screen edge, not a corner still poking
+  in) and sliding 2.3 s on `position.x` with a `.backwards` fill — the same convention the
+  wazzup mask and the claude-peek slide use, because CALayer does not animate `frame`
+  cleanly, and `.backwards` is what parks a delayed cloud off-screen instead of showing it
+  at its destination until its turn. They are staggered 0 / 0.15 / 0.30 / 0.45 s: four
+  clouds arriving together read as one image cut in half.
+
+  **The gloom** is a black layer ramping to **0.62** over 2.4 s. Not black — what is being
+  darkened is a live demo and the room still has to be able to read it, the same trade
+  `TvStatic.defaultAlpha` makes. The ramp is deliberately **over before the first roll of
+  thunder** (2.70 s): a screen still visibly darkening when the lightning goes off reads
+  as the flash dimming the desktop, which is backwards.
+
+  **The rain** is one `CAEmitterLayer` rather than hundreds of layers, emitting from a
+  line on the **lowest** cloud base (`rainLineY`) so no drop is ever born in clear sky
+  above a cloud that is still covering it. Drops are 26 px streaks — rain read from across
+  a room is lines, not dots — bright at the head and transparent at the tail, so a drop
+  looks like it is moving even in a still frame; 900/s at 1500 pt/s with a slight wind,
+  `renderMode = .additive`. The emitter's own `birthRate` is the multiplier: it is **left
+  at 1 in the model** and ramped from 0 by the caller (1.5 s lead-in, 2.6 s ramp), so the
+  sky is dry until there are clouds to rain out of and the downpour then builds instead of
+  switching on — parking the model value at 0 would mean a storm that stops raining the
+  moment that animation is removed.
+
+  **The lightning** fires on `thunderOnsets` — 2.70 / 5.45 / 9.40 / 14.45 s, measured off
+  the clip with a 50 ms RMS envelope, keeping the four loudest rolls and dropping two that
+  sat inside another's tail. One strike is a **stutter, not a fade**
+  (`[0, 0.55, 0.08, 0.38, 0.05, 0]` over 0.55 s): real lightning is two or three strokes a
+  few tens of ms apart, and a single smooth ramp looks like someone turning a lamp on. It
+  begins and ends at fully transparent, which is what keeps an interrupted strike from
+  leaving the desktop under a white sheet with nothing running to take it off; and the
+  onsets are spaced further apart than a strike lasts, because two keyframe animations on
+  one layer do not blend — the later one simply wins and the earlier one stops mid-stroke.
+
+  This is the one in-clip-cue effect driven from the **press** path rather than from
+  `playSound`, and that is deliberate. Every roll in this recording swells over ~300 ms,
+  so a flash inside a swell still reads as the flash that caused it — unlike the FBI
+  knock's 22 ms bang or the heartbeat's onsets, which need the visual to own the audio. In
+  exchange the tile still storms when the tablet plays the clip through its own speaker
+  and the Mac never sees a `/sound/play` at all, which is exactly what the seven play-path
+  tiles give up.
+
+  Everything hangs in **one container** (gloom, clouds, flash, rain, in that order — the
+  gloom is what the clouds and the rain are seen *against*, and the drops go on top
+  because only drops in front of the gloom read from the back of a room), so the end is a
+  single 1.4 s fade of the lot rather than the clouds sliding back out, which would cost
+  another 2.3 s after the sound has stopped. The self-stop at the clip's length is the
+  lifecycle rule's authoritative teardown and is identity-guarded; `clearStorm` cancels it
+  and `stopAllActiveEffects` calls `clearStorm` explicitly, because a pending self-stop
+  would otherwise fire into a detached container and clear the `"storm"` key out from
+  under whatever the next press put there. `/test/storm`, `/test/storm/stop` and
+  `/effect/storm` fire it silently.
+
+  The clip itself is **public domain**: *Rain and thunder* by David Öhlin (2006),
+  Wikimedia Commons, normalised to −14.6 LUFS / −1.2 dBTP like the rest of the board.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
   **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its
@@ -804,8 +895,10 @@ rule from the start.
 
 - **💓 Heartbeat + 🐶 dog / 🐱 cat** (tile #13 `13_heartbeat.mp3`, `showHeartbeat`): the built-in
   Retina is captured and redrawn full-screen, then **bulged under the cursor** in a
-  lub-dub keyframe, twice per cycle, with the lens **re-centred on the live mouse
-  before every beat** — the screen beats wherever the cursor rests.
+  lub-dub keyframe, twice per cycle, with the lens **glued to the live mouse at 20 Hz**
+  and the capture underneath it **retaken 4×/s** — the screen beats wherever the cursor
+  is now, over a picture that is at most 250 ms old. See **the live refresh** below;
+  until 2026-09-19 both were frozen at press time.
   Until 2026-08-27 the beat was a whole-screen `transform.scale` 1.0 → 1.30 → 1.0
   pivoted on the pointer, and that put the *largest* displacement where nobody is
   looking: a corner 1500 pt from the pivot swept ~450 pt per thump, so the periphery
@@ -1005,17 +1098,20 @@ rule from the start.
     cat may not: **the frame wins**, and a beat close to the cat's own edge simply parks it
     flush in the corner it used to live in.
   - **How big** — aspect-fit inside **half the width by half the height (a quarter of the
-    screen's area)**, then taken down by `scale` = **0.7**. The unscaled fit put a cat
+    screen's area)**, then taken down by `scale` = **1.05**. The unscaled fit put a cat
     690 pt wide in the corner and it read as the subject rather than as company for the
     beat — `heartbeatDogScale`'s lesson, learned again one corner over. It spent a few
     minutes at **1.4** on 2026-09-14 ("de două ori mai mare") and came straight back ("și
     să fie totuși 2x mai mică"): at 1.4 the cat is 1098 pt wide on the built-in panel and
     cannot both stay on screen and stay off the lens. **The follow is what the size was
     really buying** — a cat that walks over to the beat does not need to be huge to be near
-    it. The asset's 1.40 aspect is squarer than the box on any wide screen, so **height**
-    is what binds: on the 1728 × 1117 built-in panel the cat measures **549 × 391** (logged
-    on every run with its starting x), and on the 1512 × 982 the heartbeat tests use as
-    their fixture, ≈ 483 × 344.
+    it. **1.5× on 2026-09-19** ("make the cat one point five X larger") took 0.7 → **1.05**,
+    deliberately stopping half way to the 1.4 that was rejected — and what makes the extra
+    size affordable is the live refresh below: the screen under the cat keeps moving now, so
+    a bigger silhouette no longer covers a frozen picture. The asset's 1.40 aspect is
+    squarer than the box on any wide screen, so **height** is what binds: on the 1728 × 1117
+    built-in panel the cat measures **824 × 587** (logged on every run with its starting x),
+    and on the 1512 × 982 the heartbeat tests use as their fixture, ≈ 724 × 516.
   - **How low** — sunk by `sinkFraction` = **9 % of its own height** below the floor of
     the screen, and never anything else: the beat's height moves the cat sideways, never
     up. The GIF's tail sweeps the bottom of its own frame, and a cat sitting exactly on the
@@ -1037,6 +1133,56 @@ rule from the start.
   486x346+5+96 +repage -dispose Background -layers OptimizeTransparency`), done once
   offline rather than at load time. Frames are decoded once and cached by file
   modification date, so replacing the GIF is picked up without a rebuild.
+
+  **The live refresh** (`watchHeartbeatScreen`, 2026-09-19). Until then the effect froze
+  two things at press time and it showed: the lens was re-centred once per lub-dub pair,
+  at the moment that pair was *armed*, and the screenshot under it was taken once and
+  never again. Moving the mouse mid-beat therefore left the bulge sitting where the
+  pointer had been ("even if I move my mouse, the bump stays on the same place"),
+  magnifying a picture of a screen that had since moved on. One timer now fixes both, on
+  **two deliberately different clocks**:
+
+  - **The lens, every 50 ms** (`heartbeatDogPollInterval`, the companions' own poll).
+    Moving a `CIBumpDistortion`'s centre is a filter parameter, not a redraw of anything,
+    so there is no reason to make the magnifier lag the hand. Set with actions disabled —
+    the bump *is* the pointer's mark on the screen, and a lens easing in behind the mouse
+    reads as lag rather than as weight. Safe mid-swell: `inputCenter` and the animated
+    `inputScale` are different key paths on the same filter.
+  - **The picture, every 250 ms** (`heartbeatRecaptureInterval`) — the 4 fps that was
+    asked for. Not a frame rate anybody watches; it is the rate at which the content
+    stops being stale, and a full-screen capture is the expensive half. One capture is in
+    flight at a time and a tick that finds the previous one still running skips its turn
+    rather than queueing behind it.
+
+  **A refresh capture has to exclude our own overlay**, and that is the whole reason it is
+  not `captureBuiltInDisplay()` on a timer. By then the overlay is showing the *previous*
+  capture, so a plain screenshot would photograph the effect's own output — a bumped
+  screen inside a bumped screen, one level deeper every 250 ms. `screencapture(1)`, which
+  the **first** capture still uses (at that instant the overlay is empty, so there is
+  nothing to leave out), cannot exclude a window. `CGWindowListCreateImage` could, via
+  `.optionOnScreenBelowWindow`, and was the obvious answer right up until **macOS 15
+  obsoleted it** — it is a compile error now, not a warning. What replaced it is
+  **ScreenCaptureKit**: `SCContentFilter(display:excludingWindows:)` over the
+  `OverlayPanel`'s window id, cached for the process because that filter is *live* —
+  built once, it keeps excluding our panel while still picking up every window that opens
+  afterwards. `captureScreenExcludingOverlay` answers **nil rather than a fallback
+  screenshot** on macOS 13, without Screen Recording permission, or when our panel is
+  missing from the window list: "cannot exclude the overlay" has to mean "do not
+  capture", and the caller keeping the frame it has is exactly the pre-2026-09-19
+  behaviour. Every failure mode degrades to "the screenshot is frozen again".
+
+  **The pointer is hidden for the whole beat** ("the mouse should not be visible during
+  this animation"). It is a consequence of the follow, not just taste: an arrow parked on
+  top of the bulge it is itself causing looks like the arrow is what got magnified. The
+  hide uses the same `SetsCursorInBackground` arm as 😱 fear (our overlay is never the
+  frontmost app, so `CGDisplayHideCursor` alone would do nothing), and
+  `cfg.showsCursor = false` keeps one out of the captures too. Because
+  `NSCursor.hide()/unhide()` are **counted**, a double release would cancel somebody
+  else's hide — so the hide is a `HeartbeatCursorHide` box that can be opened once, by
+  whichever of the three teardowns gets there first: the follow timer noticing the effect
+  is over, the capture completion finding itself preempted, or an absolute backstop at
+  `totalDuration + 1 s` for the run where the capture never returns and no timer is ever
+  armed.
 
 - **🚪 FBI knock** (tile #64 `64_fbi.mp3`, `showFbiKnock`): the built-in Retina is
   captured and redrawn full-screen, then **shoved 7% larger on each of the three door

@@ -2,6 +2,7 @@ import AppKit
 import AVFoundation
 import CoreImage
 import QuartzCore
+import ScreenCaptureKit
 
 class EmojiAnimator {
     private let hostLayer: CALayer
@@ -5101,11 +5102,31 @@ class EmojiAnimator {
         container.addSublayer(imgLayer)
         trackEffect("heartbeat", layer: container, duration: totalDuration)
 
+        // 🖱️ The pointer goes away for the whole beat (Victor, 2026-09-19: "the
+        // mouse should not be visible during this animation"). It reads as a
+        // taste call and is really a consequence of the lens following the mouse
+        // now: an arrow parked on top of the bulge it is itself causing looks
+        // like the arrow is what got magnified, and the magnification stops
+        // being the subject.
+        let cursorHide = HeartbeatCursorHide()
+        // Whoever tears down first gives it back — normally `watchHeartbeatScreen`.
+        // This is the backstop for the one path that has no timer: a capture that
+        // never returns, so the follow is never armed at all.
+        DispatchQueue.main.asyncAfter(deadline: .now() + totalDuration + 1.0) {
+            cursorHide.release()
+        }
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let captured = Self.captureBuiltInDisplay()
             DispatchQueue.main.async {
                 guard let self = self,
-                      self.activeEffects["heartbeat"] === container else { return }
+                      self.activeEffects["heartbeat"] === container else {
+                    // Preempted (or stopped) while the capture was in flight.
+                    // Nothing further runs for this heartbeat, so the pointer has
+                    // to come back from here.
+                    cursorHide.release()
+                    return
+                }
                 if let captured = captured {
                     imgLayer.contents = captured
                     imgLayer.contentsGravity = .resize
@@ -5148,9 +5169,46 @@ class EmojiAnimator {
                 self.hostLayer.addSublayer(container)
                 self.scheduleHeartbeatPulses(layer: imgLayer, effect: container,
                                              beats: beats, clock0: clock0)
+                // …and from here the screenshot stops being a screenshot: the
+                // lens walks after the pointer and the picture under it is
+                // retaken four times a second. Also the owner of `cursorHide`.
+                self.watchHeartbeatScreen(imgLayer, effect: container, bounds: bounds,
+                                          until: clock0 + totalDuration,
+                                          cursorHide: cursorHide)
             }
         }
         return soundDuration
+    }
+
+    /// A cursor hide that can be released exactly once, by whichever teardown
+    /// path gets there first.
+    ///
+    /// `NSCursor.hide()`/`unhide()` and `CGDisplayHideCursor`/`ShowCursor` are
+    /// **counted**, so a double release does not merely do nothing — it cancels
+    /// somebody else's hide (the 😱 fear face's, say, which hides the pointer for
+    /// its own reasons). The heartbeat has three ends that all have to be safe:
+    /// the follow timer noticing the effect is over, the capture completion
+    /// finding itself preempted, and an absolute backstop for when neither runs.
+    /// A box that can only be opened once is cheaper than three call sites
+    /// agreeing on who wins.
+    ///
+    /// Main thread only — the counters behind it are not thread-safe.
+    private final class HeartbeatCursorHide {
+        private var held = true
+        init() {
+            // Lifts the "only while frontmost" restriction: our overlay floats
+            // over whatever app Victor is actually in, so without this the real
+            // arrow keeps showing over the beat.
+            EmojiAnimator.armBackgroundCursorHiding()
+            NSCursor.hide()
+            CGDisplayHideCursor(CGMainDisplayID())
+        }
+        func release() {
+            guard held else { return }
+            held = false
+            NSCursor.unhide()
+            CGDisplayShowCursor(CGMainDisplayID())
+        }
     }
 
     /// 🐶 The chihuahua pinned over the beating screen. It is cut out of its
@@ -5326,6 +5384,197 @@ class EmojiAnimator {
     /// being welded to it, which is what makes it read as following rather than
     /// as a cursor decoration.
     private static let heartbeatDogFollowDuration: CFTimeInterval = 0.16
+
+    /// 💓 How often the picture under the beat is retaken — 4 fps (Victor,
+    /// 2026-09-19: "a four frame per second refresh"). This is not a frame rate
+    /// anybody watches; it is the rate at which the content stops being stale.
+    ///
+    /// The *lens* is deliberately not on this clock. It follows the pointer at
+    /// the 20 Hz poll the companions already use, because moving a
+    /// `CIBumpDistortion`'s centre is a filter parameter rather than a redraw,
+    /// and a magnifier that snaps to the mouse four times a second reads as
+    /// broken where one that snaps twenty times a second reads as glued.
+    private static let heartbeatRecaptureInterval: TimeInterval = 0.25
+
+    /// 💓 Keeps the beat honest about the two things it used to freeze at press
+    /// time: **where** the lens is and **what** it is magnifying.
+    ///
+    /// Until 2026-09-19 the lens was re-centred once per lub-dub pair, at the
+    /// moment that pair was armed, over a screenshot taken once and never again.
+    /// Moving the mouse mid-beat therefore left the bulge sitting where the
+    /// pointer *had* been (Victor: "even if I move my mouse, the bump stays on
+    /// the same place"), magnifying a picture of a screen that had since moved
+    /// on. Both are live now, on two different clocks — see
+    /// `heartbeatRecaptureInterval` for why they are not the same one.
+    ///
+    /// Captures never overlap: one is in flight at a time, and a tick that finds
+    /// the previous one still running simply skips its turn rather than queueing
+    /// behind it. A capture that answers nil leaves the current frame alone —
+    /// which is exactly the pre-2026-09-19 behaviour, so every failure mode
+    /// degrades to "the screenshot is frozen again" rather than to a broken
+    /// effect.
+    ///
+    /// The timer is also what gives the pointer back: it stops the moment this is
+    /// no longer the active heartbeat, and releases `cursorHide` on the way out.
+    private func watchHeartbeatScreen(_ imgLayer: CALayer, effect: CALayer, bounds: CGRect,
+                                      until deadline: CFTimeInterval,
+                                      cursorHide: HeartbeatCursorHide) {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        var capturing = false
+        // The initial screenshot is milliseconds old at this point, so the first
+        // refresh is a full interval away rather than immediate.
+        var nextCaptureAt = CACurrentMediaTime() + Self.heartbeatRecaptureInterval
+
+        // Returns false once this effect is over — the timer's cue to stop.
+        let advance: () -> Bool = { [weak self, weak imgLayer, weak effect] in
+            guard let self = self, let imgLayer = imgLayer, let effect = effect,
+                  self.activeEffects["heartbeat"] === effect,
+                  CACurrentMediaTime() < deadline else { return false }
+
+            // 1. The lens goes where the mouse is. Instantly, with no implicit
+            //    slide: the bump *is* the pointer's mark on the screen, so a
+            //    magnifier easing in behind the hand reads as lag, not as weight.
+            //    Safe to do mid-swell — `inputCenter` and the animated
+            //    `inputScale` are different key paths on the same filter.
+            let anchor = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+                                          panelOrigin: self.hostLayer.bounds.origin,
+                                          hostLayer: self.hostLayer)
+            let center = HeartbeatBump.center(forAnchor: anchor, bounds: bounds)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            imgLayer.setValue(CIVector(x: center.x, y: center.y),
+                              forKeyPath: "filters.\(Self.heartbeatBumpFilterName).inputCenter")
+            CATransaction.commit()
+
+            // 2. …and four times a second, the picture under it.
+            let now = CACurrentMediaTime()
+            guard !capturing, now >= nextCaptureAt else { return true }
+            capturing = true
+            nextCaptureAt = now + Self.heartbeatRecaptureInterval
+            Self.captureScreenExcludingOverlay { [weak self, weak imgLayer, weak effect] image in
+                capturing = false
+                guard let self = self, let imgLayer = imgLayer, let effect = effect,
+                      self.activeEffects["heartbeat"] === effect,
+                      let image = image else { return }
+                // `contents` has a default implicit animation, and a cross-fade
+                // between two nearly identical screenshots turns every refresh
+                // into a visible smear. Swap it outright.
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                imgLayer.contents = image
+                CATransaction.commit()
+            }
+            return true
+        }
+
+        timer.schedule(deadline: .now() + Self.heartbeatDogPollInterval,
+                       repeating: Self.heartbeatDogPollInterval)
+        timer.setEventHandler {
+            if !advance() {
+                timer.cancel()
+                cursorHide.release()
+            }
+        }
+        timer.resume()
+    }
+
+    /// A screenshot of the built-in display **with our own overlay cut out of
+    /// it**, handed back on the main thread.
+    ///
+    /// The exclusion is the whole point, and it is why this is not simply
+    /// `captureBuiltInDisplay()` on a timer. A refresh is taken while the overlay
+    /// is showing the *previous* capture, so a plain screenshot would photograph
+    /// the effect's own output — a bumped screen inside a bumped screen, one
+    /// level deeper every 250 ms.
+    ///
+    /// `screencapture(1)`, which the first capture still uses (at that instant
+    /// the overlay is empty, so there is nothing to exclude), cannot leave a
+    /// window out. `CGWindowListCreateImage` could, via
+    /// `.optionOnScreenBelowWindow` — and was the obvious answer right up until
+    /// macOS 15 **obsoleted** it: it is a compile error now, not a warning. What
+    /// replaced it is ScreenCaptureKit's `SCContentFilter(display:excludingWindows:)`.
+    ///
+    /// Answers nil — never a fallback screenshot — on macOS 13, without Screen
+    /// Recording permission, or when our own panel is missing from the window
+    /// list. "Cannot exclude the overlay" must mean "do not capture", because the
+    /// alternative is the recursion above.
+    private static func captureScreenExcludingOverlay(_ done: @escaping (CGImage?) -> Void) {
+        guard #available(macOS 14.0, *) else { done(nil); return }
+        // Main thread: `NSApp.windows` is AppKit state, and the only caller is a
+        // main-queue timer.
+        let excluded = Set(NSApp.windows.compactMap {
+            $0 is OverlayPanel ? CGWindowID($0.windowNumber) : nil
+        })
+        guard !excluded.isEmpty else { done(nil); return }
+        heartbeatContentFilter(excluding: excluded, displayID: builtInDisplayID()) { filter in
+            guard let filter = filter else { DispatchQueue.main.async { done(nil) }; return }
+            let cfg = SCStreamConfiguration()
+            cfg.width  = Int(filter.contentRect.width  * CGFloat(filter.pointPixelScale))
+            cfg.height = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
+            // The real pointer is hidden for the whole beat anyway; this makes
+            // sure a stray one can never be baked into the picture either, the
+            // way `captureBuiltInDisplay` omits -C for the same reason.
+            cfg.showsCursor = false
+            cfg.captureResolution = .best
+            SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg) { image, error in
+                if image == nil, let error = error {
+                    overlayError("💓 refresh capture failed: \(error.localizedDescription)")
+                }
+                DispatchQueue.main.async { done(image) }
+            }
+        }
+    }
+
+    /// The cached content filter behind `captureScreenExcludingOverlay`.
+    ///
+    /// Built once per process and reused, because
+    /// `SCContentFilter(display:excludingWindows:)` is a **live** filter: it is
+    /// "this display, minus these windows", evaluated at capture time, so windows
+    /// that open after it was built still show up. Only the exclusion list is
+    /// frozen — and our overlay panel is created once at launch and never
+    /// replaced, so that is exactly the part that may be.
+    ///
+    /// Typed `AnyObject?` so the stored property itself carries no macOS 14
+    /// requirement; the package still builds for macOS 13.
+    private static var _heartbeatContentFilter: AnyObject?
+
+    @available(macOS 14.0, *)
+    private static func heartbeatContentFilter(excluding: Set<CGWindowID>,
+                                               displayID: CGDirectDisplayID,
+                                               _ done: @escaping (SCContentFilter?) -> Void) {
+        if let cached = _heartbeatContentFilter as? SCContentFilter { done(cached); return }
+        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { content, error in
+            guard let content = content,
+                  let display = content.displays.first(where: { $0.displayID == displayID })
+                             ?? content.displays.first else {
+                overlayError("💓 no shareable display for the refresh capture: \(error?.localizedDescription ?? "unknown")")
+                done(nil)
+                return
+            }
+            let mine = content.windows.filter { excluding.contains($0.windowID) }
+            guard !mine.isEmpty else {
+                // Our panel is not in the list, so a capture could not leave it
+                // out. Refuse rather than photograph ourselves.
+                overlayInfo("💓 overlay panel not in the shareable window list — skipping the live refresh")
+                done(nil)
+                return
+            }
+            let filter = SCContentFilter(display: display, excludingWindows: mine)
+            DispatchQueue.main.async { _heartbeatContentFilter = filter }
+            done(filter)
+        }
+    }
+
+    /// The built-in panel's display **id** — the ScreenCaptureKit counterpart of
+    /// `builtInDisplayNumber()`, which answers the 1-based index
+    /// `screencapture -D` wants instead.
+    private static func builtInDisplayID() -> CGDirectDisplayID {
+        var count: UInt32 = 0
+        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return CGMainDisplayID() }
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetOnlineDisplayList(count, &displays, &count) == .success else { return CGMainDisplayID() }
+        return displays.first { CGDisplayIsBuiltin($0) != 0 } ?? CGMainDisplayID()
+    }
 
     /// 🐶 The dog stays next to the beat for as long as the heartbeat runs.
     ///
