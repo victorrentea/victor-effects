@@ -605,72 +605,102 @@ rule from the start.
     the audio and the visual never double-triggers. `/test/chainsaw`, `/test/chainsaw/stop` and
     `/effect/chainsaw` fire it silently.
 
-- **🔥 Fire cursor** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
-  the chainsaw's trick with a flame — the real pointer is hidden and a 40-frame fire
-  sprite burns on it, chasing `NSEvent.mouseLocation` at 60 fps on the built-in screen.
-  **Since 2026-09-18 the pointer is a MATCH with that flame on its head**, a click lays a
-  fire where the head was, and Escape blows the match out and leaves those fires burning
-  — see *The match* below.
-  A first press starts **280 pt wide** (`fireBaseWidth`) — halved to 140 on 2026-09-09
-  because the flame stopped reading as a *pointer*, then put back to 280 on 2026-09-10 at
-  Victor's request. What makes 280 workable now is the rest of that change: the wheel size
-  **survives the run** (`fireRememberedScale`), so shrinking to a torch is a one-time
-  gesture instead of a per-press tax, and the wheel ceiling is **the screen width**, so the
-  default is no longer near the top of the envelope.
-  Fourth member of the hidden-cursor family and bound by the same rule: **outside
-  `activeEffects`**, torn down explicitly by `stopAllActiveEffects`, hide armed through
-  `armBackgroundCursorHiding()` and balanced by `_fireHidCursor`. It replaced the tile's
-  old "Lady in Red" clip (tile art and asset renamed; the original mp3 is in `backup.zip`).
+- **🔥 Match & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
+  the pointer becomes a **match**, unlit, and every fire on screen is one he struck with it
+  — a click lays a fire where the head touched, the wheel sizes **that** fire on the spot,
+  the next click starts another, and Escape blows the match out and leaves them burning.
+  The real pointer is hidden for the run (fourth member of the hidden-cursor family, bound
+  by the same rule: **outside `activeEffects`**, torn down explicitly by
+  `stopAllActiveEffects`, hide armed through `armBackgroundCursorHiding()` and balanced by
+  `_fireHidCursor`). It replaced the tile's old "Lady in Red" clip (tile art and asset
+  renamed; the original mp3 is in `backup.zip`).
+  - **The head stays bare** (2026-09-19, Victor: *"there should be just the match without
+    any fire on top of it … and then when I click the first time, it lays the fire where I
+    want it to put"*). Between 09-08 and 09-19 the flame burned on the pointer and a click
+    planted a *copy* of it; the flame answered the question the gesture is supposed to ask
+    — if the fire is already here, why click? — and it made the thing on the ground a
+    duplicate rather than the thing itself. Bare, the pointer is a tool and every fire is
+    something he lit. It also retires the last of the "hanging flame" problem the match was
+    introduced to fix: there is now no flame anywhere except standing on a spot he chose.
   - **Art**: `Resources/fire-frames.png`, an **8×5 sprite sheet** of 40 cells, keyed out
     of a black-background gif with **alpha = luminance × 2** (clamped). The ×2 is not a
     brightness trick: straight luminance-as-alpha leaves the orange edges and every spark
     half-transparent, which over a slide reads as a washed-out stain instead of fire *on
     top of* it. Same sheet-not-gif reasoning as the chainsaw — gif's 1-bit alpha would
     fringe the glow black on every desktop. Sliced once into a lazy static (`fireFrames`).
-  - **The match** (2026-09-18, `matchArt` / `matchGeometry` / `matchBounds`). Victor asked
-    for the cursor to *become* a match with the fire on its head, because a flame hanging in
-    the air reads as a decal over the slide and the gesture it invites — clicking to set
-    something alight — had nothing doing the lighting. It is **drawn, not an asset**: a
-    stick, a burnt neck and a head, rendered ONCE into a lazy static at 2× the design size
-    and scaled by `bounds` from then on, so the wheel sizes the whole torch with no second
+    Each fire runs the 40 frames at **30 fps** (1.33 s loop) — the source clip's own rate,
+    kept rather than halved to the chainsaw's 15, because these are on screen for a **36 s**
+    sound and fire at 15 fps reads as a strobing loop within seconds — and each gets its own
+    random phase into the loop, or a row of them flickers in lockstep and announces "sprite
+    sheet" louder than any of them announces "fire".
+  - **The match** (2026-09-18, `matchArt` / `matchGeometry` / `matchBounds`). It is
+    **drawn, not an asset**: a stick, a burnt neck and a head, rendered ONCE into a lazy
+    static at 2× the design size and scaled by `bounds` from then on, so there is no second
     sprite sheet to keep in step with `fire-frames.png`.
-    - **Its head is the layer's `anchorPoint`**, so the match and the flame's root are the
-      same pixel and the fire really does come out of the head at every wheel size. The
-      anchor and the drawing come out of one pure function (`matchGeometry`) for exactly that
-      reason — an anchor computed separately is how the flame ends up floating an inch off
-      the head the first time somebody tries another angle. Asserted in `EmojiAnimatorTests`.
-    - **Proportions are shares of the flame's width**, so a candle and a bonfire are held on
-      the same match: length **0.75 ×** (210 pt under the default 280 pt flame, which stands
-      ~467 pt tall), thickness **0.05 ×** — a shade stouter than a real match's 19:1, because
-      at 11 pt on a projector the stick read as a thread. Tilt **32°** from vertical, head
-      up, stick down-right where a right hand holds it; flatter reads as a cigarette.
+    - **Its head is the layer's `anchorPoint`**, which is what puts the head itself under
+      the mouse and lets a click strike a fire on exactly that pixel. The anchor and the
+      drawing come out of one pure function (`matchGeometry`) for that reason — an anchor
+      computed separately is how the fire ends up landing an inch off the head the first
+      time somebody tries another angle. Asserted in `EmojiAnimatorTests`.
+    - **Proportions are shares of a flame's width**: length **0.75 ×**, thickness
+      **0.05 ×** — a shade stouter than a real match's 19:1, because at 11 pt on a projector
+      the stick read as a thread. Tilt **32°** from vertical, head up, stick down-right
+      where a right hand holds it; flatter reads as a cigarette.
+    - **Its size is FIXED at `fireBaseWidth`** (2026-09-19) — a 210 pt match, the
+      proportion it had under a default 280 pt flame. The wheel belongs to the fire on the
+      ground now, and a match that grew with it would have him sizing two things with one
+      gesture.
     - **A dark rim around the stick**, for the mascot's reason (⌘⌃Q's white one): this is
       drawn over whatever is on screen, and a pale tan capsule on a pale slide is a stick you
       have to look for. Dark because the wood is light — the rim is the opposite of the thing
       it outlines, not of the background.
-    - **`zPosition` 9 450**: above the planted fires (9 400), below the pointer's own flame
-      (9 500). The stick has to pass *behind* its flame, or the head is a red dot painted on
-      top of the fire.
-  - **Anchor**: `(0.5, 0.10)` — the flame's **root**, near the bottom edge and centred, so
-    the fire grows *upward out of* the pointer rather than swallowing it. Deliberately not
-    the chainsaw's teeth anchor: a flame anchored on its own bite point puts half the smoke
-    plume below the hand,
-    and the thing being pointed at is what should be on fire.
-  - **Timing**: 40 frames at **30 fps** (1.33 s loop) — the source clip's own rate, kept
-    rather than halved to the chainsaw's 15, because this one is on screen for a **36 s**
-    sound and fire at 15 fps reads as a strobing loop within seconds. Base width **280 pt**
-    (2026-09-10; 140 between 09-09 and 09-10),
-    `zPosition` 9500, 0.12 s fade-in / 0.25 s fade-out with the real cursor restored only
-    after the fade.
+    - **`zPosition` 9 450**, above the planted fires (9 400): it is the pointer, so it
+      passes in front of the fires it has already lit. `opacity` fades in over **0.12 s** —
+      the cursor is a thing you are already looking at, and a slow fade there reads as lag;
+      out over 0.25 s, with the real cursor restored only **after** the fade, so the two are
+      never on screen together.
+  - **A click strikes a fire** (`plantFireAtCursor`). It stands at the head's pixel, rooted
+    there by `fireRootAnchor` `(0.5, 0.10)` — the flame's **root**, near the bottom edge and
+    centred, so it grows *upward out of* the spot rather than swallowing it. `zPosition`
+    9 400, under the match and over every other effect. `fireMaxPlanted` (60) is never
+    reached by hand; it exists so a stuck mouse button can't grow the layer tree for 36 s,
+    and past it the oldest fire goes out, which reads as having burnt itself out.
+  - **The wheel sizes the fire he just struck, in place** (2026-09-19, Victor: *"then I can
+    zoom with the wheel to increase the size of that fire"*). Until then the wheel sized the
+    pointer and a click planted at that size, which is backwards: he only knows how big a
+    fire should be once he can see it standing on the thing it is burning. So the target is
+    **`_firePlanted.last`** — the newest one — and the next click hands the wheel on to the
+    fire it starts. One notch is a **multiply** by 1.10, so a step feels the same at a candle
+    and at a bonfire. The clamp is 0.30 × at the bottom and **the screen** at the top:
+    `fireMaxScale` is `hostLayer.bounds.width / fireBaseWidth`, i.e. a fire can grow until it
+    is exactly as wide as the display it burns on. A fixed multiple (3.50 × was the old one)
+    made "as big as it goes" a different fraction of a 13" retina than of a projector, and on
+    stage that ceiling is the size Victor actually reaches for. `NSScreen.main` is the
+    fallback while the overlay has no bounds yet.
+    - The resize edits **`bounds`, not `transform`**, which keeps the anchor pinned, so the
+      fire swells upward out of the spot it was struck on instead of ballooning around its
+      own middle.
+    - Trackpad pixels are accumulated into 12-pt notches so a two-finger flick doesn't jump
+      from candle to inferno.
+    - Scroll is consumed while sizing (no scrolling the app underneath) **except** with ⌘
+      held — that belongs to `EventTapManager`'s terminal font zoom, and silently eating it
+      for 36 s would look like the zoom shortcut had broken — **and except before the first
+      fire is struck**: with nothing planted the wheel has no target, and freezing his slides
+      for a gesture that does nothing visible is a cost the effect shouldn't charge.
+  - **The size carries over.** Every notch writes `fireRememberedScale` (a **static**, RAM
+    only) and `_fireScale`, which is what the *next* fire is struck at — within the run and
+    across presses, clamped to the current `fireMaxScale` in case the last run was on a wider
+    screen that has since been unplugged. Sizing a fire is a deliberate few seconds of
+    scrolling in front of a room; snapping back to default on the next click made that
+    gesture disposable. Not persisted to disk on purpose — a restart starts neutral rather
+    than from whatever one demo needed.
   - **Escape blows the MATCH out; the fires he lit stay** (2026-09-18, Victor: *"if I click
     Escape, the match and the fire disappear, and only the fire that I've laid on the screen
-    remain behind"*). Until then Escape was the whole effect's exit and took the planted
-    fires with it, which made planting them pointless — the only way to keep a burning screen
-    was to go on holding a match over it. So the first Escape runs `blowOutMatch`: the
-    pointer's flame, the stick and the hidden cursor go, the planted fires go on burning, and
-    the tap stays alive **passing clicks and scrolls through** (`_fireLayer == nil` is the
-    whole test — no second flag to keep in step). A **second** Escape clears them. With
-    nothing planted, the first Escape is the full stop it always was.
+    remain behind"*). The first Escape runs `blowOutMatch`: the stick and the hidden cursor
+    go, the planted fires go on burning, and the tap stays alive **passing clicks and
+    scrolls through** (`_fireMatchLayer == nil` is the whole test — no second flag to keep in
+    step). A **second** Escape clears them. With nothing planted, the first Escape is the
+    full stop it always was.
     - **What still puts the planted fires out on their own**: the clip's own length, whose
       timer is deliberately *not* cancelled by `blowOutMatch` (it does not touch
       `_fireGeneration`), plus the tablet's stop and `stopAllActiveEffects`. The
@@ -680,28 +710,10 @@ rule from the start.
       not an `NSEvent` global monitor** — a monitor can only observe, and an Escape that also
       closed the user's dialog would make the effect cost something. The keypress is
       **consumed**, and it stops the routed clip too (`stopTabletSound` + `stopAllPlayers`);
-      a press the tablet chose to play on its **own** speaker is not ours to stop.
-  - **The wheel sizes it while it burns.** Same tap: one notch is a **multiply** by 1.10,
-    so a step feels the same at a candle and at a bonfire. The clamp is 0.30 × at the
-    bottom and **the screen** at the top (2026-09-10; it was a flat 3.50 ×): `fireMaxScale`
-    is `hostLayer.bounds.width / fireBaseWidth`, i.e. the flame can grow until it is
-    exactly as wide as the display it burns on. A fixed multiple made "as big as it goes"
-    a different fraction of a 13" retina than of a projector, and on stage that ceiling is
-    the size Victor actually reaches for. `NSScreen.main` is the fallback while the overlay
-    has no bounds yet.
-  - **The size is remembered for the life of the process.** Every wheel notch writes
-    `fireRememberedScale` (a **static**, RAM only), and the next `showFireCursor` reopens
-    there, clamped to the current `fireMaxScale` in case the last run was on a wider screen
-    that has since been unplugged. Sizing the flame is a deliberate few seconds of
-    scrolling in front of a room; snapping back to default on the next press made that
-    gesture disposable. Not persisted to disk on purpose — a restart starts neutral rather
-    than from whatever one demo needed.
-    Trackpad pixels are accumulated into 12-pt notches so a two-finger flick doesn't jump
-    from candle to inferno. The resize edits **`bounds`, not `transform`**, which keeps the
-    anchor pinned so the flame's root stays exactly on the pointer as it grows. Scroll is
-    consumed (no scrolling the app underneath while sizing) **except with ⌘ held** — that
-    belongs to `EventTapManager`'s terminal font zoom, and silently eating it for 36 s
-    would look like the zoom shortcut had broken.
+      a press the tablet chose to play on its **own** speaker is not ours to stop. The click
+      pair is consumed together (`leftMouseDown` *and* `leftMouseUp`): delivering the up
+      alone would hand the app underneath half a click — a button that highlights and never
+      fires, a text view that loses its selection.
   - **Lifecycle**: three ways out — the length of `11_fire.mp3` (`AVURLAsset`, 35.88 s
     fallback, generation-guarded), Escape, or the tablet's `onStop` → `fire/stop`. The
     clip's length stays the authoritative one for the usual reason: a lost `/sound/stopped`

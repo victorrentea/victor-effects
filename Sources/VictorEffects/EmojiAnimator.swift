@@ -8742,17 +8742,20 @@ class EmojiAnimator {
         return CGRect(origin: .zero, size: size)
     }
 
+    /// The pointer itself, and the whole test for "he is still holding the
+    /// match": nil once Escape has blown it out, which is what lets the tap go
+    /// on living for a second Escape while passing his clicks and scrolls
+    /// through. There is no pointer flame to pair it with — the head stays bare.
     private var _fireMatchLayer: CALayer?
 
-    private var _fireLayer: CALayer?
     private var _fireTimer: Timer?
     private var _fireHidCursor = false            // balance hide/unhide of the real cursor
     private var _fireGeneration = 0               // guards a stale run's self-stop against a newer one
-    private var _fireScale: CGFloat = 1           // live wheel-driven size, reset per run
+    private var _fireScale: CGFloat = 1           // wheel-driven size of the last fire struck
     private var _fireInputTap: CFMachPort?
     private var _fireInputTapSource: CFRunLoopSource?
     private var _fireScrollAccum: CGFloat = 0     // trackpad pixels → notches
-    private var _firePlanted: [CALayer] = []      // fires dropped by clicking, oldest first
+    private var _firePlanted: [CALayer] = []      // fires struck by clicking, oldest first; the LAST is the wheel's
 
     /// Ceiling on planted fires. Never reached by hand — it exists so a stuck
     /// mouse button (or a tablet demo where the trackpad gets leaned on) can't
@@ -8761,20 +8764,32 @@ class EmojiAnimator {
     /// having burnt itself out rather than as a limit.
     private static let fireMaxPlanted = 60
 
-    /// Replace the mouse pointer with a burning flame that follows it across the
-    /// built-in screen. Unlike every other tile effect this one has THREE ways to
-    /// end — the length of `11_fire.mp3`, an Escape keypress, or the tablet's
-    /// stop — and while it burns the scroll wheel resizes it and a click leaves a
-    /// copy of it burning where it was clicked.
+    /// Replace the mouse pointer with an **unlit match** that follows it across
+    /// the built-in screen. Nothing is on fire yet: a click strikes it and leaves
+    /// a fire standing where the head was, the wheel then sizes **that** fire on
+    /// the spot, and the next click starts another one. Unlike every other tile
+    /// effect this one has THREE ways to end — the length of `11_fire.mp3`, an
+    /// Escape keypress, or the tablet's stop.
+    ///
+    /// **The head stays bare for the whole run** (2026-09-19, Victor: *"there
+    /// should be just the match without any fire on top of it … and then when I
+    /// click the first time, it lays the fire where I want it"*). A flame that
+    /// already burns on the pointer answers the question the gesture is supposed
+    /// to ask — if the fire is here, why click? — and it made the planted fire a
+    /// *copy* of something rather than the thing itself. Bare, the pointer is a
+    /// tool and every fire on screen is one he put there.
     ///
     /// Not a `trackEffect` client, for the chainsaw's reason: it owns a follow
     /// timer, an event tap and a hidden system cursor, so it must be torn down
     /// through `stopFireCursor` and never by the generic `activeEffects` sweep,
     /// which would drop the layer and leave the desktop with no cursor at all.
     func showFireCursor(playSound: Bool = true) {
-        let frames = Self.fireFrames
-        guard let first = frames.first else {
+        guard Self.fireFrames.first != nil else {
             overlayError("fire-frames.png not found in bundle")
+            return
+        }
+        guard let art = Self.matchArt else {
+            overlayError("the match could not be drawn")
             return
         }
 
@@ -8786,32 +8801,34 @@ class EmojiAnimator {
             if d.isNumeric { duration = CMTimeGetSeconds(d) }
         }
 
-        // Reopen at the size the last run was left at, clamped in case that run
-        // happened on a wider screen (a projector unplugged since).
+        // The size the NEXT fire is struck at: the one the last one was left at,
+        // clamped in case that run happened on a wider screen (a projector
+        // unplugged since). From the first click on, the wheel moves this and the
+        // fire it belongs to together.
         _fireScale = min(fireMaxScale, max(Self.fireMinScale, Self.fireRememberedScale))
         Self.fireRememberedScale = _fireScale
         _fireScrollAccum = 0
 
-        let flame = CALayer()
-        flame.bounds = Self.fireBounds(for: first, scale: _fireScale)
-        flame.anchorPoint = Self.fireRootAnchor
-        flame.contents = first
-        flame.contentsGravity = .resizeAspect
-        flame.zPosition = 9_500          // above every other effect: it's the pointer
-        flame.opacity = 0
+        // **The match is the whole pointer** (2026-09-19). Its HEAD is the anchor,
+        // so the head is the pixel that rides the mouse and a click can plant a
+        // fire at exactly the point it touched. Its size is FIXED at the default
+        // flame's proportion (0.75 × 280 pt): the wheel belongs to the fire on the
+        // ground now, and a match that also grew would leave him sizing two things
+        // with one gesture. `zPosition` 9 450, above the planted fires (9 400) —
+        // it is the pointer, so it passes in front of the fires it has lit.
+        let match = CALayer()
+        match.bounds = Self.matchBounds(forFlameWidth: Self.fireBaseWidth)
+        match.anchorPoint = art.headAnchor
+        match.contents = art.image
+        match.contentsGravity = .resizeAspect
+        match.zPosition = 9_450
+        match.opacity = 0
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        flame.position = mousePointInHostLayer()
+        match.position = mousePointInHostLayer()
         CATransaction.commit()
-        hostLayer.addSublayer(flame)
-        _fireLayer = flame
-
-        let burn = CAKeyframeAnimation(keyPath: "contents")
-        burn.values = frames
-        burn.duration = Double(frames.count) / Self.fireFPS
-        burn.repeatCount = .infinity
-        burn.calculationMode = .discrete
-        flame.add(burn, forKey: "burn")
+        hostLayer.addSublayer(match)
+        _fireMatchLayer = match
 
         // Snap in rather than drift in, same as the chainsaw: the cursor is a
         // thing the user is already looking at, and a slow fade there reads as lag.
@@ -8821,33 +8838,8 @@ class EmojiAnimator {
         fadeIn.duration = 0.12
         fadeIn.fillMode = .forwards
         fadeIn.isRemovedOnCompletion = false
-        flame.opacity = 1
-        flame.add(fadeIn, forKey: "fadeIn")
-
-        // **The match under the flame** (2026-09-18). Its HEAD is the anchor, so
-        // it rides the pointer at exactly the point the flame's root does — the
-        // two are stacked on one pixel, which is what makes the fire look like
-        // it is coming *out of* the head rather than floating over it.
-        // `zPosition` between the planted fires (9 400) and the pointer's flame
-        // (9 500): the stick has to pass behind its own flame, or the head is a
-        // red dot painted on top of the fire.
-        if let art = Self.matchArt {
-            let match = CALayer()
-            match.bounds = Self.matchBounds(forFlameWidth: flame.bounds.width)
-            match.anchorPoint = art.headAnchor
-            match.contents = art.image
-            match.contentsGravity = .resizeAspect
-            match.zPosition = 9_450
-            match.opacity = 0
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            match.position = flame.position
-            CATransaction.commit()
-            hostLayer.addSublayer(match)
-            _fireMatchLayer = match
-            match.opacity = 1
-            match.add(fadeIn, forKey: "fadeIn")
-        }
+        match.opacity = 1
+        match.add(fadeIn, forKey: "fadeIn")
 
         // Hide the real pointer for the run. The arm step lifts the "frontmost
         // app only" restriction so it also works while the user is in another
@@ -8863,12 +8855,10 @@ class EmojiAnimator {
             guard let self, self._fireTimer === t else { t.invalidate(); return }
             CATransaction.begin()
             CATransaction.setDisableActions(true)   // follow instantly, no implicit animation
-            let point = self.mousePointInHostLayer()
-            self._fireLayer?.position = point
-            // The same pixel, not a tracked offset: the match's anchor IS its
-            // head, so one position for both is what keeps the flame on the head
-            // at every size the wheel has been left at.
-            self._fireMatchLayer?.position = point
+            // The match's anchor IS its head, so this one assignment is what puts
+            // the head under the pointer at every size — and what makes the fire a
+            // click plants stand exactly where the head touched.
+            self._fireMatchLayer?.position = self.mousePointInHostLayer()
             CATransaction.commit()
         }
         _fireTimer = timer
@@ -8906,8 +8896,6 @@ class EmojiAnimator {
             self._fireHidCursor = false
         }
 
-        let flame = _fireLayer
-        _fireLayer = nil
         let match = _fireMatchLayer
         _fireMatchLayer = nil
         // `_fireScale` is NOT reset — `fireRememberedScale` already holds it and
@@ -8925,14 +8913,12 @@ class EmojiAnimator {
                 layer.removeAllAnimations()
                 layer.removeFromSuperlayer()
             }
-            flame?.removeAllAnimations()
-            flame?.removeFromSuperlayer()
             match?.removeAllAnimations()
             match?.removeFromSuperlayer()
             restoreCursor()
         }
 
-        let held = planted + [flame, match].compactMap { $0 }
+        let held = planted + [match].compactMap { $0 }
         guard fade > 0, !held.isEmpty else { teardown(); return }
 
         for layer in held {
@@ -8971,23 +8957,21 @@ class EmojiAnimator {
         // its OWN speaker is not ours to stop.
         SoundManager.shared.stopTabletSound()
         SoundManager.shared.stopAllPlayers()
-        guard _fireLayer != nil, !_firePlanted.isEmpty else { stopFireCursor(); return }
+        guard _fireMatchLayer != nil, !_firePlanted.isEmpty else { stopFireCursor(); return }
         blowOutMatch()
     }
 
-    /// The match half of the teardown: the pointer's flame, the stick and the
-    /// hidden cursor. The planted fires and the tap are left standing — the tap
-    /// because a second Escape has to be able to clear the screen, and it passes
-    /// clicks and scrolls through from this moment on (`_fireLayer == nil` is
-    /// the whole test, so there is no second flag to keep in step).
+    /// The match half of the teardown: the stick and the hidden cursor. The
+    /// planted fires and the tap are left standing — the tap because a second
+    /// Escape has to be able to clear the screen, and it passes clicks and
+    /// scrolls through from this moment on (`_fireMatchLayer == nil` is the
+    /// whole test, so there is no second flag to keep in step).
     private func blowOutMatch(fade: Double = 0.25) {
         _fireTimer?.invalidate(); _fireTimer = nil
 
-        let flame = _fireLayer
-        _fireLayer = nil
         let match = _fireMatchLayer
         _fireMatchLayer = nil
-        let going = [flame, match].compactMap { $0 }
+        let going = [match].compactMap { $0 }
 
         let teardown = { [weak self] in
             for layer in going {
@@ -9012,27 +8996,33 @@ class EmojiAnimator {
         DispatchQueue.main.asyncAfter(deadline: .now() + fade, execute: teardown)
     }
 
-    /// Leave a burning copy of the pointer's flame where the user clicked, at the
-    /// size the wheel has it at right now. That size and place are the point:
-    /// the gesture reads as "set THIS on fire", so a planted fire that snapped
-    /// back to the default size, or drifted to the layer's centre, would look
-    /// like a different effect than the one under the hand a moment earlier.
+    /// Strike the match: a fire starts burning where the head touched, at the
+    /// size the wheel was left at. The place is the point of the gesture — it
+    /// reads as "set THIS alight" — so a fire that drifted to the layer's centre
+    /// would be a different effect than the one the head was over.
     ///
-    /// Each copy gets its own random phase into the 40-frame loop. Planted fires
-    /// started at frame 0 flicker in lockstep, and a row of perfectly
-    /// synchronised flames announces "sprite sheet" louder than any of them
-    /// announces "fire".
+    /// **The new fire becomes the wheel's target** (2026-09-19). Sizing used to
+    /// happen on the pointer *before* the click, which is backwards: he only
+    /// knows how big this fire should be once he can see it standing on the
+    /// thing it is burning. So the wheel follows the last one struck, and the
+    /// next click hands it on. `_fireScale` carries the size across, so a second
+    /// fire opens at the size he just dialled the first one to rather than
+    /// snapping back.
+    ///
+    /// Each fire gets its own random phase into the 40-frame loop. Fires started
+    /// at frame 0 flicker in lockstep, and a row of perfectly synchronised
+    /// flames announces "sprite sheet" louder than any of them announces "fire".
     fileprivate func plantFireAtCursor() {
-        guard let flame = _fireLayer else { return }
+        guard _fireMatchLayer != nil else { return }
         let frames = Self.fireFrames
         guard let first = frames.first else { return }
 
         let copy = CALayer()
-        copy.bounds = flame.bounds                 // exactly the current wheel size
-        copy.anchorPoint = Self.fireRootAnchor     // same root, so it stands where it was clicked
+        copy.bounds = Self.fireBounds(for: first, scale: _fireScale)
+        copy.anchorPoint = Self.fireRootAnchor     // the root, so it stands where it was clicked
         copy.contents = first
         copy.contentsGravity = .resizeAspect
-        copy.zPosition = 9_400                     // under the pointer's flame, over every other effect
+        copy.zPosition = 9_400                     // under the match, over every other effect
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         copy.position = mousePointInHostLayer()
@@ -9096,12 +9086,12 @@ class EmojiAnimator {
             // alive only for the second Escape, so consuming clicks here would
             // take the pointer away from him while he is looking at a desktop
             // that already has its arrow back.
-            if animator._fireLayer == nil {
+            if animator._fireMatchLayer == nil {
                 return Unmanaged.passUnretained(event)
             }
             if type == .leftMouseDown {
                 DispatchQueue.main.async { animator.plantFireAtCursor() }
-                return nil   // consume — while it burns, a click means "burn here"
+                return nil   // consume — while he holds the match, a click means "burn here"
             }
             if type == .leftMouseUp {
                 // The down was swallowed above, so delivering the up alone would
@@ -9115,6 +9105,12 @@ class EmojiAnimator {
                 // terminal font zoom, and silently eating that for 36 s would
                 // look like the zoom shortcut had broken.
                 if event.flags.contains(.maskCommand) { return Unmanaged.passUnretained(event) }
+                // **Nothing struck yet, nothing to size** (2026-09-19): the wheel
+                // owns the last fire on the ground, so before the first click it
+                // has no target and eating the scroll would freeze his slides for
+                // a gesture that does nothing visible. It becomes ours at the
+                // moment there is a fire to answer it.
+                if animator._firePlanted.isEmpty { return Unmanaged.passUnretained(event) }
                 animator.handleFireScroll(event)
                 return nil   // consume — don't scroll the app below while sizing
             }
@@ -9138,8 +9134,10 @@ class EmojiAnimator {
         _fireScrollAccum = 0
     }
 
-    /// Scroll up = bigger fire, scroll down = smaller. Runs on the tap's thread,
-    /// so the layer edit is hopped to main.
+    /// Scroll up = bigger fire, scroll down = smaller, on **the last fire he
+    /// struck** (2026-09-19) — it grows out of the spot it was planted on,
+    /// because `bounds` is what changes and its anchor is its root. Runs on the
+    /// tap's thread, so the layer edit is hopped to main.
     fileprivate func handleFireScroll(_ event: CGEvent) {
         var notches = 0
         if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 {
@@ -9156,21 +9154,20 @@ class EmojiAnimator {
 
         let factor = pow(Self.fireScaleStep, CGFloat(notches))
         DispatchQueue.main.async { [weak self] in
-            guard let self, let flame = self._fireLayer,
+            guard let self, let fire = self._firePlanted.last,
                   let frame = Self.fireFrames.first else { return }
             let scale = min(self.fireMaxScale, max(Self.fireMinScale, self._fireScale * factor))
             guard scale != self._fireScale else { return }
             self._fireScale = scale
-            Self.fireRememberedScale = scale   // the next press opens here
+            Self.fireRememberedScale = scale   // the next fire is struck at this size
             // Resizing `bounds` (not `transform`) keeps the anchor pinned, so the
-            // flame's root stays exactly on the pointer as it grows. No implicit
-            // animation: the wheel should feel like a physical dial, not a servo.
+            // fire's root stays on the spot it was struck on while it grows —
+            // it swells upward out of the thing it is burning instead of
+            // ballooning around its own middle. No implicit animation: the wheel
+            // should feel like a physical dial, not a servo.
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            flame.bounds = Self.fireBounds(for: frame, scale: scale)
-            // The match grows with its flame — a fixed-size match under a
-            // wheel-sized fire is the proportion breaking in front of the room.
-            self._fireMatchLayer?.bounds = Self.matchBounds(forFlameWidth: flame.bounds.width)
+            fire.bounds = Self.fireBounds(for: frame, scale: scale)
             CATransaction.commit()
         }
     }
@@ -9588,6 +9585,10 @@ class EmojiAnimator {
         // Same for the snowfall: the loop below drops the container but the
         // pending spawn work items would keep firing into a detached layer.
         clearSnow(fadeDuration: 0)
+        // ⛈️ And the storm, for the same reason: its container dies in the loop
+        // but the pending self-stop would fire afterwards and clear the "storm"
+        // key out from under whatever the next press put there.
+        clearStorm(fadeDuration: 0)
         // The minigun aiming reticle also lives OUTSIDE activeEffects (its own
         // follow timer + hidden cursor), so tear it down explicitly or it would
         // keep tracking forever after a stop-all.

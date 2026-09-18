@@ -403,13 +403,13 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertEqual(layer.shadowColor, EmojiAnimator.nsColor(fromHex: "#36e264")?.cgColor)
     }
 
-    // MARK: - 🔥 The match the flame is carried on (2026-09-18)
+    // MARK: - 🔥 The match that strikes the fires (2026-09-18, bare since 09-19)
 
     /// The head is the layer's anchor, so it is the pixel that rides the
-    /// pointer — and the flame's root rides the same one. If this drifts, the
-    /// fire floats off the match and the click plants it somewhere the user did
-    /// not point at. Near the top-left because the stick hangs down-RIGHT, where
-    /// a right hand holds it.
+    /// pointer — and it is the pixel a click strikes a fire on. If this drifts,
+    /// the fire lands somewhere the user did not point at, which is the whole
+    /// gesture. Near the top-left because the stick hangs down-RIGHT, where a
+    /// right hand holds it.
     func testMatchHeadIsTheAnchorAtTheTopLeft() {
         let (size, head) = EmojiAnimator.matchGeometry(length: 600)
         XCTAssertTrue(size.width > 0 && size.height > 0, "the match has to have a box")
@@ -427,9 +427,12 @@ final class EmojiAnimatorTests: XCTestCase {
                              "a match tilted past 45° stops reading as held up")
     }
 
-    /// The wheel sizes the flame and the match together: one flame width in,
-    /// one proportional match out. A fixed-size match under a wheel-sized fire
-    /// is the proportion breaking in front of the room.
+    /// One flame width in, one proportional match out — the whole drawing
+    /// scales, so the single call the pointer makes (`forFlameWidth:` the
+    /// DEFAULT flame width, since 2026-09-19 the wheel belongs to the fire on
+    /// the ground rather than to the match) lands on exactly the proportion a
+    /// default-sized fire was held at. A stick that scaled on one axis only is
+    /// the proportion breaking in front of the room.
     func testMatchScalesWithTheFlame() {
         let small = EmojiAnimator.matchBounds(forFlameWidth: 280)
         let big = EmojiAnimator.matchBounds(forFlameWidth: 560)
