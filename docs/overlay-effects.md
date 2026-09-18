@@ -281,37 +281,58 @@ rule from the start.
   fire it silently.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
-  **stops near the middle of the screen** (`starWarsRestPoint` = 0.42 W, 0.44 H — its
-  centre), 0.69 of the screen height across, in 6.5 s of the 10 s clip; the last 3.5 s
-  it simply hangs there.
-  - **The artwork is a whole sphere, and that is the load-bearing change.** The
-    first `death-star.png` was a *crop*: cut off flat along its left and bottom
-    edges, so the only place on screen where those cuts are invisible is welded into
-    the bottom-left corner, with the slices exactly on the screen edges. Pulled even
-    10% inboard, the sphere visibly showed two straight cut lines. The missing
-    lower-left limb was then **rebuilt** by radial extrapolation — which bought back
-    the round silhouette but not the picture: the fabricated limb was a pale,
-    smeared crescent that on the room's cream slides read as *the sphere being
-    half transparent*, the exact complaint it was meant to fix.
-  - **So the art is now a real render, cut to a circle** (2026-09-18) — a whole
-    sphere photographed as one, nothing invented:
-    `wallpapers.com/images/hd/death-star-artwork-png-nvm-xpb738481cx20df5.png`.
-    Three things are done to it and they are the whole recipe: the render is ~4.5%
-    **oblate** (863 × 826), so it is squared to 863 × 863 and the sphere becomes an
-    actual circle; the sphere's own colour is bled a few pixels outward so the new
-    limb can never sample whatever the source's rim had bled in from its background;
-    and the alpha is **thrown away and redrawn** as an exact circle — 255 inside,
-    one pixel of feather at the limb, 0 outside. That last step is why this cannot
-    regress: there is no inherited alpha left to be subtly translucent, and 0.3% of
-    the picture is anything other than fully opaque or fully gone. The sphere is
-    then centred in a 966 × 966 canvas so `starWarsSphereFraction` stays 0.893 and
-    **no code changed**.
+  **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its
+  centre, a spot Victor drew on the screen himself), 0.69 of the screen height
+  across, in 6.5 s of the 10 s clip; the last 3.5 s it simply hangs there.
+  - **The artwork is the Death Star II, mirrored** (2026-09-18, the second art
+    change that day). `124-1240061_death-star-2-…png`, 460 × 440 and the only
+    copy of this render with a real alpha channel: the unfinished sphere, its
+    superlaser dish on one side, the ribbed construction lattice eating the
+    other. The source has the dish up-**left** — pointing back down the diagonal
+    the thing has just climbed. **Flipped on OX it leads with the dish** and
+    drags its scaffolding behind it, which is the only orientation that reads as
+    arriving rather than leaving.
+  - **The recipe is one flip and one integer crop. Nothing is resampled.** The
+    circle is *measured*, not assumed: a least-squares fit to the smooth left
+    limb (max residual 1.0 px) gives centre 235.0, 222.5 and r 191.4, and no
+    opaque pixel anywhere stands more than 0.9 px outside it. The flipped image
+    is cropped to a 429 × 429 box centred on that circle, so the sphere fills
+    **0.8924** of the artwork's height: `starWarsSphereFraction` (0.893) and
+    every size derived from it are untouched, the sphere is still centred in its
+    canvas the way `layer.position` assumes, and **no code changed**. The box is
+    integer on purpose — the source's transparent background is *white*
+    (255,255,255,0), so any resampling would bleed white into the limb, the
+    fringe this effect has already been burned by once.
+  - **The alpha is kept, not redrawn — this art is meant to have holes.** The
+    previous asset threw its alpha away and painted an exact circle, because a
+    whole sphere that is subtly translucent reads on cream slides as a ghost.
+    Here the gaps ARE the picture: 15.9% of the sphere's trailing half is fully
+    transparent (the construction lattice) against 0.0% of its leading half, and
+    a circular mask would fill that lattice with the source's white background.
+    What was checked instead is the thing that actually bit us — the limb
+    averages rgb 23/31/34 over 1139 samples and 0.4% of it is near-white, so
+    there is no cut-out halo to inherit.
+  - **429 px where the last one was 966**, so the sphere is magnified ~4× on the
+    retina instead of ~1.8×. That is the price of the alpha channel: the 860 ×
+    906 version of the same render downloaded beside it is *fully opaque*, with
+    the transparency checkerboard baked in as pixels.
+  - **Two shapes failed before it and both lessons still bind.** The first
+    `death-star.png` was a *crop*, cut off flat along its left and bottom edges,
+    so the only place those cuts were invisible was welded into the bottom-left
+    corner; pulled 10% inboard it showed two straight slices. Its missing limb
+    was then **rebuilt** by radial extrapolation, which bought back the
+    silhouette but not the picture — the fabricated limb was a pale smeared
+    crescent that read as the sphere being half transparent, the exact complaint
+    it was meant to fix. The third was a whole render
+    (`wallpapers.com/images/hd/death-star-artwork-png-nvm-xpb738481cx20df5.png`),
+    squared from 4.5% oblate and cut to an exact circle. Hence the two rules
+    above: **measure the circle, invent no pixels.**
   - **Candidates are rejected on their drop shadow, not their looks.** Most Death
     Star cut-outs on stock sites carry an opaque shadow blob fused to the
-    silhouette; the circular mask makes it fully opaque and it lands on screen as a
+    silhouette; a circular mask makes it fully opaque and it lands on screen as a
     grey smudge welded to the limb. A candidate whose alpha≥128 bbox is an ellipse
     *and* whose filled area matches that ellipse is shadow-free — that test, not the
-    thumbnail, picked this one out of ~50.
+    thumbnail, picked the previous render out of ~50.
   - The result ships **in the app bundle**, and only there — it
     used to have a downloads-folder fallback, where one tidy-up would have
     silently killed the effect. (The four effects that still read an external
