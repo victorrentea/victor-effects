@@ -6587,6 +6587,147 @@ class EmojiAnimator {
         return path
     }
 
+    // MARK: - ⛈️ Storm (tile #20 — clouds roll in, the desktop darkens, it rains)
+
+    /// The storm's self-stop, kept so an explicit stop (the clip was stopped on
+    /// the tablet, or a stop-all) can cancel the one that hasn't fired yet —
+    /// otherwise it would fire later into a detached container and, worse, clear
+    /// the key out from under whatever ran next.
+    private var stormSelfStop: DispatchWorkItem?
+
+    /// ⛈️ Four clouds slide in from both sides onto the top edge, the desktop
+    /// dims under them, and rain falls out of the cloud base for as long as the
+    /// clip plays — with lightning on the thunder rolls.
+    ///
+    /// One container holds all four parts (dark, clouds, flash, rain) so the
+    /// end is a single fade and `stopAllActiveEffects` needs no special case
+    /// beyond cancelling the pending self-stop. The layer ORDER is the whole
+    /// picture: the dark goes down first because it is what the clouds and the
+    /// rain are seen *against*, and the rain goes on top because drops in front
+    /// of the gloom are the only ones that read from the back of a room.
+    func showStorm() {
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+
+        // Re-press: tear the old one down at once so two skies don't stack.
+        clearStorm(fadeDuration: 0)
+
+        // The storm lasts exactly as long as the tablet's clip.
+        var clip = RainStorm.fallbackDuration
+        if let url = SoundManager.shared.soundURL(for: RainStorm.soundName) {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric { clip = CMTimeGetSeconds(d) }
+        }
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+
+        let container = CALayer()
+        container.frame = bounds
+        hostLayer.addSublayer(container)
+        activeEffects["storm"] = container
+
+        // 1. The gloom. Model value is the END state with a `.forwards` ramp on
+        // top, so nothing snaps back to clear if the animation is ever removed.
+        let dark = CALayer()
+        dark.frame = bounds
+        dark.backgroundColor = NSColor.black.cgColor
+        dark.opacity = RainStorm.darkenOpacity
+        container.addSublayer(dark)
+        let dim = CABasicAnimation(keyPath: "opacity")
+        dim.fromValue = 0
+        dim.toValue = RainStorm.darkenOpacity
+        dim.duration = RainStorm.darkenSeconds
+        dim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        dark.add(dim, forKey: "stormDim")
+
+        // 2. The clouds, each sliding in from its own side after its own delay.
+        // `position.x` rather than `frame`, the same convention the wazzup mask
+        // and the claude-peek slide use — CALayer does not animate `frame`
+        // cleanly — and `.backwards` fill is what parks a delayed cloud
+        // off-screen instead of showing it at its destination until its turn.
+        for (index, arrival) in RainStorm.arrivals(in: bounds).enumerated() {
+            guard let image = RainStorm.cloudImage(index: index, size: arrival.rest.size, scale: scale) else { continue }
+            let pad = arrival.rest.width * RainStorm.spritePadding
+            let layer = CALayer()
+            layer.frame = arrival.rest.insetBy(dx: -pad, dy: -pad)
+            layer.contents = image
+            layer.contentsGravity = .resize
+            container.addSublayer(layer)
+
+            let slide = CABasicAnimation(keyPath: "position.x")
+            slide.fromValue = layer.position.x + (arrival.start.minX - arrival.rest.minX)
+            slide.toValue = layer.position.x
+            slide.duration = RainStorm.cloudSlideSeconds
+            slide.beginTime = CACurrentMediaTime() + arrival.delay
+            slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            slide.fillMode = .backwards
+            layer.add(slide, forKey: "stormSlide")
+        }
+
+        // 3. Lightning, one stutter per thunder roll in the clip. Above the
+        // clouds: a flash that lit the desktop but not the sky it came out of
+        // would read as a monitor glitch.
+        let flash = CALayer()
+        flash.frame = bounds
+        flash.backgroundColor = NSColor.white.cgColor
+        flash.opacity = 0
+        container.addSublayer(flash)
+        for onset in RainStorm.thunderOnsets where onset + RainStorm.flashSeconds < clip {
+            let strike = CAKeyframeAnimation(keyPath: "opacity")
+            strike.values = RainStorm.flashOpacities
+            strike.keyTimes = RainStorm.flashKeyTimes
+            strike.duration = RainStorm.flashSeconds
+            strike.beginTime = CACurrentMediaTime() + onset
+            flash.add(strike, forKey: "stormFlash\(onset)")
+        }
+
+        // 4. The rain, ramping up rather than switching on.
+        if let rain = RainStorm.rainLayer(in: bounds, scale: scale) {
+            container.addSublayer(rain)
+            let ramp = CABasicAnimation(keyPath: "birthRate")
+            ramp.fromValue = 0
+            ramp.toValue = 1
+            ramp.duration = RainStorm.rainRampSeconds
+            ramp.beginTime = CACurrentMediaTime() + RainStorm.rainLeadIn
+            ramp.fillMode = .backwards
+            rain.add(ramp, forKey: "stormRain")
+        }
+
+        overlayInfo(String(format: "⛈️ storm: %d clouds in over %.1fs, rain from %.1fs, %.1fs clip",
+                           RainStorm.cloudCount, RainStorm.cloudSlideSeconds, RainStorm.rainLeadIn, clip))
+
+        // The authoritative end, per the self-termination rule: the tablet's
+        // `/sound/stopped` → `storm/stop` is best-effort and is lost on a flaky
+        // venue network, which would otherwise leave the desktop under a
+        // permanent downpour. Identity-guarded so an old run's timer cannot kill
+        // a newer one.
+        let selfStop = DispatchWorkItem { [weak self, weak container] in
+            guard let self, let container, self.activeEffects["storm"] === container else { return }
+            self.clearStorm(fadeDuration: RainStorm.fadeOutSeconds)
+        }
+        stormSelfStop = selfStop
+        DispatchQueue.main.asyncAfter(deadline: .now() + clip, execute: selfStop)
+    }
+
+    /// Wired to `storm/stop` — the clip stopped on the tablet.
+    func stopStorm() {
+        clearStorm(fadeDuration: RainStorm.fadeOutSeconds)
+    }
+
+    private func clearStorm(fadeDuration: CFTimeInterval) {
+        stormSelfStop?.cancel()
+        stormSelfStop = nil
+        guard let container = activeEffects["storm"] else { return }
+        activeEffects.removeValue(forKey: "storm")
+        guard fadeDuration > 0 else { container.removeFromSuperlayer(); return }
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(fadeDuration)
+        container.opacity = 0
+        CATransaction.commit()
+        DispatchQueue.main.asyncAfter(deadline: .now() + fadeDuration) { [weak container] in
+            container?.removeFromSuperlayer()
+        }
+    }
+
     /// Current mouse position expressed in hostLayer-local coordinates,
     /// clamped to the built-in screen (reuses the heartbeat anchor mapping).
     private func mousePointInHostLayer() -> CGPoint {

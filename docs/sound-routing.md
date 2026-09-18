@@ -58,14 +58,32 @@ else, so the whole method — the special cases above, the `durationMs` handed
 back, `playing` in `/state`, the log line — speaks about the file that is really
 being played and not the one that was asked for.
 
-Today the table holds one entry: **#19 `19_fail.mp3` alternates with #20
+Today the table holds one entry: **`19_fail.mp3` alternates with
 `20_fail2.mp3`**, run by run (19 → 20 → 19 → …). The same trombone joke was
 sitting on two squares of a 13-column board and the room only ever heard
 whichever one Victor's thumb landed on; now one button carries both takes and the
-second press of the evening is not the same noise as the first. Tile #20 keeps
-its asset and its artwork — the grid is numbered `#NN` **by position**, so
-removing a row would renumber sixty tiles — and is labelled **`N/A`** in
-`tiles.json` to say it is no longer its own press.
+second press of the evening is not the same noise as the first.
+
+**`20_fail2.mp3` no longer has a tile at all** (2026-09-19). It kept square #20
+and its `N/A` label for a week — the grid is numbered `#NN` **by position**, so
+removing a row would renumber sixty tiles — but a labelled square is still a
+square, and #20 was the only one the board had spare when the ⛈️ storm arrived
+(`docs/overlay-effects.md`). The square is now the storm's; the clip stayed
+exactly where it was, in `soundsDir`, as the second take it always was. That is
+what "merged away" was supposed to mean all along: **a partner needs a file, not
+a square.** Two things follow, and both are pinned by tests:
+
+- Its `SoundEffectMap.onPress` entry is gone. The press path reports the *key* of
+  a pair and never the file that was actually played, so that mapping could only
+  ever have fired for a direct press of #20 — which no longer exists. Leaving it
+  would have put a ⭐ on an asset with no tile, which `SoundEffectMapDriftTests`
+  correctly reads as a renamed or deleted mp3.
+- `AlternatingSoundsTests` checks the two halves of a cycle against **different**
+  things now: the KEY must be a tile in `tiles.json` (something has to press it),
+  every FILE must exist in `soundsDir` (something has to play it). A partner may
+  carry no effect of its own, but never a *different* one from the key's — that
+  would be a mapping which looks like it fires every other run and never fires at
+  all.
 
 Three properties are deliberate:
 

@@ -29,7 +29,7 @@ final class EffectsCatalogTests: XCTestCase {
         "15_flatline.mp3":       "pulse",
         "18_chainsaw.mp3":       "chainsaw",
         "19_fail.mp3":           "fail",
-        "20_fail2.mp3":          "fail",
+        "20_storm.mp3":          "storm",          // took square #20 off fail2
         "22_minigun.mp3":        "bullet-holes",
         "23_radar.mp3":          "sonar",          // in-clip cue
         "25_dark_door.mp3":      "dark-door",      // in-clip cue

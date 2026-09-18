@@ -79,20 +79,25 @@ final class AlternatingSoundsTests: XCTestCase {
 
     // MARK: - The shipped table
 
-    /// The table is the app's promise about which tiles are one button. Both
-    /// halves of a cycle must be real, starred tiles: the partner still fires
-    /// the KEY's effect (the press path reports the key, not what was played),
-    /// so a pair that straddles two different effects would animate the wrong
-    /// thing every other run.
+    /// The table is the app's promise about which tiles are one button. The
+    /// press path reports the KEY, never the file that was actually played, so
+    /// the key's effect is the only visual a pair can ever show. A partner is
+    /// therefore allowed to carry no effect of its own — `20_fail2.mp3` has not
+    /// carried one since the ⛈️ storm took square #20 and left it a clip with no
+    /// tile — but never a DIFFERENT one: that would be a mapping which looks
+    /// like it fires every other run and never fires at all.
     func testShippedPairsShareOneEffect() {
         XCTAssertFalse(AlternatingSounds.defaultTable.isEmpty)
         for (key, files) in AlternatingSounds.defaultTable {
             XCTAssertGreaterThan(files.count, 1, "\(key) is listed as alternating but has nothing to alternate with")
             XCTAssertEqual(files.first, key, "the first run of \(key) must be \(key) itself")
-            let effects = Set(files.map { EffectsCatalog.effectName(forAsset: $0) ?? "" })
-            XCTAssertEqual(effects.count, 1,
-                           "\(key)'s cycle spans more than one desktop effect \(effects.sorted()) — "
-                           + "the press path only ever reports \(key), so the other runs would fire the wrong visual")
+            let keyEffect = EffectsCatalog.effectName(forAsset: key)
+            for partner in files.dropFirst() {
+                let partnerEffect = EffectsCatalog.effectName(forAsset: partner)
+                XCTAssertTrue(partnerEffect == nil || partnerEffect == keyEffect,
+                              "\(partner) is mapped to '\(partnerEffect ?? "")' but plays under \(key), "
+                              + "whose press fires '\(keyEffect ?? "")' — that mapping can never run")
+            }
         }
     }
 
@@ -108,11 +113,19 @@ final class AlternatingSoundsTests: XCTestCase {
         }
     }
 
-    /// Every file in the table has to be a tile that exists, for the same
-    /// reason `SoundEffectMapDriftTests` checks the star set: a renamed mp3
-    /// would leave a button silently playing nothing every other press.
-    func testShippedPairsAreRealTiles() throws {
-        let tilesJSON = EffectsConfig.shared.soundsDir.appendingPathComponent("tiles.json")
+    /// A cycle's KEY has to be a tile somebody can press, and every file in it
+    /// has to be an mp3 that still exists — for the same reason
+    /// `SoundEffectMapDriftTests` checks the star set: a renamed file would
+    /// leave a button silently playing nothing every other press.
+    ///
+    /// The two halves are checked against DIFFERENT things on purpose. A
+    /// partner needs a file, not a square: `20_fail2.mp3` is still #19's second
+    /// take and has had no tile of its own since the ⛈️ storm took #20 — which
+    /// is exactly what "merged away" was always supposed to mean, and the
+    /// earlier version of this test would have read it as a deleted mp3.
+    func testShippedPairKeysAreTilesAndEveryFileExists() throws {
+        let soundsDir = EffectsConfig.shared.soundsDir
+        let tilesJSON = soundsDir.appendingPathComponent("tiles.json")
         guard let data = try? Data(contentsOf: tilesJSON),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let tiles = obj["tiles"] as? [[String: Any]] else {
@@ -120,8 +133,10 @@ final class AlternatingSoundsTests: XCTestCase {
         }
         let assets = Set(tiles.compactMap { $0["asset"] as? String })
         for (key, files) in AlternatingSounds.defaultTable {
+            XCTAssertTrue(assets.contains(key), "\(key) is a cycle key but is not a tile in tiles.json — nothing can press it")
             for file in files {
-                XCTAssertTrue(assets.contains(file), "\(file) (in \(key)'s cycle) is not a tile in tiles.json")
+                XCTAssertTrue(FileManager.default.fileExists(atPath: soundsDir.appendingPathComponent(file).path),
+                              "\(file) (in \(key)'s cycle) is not in soundsDir — every other press would play nothing")
             }
         }
     }

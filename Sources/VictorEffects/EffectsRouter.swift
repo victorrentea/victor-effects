@@ -101,6 +101,8 @@ final class EffectsRouter {
         "/test/crt-shutdown": "crt-shutdown",
         "/test/snow": "snow",
         "/test/snow/stop": "snow/stop",
+        "/test/storm": "storm",
+        "/test/storm/stop": "storm/stop",
         "/test/elephant": "elephant",
         "/test/elephant/stop": "elephant/stop",
         "/test/claude-peek": "claude-peek",

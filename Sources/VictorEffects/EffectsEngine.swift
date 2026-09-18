@@ -182,6 +182,8 @@ final class EffectsEngine {
         case "rainbow/stop":  animator.stopRainbow()
         case "snow":          animator.showSnow()
         case "snow/stop":     animator.stopSnow()
+        case "storm":         animator.showStorm()
+        case "storm/stop":    animator.stopStorm()
         case "cavalry":       animator.showCavalry(playSound: false)
         case "counter-strike": animator.showCounterStrike(playSound: false)
         case "wasnt-me":      animator.showWasntMe(playSound: false)

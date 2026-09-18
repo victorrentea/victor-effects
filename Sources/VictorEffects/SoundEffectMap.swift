@@ -28,7 +28,13 @@ enum SoundEffectMap {
         "65_school_bell.mp3":    "fire-alarm",
         "10_red_phone.mp3":      "phone-ring",
         "19_fail.mp3":           "fail",
-        "20_fail2.mp3":          "fail",
+        // 20_fail2.mp3 is NOT here any more. It is still #19's second take
+        // (`AlternatingSounds`), but since the ⛈️ storm took over square #20 it
+        // is no longer a tile anybody can press — and the press path reports the
+        // KEY of a pair, never the file that was actually played, so the entry
+        // could only ever have fired for a direct press that can no longer
+        // happen. Leaving it would have put a ⭐ on an asset with no tile, which
+        // `SoundEffectMapDriftTests` reads as a renamed or deleted mp3.
         "78_projector.mp3":      "sepia",
         "67_sfx_109.mp3":        "brother",
         "70_cavalry.mp3":        "cavalry",
@@ -79,6 +85,15 @@ enum SoundEffectMap {
         // a Lot Like Christmas", snow already falling in the artwork. The desktop
         // now snows for as long as the clip plays.
         "46_michael_buble.mp3":  "snow",
+        // Tile 20 (⛈️ storm) — the square #19's second trombone take used to
+        // hold. Four clouds slide in from both sides onto the top edge, the
+        // desktop darkens under them and it rains for the length of the clip,
+        // with lightning on the thunder rolls. Press-driven on purpose: the
+        // rolls in this recording swell over ~300 ms, so nothing here needs the
+        // sample accuracy that puts the FBI knock on the play path — and this
+        // way the desktop still storms when the tablet plays the clip through
+        // its own speaker and the Mac never sees a /sound/play.
+        "20_storm.mp3":          "storm",
         // Tile 34: a phoenix rises up the desktop with its cry. The tablet's
         // paired `34_phoenix.mp3` is silent; the real sound (`phoenix.mp3`) is a
         // Mac-owned resource played inside showPhoenix and faded out in unison
@@ -153,6 +168,7 @@ enum SoundEffectMap {
         "26_drum.mp3":           "drum-roll/stop",
         "59_game_over.mp3":      "game-over/stop",
         "46_michael_buble.mp3":  "snow/stop",
+        "20_storm.mp3":          "storm/stop",
         "18_chainsaw.mp3":       "chainsaw/stop",
         "11_fire.mp3":           "fire/stop",
     ]
