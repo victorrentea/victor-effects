@@ -285,17 +285,34 @@ rule from the start.
   centre), 0.69 of the screen height across, in 6.5 s of the 10 s clip; the last 3.5 s
   it simply hangs there.
   - **The artwork is a whole sphere, and that is the load-bearing change.** The
-    original `death-star.png` was a *crop*: cut off flat along its left and bottom
+    first `death-star.png` was a *crop*: cut off flat along its left and bottom
     edges, so the only place on screen where those cuts are invisible is welded into
     the bottom-left corner, with the slices exactly on the screen edges. Pulled even
-    10% inboard, the sphere visibly showed two straight cut lines. So the missing
-    lower-left limb was **rebuilt**: fit a circle to the silhouette (centre 314,394,
-    R 364 in the source's pixels), then fill everything inside it that the crop never
-    had by walking radially inward to the nearest real pixel and darkening steeply
-    with the distance walked, which lands the fabricated part in the sphere's own
-    shadow where nobody reads detail. The white fringe the source kept from being cut
-    out of a white background is dropped on the way (it was extrapolating into a white
-    crescent down the left limb). The result ships **in the app bundle**, and only there — it
+    10% inboard, the sphere visibly showed two straight cut lines. The missing
+    lower-left limb was then **rebuilt** by radial extrapolation — which bought back
+    the round silhouette but not the picture: the fabricated limb was a pale,
+    smeared crescent that on the room's cream slides read as *the sphere being
+    half transparent*, the exact complaint it was meant to fix.
+  - **So the art is now a real render, cut to a circle** (2026-09-18) — a whole
+    sphere photographed as one, nothing invented:
+    `wallpapers.com/images/hd/death-star-artwork-png-nvm-xpb738481cx20df5.png`.
+    Three things are done to it and they are the whole recipe: the render is ~4.5%
+    **oblate** (863 × 826), so it is squared to 863 × 863 and the sphere becomes an
+    actual circle; the sphere's own colour is bled a few pixels outward so the new
+    limb can never sample whatever the source's rim had bled in from its background;
+    and the alpha is **thrown away and redrawn** as an exact circle — 255 inside,
+    one pixel of feather at the limb, 0 outside. That last step is why this cannot
+    regress: there is no inherited alpha left to be subtly translucent, and 0.3% of
+    the picture is anything other than fully opaque or fully gone. The sphere is
+    then centred in a 966 × 966 canvas so `starWarsSphereFraction` stays 0.893 and
+    **no code changed**.
+  - **Candidates are rejected on their drop shadow, not their looks.** Most Death
+    Star cut-outs on stock sites carry an opaque shadow blob fused to the
+    silhouette; the circular mask makes it fully opaque and it lands on screen as a
+    grey smudge welded to the limb. A candidate whose alpha≥128 bbox is an ellipse
+    *and* whose filled area matches that ellipse is shadow-free — that test, not the
+    thumbnail, picked this one out of ~50.
+  - The result ships **in the app bundle**, and only there — it
     used to have a downloads-folder fallback, where one tidy-up would have
     silently killed the effect. (The four effects that still read an external
     file — love-hands, brother, gangnam, fail — go through
