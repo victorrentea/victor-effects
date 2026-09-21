@@ -25,6 +25,13 @@ final class WhipController {
     /// let the Enter-button crack the whip (see `forceCrack`).
     var onVisibilityChanged: ((Bool) -> Void)?
 
+    /// Fired on **every** crack, whatever made it — a real flick, Return, the
+    /// thumb buttons or `/effect/whip/crack`. The whip has no idea what listens;
+    /// today it is the claude-peek mascot flinching (`EmojiAnimator
+    /// .whipClaudePeek`), which is why this is a callback and not a direct call
+    /// into the animator: the overlay stays a rope and a sound.
+    var onCrack: (() -> Void)?
+
     private var panel: WhipPanel?
     private var view: WhipView?
     private var physics: WhipPhysics?
@@ -76,6 +83,15 @@ final class WhipController {
         let volume = SoundManager.shared.currentTabletVolume * Self.crackVolumeFactor
         SoundManager.shared.playOverlapping(
             sound, volume: volume, bluetoothCompensated: false, startAt: Self.crackOnset[sound] ?? 0)
+    }
+
+    /// **The one funnel every crack passes through**, scripted or natural: sound
+    /// first, then whoever is listening. Both callers used to call `playCrack()`
+    /// directly, and a second thing to do per crack would have had to be
+    /// remembered at two sites — exactly the divergence this exists to prevent.
+    private func cracked() {
+        playCrack()
+        onCrack?()
     }
 
     var isShowing: Bool { panel != nil }
@@ -149,7 +165,7 @@ final class WhipController {
         let now = nowMs()
         if now - lastForceCrackMs < 160 { return }
         lastForceCrackMs = now
-        playCrack()
+        cracked()
         suppressNaturalCrackUntilMs = now + 500
         startScriptedFlick()
     }
@@ -184,11 +200,11 @@ final class WhipController {
         // imitate a fast mouse sweep; otherwise follow the real cursor.
         let m = flickQueue.isEmpty ? viewPoint(forGlobal: NSEvent.mouseLocation) : flickQueue.removeFirst()
         physics.setMouse(Double(m.x), Double(m.y))
-        let cracked = physics.update(now: now)
-        // Play the natural crack sound — but not during a scripted flick, whose
-        // own forceCrack already played one (avoid doubling).
-        if cracked && now > suppressNaturalCrackUntilMs {
-            playCrack()
+        let didCrack = physics.update(now: now)
+        // Announce the natural crack — but not during a scripted flick, whose
+        // own forceCrack already announced one (avoid doubling).
+        if didCrack && now > suppressNaturalCrackUntilMs {
+            cracked()
         }
         view.points = physics.points
         view.needsDisplay = true

@@ -9968,6 +9968,84 @@ class EmojiAnimator {
         }
     }
 
+    /// 🔥 The whip cracked: the mascot jumps, *ca ars de bici*.
+    ///
+    /// The whip already scolds the agent in the terminal (Ctrl+C + "FASTER");
+    /// this is the same joke told to the room instead of to the shell — the
+    /// robot on screen is the one being shouted at, so it is the one that has to
+    /// flinch. Without it a crack is a sound and a rope, and the mascot stands
+    /// there through it as if none of this were about him.
+    ///
+    /// **It lands back exactly where it took off.** The jump is a keyframe on
+    /// `position.y` that both starts and ends at the layer's own position and is
+    /// removed on completion, so the model layer is never written to: twenty
+    /// cracks in a row leave the icon on the same pixel as the first, and the
+    /// `PeekHitPanel` laid over the landed frame stays a valid click target
+    /// throughout (it deliberately does not chase the jump, for the same reason
+    /// it does not chase the slide-in).
+    ///
+    /// `position.y` is also the one keypath that cannot fight the `wiggle`: a
+    /// crack 200 ms after ⌘⌃Q plays both at once, and a second animation on
+    /// `transform.rotation.z` would have replaced the wave rather than added to
+    /// it.
+    ///
+    /// **The five seconds start over**, exactly as a costume change restarts
+    /// them: something just happened to the mascot, and having it slide out mid-
+    /// flinch because its timer was armed before the crack would read as a bug.
+    /// That also makes the whip a way to *keep* him on screen — crack again and
+    /// he stays.
+    ///
+    /// A no-op when nothing is showing: the whip is cracked far more often over
+    /// a bare desktop than over the mascot, and a crack must never be what puts
+    /// him there.
+    func whipClaudePeek() {
+        guard let layer = activeEffects["claude-peek"] else { return }
+
+        let rise = Self.peekWhipRise(frame: layer.frame, in: hostLayer.bounds)
+        let y = layer.position.y
+
+        let jump = CAKeyframeAnimation(keyPath: "position.y")
+        // Up hard, down, then a small second bounce — a startle, not a hover.
+        // The first frame is the resting position so the layer does not snap
+        // upwards on the first tick, and so is the last, which is what makes the
+        // landing exact rather than merely close.
+        jump.values = [y, y + rise, y, y + rise * 0.28, y]
+        jump.keyTimes = [0, 0.22, 0.58, 0.78, 1]
+        jump.duration = 0.62
+        jump.timingFunctions = [
+            CAMediaTimingFunction(name: .easeOut),    // kicked
+            CAMediaTimingFunction(name: .easeIn),     // falls
+            CAMediaTimingFunction(name: .easeOut),
+            CAMediaTimingFunction(name: .easeIn),
+        ]
+        layer.add(jump, forKey: "whip-jump")
+
+        schedulePeekExit(layer: layer)
+    }
+
+    /// How high the flinch goes, as a fraction of the mascot's **own height** —
+    /// measured off the icon, not off the screen, because the mascot doubled in
+    /// size once already (2026-09-21) and a jump pinned to points would have
+    /// stayed the hop it was when the robot was half as tall.
+    static let peekWhipJumpFraction: CGFloat = 0.15
+
+    /// How far the mascot rises, clamped to the room it actually has above it.
+    ///
+    /// `claudePeekFrame` hangs the icon's top at 93% of the screen height, so
+    /// there is only ~7% of the height overhead while the icon itself is 42% —
+    /// the fraction above is already chosen to fit inside that (0.15 × 0.42 ≈
+    /// 0.063 < 0.07). The clamp is not what picks the number; it is what keeps
+    /// the *next* person from having to notice this, because the overlay clips
+    /// at the screen edge and a flinch that beheads the robot on the projector
+    /// reads as a broken effect rather than as a joke.
+    ///
+    /// Pure, so the clearance can be asserted without a screen.
+    static func peekWhipRise(frame: CGRect, in bounds: CGRect) -> CGFloat {
+        let wanted = frame.height * peekWhipJumpFraction
+        let roomAbove = max(0, bounds.maxY - frame.maxY)
+        return min(wanted, roomAbove)
+    }
+
     /// A click on the mascot: the *other* robot walks on in the same spot, and
     /// stays the one this key means for the rest of the day.
     ///

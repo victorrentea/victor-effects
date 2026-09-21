@@ -37,6 +37,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 
 - `GET /test/whip` — show the 🔥 whip on the screen under the cursor (same as ⌃W and the `🔥 Whip` menu row). NB it stays up until Esc, a second call, or `/effect/stop-all`
 - `GET /test/whip/crack` — crack it: the scripted flick (`forceCrack`) plus one of `whip_A..E.mp3`. A no-op while the whip is hidden, not an error. It does **not** fire the typing macro — that only happens on a real click, and it types into whatever app has focus (`docs/whip.md`)
+  - To see the mascot flinch, call `/test/claude-peek` first and crack within its five seconds: he jumps, lands on the same pixel, and his exit timer restarts (`docs/whip.md`). With nothing on screen the crack is unchanged
 
 ## Thumbnail panel
 
@@ -69,6 +70,7 @@ Not a bug to chase: check `activeEffects` instead.
 - `EffectsRouterTests` — the whole route table, asserted as values with no socket
 - `EffectsHotkeyTapRulesTests` — `decideKey` / `decideMouse` / `decideModifier` as pure rules: ⌃W swallows, ⌘⌃W passes, Return cracks only while the whip is showing, and the panel arms on **right ⌘ (54) alone** — never on left ⌘ (55), never on right ⇧ (60) by itself, and never under ⌃⌘ / ⌘⌥ / left-⌘⇧. The page switch is **right ⇧ (60)**, told from the left one (56) by the device bits; `testWisprPushToTalkNeverOpensThePanel` pins the reason it is not ⌥ — that chord is Wispr Flow's push-to-talk
 - `WhipPhysicsTests.testSettleMatchesJSGolden` — frame-by-frame parity with the JavaScript original (`tools/whip-parity`)
+- `PeekWhipJumpTests` — the ⌘⌃Q mascot's jump on a crack: it never clips through the top of the screen, the 15% fraction fits the clearance without the clamp doing the work, both cut-outs jump the same, and — by parsing `WhipOverlay.swift` — every crack still goes through the `cracked()` funnel rather than calling `playCrack()` directly
 - `SoundsManifestTests` — the canonical hash form, which an Android client reproduces byte for byte
 - `TilesManifestTests`, `EffectsConfigTests` — both parse literals rather than reading this machine, so no test depends on what is installed here
 - `RedButtonTests` — 🔴 the red button's three decisions as pure functions: where it lands (half the screen height, centred on the pointer, deliberately un-clamped), which pixels are it (the alpha mask, including the top-down/bottom-up flip), and the phase order — above all that a **click** leaves it pressed while a **timeout** brings it back up with no hook fired

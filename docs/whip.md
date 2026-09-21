@@ -72,6 +72,48 @@ overlay holds the A2DP link warm with `BluetoothOutput.startContinuousWarm()`
 for exactly this reason, so a crack has zero spin-up lag and adding the
 compensation delay would only make it late.
 
+## The mascot flinches
+
+Every crack — flicked, Return'd, thumb-buttoned or `GET /effect/whip/crack` —
+also makes the ⌘⌃Q mascot **jump**, if he happens to be on screen
+(`EmojiAnimator.whipClaudePeek`). The whip already scolds the agent in the
+terminal; this is the same joke told to the room instead of to the shell, and
+the robot standing still through a crack aimed at him was the thing that read as
+missing.
+
+Three details are load-bearing:
+
+- **He lands back on the same pixel.** The jump is a keyframe on `position.y`
+  that starts *and* ends at the layer's own position and is removed on
+  completion, so the model layer is never written to. Twenty cracks in a row
+  leave no drift, and the `PeekHitPanel` laid over the landed frame stays a
+  valid click target throughout (it does not chase the jump, for the same reason
+  it does not chase the slide-in).
+- **`position.y` is the one keypath that cannot fight the wave.** A crack 200 ms
+  after ⌘⌃Q plays on top of the `wiggle`, and a second animation on
+  `transform.rotation.z` would have *replaced* it rather than added to it.
+- **The five seconds start over** (`schedulePeekExit`), exactly as a costume
+  change restarts them — sliding out mid-flinch because the timer was armed
+  before the crack would read as a bug. So the whip is also a way to *keep* him
+  on screen: crack again and he stays.
+
+The rise is **15% of the mascot's own height**, clamped to the room above it
+(`EmojiAnimator.peekWhipRise`). Measured off the icon because it doubled in size
+once already (2026-09-21, 21% → 42% of the screen height) and a jump in points
+would have stayed the hop it was when the robot was half as tall; clamped
+because `claudePeekFrame` hangs his head at 93% of the height, the overlay clips
+at the bezel, and a beheaded flinch on the projector reads as a broken effect
+rather than as a joke. 15% × 42% ≈ 6.3% of the height, just inside the 7% of
+clearance — `PeekWhipJumpTests` asserts the fit is real and not the clamp doing
+the work, on three screen sizes and both cut-outs.
+
+The wiring is `WhipController.onCrack`, set in `EffectsEngine.toggleWhip`, so the
+overlay stays a rope and a sound and knows nothing about what listens. Inside
+it, `cracked()` is the **one funnel** every crack passes through — sound, then
+listeners. `PeekWhipJumpTests.testEveryCrackGoesThroughTheFunnel` parses
+`WhipOverlay.swift` to keep a third `playCrack()` call site from quietly
+skipping the second half.
+
 ## ⚠️ A click types into the front app
 
 `WhipMacro.sendCrackMacro` posts **Ctrl+C**, waits `interruptToTypeDelay`
