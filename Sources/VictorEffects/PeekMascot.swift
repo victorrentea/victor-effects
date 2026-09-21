@@ -1,6 +1,6 @@
 import AppKit
 
-/// Which robot leans in from the left on ⌘⌃Q.
+/// Which robot leans in from the top right on ⌘⌃Q.
 ///
 /// The raw value is the bundle resource name, so a mascot is one thing rather
 /// than a name plus a lookup table that can disagree with it.
@@ -109,10 +109,11 @@ enum PeekMascotStore {
 /// exactly over the icon: a click-target the size of the thing being clicked.
 ///
 /// It costs what it costs — for the mascot's ~5 s a click in that rectangle
-/// does not reach the app underneath. That is affordable only because of where
-/// the mascot lands: the top-left quarter is the **last** one
-/// `TerminalTileLayout.fillOrder` hands out, so of the whole screen it is the
-/// least likely to have anything under it worth clicking.
+/// does not reach the app underneath, and since 2026-09-21 the rectangle is
+/// four times the area it was. That is affordable because of where the mascot
+/// lands: `TerminalTileLayout.fillOrder` hands the top-right quadrant out
+/// third of four, so it is still among the least likely parts of the screen to
+/// have anything under it worth clicking.
 ///
 /// It is `.nonactivatingPanel` and never becomes key, so clicking the mascot
 /// does not take focus off whatever Victor was typing in — the same requirement
@@ -212,12 +213,14 @@ final class PeekHitPanel: NSPanel {
 /// Pure functions over a `CGImage` so the geometry can be asserted off-screen.
 enum PeekMascotOutline {
     /// Rim thickness as a fraction of the source image's **height**, matching
-    /// how `claudePeekFrame` sizes the mascot: the icon is drawn at 21% of the
-    /// screen height, so a rim measured off the height is the same number of
-    /// projected points whichever mascot is on duty and whatever the PNG's own
-    /// resolution turns out to be. 2% lands at ~4 pt on the projector — thick
-    /// enough to be a border from the back of the room, thin enough that it is
-    /// still the robot's outline and not a blob.
+    /// how `claudePeekFrame` sizes the mascot: the icon is drawn at a fixed
+    /// fraction of the screen height, so a rim measured off the height is the
+    /// same number of projected points whichever mascot is on duty and whatever
+    /// the PNG's own resolution turns out to be. It is left **proportional** —
+    /// when the icon doubled to 42% of the height on 2026-09-21 the rim doubled
+    /// with it, ~4 pt to ~8 pt on the projector, because a sticker twice the
+    /// size wears a border twice as thick; a rim pinned to its old thickness on
+    /// a mascot this big would read as a hairline, not as a cut-out.
     static let widthFraction: CGFloat = 0.02
 
     /// Rim thickness in source pixels, never below 3 so a small PNG still gets
