@@ -121,14 +121,15 @@ Four details are load-bearing:
 
 The hops are measured in **fractions of his own height**, both axes off the
 height, so the two cut-outs (461×363 and 455×362) flinch identically and he has
-survived being resized twice (21% → 42% → 41% of the screen height, all on
-2026-09-21) without the jump needing a second thought. The tallest is 26% of his
+survived being resized three times (21% → 42% → 41% → ~28.5% of the screen
+height, all on 2026-09-21) without the jump needing a second thought. The tallest is 26% of his
 height; every point is clamped to the room he actually has on that side
 (`EmojiAnimator.peekWhipHop`). The clamp is the safety net, not the author: the
 overlay clips at both bezels, and a flinch that beheads the robot on the
 projector — or walks him off the left edge — reads as a broken effect rather
 than as a joke. Since he hangs from 82% of the height there is 18% of clearance
-against the 0.26 × 0.41 ≈ 10.7% he needs. `PeekWhipJumpTests` asserts both fits
+against the 0.26 × 0.285 ≈ 7.4% he needs (it was 10.7% at 41%, so every trim
+of his height only widens the margin). `PeekWhipJumpTests` asserts both fits
 are real and not the clamp doing the work, on three screen sizes and both
 cut-outs, plus that a crack is one hop, that consecutive cracks go opposite
 ways, and that he lands on the pixel he came in on however many times he is hit

@@ -9876,8 +9876,14 @@ class EmojiAnimator {
     /// How tall the mascot is, as a fraction of the screen height. It went 21%
     /// → 42% on 2026-09-21 (*"vreau să fie mult mai mare, de două ori mai
     /// mare"*) and then back by 3% the same evening — a trim, not a reversal:
-    /// at 42% and hanging lower he was crowding the quarter he stands in.
-    static let peekHeightFraction: CGFloat = 0.42 * 0.97
+    /// at 42% and hanging lower he was crowding the quarter he stands in. Later
+    /// the same evening it was taken to **×0.7 of that** (≈28.5% of the screen):
+    /// the doubling was the right call at 21%, but the trim showed the limit was
+    /// the quarter he stands in, not the reading distance. The factors are kept
+    /// as a product rather than folded into one number because each one is a
+    /// separate decision, and the history is the only thing that explains why
+    /// the number is not round.
+    static let peekHeightFraction: CGFloat = 0.42 * 0.97 * 0.7
 
     /// Where his head hangs, as a fraction of the screen height. See
     /// `claudePeekFrame` for why this is 82% and not the 93% it was.
@@ -10163,8 +10169,10 @@ class EmojiAnimator {
     ///
     /// `claudePeekFrame` hangs his head at `peekTopFraction` of the screen
     /// height, so the clearance is 18% of the height while the icon itself is
-    /// 41% — `peekWhipJumpFraction` is chosen to fit well inside it
-    /// (0.26 × 0.41 ≈ 0.107 < 0.18).
+    /// ~28.5% — `peekWhipJumpFraction` is chosen to fit well inside it
+    /// (0.26 × 0.285 ≈ 0.074 < 0.18; it was 0.26 × 0.41 ≈ 0.107 while he stood
+    /// at 41%, so the trim only widened the margin — the clamp above stays the
+    /// belt to this braces).
     static func peekWhipRise(frame: CGRect, in bounds: CGRect) -> CGFloat {
         let wanted = frame.height * peekWhipJumpFraction
         let roomAbove = max(0, bounds.maxY - frame.maxY)
