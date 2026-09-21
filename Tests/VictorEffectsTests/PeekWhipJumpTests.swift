@@ -109,6 +109,133 @@ final class PeekWhipJumpTests: XCTestCase {
         }
     }
 
+    // MARK: - It runs in every direction, and comes back
+
+    /// The flinch stopped being one hop upwards on 2026-09-21: being burnt
+    /// makes you run *away*, and away is not a direction you pick in advance.
+    /// A route that only ever moves on `y` is the pogo stick this replaced.
+    func testTheScamperMovesSideways() {
+        for screen in screens {
+            for aspect in aspects {
+                let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
+                let path = EmojiAnimator.peekWhipPath(frame: frame, in: screen)
+                XCTAssertGreaterThan(path.map { abs($0.x) }.max() ?? 0, frame.height * 0.1,
+                                     "at \(screen.size) the mascot only jumps up and down again")
+                XCTAssertGreaterThan(path.filter { $0.x > 0 }.count, 0, "he never goes right")
+                XCTAssertGreaterThan(path.filter { $0.x < 0 }.count, 0, "he never goes left")
+            }
+        }
+    }
+
+    /// Four hops, not one: a single arc is a flinch, and what was asked for was
+    /// somebody scrambling. Counted as the number of times he leaves the ground
+    /// (every apex between two ground frames).
+    func testHeTakesOffMoreThanOnce() {
+        let apexes = EmojiAnimator.peekWhipHopShape.enumerated()
+            .filter { $0.offset.isMultiple(of: 2) == false }
+        XCTAssertGreaterThanOrEqual(apexes.count, 4,
+                                    "one crack should launch him several times, not once")
+        for (offset, point) in EmojiAnimator.peekWhipHopShape.enumerated() where offset.isMultiple(of: 2) {
+            XCTAssertEqual(point.y, 0, accuracy: 0.0001,
+                           "even entries are the ground — the timing functions depend on the alternation")
+        }
+        for (_, point) in apexes {
+            XCTAssertGreaterThan(point.y, 0, "an apex at ground level is not a hop")
+        }
+    }
+
+    /// However far he runs, he has to land on the pixel he left: the click
+    /// target (`PeekHitPanel`) stays at the landed frame and does not chase him,
+    /// and twenty cracks in a row must not walk him across the screen.
+    func testHeLandsExactlyWhereHeTookOff() {
+        XCTAssertEqual(EmojiAnimator.peekWhipHopShape.first, CGPoint(x: 0, y: 0))
+        XCTAssertEqual(EmojiAnimator.peekWhipHopShape.last, CGPoint(x: 0, y: 0))
+        for screen in screens {
+            let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspects[0])
+            let path = EmojiAnimator.peekWhipPath(frame: frame, in: screen)
+            XCTAssertEqual(path.first, CGPoint(x: 0, y: 0))
+            XCTAssertEqual(path.last, CGPoint(x: 0, y: 0))
+        }
+    }
+
+    /// `keyTimes` and `values` are handed to the same `CAKeyframeAnimation`, and
+    /// `timingFunctions` has to be one shorter than both. CoreAnimation does not
+    /// complain about a mismatch — it silently plays something else.
+    func testTheTimingLinesUpWithTheRoute() {
+        let times = EmojiAnimator.peekWhipKeyTimes
+        XCTAssertEqual(times.count, EmojiAnimator.peekWhipHopShape.count,
+                       "one key time per point, or the hops land at the wrong moments")
+        XCTAssertEqual(times.first, 0)
+        XCTAssertEqual(times.last, 1)
+        for (a, b) in zip(times, times.dropFirst()) {
+            XCTAssertLessThan(a, b, "key times must climb, or a hop plays backwards")
+        }
+    }
+
+    /// The apex constant is what is checked against the clearance overhead, so
+    /// it has to stay the actual top of the route — a shape edited to go higher
+    /// without touching the constant would clear the clamp's audit and then be
+    /// cut off by the bezel.
+    func testTheJumpFractionIsTheTopOfTheRoute() {
+        XCTAssertEqual(EmojiAnimator.peekWhipHopShape.map(\.y).max() ?? 0,
+                       EmojiAnimator.peekWhipJumpFraction, accuracy: 0.0001)
+    }
+
+    /// The whole route stays on the screen — this is the sideways version of
+    /// "the head does not leave through the top".
+    func testTheScamperStaysOnTheScreen() {
+        for screen in screens {
+            for aspect in aspects {
+                let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
+                for hop in EmojiAnimator.peekWhipPath(frame: frame, in: screen) {
+                    let moved = frame.offsetBy(dx: hop.x, dy: hop.y)
+                    XCTAssertTrue(screen.insetBy(dx: -0.001, dy: -0.001).contains(moved),
+                                  "at \(screen.size) the mascot runs off the screen: \(moved)")
+                }
+            }
+        }
+    }
+
+    /// The left bezel is the tight side — `claudePeekFrame` insets him by only
+    /// 4.5% of the width — so the leftward hop is the one most likely to start
+    /// being decided by the clamp instead of by the shape. If it is, he stops
+    /// bouncing off the same spot on every screen.
+    func testTheLeftwardHopIsNotTheClampDoingTheWork() {
+        let wanted = EmojiAnimator.peekWhipHopShape.map(\.x).min() ?? 0
+        for screen in screens {
+            for aspect in aspects {
+                let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
+                let got = EmojiAnimator.peekWhipPath(frame: frame, in: screen).map(\.x).min() ?? 0
+                XCTAssertEqual(got, wanted * frame.height, accuracy: 0.001,
+                               "at \(screen.size) the left bezel is clipping the scamper — pull the "
+                               + "leftmost hop in, do not rely on the clamp")
+            }
+        }
+    }
+
+    /// Both robots have to run the same route, or the effect would tell the
+    /// room which costume is on duty.
+    func testBothMascotsRunTheSameRoute() {
+        for screen in screens {
+            let routes = aspects.map { aspect -> [CGPoint] in
+                EmojiAnimator.peekWhipPath(
+                    frame: EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect), in: screen)
+            }
+            XCTAssertEqual(routes[0], routes[1],
+                           "Claude and Copilot must scramble identically — the route is sized off the height")
+        }
+    }
+
+    /// The clamp is still the safety net it is there to be, on every side.
+    func testAMascotWithNoRoomIsClampedToTheRoomThereIs() {
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let boxedIn = CGRect(x: 0, y: 600, width: 400, height: 480)   // left bezel, top bezel
+        for hop in EmojiAnimator.peekWhipPath(frame: boxedIn, in: screen) {
+            XCTAssertGreaterThanOrEqual(hop.x, 0, "nowhere to go left, so he does not go left")
+            XCTAssertEqual(hop.y, 0, accuracy: 0.001, "nowhere to go up, so he does not go up")
+        }
+    }
+
     // MARK: - Every crack reaches it
 
     /// `WhipController` announces cracks through one funnel, `cracked()`, which

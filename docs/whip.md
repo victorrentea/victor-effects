@@ -72,40 +72,61 @@ overlay holds the A2DP link warm with `BluetoothOutput.startContinuousWarm()`
 for exactly this reason, so a crack has zero spin-up lag and adding the
 compensation delay would only make it late.
 
-## The mascot flinches
+## The mascot bolts
 
 Every crack — flicked, Return'd, thumb-buttoned or `GET /effect/whip/crack` —
-also makes the ⌘⌃Q mascot **jump**, if he happens to be on screen
+sends the ⌘⌃Q mascot **scrambling**, if he happens to be on screen
 (`EmojiAnimator.whipClaudePeek`). The whip already scolds the agent in the
 terminal; this is the same joke told to the room instead of to the shell, and
 the robot standing still through a crack aimed at him was the thing that read as
 missing.
 
-Three details are load-bearing:
+**It is a scamper, not a hop.** The first version (2026-09-21, morning) went
+straight up and came straight down, once — a man on a pogo stick, not somebody
+who has just been stung. Being burnt makes you run *away*, and away is not a
+direction you pick in advance: he now takes **four hops in four directions**
+(`peekWhipHopShape`) — out to the right, back the other way, over his own
+take-off point and past it to the left, then home — and finishes on a last
+startled little pop. The route is deliberately lopsided, far right and only a
+short way left, because `claudePeekFrame` leaves a screen's worth of room on his
+right and only its 4.5% inset on his left.
 
-- **He lands back on the same pixel.** The jump is a keyframe on `position.y`
-  that starts *and* ends at the layer's own position and is removed on
-  completion, so the model layer is never written to. Twenty cracks in a row
+Four details are load-bearing:
+
+- **He lands back on the same pixel.** Every hop is an offset from where he
+  stands, the sequence starts *and* ends at zero, and the animation is removed
+  on completion, so the model layer is never written to. Twenty cracks in a row
   leave no drift, and the `PeekHitPanel` laid over the landed frame stays a
-  valid click target throughout (it does not chase the jump, for the same reason
-  it does not chase the slide-in).
-- **`position.y` is the one keypath that cannot fight the wave.** A crack 200 ms
-  after ⌘⌃Q plays on top of the `wiggle`, and a second animation on
-  `transform.rotation.z` would have *replaced* it rather than added to it.
+  valid click target throughout (it does not chase the scamper, for the same
+  reason it does not chase the slide-in).
+- **Additive is what buys the second axis.** The old flinch was confined to
+  `position.y` because that was the one keypath that could fight neither the
+  `wiggle` on `transform.rotation.z` nor the `slide-in` on `position.x` — a
+  crack 200 ms after ⌘⌃Q plays all three at once. `isAdditive = true` on
+  `position` is *summed onto* whatever else is driving it instead of replacing
+  it, so he can run in both directions and still ride the slide-in rather than
+  teleporting to his landing spot.
+- **The hops are measured in fractions of his own height, both axes.** Off the
+  height and not one axis off each, so the two cut-outs (461×363 and 455×362)
+  run the same route and the effect never tells the room which costume is on
+  duty. Off the icon and not in points because he doubled in size once already
+  (2026-09-21, 21% → 42% of the screen height).
 - **The five seconds start over** (`schedulePeekExit`), exactly as a costume
-  change restarts them — sliding out mid-flinch because the timer was armed
+  change restarts them — sliding out mid-scramble because the timer was armed
   before the crack would read as a bug. So the whip is also a way to *keep* him
   on screen: crack again and he stays.
 
-The rise is **15% of the mascot's own height**, clamped to the room above it
-(`EmojiAnimator.peekWhipRise`). Measured off the icon because it doubled in size
-once already (2026-09-21, 21% → 42% of the screen height) and a jump in points
-would have stayed the hop it was when the robot was half as tall; clamped
-because `claudePeekFrame` hangs his head at 93% of the height, the overlay clips
-at the bezel, and a beheaded flinch on the projector reads as a broken effect
-rather than as a joke. 15% × 42% ≈ 6.3% of the height, just inside the 7% of
-clearance — `PeekWhipJumpTests` asserts the fit is real and not the clamp doing
-the work, on three screen sizes and both cut-outs.
+The apex is **15% of his own height** and every point is clamped to the room he
+actually has on that side (`EmojiAnimator.peekWhipPath`). The clamp is the
+safety net, not the author: `claudePeekFrame` hangs his head at 93% of the
+height and insets him by 4.5% of the width, the overlay clips at both bezels,
+and a flinch that beheads the robot on the projector — or walks him off the left
+edge — reads as a broken effect rather than as a joke. 15% × 42% ≈ 6.3% of the
+height, just inside the 7% of clearance; the leftmost hop is 14% of his height
+against ~16.5% of room on the tightest screen. `PeekWhipJumpTests` asserts both
+fits are real and not the clamp doing the work, on three screen sizes and both
+cut-outs, plus that the route moves sideways at all, takes off four times and
+lands where it started.
 
 The wiring is `WhipController.onCrack`, set in `EffectsEngine.toggleWhip`, so the
 overlay stays a rope and a sound and knows nothing about what listens. Inside
