@@ -9747,6 +9747,8 @@ class EmojiAnimator {
         let bounds = hostLayer.bounds
         let frame = Self.elephantFrame(in: bounds, aspect: CGFloat(image.width) / CGFloat(image.height))
 
+        peekWhipHopIndex = 0
+
         let layer = CALayer()
         layer.frame = frame
         layer.contents = image
@@ -9818,8 +9820,9 @@ class EmojiAnimator {
     /// sentence is built around and stays 25 s; this one only has to be seen.
     static let claudePeekLifetime: Double = 5
 
-    /// Where it leans in: the **top LEFT**, at **42%** of the screen height —
-    /// twice what it was (2026-09-21), in the corner it has always used.
+    /// Where it leans in: the **top LEFT**, at **41%** of the screen height,
+    /// hanging from 82% of it — twice the size it was for a fortnight
+    /// (2026-09-21), in the corner it has always used.
     ///
     /// Sized off the **height**, unlike the elephant, which claims half the
     /// width: that one is a picture a sentence is built around, this one is an
@@ -9841,23 +9844,44 @@ class EmojiAnimator {
     ///
     /// **Top-anchored, not centred.** The old frame centred the icon at 78% of
     /// the height; at double the size that same centre would push its head
-    /// through the menu bar. It hangs from 93% of the height instead, so the
-    /// clearance above it stays a thin strip whatever the aspect ratio of the
-    /// PNG on duty turns out to be.
+    /// through the menu bar. It hangs from a fraction of the height instead, so
+    /// the clearance above it is a number rather than whatever the aspect ratio
+    /// of the PNG on duty leaves over.
+    ///
+    /// **It hung from 93% for half a day.** That was the doubling's first
+    /// answer — get him as high as he goes without touching the menu bar — and
+    /// it put his head in the strip of screen where a full-screen app's own
+    /// toolbar lives. Victor drew where he wanted him instead (*"coboară-l mai
+    /// jos"*), roughly a tenth of the screen further down, so the anchor is
+    /// **82%**: still hanging from the top of the frame, but with his head
+    /// clear of the chrome and his feet nearer the middle of the quarter he
+    /// occupies. The room that buys above him is not wasted — it is what the
+    /// whip's startle jumps into (`peekWhipHopDirections`), which was pinned to
+    /// a hair under 7% of clearance while he hung at 93%.
     ///
     /// Pure so the geometry can be asserted without a screen.
     static func claudePeekFrame(in bounds: CGRect, aspect: CGFloat) -> CGRect {
-        let h = bounds.height * 0.42
+        let h = bounds.height * peekHeightFraction
         let w = h * max(aspect, 0.01)
         // Not flush against the bezel: it comes a little way IN, so it reads as
         // somebody leaning into the room rather than as a sticker stuck to the
         // edge of the screen.
         let x = bounds.width * 0.045
         // y = 0 is the bottom edge of the host layer, so this hangs the icon's
-        // TOP at 93% of the height and lets it grow downwards.
-        let y = bounds.height * 0.93 - h
+        // TOP at `peekTopFraction` of the height and lets it grow downwards.
+        let y = bounds.height * peekTopFraction - h
         return CGRect(x: x, y: y, width: w, height: h)
     }
+
+    /// How tall the mascot is, as a fraction of the screen height. It went 21%
+    /// → 42% on 2026-09-21 (*"vreau să fie mult mai mare, de două ori mai
+    /// mare"*) and then back by 3% the same evening — a trim, not a reversal:
+    /// at 42% and hanging lower he was crowding the quarter he stands in.
+    static let peekHeightFraction: CGFloat = 0.42 * 0.97
+
+    /// Where his head hangs, as a fraction of the screen height. See
+    /// `claudePeekFrame` for why this is 82% and not the 93% it was.
+    static let peekTopFraction: CGFloat = 0.82
 
     /// 🤖 A mascot slides in from the left, wiggles, and slides back out. ⌘⌃Q,
     /// and nothing else — it started life as the garnish on that key's Claude
@@ -9968,7 +9992,7 @@ class EmojiAnimator {
         }
     }
 
-    /// 🔥 The whip cracked: the mascot bolts, *ca ars de bici*.
+    /// 🔥 The whip cracked: the mascot jumps, *ca ars de bici*.
     ///
     /// The whip already scolds the agent in the terminal (Ctrl+C + "FASTER");
     /// this is the same joke told to the room instead of to the shell — the
@@ -9976,30 +10000,41 @@ class EmojiAnimator {
     /// flinch. Without it a crack is a sound and a rope, and the mascot stands
     /// there through it as if none of this were about him.
     ///
-    /// **It is a scamper, not a hop.** The first version went straight up and
-    /// came straight down, once — which reads as a man on a pogo stick, not as
-    /// somebody who has just been stung. Being burnt makes you run *away*, and
-    /// you do not know which way away is: so he now takes four hops in four
-    /// different directions (`peekWhipHopShape`) — out to the right, back the
-    /// other way, past his own take-off point to the left, then home — and
-    /// finishes on one last startled little pop. Sideways is where the room to
-    /// move actually is: `claudePeekFrame` leaves him ~7% of the screen height
-    /// overhead and the whole width to his right.
+    /// **One crack, one hop.** Not a scamper: a scramble of four hops was tried
+    /// on 2026-09-21 and was too much animation for one sound — *"să sară doar
+    /// o dată un pic la o lovitură de bici și apoi să revenim la poziția
+    /// originală"*. The repetition is supposed to come from the whip, not from
+    /// the hop: crack again and he jumps again.
     ///
-    /// **He lands back exactly where he took off.** Every hop is an offset from
-    /// his own position and the sequence both starts and ends at zero, so the
-    /// model layer is never written to: twenty cracks in a row leave the icon on
-    /// the same pixel as the first, and the `PeekHitPanel` laid over the landed
-    /// frame stays a valid click target throughout (it deliberately does not
-    /// chase the scamper, for the same reason it does not chase the slide-in).
+    /// **Each crack goes a different way.** A flinch that always leaves in the
+    /// same direction stops being a flinch by the third crack and becomes an
+    /// idle animation. `peekWhipHopDirections` is walked in order, one entry per
+    /// crack, and the entries alternate left and right — so the second crack
+    /// always answers the first, which is what "somewhat different, but still
+    /// upwards and to one side" asks for. A list rather than `random()` because
+    /// a random pick repeats itself often enough to be noticed, and because a
+    /// cycle can be asserted in a test.
     ///
-    /// **Additive is what buys the second axis.** The old flinch was confined to
-    /// `position.y` because that was the one keypath that could not fight the
-    /// `wiggle` on `transform.rotation.z` or the `slide-in` on `position.x` —
-    /// a crack 200 ms after ⌘⌃Q plays all three at once. An *additive*
-    /// animation on `position` is summed onto whatever else is driving it
-    /// rather than replacing it, so he can now run in both directions and still
-    /// ride the slide-in instead of teleporting to his landing spot.
+    /// **He always lands back where he came in.** The keyframes end at a zero
+    /// offset and the animation is removed on completion, so the model layer is
+    /// never written to: twenty cracks in a row leave the icon on the same pixel
+    /// as the first, and the `PeekHitPanel` laid over the landed frame stays a
+    /// valid click target throughout (it deliberately does not chase the hop,
+    /// for the same reason it does not chase the slide-in).
+    ///
+    /// **A crack mid-flight picks him up where he is** rather than dropping him
+    /// home first: the replacing animation starts from the offset the
+    /// presentation layer is showing, and rises *from there*. Snapping to the
+    /// ground to start the next hop is exactly the stutter that makes a
+    /// repeated effect look broken.
+    ///
+    /// **Additive is what buys the sideways half.** The first flinch was
+    /// confined to `position.y` because that was the one keypath that could
+    /// fight neither the `wiggle` on `transform.rotation.z` nor the `slide-in`
+    /// on `position.x` — a crack 200 ms after ⌘⌃Q plays all three at once. An
+    /// additive animation on `position` is summed onto whatever else is driving
+    /// it instead of replacing it, so he can leave to the side and still ride
+    /// the slide-in rather than teleporting to his landing spot.
     ///
     /// **The five seconds start over**, exactly as a costume change restarts
     /// them: something just happened to the mascot, and having it slide out mid-
@@ -10013,99 +10048,123 @@ class EmojiAnimator {
     func whipClaudePeek() {
         guard let layer = activeEffects["claude-peek"] else { return }
 
-        let hops = Self.peekWhipPath(frame: layer.frame, in: hostLayer.bounds)
+        let direction = Self.peekWhipHopDirections[
+            peekWhipHopIndex % Self.peekWhipHopDirections.count]
+        peekWhipHopIndex += 1
+
+        let hop = Self.peekWhipHop(
+            frame: layer.frame, in: hostLayer.bounds,
+            from: liveWhipOffset(of: layer), direction: direction)
 
         let jump = CAKeyframeAnimation(keyPath: "position")
         jump.isAdditive = true
-        jump.values = hops.map { NSValue(point: NSPoint(x: $0.x, y: $0.y)) }
-        jump.keyTimes = Self.peekWhipKeyTimes.map { NSNumber(value: Double($0)) }
+        jump.values = hop.map { NSValue(point: NSPoint(x: $0.x, y: $0.y)) }
+        jump.keyTimes = [0, NSNumber(value: Double(Self.peekWhipApexTime)), 1]
         jump.duration = Self.peekWhipDuration
-        // Rising is a kick and falling is gravity, so the odd segments ease out
-        // and the even ones ease in. The shape alternates ground / apex /
-        // ground, so "even segment" and "on the way up" are the same thing.
-        jump.timingFunctions = (0..<max(0, hops.count - 1)).map { i in
-            CAMediaTimingFunction(name: i.isMultiple(of: 2) ? .easeOut : .easeIn)
-        }
+        // Rising is a kick, falling is gravity.
+        jump.timingFunctions = [
+            CAMediaTimingFunction(name: .easeOut),
+            CAMediaTimingFunction(name: .easeIn),
+        ]
         layer.add(jump, forKey: "whip-jump")
 
         schedulePeekExit(layer: layer)
     }
 
-    /// The path of the scamper, in fractions of the mascot's **own height** —
-    /// both axes measured off the height, not one off each, so the two cut-outs
-    /// (461×363 and 455×362) run exactly the same route and the effect never
-    /// tells the room which costume is on duty.
+    /// Which direction the next crack throws him. Reset when he walks on, so a
+    /// fresh appearance always opens with the same first hop and the sequence is
+    /// the same one the room saw last time.
+    private var peekWhipHopIndex = 0
+
+    /// How far a hop already in the air has carried him, as an offset from where
+    /// he stands — so a second crack can continue from there instead of
+    /// snapping him back to the ground to start over.
     ///
-    /// Measured off the icon rather than in points because the mascot doubled in
-    /// size once already (2026-09-21, 21% → 42% of the screen height) and a jump
-    /// pinned to points would have stayed the hop it was when the robot was half
-    /// as tall.
+    /// Zero unless **our own** hop is what is moving him: while `slide-in` is
+    /// running, the gap between the presentation and model layers is the slide,
+    /// not the hop, and feeding that in would have the jump fight the entrance.
+    /// Both animations are removed on completion, so `animation(forKey:)` is the
+    /// question "is this still playing".
+    private func liveWhipOffset(of layer: CALayer) -> CGPoint {
+        guard layer.animation(forKey: "whip-jump") != nil,
+              layer.animation(forKey: "slide-in") == nil,
+              let shown = layer.presentation() else { return .zero }
+        return CGPoint(x: shown.position.x - layer.position.x,
+                       y: shown.position.y - layer.position.y)
+    }
+
+    /// Where each crack throws him, in fractions of the mascot's **own
+    /// height** — both axes measured off the height, not one off each, so the
+    /// two cut-outs (461×363 and 455×362) flinch identically and the effect
+    /// never tells the room which costume is on duty.
     ///
-    /// Even entries are the ground, odd ones are apexes; the first and last are
-    /// both where he was standing, which is what makes the landing exact rather
-    /// than merely close. The route is deliberately **lopsided** — far to the
-    /// right, a short way back to the left — because there is a screen's worth
-    /// of room on his right and only `claudePeekFrame`'s 4.5% inset on his left.
-    static let peekWhipHopShape: [CGPoint] = [
-        CGPoint(x: 0.00, y: 0.00),    // where he was standing
-        CGPoint(x: 0.26, y: 0.15),    // kicked, up and out to the right
-        CGPoint(x: 0.55, y: 0.00),
-        CGPoint(x: 0.36, y: 0.13),    // no, not that way either
-        CGPoint(x: 0.18, y: 0.00),
-        CGPoint(x: 0.00, y: 0.14),    // over his own take-off point, to the left
-        CGPoint(x: -0.14, y: 0.00),
-        CGPoint(x: -0.09, y: 0.10),   // and back home
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.00, y: 0.05),    // one last startled little pop
-        CGPoint(x: 0.00, y: 0.00),
+    /// Measured off the icon rather than in points because he has been resized
+    /// twice already (21% → 42% → 41% of the screen height, all on 2026-09-21)
+    /// and a jump pinned to points would have stayed the hop it was when the
+    /// robot was half as tall.
+    ///
+    /// Every entry goes **up**; the lateral part **alternates sign**, so
+    /// consecutive cracks throw him opposite ways. The leftward ones are the
+    /// small ones on purpose: `claudePeekFrame` insets him by 4.5% of the
+    /// screen width, which is only ~0.17 of his own height, while the whole
+    /// screen is open to his right.
+    static let peekWhipHopDirections: [CGPoint] = [
+        CGPoint(x:  0.24, y: 0.22),   // up and out to the right
+        CGPoint(x: -0.15, y: 0.24),   // the other way, and higher
+        CGPoint(x:  0.36, y: 0.18),   // a long one, flatter
+        CGPoint(x: -0.06, y: 0.26),   // nearly straight up, a hair left
+        CGPoint(x:  0.10, y: 0.25),   // nearly straight up, a hair right
+        CGPoint(x: -0.13, y: 0.20),   // left again, and low
     ]
 
-    /// When each point of `peekWhipHopShape` is reached, as a fraction of the
-    /// whole. The hops get shorter as he calms down, so the later ones take
-    /// less time; the closing pop is slow enough to read as a settle rather
-    /// than as a twitch.
-    static let peekWhipKeyTimes: [CGFloat] = [
-        0, 0.12, 0.24, 0.34, 0.44, 0.54, 0.64, 0.73, 0.82, 0.91, 1.0,
-    ]
+    /// When the top of the arc falls, as a fraction of the hop. Slightly past
+    /// halfway: he is kicked up fast and falls back a touch slower, which is
+    /// what makes it read as a startle rather than as a bounce.
+    static let peekWhipApexTime: CGFloat = 0.42
 
-    /// Long enough for four hops to be four hops rather than a blur, short
-    /// enough that cracking twice in a row is two scampers and not a queue —
-    /// a second crack replaces this animation, it does not wait for it.
-    static let peekWhipDuration: Double = 1.0
+    /// One hop, and a short one. Long enough to see from the back of the room,
+    /// short enough that two cracks a second are two hops and not a queue.
+    static let peekWhipDuration: Double = 0.42
 
-    /// The highest the scamper ever goes, as a fraction of the mascot's own
-    /// height: the largest `y` in `peekWhipHopShape`, kept as its own constant
+    /// The highest a hop ever goes, as a fraction of the mascot's own height:
+    /// the largest `y` in `peekWhipHopDirections`, kept as its own constant
     /// because it is the number that has to fit the clearance overhead.
-    static let peekWhipJumpFraction: CGFloat = 0.15
+    static let peekWhipJumpFraction: CGFloat = 0.26
 
-    /// `peekWhipHopShape` in points, clamped to the room the mascot actually
-    /// has on each side.
+    /// One hop as three offsets in points — where he is now, the top of the
+    /// arc, and home — clamped to the room he actually has on each side.
     ///
-    /// The clamp is not what picks the numbers; it is what keeps the *next*
-    /// person from having to notice this. The overlay clips at the screen edge,
+    /// The apex is measured **from where he already is**, so a crack landing
+    /// mid-hop throws him higher rather than interrupting him with a smaller
+    /// number; the last point is always zero, because however many times he is
+    /// hit he has to end up on the pixel he came in on.
+    ///
+    /// The clamp is not what picks the numbers, it is what keeps the *next*
+    /// person from having to notice this: the overlay clips at the screen edge,
     /// and a flinch that beheads the robot on the projector — or walks him off
     /// the left bezel — reads as a broken effect rather than as a joke.
     ///
-    /// Pure, so the whole route can be asserted without a screen.
-    static func peekWhipPath(frame: CGRect, in bounds: CGRect) -> [CGPoint] {
+    /// Pure, so the whole arc can be asserted without a screen.
+    static func peekWhipHop(
+        frame: CGRect, in bounds: CGRect, from live: CGPoint, direction: CGPoint
+    ) -> [CGPoint] {
         let unit = frame.height
         let up = max(0, bounds.maxY - frame.maxY)
         let down = max(0, frame.minY - bounds.minY)
         let right = max(0, bounds.maxX - frame.maxX)
         let left = max(0, frame.minX - bounds.minX)
-        return peekWhipHopShape.map { hop in
-            CGPoint(x: min(max(hop.x * unit, -left), right),
-                    y: min(max(hop.y * unit, -down), up))
-        }
+        let apex = CGPoint(x: min(max(live.x + direction.x * unit, -left), right),
+                           y: min(max(live.y + direction.y * unit, -down), up))
+        return [live, apex, .zero]
     }
 
-    /// How far the mascot rises at the top of the scamper, clamped to the room
+    /// How far the mascot rises on the highest of the hops, clamped to the room
     /// it actually has above it.
     ///
-    /// `claudePeekFrame` hangs the icon's top at 93% of the screen height, so
-    /// there is only ~7% of the height overhead while the icon itself is 42% —
-    /// `peekWhipJumpFraction` is already chosen to fit inside that (0.15 × 0.42
-    /// ≈ 0.063 < 0.07).
+    /// `claudePeekFrame` hangs his head at `peekTopFraction` of the screen
+    /// height, so the clearance is 18% of the height while the icon itself is
+    /// 41% — `peekWhipJumpFraction` is chosen to fit well inside it
+    /// (0.26 × 0.41 ≈ 0.107 < 0.18).
     static func peekWhipRise(frame: CGRect, in bounds: CGRect) -> CGFloat {
         let wanted = frame.height * peekWhipJumpFraction
         let roomAbove = max(0, bounds.maxY - frame.maxY)

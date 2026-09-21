@@ -73,9 +73,9 @@ final class PeekWhipJumpTests: XCTestCase {
 
     // MARK: - It scales with the mascot
 
-    /// The mascot doubled in size once already (21 Sep 2026, 21% → 42% of the
-    /// screen height). A jump measured in points would have stayed the hop it
-    /// was when the robot was half as tall.
+    /// The mascot has been resized twice already (21 Sep 2026, 21% → 42% →
+    /// 41% of the screen height). A jump measured in points would have stayed
+    /// the hop it was when the robot was half as tall.
     func testDoublingTheMascotDoublesTheJump() {
         let roomy = CGRect(x: 0, y: 0, width: 1920, height: 4000)
         let small = CGRect(x: 100, y: 100, width: 250, height: 200)
@@ -109,120 +109,125 @@ final class PeekWhipJumpTests: XCTestCase {
         }
     }
 
-    // MARK: - It runs in every direction, and comes back
+    // MARK: - One hop per crack, a different way each time
 
-    /// The flinch stopped being one hop upwards on 2026-09-21: being burnt
-    /// makes you run *away*, and away is not a direction you pick in advance.
-    /// A route that only ever moves on `y` is the pogo stick this replaced.
-    func testTheScamperMovesSideways() {
-        for screen in screens {
-            for aspect in aspects {
-                let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
-                let path = EmojiAnimator.peekWhipPath(frame: frame, in: screen)
-                XCTAssertGreaterThan(path.map { abs($0.x) }.max() ?? 0, frame.height * 0.1,
-                                     "at \(screen.size) the mascot only jumps up and down again")
-                XCTAssertGreaterThan(path.filter { $0.x > 0 }.count, 0, "he never goes right")
-                XCTAssertGreaterThan(path.filter { $0.x < 0 }.count, 0, "he never goes left")
+    /// A crack is **one** hop. Four of them were tried on 2026-09-21 and were
+    /// too much animation for one sound: *"să sară doar o dată un pic la o
+    /// lovitură de bici și apoi să revenim la poziția originală"*. The
+    /// repetition is the whip's job, not the hop's.
+    func testOneCrackIsOneHop() {
+        let screen = screens[1]
+        let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspects[0])
+        for direction in EmojiAnimator.peekWhipHopDirections {
+            let hop = EmojiAnimator.peekWhipHop(
+                frame: frame, in: screen, from: .zero, direction: direction)
+            XCTAssertEqual(hop.count, 3, "a hop is take-off, apex, landing — nothing else")
+            XCTAssertGreaterThan(hop[1].y, hop[0].y, "the middle point is the top of the arc")
+        }
+    }
+
+    /// However hard he is hit, he has to land on the pixel he came in on: the
+    /// click target (`PeekHitPanel`) stays at the landed frame and does not
+    /// chase him, and twenty cracks must not walk him across the screen.
+    func testHeAlwaysLandsBackWhereHeCameIn() {
+        let screen = screens[0]
+        let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspects[0])
+        let midAir = CGPoint(x: frame.height * 0.2, y: frame.height * 0.15)
+        for direction in EmojiAnimator.peekWhipHopDirections {
+            for live in [CGPoint.zero, midAir] {
+                let hop = EmojiAnimator.peekWhipHop(
+                    frame: frame, in: screen, from: live, direction: direction)
+                XCTAssertEqual(hop.last, .zero, "he ends up somewhere other than home")
+                XCTAssertEqual(hop.first, live, "the hop does not start where he actually is")
             }
         }
     }
 
-    /// Four hops, not one: a single arc is a flinch, and what was asked for was
-    /// somebody scrambling. Counted as the number of times he leaves the ground
-    /// (every apex between two ground frames).
-    func testHeTakesOffMoreThanOnce() {
-        let apexes = EmojiAnimator.peekWhipHopShape.enumerated()
-            .filter { $0.offset.isMultiple(of: 2) == false }
-        XCTAssertGreaterThanOrEqual(apexes.count, 4,
-                                    "one crack should launch him several times, not once")
-        for (offset, point) in EmojiAnimator.peekWhipHopShape.enumerated() where offset.isMultiple(of: 2) {
-            XCTAssertEqual(point.y, 0, accuracy: 0.0001,
-                           "even entries are the ground — the timing functions depend on the alternation")
-        }
-        for (_, point) in apexes {
-            XCTAssertGreaterThan(point.y, 0, "an apex at ground level is not a hop")
+    /// A flinch that always leaves the same way stops being a flinch by the
+    /// third crack. Consecutive entries must throw him to opposite sides —
+    /// including from the last back to the first, since the list is a cycle.
+    func testConsecutiveCracksThrowHimOppositeWays() {
+        let ways = EmojiAnimator.peekWhipHopDirections
+        XCTAssertGreaterThanOrEqual(ways.count, 4, "too short a cycle to read as varied")
+        for (a, b) in zip(ways, ways.dropFirst() + [ways[0]]) {
+            XCTAssertLessThan(a.x * b.x, 0,
+                              "\(a) and \(b) throw him the same way twice in a row")
         }
     }
 
-    /// However far he runs, he has to land on the pixel he left: the click
-    /// target (`PeekHitPanel`) stays at the landed frame and does not chase him,
-    /// and twenty cracks in a row must not walk him across the screen.
-    func testHeLandsExactlyWhereHeTookOff() {
-        XCTAssertEqual(EmojiAnimator.peekWhipHopShape.first, CGPoint(x: 0, y: 0))
-        XCTAssertEqual(EmojiAnimator.peekWhipHopShape.last, CGPoint(x: 0, y: 0))
-        for screen in screens {
-            let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspects[0])
-            let path = EmojiAnimator.peekWhipPath(frame: frame, in: screen)
-            XCTAssertEqual(path.first, CGPoint(x: 0, y: 0))
-            XCTAssertEqual(path.last, CGPoint(x: 0, y: 0))
+    /// Sideways *and* up, every time: he is stung, not shoved.
+    func testEveryHopGoesUpAndToOneSide() {
+        for direction in EmojiAnimator.peekWhipHopDirections {
+            XCTAssertGreaterThan(direction.y, 0.1, "\(direction) barely leaves the ground")
+            XCTAssertGreaterThan(abs(direction.x), 0.05, "\(direction) is a pogo stick, not a flinch")
         }
     }
 
-    /// `keyTimes` and `values` are handed to the same `CAKeyframeAnimation`, and
-    /// `timingFunctions` has to be one shorter than both. CoreAnimation does not
-    /// complain about a mismatch — it silently plays something else.
-    func testTheTimingLinesUpWithTheRoute() {
-        let times = EmojiAnimator.peekWhipKeyTimes
-        XCTAssertEqual(times.count, EmojiAnimator.peekWhipHopShape.count,
-                       "one key time per point, or the hops land at the wrong moments")
-        XCTAssertEqual(times.first, 0)
-        XCTAssertEqual(times.last, 1)
-        for (a, b) in zip(times, times.dropFirst()) {
-            XCTAssertLessThan(a, b, "key times must climb, or a hop plays backwards")
+    /// A crack landing mid-hop throws him *higher*, from where he already is —
+    /// dropping him home first to start the next hop is the stutter that makes
+    /// a repeated effect look broken.
+    func testACrackMidHopRisesFromWhereHeIs() {
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 4000)   // room to spare
+        let frame = CGRect(x: 400, y: 1000, width: 500, height: 400)
+        let midAir = CGPoint(x: 30, y: 50)
+        for direction in EmojiAnimator.peekWhipHopDirections {
+            let hop = EmojiAnimator.peekWhipHop(
+                frame: frame, in: screen, from: midAir, direction: direction)
+            XCTAssertEqual(hop[1].y, midAir.y + direction.y * frame.height, accuracy: 0.001,
+                           "the second hop's apex is measured from the ground, not from him")
         }
     }
 
-    /// The apex constant is what is checked against the clearance overhead, so
-    /// it has to stay the actual top of the route — a shape edited to go higher
-    /// without touching the constant would clear the clamp's audit and then be
-    /// cut off by the bezel.
-    func testTheJumpFractionIsTheTopOfTheRoute() {
-        XCTAssertEqual(EmojiAnimator.peekWhipHopShape.map(\.y).max() ?? 0,
-                       EmojiAnimator.peekWhipJumpFraction, accuracy: 0.0001)
-    }
-
-    /// The whole route stays on the screen — this is the sideways version of
-    /// "the head does not leave through the top".
-    func testTheScamperStaysOnTheScreen() {
+    /// The whole arc stays on the screen — the sideways version of "his head
+    /// does not leave through the top".
+    func testEveryHopStaysOnTheScreen() {
         for screen in screens {
             for aspect in aspects {
                 let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
-                for hop in EmojiAnimator.peekWhipPath(frame: frame, in: screen) {
-                    let moved = frame.offsetBy(dx: hop.x, dy: hop.y)
-                    XCTAssertTrue(screen.insetBy(dx: -0.001, dy: -0.001).contains(moved),
-                                  "at \(screen.size) the mascot runs off the screen: \(moved)")
+                for direction in EmojiAnimator.peekWhipHopDirections {
+                    for point in EmojiAnimator.peekWhipHop(
+                        frame: frame, in: screen, from: .zero, direction: direction) {
+                        let moved = frame.offsetBy(dx: point.x, dy: point.y)
+                        XCTAssertTrue(screen.insetBy(dx: -0.001, dy: -0.001).contains(moved),
+                                      "at \(screen.size) \(direction) runs him off the screen")
+                    }
                 }
             }
         }
     }
 
     /// The left bezel is the tight side — `claudePeekFrame` insets him by only
-    /// 4.5% of the width — so the leftward hop is the one most likely to start
-    /// being decided by the clamp instead of by the shape. If it is, he stops
-    /// bouncing off the same spot on every screen.
-    func testTheLeftwardHopIsNotTheClampDoingTheWork() {
-        let wanted = EmojiAnimator.peekWhipHopShape.map(\.x).min() ?? 0
+    /// 4.5% of the width — so a leftward hop is the one most likely to start
+    /// being decided by the clamp instead of by the number. If it is, he stops
+    /// flinching the same way on every screen.
+    func testTheLeftwardHopsAreNotTheClampDoingTheWork() {
         for screen in screens {
             for aspect in aspects {
                 let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
-                let got = EmojiAnimator.peekWhipPath(frame: frame, in: screen).map(\.x).min() ?? 0
-                XCTAssertEqual(got, wanted * frame.height, accuracy: 0.001,
-                               "at \(screen.size) the left bezel is clipping the scamper — pull the "
-                               + "leftmost hop in, do not rely on the clamp")
+                for direction in EmojiAnimator.peekWhipHopDirections where direction.x < 0 {
+                    let apex = EmojiAnimator.peekWhipHop(
+                        frame: frame, in: screen, from: .zero, direction: direction)[1]
+                    XCTAssertEqual(apex.x, direction.x * frame.height, accuracy: 0.001,
+                                   "at \(screen.size) the left bezel is clipping \(direction) — pull "
+                                   + "the hop in, do not rely on the clamp")
+                }
             }
         }
     }
 
-    /// Both robots have to run the same route, or the effect would tell the
-    /// room which costume is on duty.
-    func testBothMascotsRunTheSameRoute() {
+    /// Both robots have to flinch the same, or the effect would tell the room
+    /// which costume is on duty.
+    func testBothMascotsHopTheSameWay() {
         for screen in screens {
-            let routes = aspects.map { aspect -> [CGPoint] in
-                EmojiAnimator.peekWhipPath(
-                    frame: EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect), in: screen)
+            for direction in EmojiAnimator.peekWhipHopDirections {
+                let arcs = aspects.map { aspect in
+                    EmojiAnimator.peekWhipHop(
+                        frame: EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect),
+                        in: screen, from: .zero, direction: direction)
+                }
+                XCTAssertEqual(arcs[0], arcs[1],
+                               "Claude and Copilot must flinch identically — the hop is sized off the height")
             }
-            XCTAssertEqual(routes[0], routes[1],
-                           "Claude and Copilot must scramble identically — the route is sized off the height")
         }
     }
 
@@ -230,9 +235,39 @@ final class PeekWhipJumpTests: XCTestCase {
     func testAMascotWithNoRoomIsClampedToTheRoomThereIs() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
         let boxedIn = CGRect(x: 0, y: 600, width: 400, height: 480)   // left bezel, top bezel
-        for hop in EmojiAnimator.peekWhipPath(frame: boxedIn, in: screen) {
-            XCTAssertGreaterThanOrEqual(hop.x, 0, "nowhere to go left, so he does not go left")
-            XCTAssertEqual(hop.y, 0, accuracy: 0.001, "nowhere to go up, so he does not go up")
+        for direction in EmojiAnimator.peekWhipHopDirections {
+            let apex = EmojiAnimator.peekWhipHop(
+                frame: boxedIn, in: screen, from: .zero, direction: direction)[1]
+            XCTAssertGreaterThanOrEqual(apex.x, 0, "nowhere to go left, so he does not go left")
+            XCTAssertEqual(apex.y, 0, accuracy: 0.001, "nowhere to go up, so he does not go up")
+        }
+    }
+
+    /// The apex constant is what is checked against the clearance overhead, so
+    /// it has to stay the actual top of the tallest hop — a list edited to go
+    /// higher without touching the constant would clear the clamp's audit and
+    /// then be cut off by the bezel.
+    func testTheJumpFractionIsTheTallestHop() {
+        XCTAssertEqual(EmojiAnimator.peekWhipHopDirections.map(\.y).max() ?? 0,
+                       EmojiAnimator.peekWhipJumpFraction, accuracy: 0.0001)
+    }
+
+    // MARK: - Where he stands
+
+    /// He hung from 93% of the height for half a day after doubling in size,
+    /// which put his head in the strip where a full-screen app's own toolbar
+    /// lives. *"Coboară-l mai jos"* — and the room that freed up above him is
+    /// what the whip's hop now jumps into.
+    func testHeHangsLowEnoughToLeaveRoomForTheHop() {
+        for screen in screens {
+            for aspect in aspects {
+                let frame = EmojiAnimator.claudePeekFrame(in: screen, aspect: aspect)
+                let clearance = screen.maxY - frame.maxY
+                XCTAssertGreaterThan(clearance, frame.height * EmojiAnimator.peekWhipJumpFraction,
+                                     "at \(screen.size) the tallest hop does not fit above him")
+                XCTAssertGreaterThan(frame.minY, screen.height * 0.35,
+                                     "at \(screen.size) his feet have dropped out of the top quarter")
+            }
         }
     }
 
