@@ -9790,7 +9790,7 @@ class EmojiAnimator {
         CATransaction.commit()
     }
 
-    // MARK: - 🤖 Claude leans in from the top right (⌘⌃Q)
+    // MARK: - 🤖 Claude leans in from the left (⌘⌃Q)
 
     /// One key, two agents: the wave is not an ad for a vendor, it is "the
     /// assistants", which is what the course is about. Both are cut-out robots
@@ -9818,8 +9818,8 @@ class EmojiAnimator {
     /// sentence is built around and stays 25 s; this one only has to be seen.
     static let claudePeekLifetime: Double = 5
 
-    /// Where it leans in: the **top RIGHT** corner, at **42%** of the screen
-    /// height — twice what it was, and on the other side (2026-09-21).
+    /// Where it leans in: the **top LEFT**, at **42%** of the screen height —
+    /// twice what it was (2026-09-21), in the corner it has always used.
     ///
     /// Sized off the **height**, unlike the elephant, which claims half the
     /// width: that one is a picture a sentence is built around, this one is an
@@ -9828,13 +9828,16 @@ class EmojiAnimator {
     /// from the back of the room — *"vreau să fie mult mai mare, de două ori
     /// mai mare"* — so the number doubled rather than being nudged again.
     ///
-    /// **Left → right came with the size**, and is the price of it: at 42% the
-    /// mascot is no longer a badge in a corner but a third of the screen wide,
-    /// and the left is where the editor's text starts and where the ⌘⌃N notes
-    /// document opens. The right is where a screen is emptiest.
-    /// `TerminalTileLayout.fillOrder` hands the top-right quadrant out
-    /// **third of four** rather than last, so the trade against the old spot is
-    /// one place in that order — paid once, for a mascot the room can see.
+    /// **The corner did not move with it.** A doubled mascot was briefly put
+    /// on the right, on the theory that a third of the screen's width is too
+    /// much to drop on top of the editor's text — and that was the wrong read
+    /// of what was asked, corrected within the hour (*"de ce mi-ai pus din
+    /// dreapta fără să apară din stânga sus ca înainte?"*). The entrance is
+    /// part of what the key *is*: it comes in from the left, and a bigger
+    /// character is not a different character. The top-left quarter is also
+    /// still the **last** one `TerminalTileLayout.fillOrder` hands out, so of
+    /// the whole screen it remains the least likely to have a terminal under
+    /// it — which matters more, not less, now that the icon is this big.
     ///
     /// **Top-anchored, not centred.** The old frame centred the icon at 78% of
     /// the height; at double the size that same centre would push its head
@@ -9848,15 +9851,15 @@ class EmojiAnimator {
         let w = h * max(aspect, 0.01)
         // Not flush against the bezel: it comes a little way IN, so it reads as
         // somebody leaning into the room rather than as a sticker stuck to the
-        // edge of the screen. Same 4.5%, measured from the right edge now.
-        let x = bounds.width - w - bounds.width * 0.045
+        // edge of the screen.
+        let x = bounds.width * 0.045
         // y = 0 is the bottom edge of the host layer, so this hangs the icon's
         // TOP at 93% of the height and lets it grow downwards.
         let y = bounds.height * 0.93 - h
         return CGRect(x: x, y: y, width: w, height: h)
     }
 
-    /// 🤖 A mascot slides in from the top right, wiggles, and slides back out. ⌘⌃Q,
+    /// 🤖 A mascot slides in from the left, wiggles, and slides back out. ⌘⌃Q,
     /// and nothing else — it started life as the garnish on that key's Claude
     /// terminal and outlived it. It spent 2026-09-09 on ⌃⌥G and came back when
     /// that pair became the third emoji board and G went to the goose.
@@ -9905,10 +9908,7 @@ class EmojiAnimator {
         activeEffects["claude-peek"] = layer
 
         let slideIn = CABasicAnimation(keyPath: "position.x")
-        // In from the RIGHT edge: far enough that the icon starts entirely off
-        // the screen, which is `bounds.width - frame.minX` rather than the
-        // `frame.width + frame.minX` the left-hand entrance used.
-        slideIn.fromValue = layer.position.x + (bounds.width - frame.minX)
+        slideIn.fromValue = layer.position.x - (frame.width + frame.minX)
         slideIn.toValue = layer.position.x
         slideIn.duration = 0.45
         slideIn.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -10013,9 +10013,7 @@ class EmojiAnimator {
         CATransaction.setCompletionBlock { layer.removeFromSuperlayer() }
         let slideOut = CABasicAnimation(keyPath: "position.x")
         slideOut.fromValue = layer.position.x
-        // Out the way it came in — the right edge. It leaves by the door it
-        // arrived through, or the greeting reads as walking across the room.
-        slideOut.toValue = layer.position.x + (hostLayer.bounds.width - layer.frame.minX)
+        slideOut.toValue = layer.position.x - (layer.bounds.width + layer.frame.minX)
         slideOut.duration = 0.35
         slideOut.timingFunction = CAMediaTimingFunction(name: .easeIn)
         slideOut.fillMode = .forwards

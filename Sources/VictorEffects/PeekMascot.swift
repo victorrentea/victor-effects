@@ -1,6 +1,6 @@
 import AppKit
 
-/// Which robot leans in from the top right on ⌘⌃Q.
+/// Which robot leans in from the left on ⌘⌃Q.
 ///
 /// The raw value is the bundle resource name, so a mascot is one thing rather
 /// than a name plus a lookup table that can disagree with it.
@@ -110,10 +110,10 @@ enum PeekMascotStore {
 ///
 /// It costs what it costs — for the mascot's ~5 s a click in that rectangle
 /// does not reach the app underneath, and since 2026-09-21 the rectangle is
-/// four times the area it was. That is affordable because of where the mascot
-/// lands: `TerminalTileLayout.fillOrder` hands the top-right quadrant out
-/// third of four, so it is still among the least likely parts of the screen to
-/// have anything under it worth clicking.
+/// four times the area it was. That is affordable only because of where the
+/// mascot lands: the top-left quarter is the **last** one
+/// `TerminalTileLayout.fillOrder` hands out, so of the whole screen it is the
+/// least likely to have anything under it worth clicking.
 ///
 /// It is `.nonactivatingPanel` and never becomes key, so clicking the mascot
 /// does not take focus off whatever Victor was typing in — the same requirement
