@@ -115,6 +115,7 @@ final class EffectsRouter {
         "/test/fire": "fire",
         "/test/fire/stop": "fire/stop",
         "/test/microwave": "microwave",
+        "/test/universal-minions": "universal-minions",
         "/test/sketch-arrow": "sketch-arrow",
         "/test/whip": "whip",
         "/test/whip/crack": "whip/crack",

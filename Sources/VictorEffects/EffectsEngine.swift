@@ -251,9 +251,9 @@ final class EffectsEngine {
         // on the same millisecond.
         case "microwave":     animator.showMicrowave(playSound: true)
         // Like the microwave: the minions' cue sits 23.83 s inside the combined
-        // clip, so the effect owns its audio. Fired silent here — the routed
-        // /sound/play path is the one that plays the clip and starts the visual.
-        case "universal-minions": animator.showUniversalMinions()
+        // clip, so the effect owns its audio — the routed /sound/play path plays
+        // the clip and starts the visual itself; a direct trigger plays both.
+        case "universal-minions": animator.showUniversalMinions(playSound: true)
         case "wrong-x":       animator.showWrongX(playSound: false)
         case "drum-roll":     animator.showDrumRoll(playSound: false)
         case "drum-roll/stop": animator.stopDrumRoll()

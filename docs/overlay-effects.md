@@ -223,6 +223,9 @@ rule from the start.
   so the press plays the combined clip AND the animation with no double audio;
   `14_universal.mp3` is therefore intentionally **absent from
   `SoundEffectMap`** (the press path would otherwise double-trigger it).
+  `/test/universal-minions` and `/effect/universal-minions` both fire it
+  **with sound** — like the microwave, a soundless run would just sit there
+  for 23.83 s and then show a silent cartoon.
 - **🛰️ Sonar** (sfx #23 `23_radar.mp3` → `sonar`, `showSonar`): a full-screen
   black wash fades in (0→45% over 1s; darker **70% disc** inside the radar
   circle), then a phosphor-green radar **drawn entirely as CALayers** (no gif):
