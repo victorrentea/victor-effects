@@ -8710,21 +8710,29 @@ class EmojiAnimator {
 
     /// The 14_universal.mp3 tile is the Universal fanfare WITHOUT the animated
     /// logo — the animation arrives as a matted frame sequence the Mac plays
-    /// itself. The cue sits 23.83 s into the combined clip (`universal-minions.mp3`,
+    /// itself. The cue sits 24.0 s into the combined clip (`universal-minions.mp3`,
     /// the tile's fanfare followed by the clip's own tail), so like the radar and
     /// the microwave the effect must own the audio: the press path cannot know
     /// when the handover is, and the routed /sound/play path plays the clip AND
     /// stamps this visual's clock in one call.
     ///
-    /// The sequence runs 7.5 s at 30 fps, pinned flush to the bottom-left corner
-    /// at half the screen's width. Frames decode on a background queue during
+    /// The sequence is the minions row alone (840×240 strip matted from the 1080p
+    /// intro, 23.976 fps, frame 1 = clip time 24.0 s), pinned flush to the
+    /// bottom-left corner at half the screen's width. Its length comes from the
+    /// frames on disk, so a re-matte never needs a code change. Frames decode on a background queue during
     /// the long lead-in and the animation is installed exactly on the cue; a
     /// missing frame set degrades to audio-only, a missing clip returns 0 so the
     /// tablet falls back to its own local copy.
     static let universalMinionsClipDuration: Double = 31.29   // combined audio length
-    static let universalMinionsCue: Double = 23.83             // fanfare → clip-tail handover
-    static let universalMinionsAnimDuration: Double = 7.5      // matted sequence length
-    static let universalMinionsFrames: Int = 225               // 7.5 s at 30 fps
+    static let universalMinionsCue: Double = 24.0              // clip time of frame 1
+    static let universalMinionsFPS: Double = 24000.0 / 1001.0  // the 1080p source's rate
+    static let universalMinionsAspect: Double = 840.0 / 240.0  // matted strip, width / height
+    /// Frames on disk (`f_001.png`…, contiguous) — counted, not hardcoded.
+    static func universalMinionsFrameCount(in dir: URL) -> Int {
+        var n = 0
+        while FileManager.default.fileExists(atPath: dir.appendingPathComponent(String(format: "f_%03d.png", n + 1)).path) { n += 1 }
+        return n
+    }
 
     @discardableResult
     func showUniversalMinions(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
@@ -8753,19 +8761,23 @@ class EmojiAnimator {
         }
         let clock0 = CACurrentMediaTime() + btComp
 
-        // 50% of the screen width, aspect-preserved height (the frame canvas is
-        // 16:9), FLUSH to the bottom-left corner — hostLayer is AppKit y-up, so
+        let framesDir = EffectsConfig.shared.assetsDir.appendingPathComponent("universal-minions")
+        let frameCount = Self.universalMinionsFrameCount(in: framesDir)
+        let animDuration = Double(frameCount) / Self.universalMinionsFPS
+
+        // 50% of the screen width, aspect-preserved height (the frames are a
+        // wide strip of just the minions row), FLUSH to the bottom-left corner — hostLayer is AppKit y-up, so
         // the bottom edge is y = 0.
         let layerW = bounds.width * 0.5
-        let layerH = layerW * 540.0 / 960.0
+        let layerH = layerW / Self.universalMinionsAspect
         let frameLayer = CALayer()
         frameLayer.frame = CGRect(x: 0, y: 0, width: layerW, height: layerH)
         frameLayer.contentsGravity = .resizeAspect
         frameLayer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        frameLayer.opacity = 0              // invisible through the 23.83 s lead-in
+        frameLayer.opacity = 0              // invisible through the 24 s lead-in
         hostLayer.addSublayer(frameLayer)
         trackEffect("universal-minions", layer: frameLayer,
-                    duration: btComp + Self.universalMinionsCue + Self.universalMinionsAnimDuration + 0.35)
+                    duration: btComp + Self.universalMinionsCue + animDuration + 0.35)
 
         // Entrance fade ON the cue. The matte's own tail frames already carry
         // the dissolve at the end, so the layer only helps it out with a short
@@ -8781,22 +8793,21 @@ class EmojiAnimator {
         let fadeOut = CABasicAnimation(keyPath: "opacity")
         fadeOut.fromValue = 1.0
         fadeOut.toValue = 0.0
-        fadeOut.beginTime = clock0 + Self.universalMinionsCue + Self.universalMinionsAnimDuration - 0.4
+        fadeOut.beginTime = clock0 + Self.universalMinionsCue + animDuration - 0.4
         fadeOut.duration = 0.4
         fadeOut.fillMode = .forwards
         fadeOut.isRemovedOnCompletion = false
         frameLayer.add(fadeOut, forKey: "universalMinionsFadeOut")
 
-        // Decode the frames on a background queue — the 23.83 s lead-in is the
+        // Decode the frames on a background queue — the 24 s lead-in is the
         // budget. Installed on the main thread; the identity guard drops the
         // result if a re-press preempted the layer while the decode was in
         // flight. A late install (slow disk) starts the keyframes mid-sequence
         // instead of at 0, which is the right catch-up behaviour.
-        let framesDir = EffectsConfig.shared.assetsDir.appendingPathComponent("universal-minions")
         DispatchQueue.global(qos: .userInitiated).async { [weak self, weak frameLayer] in
             var images: [CGImage] = []
-            images.reserveCapacity(Self.universalMinionsFrames)
-            for i in 1...Self.universalMinionsFrames {
+            images.reserveCapacity(frameCount)
+            for i in stride(from: 1, through: frameCount, by: 1) {
                 let url = framesDir.appendingPathComponent(String(format: "f_%03d.png", i))
                 guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
                       let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else { continue }
@@ -8811,7 +8822,7 @@ class EmojiAnimator {
                 frameLayer.contents = first
                 let anim = CAKeyframeAnimation(keyPath: "contents")
                 anim.values = images
-                anim.duration = Self.universalMinionsAnimDuration
+                anim.duration = animDuration
                 anim.calculationMode = .discrete       // step frames, never cross-fade
                 anim.fillMode = .forwards
                 anim.isRemovedOnCompletion = false

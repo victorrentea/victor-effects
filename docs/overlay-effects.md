@@ -203,15 +203,20 @@ rule from the start.
 - **🌍 Universal minions** (tile #14 `14_universal.mp3` → `universal-minions`,
   `showUniversalMinions`): the tile's own clip is the Universal fanfare WITHOUT
   the animated logo — the animation arrives as a **matted frame sequence**
-  (`~/.victor-effects/assets/universal-minions/f_001..225.png`, BirefNet alpha
-  matte, 16:9 canvas) the Mac plays itself, pinned **flush to the bottom-left
-  corner at 50% of the screen's width** for the sequence's 7.5 s. The cue sits
-  **23.83 s INTO the combined clip** (`universal-minions.mp3` in `assetsDir` —
+  (`~/.victor-effects/assets/universal-minions/f_001..169.png`, BirefNet alpha
+  matte of **the minions row alone** — an 840×240 strip cut from the 1080p
+  intro at 23.976 fps; the old 720p 16:9 set is kept beside it as
+  `universal-minions-720p/`) the Mac plays itself, pinned **flush to the
+  bottom-left corner at 50% of the screen's width** for the sequence's ~7.05 s.
+  The frame count — hence the length — is **read from disk**, so a re-matte
+  is an asset swap, not a code change. The cue sits
+  **24.0 s INTO the combined clip** (where frame 1 was taken, by audio
+  cross-correlation of the 1080p clip against the combined track) (`universal-minions.mp3` in `assetsDir` —
   the tile's fanfare followed by the clip's own tail, which the tablet's copy
   does not contain), so like the radar and the microwave the effect **owns the
   audio**: `playTabletSound("universal-minions.mp3")` plays the whole clip and
-  stamps the visual's clock in the same call. The 225 frames decode on a
-  background queue during the 23.83 s lead-in and install as a discrete
+  stamps the visual's clock in the same call. The frames decode on a
+  background queue during the 24 s lead-in and install as a discrete
   `contents` keyframe animation **exactly on the cue** (identity-guarded, so a
   re-press mid-decode discards the result; a late install catches up
   mid-sequence). The layer carries only a 0.15 s entrance fade — the matte's
@@ -225,7 +230,7 @@ rule from the start.
   `SoundEffectMap`** (the press path would otherwise double-trigger it).
   `/test/universal-minions` and `/effect/universal-minions` both fire it
   **with sound** — like the microwave, a soundless run would just sit there
-  for 23.83 s and then show a silent cartoon.
+  for 24 s and then show a silent cartoon.
 - **🛰️ Sonar** (sfx #23 `23_radar.mp3` → `sonar`, `showSonar`): a full-screen
   black wash fades in (0→45% over 1s; darker **70% disc** inside the radar
   circle), then a phosphor-green radar **drawn entirely as CALayers** (no gif):
