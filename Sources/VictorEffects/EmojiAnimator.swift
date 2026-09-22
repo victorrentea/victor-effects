@@ -71,6 +71,10 @@ class EmojiAnimator {
     var coffeeStormActive: Bool { coffeeStorm.isStorm(at: CACurrentMediaTime()) }
     private static let coffeeChargeGrowScale: CGFloat = 2.6
     private static let coffeeHitSlop: CGFloat = 34
+    /// How long a calm ☕ hangs at the cursor before fading — comfortably longer
+    /// than `coffeeChargeSeconds`, so a cup that arrives under a resting hand can
+    /// finish its hold without the flight pulling it away mid-charge.
+    private static let coffeeApproachDwell: Double = 4.5
 
     // Every reaction emoji spawns at the same height and rides the same rise, which
     // is what lets a released ☕ work out how far up it had already got without
@@ -238,6 +242,11 @@ class EmojiAnimator {
                 addStormFlight(layer, intensity: coffeeStorm.intensity(at: now))
                 return
             }
+            // Calm: come to the hand. Every cup rides the one lane that ends at the
+            // cursor (CoffeeFlight.approach), so catching one for the hold-charge is
+            // a decision instead of a guess. Falls through to the old rise only when
+            // there is no cursor to aim at (it is on another display).
+            if addCoffeeApproach(layer) { return }
         }
 
         // Randomize duration: 2.5–4 seconds (matches browser host.js)
@@ -252,6 +261,82 @@ class EmojiAnimator {
                        scaleKeyTimes: [0, 1],
                        fadeStartFraction: 0.4,
                        isCoffee: isCoffee)
+    }
+
+    /// ☕ The calm flight: one shared lane from the spawn point to **the cursor**,
+    /// where the cup then hangs for a beat before fading.
+    ///
+    /// The dwell at the end is the point of the whole thing: the hold-charge needs
+    /// the cursor to rest on a cup for 3 s, and a cup that flew to the cursor and
+    /// kept going would hand back the same guessing game it was meant to end. It
+    /// arrives, it waits, and `tickCoffeeCharge` — which reads the layer's
+    /// *presentation* frame — finds it sitting there.
+    ///
+    /// No rotation. A cup that comes up spinning reads as debris; this one is being
+    /// offered.
+    ///
+    /// Returns false when there is no cursor on the overlay's screen, leaving the
+    /// caller to use the plain rise.
+    @discardableResult
+    private func addCoffeeApproach(_ layer: CATextLayer) -> Bool {
+        guard let screen = Self.builtInScreenFrame() else { return false }
+        let global = NSEvent.mouseLocation
+        guard screen.contains(global) else { return false }
+
+        let bounds = hostLayer.bounds
+        let start = layer.position
+        let target = CoffeeFlight.clamp(CGPoint(x: global.x - screen.origin.x,
+                                                y: global.y - screen.origin.y),
+                                        in: bounds, margin: Self.emojiSize * 0.6)
+
+        let travel = CoffeeFlight.approachDuration(from: start, to: target)
+        let dwell = Self.coffeeApproachDwell
+        let total = travel + dwell
+
+        let path = CGMutablePath()
+        let pts = CoffeeFlight.approach(from: start, to: target)
+        path.move(to: pts[0])
+        for p in pts.dropFirst() { path.addLine(to: p) }
+
+        let move = CAKeyframeAnimation(keyPath: "position")
+        move.path = path
+        move.calculationMode = .cubic
+        move.duration = travel
+        move.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        move.fillMode = .forwards
+
+        let scale = CABasicAnimation(keyPath: "transform.scale")
+        scale.fromValue = 1.0
+        scale.toValue = Self.emojiRiseScale
+        scale.duration = travel
+        scale.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        scale.fillMode = .forwards
+
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1.0
+        fade.toValue = 0.0
+        fade.beginTime = travel + dwell * 0.45
+        fade.duration = dwell * 0.55
+        fade.fillMode = .forwards
+
+        let group = CAAnimationGroup()
+        group.animations = [move, scale, fade]
+        group.duration = total
+        group.fillMode = .forwards
+        group.isRemovedOnCompletion = false
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self, weak layer] in
+            guard let layer = layer else { return }
+            // Caught for a hold-charge on the way in (or during the dwell): the
+            // charge owns the layer now.
+            if self?.coffeeCharges.contains(where: { $0.layer === layer }) == true { return }
+            layer.removeFromSuperlayer()
+            self?.activeCoffeeLayers.removeAll { $0 === layer }
+        }
+        layer.add(group, forKey: "floatAndFade")
+        CATransaction.commit()
+        return true
     }
 
     private static func stormViolence(at intensity: CGFloat) -> CGFloat {
@@ -285,52 +370,50 @@ class EmojiAnimator {
         let violence = Self.stormViolence(at: k)
 
         // Spread across the screen as the flood grows.
-        let spread = (bounds.width - 200) * k
-        let startX = 100 + CGFloat.random(in: 0...max(spread, 1))
+        let spawnSpread = (bounds.width - 200) * k
+        let startX = 100 + CGFloat.random(in: 0...max(spawnSpread, 1))
         let start = CGPoint(x: startX, y: layer.position.y)
         layer.position = start
 
-        let rise = min(Self.emojiRiseHeight * (1 + 0.9 * k), bounds.height - start.y - 60 * baseScale)
+        // Aim for the MIDDLE of the screen, scattered — not for the top edge.
+        // Climbing to the ceiling put every detonation in the same strip above the
+        // slides; the middle is where the room is already looking, and a scatter
+        // around it is what "in diverse locuri" means. The scatter widens with the
+        // flood.
+        let spread = CGSize(width: bounds.width * (0.16 + 0.22 * k),
+                            height: bounds.height * (0.12 + 0.18 * k))
+        let target = CoffeeFlight.clamp(
+            CoffeeFlight.blastPoint(center: CGPoint(x: bounds.midX, y: bounds.midY),
+                                    spread: spread,
+                                    angle: CGFloat.random(in: 0...(2 * .pi)),
+                                    unitRadius: CGFloat.random(in: 0...1)),
+            in: bounds, margin: 60 * baseScale)
+
         let swayAmp = 80 + 320 * k
         let swings = 1.5 + 1.5 * k + CGFloat.random(in: -0.3...0.3)
         let phase = CGFloat.random(in: 0...(2 * .pi))
-        let drift = CGFloat.random(in: -1...1) * (60 + 200 * k)
         let steps = 48
+        let pts = CoffeeFlight.sweep(from: start, to: target,
+                                     amplitude: swayAmp, swings: swings,
+                                     phase: phase, steps: steps)
         let path = CGMutablePath()
-        path.move(to: start)
-        var end = start
-        for i in 1...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            // The zigzag widens as the cup climbs: it leaves in a hurry and
-            // gets thrown around more the higher it goes.
-            let x = start.x + drift * t + swayAmp * t * sin(t * 2 * .pi * swings + phase)
-            let y = start.y + rise * (1 - (1 - t) * (1 - t))     // ease-out climb
-            end = CGPoint(x: min(max(x, 40), bounds.width - 40), y: y)
-            path.addLine(to: end)
-        }
+        path.move(to: pts[0])
+        for p in pts.dropFirst() { path.addLine(to: p) }
+        let end = pts[pts.count - 1]
         let move = CAKeyframeAnimation(keyPath: "position")
         move.path = path
         move.calculationMode = .cubic
 
-        // Tumble: rocking at low intensity, whole spins at high.
-        let spins = CGFloat.random(in: 1...3) * k * (Bool.random() ? 1 : -1)
-        let rock = (0.35 + 0.6 * k) * (Bool.random() ? 1 : -1)
-        var angles: [CGFloat] = []
+        // Grows on the way in, with a throb riding on the wave. NO rotation: a cup
+        // that comes in spinning reads as a thrown object rather than as coffee,
+        // and the wave already carries the violence.
         var scales: [CGFloat] = []
         for i in 0...steps {
             let t = CGFloat(i) / CGFloat(steps)
-            angles.append(rock * sin(t * 2 * .pi * swings + phase) + spins * 2 * .pi * t)
-            // Grows on the way up with a throb riding on the swing.
             scales.append(baseScale * (1 + (Self.emojiRiseScale - 1) * t) * (1 + 0.08 * k * sin(t * 4 * .pi * swings)))
         }
-        var frames: [NSValue] = []
-        for (a, sc) in zip(angles, scales) {
-            var m = CATransform3DMakeRotation(a, 0, 0, 1)
-            m = CATransform3DScale(m, sc, sc, 1)
-            frames.append(NSValue(caTransform3D: m))
-        }
-        let tumble = CAKeyframeAnimation(keyPath: "transform")
-        tumble.values = frames
+        let tumble = CAKeyframeAnimation(keyPath: "transform.scale")
+        tumble.values = scales.map { NSNumber(value: Double($0)) }
 
         let duration = Double.random(in: 2.4...3.4) / Double(1 + 0.4 * k)
         // Solid to the end: it is about to blow up, and a cup that had already

@@ -1681,6 +1681,37 @@ webhook is the smallest thing that carries the gesture across. With no
 `eventWebhook` configured the ☕ still charges and still pops; nothing else
 happens.
 
+### ☕ The calm lane — every cup comes to the cursor
+
+Below the storm threshold a ☕ no longer drifts off on its own random sideways
+wander. Every cup rides **one lane** (`CoffeeFlight.approach`, pure + tested):
+a quadratic bézier whose control point sits **directly above the spawn point,
+at the cursor's height**, so the cup always climbs its own column first and only
+then leans across — and lands exactly on `NSEvent.mouseLocation`. That single
+control point is what makes the shape identical for every cup no matter where
+the cursor is; a trickle then queues along one readable line instead of fanning
+out over the projector. There is **no per-cup randomness left in the calm lane**,
+which a test pins.
+
+It travels at constant *speed*, not for a constant time
+(`CoffeeFlight.approachDuration`, 340 pt/s clamped to 1.5–4 s): a cup crossing
+the whole projector at the same pace as one born under the cursor is what keeps
+"the same trajectory" reading as one lane rather than a dozen unrelated speeds.
+
+Then it **hangs at the cursor for 4.5 s** before fading. The dwell is the point
+of the whole change: the hold-charge needs the cursor to rest on a cup for 3 s,
+and a cup that flew to the hand and kept going would hand back the same guessing
+game this was meant to end. It arrives, it waits, and `tickCoffeeCharge` — which
+reads the layer's *presentation* frame — finds it sitting there. Catching one is
+now a decision, not a lottery. No rotation: a cup that comes up spinning reads as
+debris, and this one is being offered.
+
+With the cursor on another display there is nothing to aim at, so the cup falls
+back to the old plain rise (`addCoffeeApproach` returns false). A cup whose hold
+was *abandoned* also rejoins the plain rise rather than the lane — flying back to
+the cursor it just slid off would re-catch it instantly, which is the opposite of
+a release.
+
 ### ☕🌊 The storm
 
 A flood of coffees — a room tapping ☕ together — is a different thing from a
@@ -1694,21 +1725,43 @@ longer it lasts, not only the denser it gets — and it decays across the linger
 with a 0.3 floor.
 
 **The key is that the cups move, not that they grow.** A storm cup skips the
-calm rise for `addStormFlight`, every part of which scales with the intensity:
+calm approach for `addStormFlight`, every part of which scales with the
+intensity:
 
 - it leaves from anywhere across up to the whole width instead of x≈100;
-- it swings in a wide sideways zigzag (80–400 px either way, 1.5–3 swings,
-  widening as it climbs) with a sideways drift, tumbling as it goes — a ±20°
-  rock at first, whole spins at full intensity — and climbs higher (up to the
-  top of the screen) and faster than the calm rise;
-- it is 1.3–2× the calm cup, still growing on the way up, with a throb riding
-  on the swing;
-- it stays solid to the top and **detonates there, 100%**: `pixelDissolve`
+- **it sweeps to the MIDDLE of the screen, not to the ceiling.** The target is
+  `CoffeeFlight.blastPoint` — a scattered point around screen centre, drawn on
+  an **elliptical** spread (screens are wider than they are tall; a circular
+  scatter reads as a bullseye) that widens with the flood, from ±16%/12% of the
+  screen at the threshold to ±38%/30% at full intensity, with `sqrt` on the
+  radius so the disc fills evenly instead of clumping in the middle. Climbing to
+  the top edge put every detonation in the same strip above the slides; the
+  middle is where the room is already looking, and "in diverse locuri" is the
+  whole ask.
+- the path there is `CoffeeFlight.sweep`: the straight run with a sine riding
+  **perpendicular** to it (80–400 px either way, 1.5–3 swings), so the wave is
+  the same shape whichever way the cup is heading. The amplitude is tapered by
+  `sin(πt)` — **zero at both ends** — so the cup leaves cleanly and, more
+  importantly, *arrives on its mark* rather than being flung sideways at the
+  instant it blows up;
+- **no rotation.** The tumble is gone — the rock-then-spin made a cup look like
+  a thrown object coming up out of the floor, and the wave already carries all
+  the violence the flood needs. Only the scale keyframes are left
+  (`transform.scale`, not a full `transform` matrix);
+- it is 1.3–2× the calm cup, still growing on the way in, with a throb riding
+  on the wave;
+- it stays solid to the end and **detonates on its mark, 100%**: `pixelDissolve`
   with `violence` 2–3.6 (fragments fly that much further and spin harder, the
   bloom goes to ~2×, the soft glow becomes a warm muzzle flash up to three
   times the size) over a **22×22** grid — 484 pieces against the calm pop's
   144. Visual only: no webhook, the break-timer payoff belongs to the
   deliberate hover.
+
+**Why the storm does not come to the cursor like a calm cup does.** It cannot:
+the calm lane below ends *under the hand*, and a flood arriving there would
+ripen together and take the break apart a minute at a time without anyone
+deciding anything. Veering to the middle is the escape valve — past 4/s the cups
+stop being an offer and become weather.
 
 A hovered pop during the storm goes off the same violent way. A storm cup is
 still hoverable; a release resumes the calm rise from where it was frozen (an
