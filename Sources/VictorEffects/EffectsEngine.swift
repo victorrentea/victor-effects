@@ -257,6 +257,10 @@ final class EffectsEngine {
         // clip, so the effect owns its audio — the routed /sound/play path plays
         // the clip and starts the visual itself; a direct trigger plays both.
         case "universal-minions": animator.showUniversalMinions(playSound: true)
+        // Same effect, audio started 1 s before the cue — for checking the
+        // animation without sitting through the 24 s fanfare.
+        case "universal-minions/preview":
+            animator.showUniversalMinions(playSound: true, skip: EmojiAnimator.universalMinionsCue - 1)
         case "wrong-x":       animator.showWrongX(playSound: false)
         case "drum-roll":     animator.showDrumRoll(playSound: false)
         case "drum-roll/stop": animator.stopDrumRoll()

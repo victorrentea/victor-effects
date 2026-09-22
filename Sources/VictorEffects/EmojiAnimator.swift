@@ -8735,7 +8735,9 @@ class EmojiAnimator {
     }
 
     @discardableResult
-    func showUniversalMinions(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
+    /// `skip` starts the clip that many seconds in (the `/preview` test path
+    /// passes cue − 1 s), shifting the whole visual timeline with it.
+    func showUniversalMinions(playSound: Bool = false, volume: Float? = nil, skip: TimeInterval = 0) -> TimeInterval {
         _ = cancelIfRunning("universal-minions", sound: playSound ? "universal-minions.mp3" : nil)
 
         let bounds = hostLayer.bounds
@@ -8747,6 +8749,7 @@ class EmojiAnimator {
             let d = AVURLAsset(url: soundURL).duration
             if d.isNumeric { duration = CMTimeGetSeconds(d) }
         }
+        duration -= skip
 
         // On Bluetooth output `playTabletSound` prepends `btComp` of warm-up
         // silence, so the audio really starts that much later and the whole
@@ -8755,11 +8758,12 @@ class EmojiAnimator {
         // play, answer 0 so the tablet falls back to its own local copy.
         let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
         if playSound {
-            guard SoundManager.shared.playTabletSound("universal-minions.mp3", volume: volume) != nil else {
+            guard SoundManager.shared.playTabletSound("universal-minions.mp3", volume: volume, startAt: skip) != nil else {
                 return 0
             }
         }
-        let clock0 = CACurrentMediaTime() + btComp
+        // clock0 = where clip time 0 would have been; with a skip it is in the past.
+        let clock0 = CACurrentMediaTime() + btComp - skip
 
         let framesDir = EffectsConfig.shared.assetsDir.appendingPathComponent("universal-minions")
         let frameCount = Self.universalMinionsFrameCount(in: framesDir)
@@ -8777,7 +8781,7 @@ class EmojiAnimator {
         frameLayer.opacity = 0              // invisible through the 24 s lead-in
         hostLayer.addSublayer(frameLayer)
         trackEffect("universal-minions", layer: frameLayer,
-                    duration: btComp + Self.universalMinionsCue + animDuration + 0.35)
+                    duration: btComp + Self.universalMinionsCue - skip + animDuration + 0.35)
 
         // Entrance fade ON the cue. The matte's own tail frames already carry
         // the dissolve at the end, so the layer only helps it out with a short
@@ -8787,7 +8791,12 @@ class EmojiAnimator {
         fadeIn.toValue = 1.0
         fadeIn.beginTime = clock0 + Self.universalMinionsCue
         fadeIn.duration = 0.15
-        fadeIn.fillMode = .backwards
+        // .both + kept: the layer's MODEL opacity is 0, so a fade-in that is
+        // removed on completion drops the layer straight back to invisible —
+        // the minions flashed for 0.15 s and vanished. The fade-out, added
+        // later, overrides this one from its own beginTime on.
+        fadeIn.fillMode = .both
+        fadeIn.isRemovedOnCompletion = false
         frameLayer.add(fadeIn, forKey: "universalMinionsFadeIn")
 
         let fadeOut = CABasicAnimation(keyPath: "opacity")

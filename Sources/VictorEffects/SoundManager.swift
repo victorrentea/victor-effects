@@ -380,7 +380,10 @@ class SoundManager {
     /// own timeline). It is added to the returned duration exactly as a
     /// configured lead is, so the client's completion timer still covers the
     /// whole clip.
-    func playTabletSound(_ filename: String, volume: Float? = nil, lead: TimeInterval? = nil) -> TimeInterval? {
+    /// `startAt` skips into the clip (seconds) — the test-preview paths use it
+    /// to jump straight to a cue instead of sitting through a long lead-in.
+    func playTabletSound(_ filename: String, volume: Float? = nil, lead: TimeInterval? = nil,
+                         startAt: TimeInterval = 0) -> TimeInterval? {
         if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
         // Preempt by fading, not by cutting: the outgoing clip keeps playing
         // under the new one for `interruptFade` seconds.
@@ -394,6 +397,7 @@ class SoundManager {
             let player = try AVAudioPlayer(contentsOf: url)
             player.volume = tabletVolume
             player.prepareToPlay()
+            if startAt > 0 { player.currentTime = min(startAt, player.duration) }
             tabletPlayer = player
             tabletSoundStartedAt = Date()
             let lead = lead ?? Self.pairedEffectStartDelays[filename] ?? 0
@@ -417,7 +421,7 @@ class SoundManager {
             // Include the lead + Bluetooth compensation so the tablet's
             // completion timer (durationMs + 100ms → effect-stop chain) doesn't
             // cut the tail of the sound.
-            return player.duration + total
+            return player.duration - player.currentTime + total
         } catch {
             overlayError("Tablet sound play failed \(filename): \(error)")
             return nil

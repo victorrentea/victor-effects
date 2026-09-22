@@ -228,6 +228,12 @@ rule from the start.
   so the press plays the combined clip AND the animation with no double audio;
   `14_universal.mp3` is therefore intentionally **absent from
   `SoundEffectMap`** (the press path would otherwise double-trigger it).
+  **The layer's model opacity is 0**, so the entrance fade is `.both` and
+  kept on the layer — removed on completion it dropped the minions back to
+  invisible after 0.15 s (they "flashed"). `/test/universal-minions/preview`
+  (= `/effect/universal-minions/preview`) starts the clip **1 s before the
+  cue** (`skip:` shifts audio and visual clock together) for checking the
+  animation without the 24 s fanfare.
   `/test/universal-minions` and `/effect/universal-minions` both fire it
   **with sound** — like the microwave, a soundless run would just sit there
   for 24 s and then show a silent cartoon.
