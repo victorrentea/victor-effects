@@ -8716,9 +8716,9 @@ class EmojiAnimator {
     /// when the handover is, and the routed /sound/play path plays the clip AND
     /// stamps this visual's clock in one call.
     ///
-    /// The sequence is the minions row alone (840×240 strip matted from the 1080p
+    /// The sequence is the minions row alone (784×210 strip matted from the 1080p
     /// intro, 23.976 fps, frame 1 = clip time 24.0 s), pinned flush to the
-    /// bottom-left corner at half the screen's width. Its length comes from the
+    /// bottom-left corner at 56% of the screen's width. Its length comes from the
     /// frames on disk, so a re-matte never needs a code change. Frames decode on a background queue during
     /// the long lead-in and the animation is installed exactly on the cue; a
     /// missing frame set degrades to audio-only, a missing clip returns 0 so the
@@ -8726,7 +8726,11 @@ class EmojiAnimator {
     static let universalMinionsClipDuration: Double = 31.29   // combined audio length
     static let universalMinionsCue: Double = 24.0              // clip time of frame 1
     static let universalMinionsFPS: Double = 24000.0 / 1001.0  // the 1080p source's rate
-    static let universalMinionsAspect: Double = 840.0 / 240.0  // matted strip, width / height
+    static let universalMinionsAspect: Double = 784.0 / 210.0  // matted strip, width / height
+    /// Layer width as a share of the screen. The strip was 840 px at 50%; it was
+    /// then trimmed to the minions (half the side margins, nothing under the
+    /// feet → 784 px) and the minions enlarged by 20%: 0.5 × 1.2 × 784 / 840.
+    static let universalMinionsWidthFraction: Double = 0.5 * 1.2 * 784.0 / 840.0
     /// Frames on disk (`f_001.png`…, contiguous) — counted, not hardcoded.
     static func universalMinionsFrameCount(in dir: URL) -> Int {
         var n = 0
@@ -8772,7 +8776,7 @@ class EmojiAnimator {
         // 50% of the screen width, aspect-preserved height (the frames are a
         // wide strip of just the minions row), FLUSH to the bottom-left corner — hostLayer is AppKit y-up, so
         // the bottom edge is y = 0.
-        let layerW = bounds.width * 0.5
+        let layerW = bounds.width * Self.universalMinionsWidthFraction
         let layerH = layerW / Self.universalMinionsAspect
         let frameLayer = CALayer()
         frameLayer.frame = CGRect(x: 0, y: 0, width: layerW, height: layerH)

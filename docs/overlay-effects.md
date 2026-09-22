@@ -204,10 +204,12 @@ rule from the start.
   `showUniversalMinions`): the tile's own clip is the Universal fanfare WITHOUT
   the animated logo — the animation arrives as a **matted frame sequence**
   (`~/.victor-effects/assets/universal-minions/f_001..169.png`, BirefNet alpha
-  matte of **the minions row alone** — an 840×240 strip cut from the 1080p
-  intro at 23.976 fps; the old 720p 16:9 set is kept beside it as
+  matte of **the minions row alone** — a 784×210 strip cut from the 1080p
+  intro at 23.976 fps, trimmed flush under the feet, half the side margins
+  kept, and the last 4 frames blanked (the source fades to pure black and
+  BirefNet mattes a black frame as ~98% opaque — a dark slab flashed at the end); the old 720p 16:9 set is kept beside it as
   `universal-minions-720p/`) the Mac plays itself, pinned **flush to the
-  bottom-left corner at 50% of the screen's width** for the sequence's ~7.05 s.
+  bottom-left corner at 56% of the screen's width** (the old 50% × 1.2 for the minions, × 784/840 for the trim) for the sequence's ~7.05 s.
   The frame count — hence the length — is **read from disk**, so a re-matte
   is an asset swap, not a code change. The cue sits
   **24.0 s INTO the combined clip** (where frame 1 was taken, by audio
