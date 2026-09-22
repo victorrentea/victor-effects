@@ -403,55 +403,56 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertEqual(layer.shadowColor, EmojiAnimator.nsColor(fromHex: "#36e264")?.cgColor)
     }
 
-    // MARK: - 🔥 The match that strikes the fires (2026-09-18, bare since 09-19)
+    // MARK: - 🔥 The fireball the pointer turns into (2026-09-22)
 
-    /// The head is the layer's anchor, so it is the pixel that rides the
-    /// pointer — and it is the pixel a click strikes a fire on. If this drifts,
-    /// the fire lands somewhere the user did not point at, which is the whole
-    /// gesture. Near the top-left because the stick hangs down-RIGHT, where a
-    /// right hand holds it.
-    func testMatchHeadIsTheAnchorAtTheTopLeft() {
-        let (size, head) = EmojiAnimator.matchGeometry(length: 600)
-        XCTAssertTrue(size.width > 0 && size.height > 0, "the match has to have a box")
-        XCTAssertTrue((0...1).contains(head.x) && (0...1).contains(head.y),
-                      "the head must be INSIDE the drawing, or the anchor is off the layer")
-        XCTAssertLessThan(head.x, 0.25, "the head sits at the left edge; the stick runs right")
-        XCTAssertGreaterThan(head.y, 0.80, "the head sits at the top; the stick hangs down")
+    /// Every sheet has to declare a grid that can actually hold its frames, and
+    /// no more rows than it needs. This is the one thing about a sprite sheet a
+    /// test can catch and an eye cannot: too few cells and `fireballFrames`
+    /// crops past the bottom edge (missing frames, a hole in the loop); a
+    /// spare row is a row of empty cells nobody asked the png to carry.
+    func testEveryFireballGridHoldsItsFrames() {
+        for ball in EmojiAnimator.fireballs {
+            XCTAssertGreaterThanOrEqual(ball.cols * ball.rows, ball.count,
+                                        "\(ball.asset): the grid cannot hold \(ball.count) frames")
+            XCTAssertLessThan(ball.cols * (ball.rows - 1), ball.count,
+                              "\(ball.asset): the last row is empty — one row too many")
+            XCTAssertGreaterThan(ball.fps, 0, "\(ball.asset): a clip with no rate never advances")
+        }
     }
 
-    /// The tilt is 32° from vertical — a hand holding a match up. Flatter and it
-    /// reads as a cigarette, so the box must stay taller than it is wide.
-    func testMatchHangsMoreDownThanSideways() {
-        let (size, _) = EmojiAnimator.matchGeometry(length: 600)
-        XCTAssertGreaterThan(size.height, size.width,
-                             "a match tilted past 45° stops reading as held up")
+    /// The rotation is a ROTATION, not a random draw (Victor: *"pe rând … la
+    /// porniri succesive"*). Random repeats one press in three, and the room
+    /// reads a repeat as the tile being broken rather than as chance.
+    func testSuccessivePressesHandOutEachFireballInTurn() {
+        let n = EmojiAnimator.fireballs.count
+        XCTAssertGreaterThan(n, 1, "a rotation of one is not a rotation")
+        let firstLap = (0..<n).map { _ in EmojiAnimator.nextFireball().asset }
+        XCTAssertEqual(Set(firstLap).count, n, "one lap must show every ball exactly once")
+        let secondLap = (0..<n).map { _ in EmojiAnimator.nextFireball().asset }
+        XCTAssertEqual(firstLap, secondLap, "and then start the same lap again")
     }
 
-    /// One flame width in, one proportional match out — the whole drawing
-    /// scales, so the single call the pointer makes (`forFlameWidth:` the
-    /// DEFAULT flame width, since 2026-09-19 the wheel belongs to the fire on
-    /// the ground rather than to the match) lands on exactly the proportion a
-    /// default-sized fire was held at. A stick that scaled on one axis only is
-    /// the proportion breaking in front of the room.
-    func testMatchScalesWithTheFlame() {
-        let small = EmojiAnimator.matchBounds(forFlameWidth: 280)
-        let big = EmojiAnimator.matchBounds(forFlameWidth: 560)
-        XCTAssertEqual(big.width, small.width * 2, accuracy: 0.001)
-        XCTAssertEqual(big.height, small.height * 2, accuracy: 0.001)
-        XCTAssertEqual(small.height / small.width, big.height / big.width, accuracy: 0.001,
-                       "the drawing's aspect has to survive the resize")
+    /// The ball keeps its sheet's aspect at whatever width it is drawn — the
+    /// cells are square-cropped by the tool, so a stretched ball here means the
+    /// grid and the sheet have drifted apart.
+    func testFireballBoxKeepsTheSpriteAspect() {
+        let tall = CGContext(data: nil, width: 100, height: 200, bitsPerComponent: 8,
+                             bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!.makeImage()!
+        let box = EmojiAnimator.fireballBounds(for: tall)
+        XCTAssertEqual(box.width, EmojiAnimator.fireballCursorWidth, accuracy: 0.001)
+        XCTAssertEqual(box.height / box.width, 2, accuracy: 0.001)
     }
 
-    /// The stick is 0.75 × the flame's width. At the default 280 pt flame that
-    /// is a 210 pt match under a ~467 pt flame — held up under it, rather than a
-    /// twig lost beneath a bonfire.
-    func testMatchLengthIsThreeQuartersOfTheFlameWidth() {
-        let box = EmojiAnimator.matchBounds(forFlameWidth: 280)
-        // The box is the stick's own bounding box plus a margin on each side, so
-        // its diagonal is at least the stick's length and not much more.
-        let diagonal = (box.width * box.width + box.height * box.height).squareRoot()
-        XCTAssertGreaterThan(diagonal, 280 * 0.75)
-        XCTAssertLessThan(diagonal, 280 * 0.75 * 1.35)
+    /// *"acea animație micșorată în locul mouse-ului"* — the ball is the
+    /// POINTER, so it has to stay clearly smaller than the fires it lights
+    /// (`fireBaseWidth`, 280 pt). A pointer as big as its own output stops
+    /// reading as a pointer, which is what made a 280 pt flame unusable as one.
+    func testTheFireballPointerIsSmallerThanTheFiresItLights() {
+        XCTAssertLessThan(EmojiAnimator.fireballCursorWidth, 280,
+                          "the pointer must not be the size of the fire it plants")
+        XCTAssertGreaterThan(EmojiAnimator.fireballCursorWidth, 40,
+                             "below this it is a spark, not a ball anyone can see on a projector")
     }
 
     func testSpawnEmojiWithoutGlowHasNoHalo() {

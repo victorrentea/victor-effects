@@ -760,68 +760,89 @@ rule from the start.
     the audio and the visual never double-triggers. `/test/chainsaw`, `/test/chainsaw/stop` and
     `/effect/chainsaw` fire it silently.
 
-- **🔥 Match & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
-  the pointer becomes a **match**, unlit, and every fire on screen is one he struck with it
-  — a click lays a fire where the head touched, the wheel sizes **that** fire on the spot,
-  the next click starts another, and Escape blows the match out and leaves them burning.
+- **🔥 Fireball & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
+  the pointer becomes a **burning fireball** — a different one of three on each press — and
+  every fire on screen is one he put down with it: a click lays a fire where the ball was,
+  the wheel sizes **that** fire on the spot, the next click starts another, and Escape puts
+  the ball out and leaves them burning.
   The real pointer is hidden for the run (fourth member of the hidden-cursor family, bound
   by the same rule: **outside `activeEffects`**, torn down explicitly by
   `stopAllActiveEffects`, hide armed through `armBackgroundCursorHiding()` and balanced by
   `_fireHidCursor`). It replaced the tile's old "Lady in Red" clip (tile art and asset
   renamed; the original mp3 is in `backup.zip`).
-  - **The head stays bare** (2026-09-19, Victor: *"there should be just the match without
-    any fire on top of it … and then when I click the first time, it lays the fire where I
-    want it to put"*). Between 09-08 and 09-19 the flame burned on the pointer and a click
-    planted a *copy* of it; the flame answered the question the gesture is supposed to ask
-    — if the fire is already here, why click? — and it made the thing on the ground a
-    duplicate rather than the thing itself. Bare, the pointer is a tool and every fire is
-    something he lit. It also retires the last of the "hanging flame" problem the match was
-    introduced to fix: there is now no flame anywhere except standing on a spot he chose.
-  - **Art**: `Resources/fire-frames.png`, an **8×5 sprite sheet** of 40 cells, keyed out
-    of a black-background gif with **alpha = luminance × 2** (clamped). The ×2 is not a
-    brightness trick: straight luminance-as-alpha leaves the orange edges and every spark
-    half-transparent, which over a slide reads as a washed-out stain instead of fire *on
-    top of* it. Same sheet-not-gif reasoning as the chainsaw — gif's 1-bit alpha would
-    fringe the glow black on every desktop. Sliced once into a lazy static (`fireFrames`).
-    Each fire runs the 40 frames at **30 fps** (1.33 s loop) — the source clip's own rate,
-    kept rather than halved to the chainsaw's 15, because these are on screen for a **36 s**
-    sound and fire at 15 fps reads as a strobing loop within seconds — and each gets its own
-    random phase into the loop, or a row of them flickers in lockstep and announces "sprite
-    sheet" louder than any of them announces "fire".
-  - **The match** (2026-09-18, `matchArt` / `matchGeometry` / `matchBounds`). It is
-    **drawn, not an asset**: a stick, a burnt neck and a head, rendered ONCE into a lazy
-    static at 2× the design size and scaled by `bounds` from then on, so there is no second
-    sprite sheet to keep in step with `fire-frames.png`.
-    - **Its head is the layer's `anchorPoint`**, which is what puts the head itself under
-      the mouse and lets a click strike a fire on exactly that pixel. The anchor and the
-      drawing come out of one pure function (`matchGeometry`) for that reason — an anchor
-      computed separately is how the fire ends up landing an inch off the head the first
-      time somebody tries another angle. Asserted in `EmojiAnimatorTests`.
-    - **Proportions are shares of a flame's width**: length **0.75 ×**, thickness
-      **0.05 ×** — a shade stouter than a real match's 19:1, because at 11 pt on a projector
-      the stick read as a thread. Tilt **32°** from vertical, head up, stick down-right
-      where a right hand holds it; flatter reads as a cigarette.
-    - **Its size is FIXED at `fireBaseWidth`** (2026-09-19) — a 210 pt match, the
-      proportion it had under a default 280 pt flame. The wheel belongs to the fire on the
-      ground now, and a match that grew with it would have him sizing two things with one
-      gesture.
-    - **A dark rim around the stick**, for the mascot's reason (⌘⌃Q's white one): this is
-      drawn over whatever is on screen, and a pale tan capsule on a pale slide is a stick you
-      have to look for. Dark because the wood is light — the rim is the opposite of the thing
-      it outlines, not of the background.
+  - **Art for the fires he lights**: `Resources/fire-frames.png`, an **8×5 sprite sheet** of
+    40 cells, keyed out of a black-background gif with **alpha = luminance × 2** (clamped).
+    The ×2 is not a brightness trick: straight luminance-as-alpha leaves the orange edges and
+    every spark half-transparent, which over a slide reads as a washed-out stain instead of
+    fire *on top of* it. Same sheet-not-gif reasoning as the chainsaw — gif's 1-bit alpha
+    would fringe the glow black on every desktop. Sliced once into a lazy static
+    (`fireFrames`). Each fire runs the 40 frames at **30 fps** (1.33 s loop) — the source
+    clip's own rate, kept rather than halved to the chainsaw's 15, because these are on
+    screen for a **36 s** sound and fire at 15 fps reads as a strobing loop within seconds —
+    and each gets its own random phase into the loop, or a row of them flickers in lockstep
+    and announces "sprite sheet" louder than any of them announces "fire".
+  - **The fireball pointer** (2026-09-22, Victor: *"mouse-ul se transformă, pe rând, într-una
+    din celelalte trei, la porniri succesive … doar vorbim despre înlocuirea cursorului"*).
+    It replaced the **drawn match** of 2026-09-18/19, and the match is worth remembering,
+    because it was an answer to a real problem: between 09-08 and 09-19 a bare flame burned
+    on the pointer, which read as a *decal* over the slide, and the gesture the effect invites
+    — clicking to set something alight — had nothing doing the lighting. The match gave the
+    flame a cause, and 09-19 then took the flame off its head so the planted fire stopped
+    being a *copy* of something already on screen. A fireball keeps both of those wins and
+    costs the stick: it is not a flame *on* the pointer, it **is** the pointer, and "why
+    click?" still has an answer — to put some of it down.
+    - **Three balls, handed out in rotation** (`fireballs`, `nextFireball`). Successive
+      presses get the *next* one, never a random one: a room that sees the tile twice in an
+      hour should get a visibly different answer the second time, and random picks a repeat
+      one press in three. The index lives in RAM and is deliberately **not** reset by a stop —
+      `fireRememberedScale`'s reasoning inside out: the size is a thing he tuned and wants
+      back, the ball is a thing he has just shown a room and wants a different one of.
+    - **Art**: three sprite sheets, `fireball-burst` (12×12, 143 frames, 20 fps — a spiky
+      white-hot burst), `fireball-plasma` (6×6, 32, 16.7 — a dense sphere of dark rock under
+      glowing veins) and `fireball-lava` (5×4, 17, 10 — a flat cartoon ball in a red glow).
+      Sheets and not the gifs they came from, for `fire-frames.png`'s reason. Each carries
+      **its own fps**: they differ by 2×, so played at one shared rate the slow one strobes
+      and the fast one crawls. Cut from the sheet lazily, **per variant** — a session that
+      presses the tile once should pay to decode one ball, not 8 MB of png.
+      - `tools/make-fireball-sheets.py` is the converter, and the two awkward clips are
+        documented in it. One arrived on **white**, so its alpha is `(255 − min(r,g,b)) × 1.6`
+        and its colour is un-premultiplied back off white or the red glow stays milky. The
+        plasma sphere's interior is **genuinely black** (rock between veins) and a luminance
+        key cannot tell it from the black around the ball — left alone the sphere becomes a
+        stencil and the slide shows through every crack. Flood-filling the silhouette is the
+        obvious fix and it **does not work**: the rim is filaments, not a contour, and the
+        fill leaks through. So the ball is treated as the disc it is — a measured radial
+        profile puts the body's edge at 0.78 of the half-width, so everything inside 0.75 is
+        forced opaque and 0.75 → 0.83 feathers back to the keyed value.
+      - The grid is **typed into `fireballs`, not read off the png**, so
+        `testEveryFireballGridHoldsItsFrames` is what catches a drift: too few cells and the
+        crop runs past the bottom edge (a hole in the loop), a spare row is empty cells the
+        png is carrying for nothing.
+    - **Its CENTRE is the layer's `anchorPoint`.** A ball has no tip, and the middle is where
+      the eye puts the pointer, so that is the pixel under the mouse and the pixel a click
+      lights a fire on. (The match's anchor was its *head*, for the same reason stated about
+      a different shape.)
+    - **Its size is FIXED at `fireballCursorWidth`** (150 pt) — well under the flame's
+      `fireBaseWidth` of 280, because this is the *pointer* and the fires it lights are the
+      thing that should be big. It does not move with the wheel, for the reason the match's
+      size did not either: the wheel belongs to the fire on the ground, and a pointer that
+      grew with it would have him sizing two things with one gesture.
     - **`zPosition` 9 450**, above the planted fires (9 400): it is the pointer, so it
       passes in front of the fires it has already lit. `opacity` fades in over **0.12 s** —
       the cursor is a thing you are already looking at, and a slow fade there reads as lag;
       out over 0.25 s, with the real cursor restored only **after** the fade, so the two are
       never on screen together.
-  - **A click strikes a fire** (`plantFireAtCursor`). It stands at the head's pixel, rooted
+    - The ball burns on **its own clip's clock** (a repeating discrete `contents` keyframe),
+      not on the 60 Hz follow timer. The timer's job is *where* the pointer is; driving the
+      sprite from it would tie the flame's rate to how often we can afford to poll the mouse.
+  - **A click strikes a fire** (`plantFireAtCursor`). It stands at the ball's pixel, rooted
     there by `fireRootAnchor` `(0.5, 0.10)` — the flame's **root**, near the bottom edge and
     centred, so it grows *upward out of* the spot rather than swallowing it. `zPosition`
-    9 400, under the match and over every other effect. `fireMaxPlanted` (60) is the
+    9 400, under the fireball and over every other effect. `fireMaxPlanted` (60) is the
     ceiling — out of reach for single clicks, reachable by a long drag — and past it the
     oldest fire goes out, which reads as having burnt itself out rather than as a limit.
   - **Dragging draws a line of fire** (2026-09-19, `plantFireIfDragged`). With the button
-    held down the match keeps laying fires as it sweeps, one every **`fireDragSpacing`
+    held down the ball keeps laying fires as it sweeps, one every **`fireDragSpacing`
     (50 pt)** of travel: the gesture of dragging a match along a fuse, instead of one click
     per flame when he wants an edge of the screen alight. The spacing is the whole trick —
     a drag reports 60+ events a second, so without it a single sweep would stack flames on
@@ -860,15 +881,15 @@ rule from the start.
     scrolling in front of a room; snapping back to default on the next click made that
     gesture disposable. Not persisted to disk on purpose — a restart starts neutral rather
     than from whatever one demo needed.
-  - **Escape blows the MATCH out; the fires he lit stay** (2026-09-18, Victor: *"if I click
+  - **Escape puts the POINTER out; the fires he lit stay** (2026-09-18, Victor: *"if I click
     Escape, the match and the fire disappear, and only the fire that I've laid on the screen
-    remain behind"*). The first Escape runs `blowOutMatch`: the stick and the hidden cursor
-    go, the planted fires go on burning, and the tap stays alive **passing clicks and
-    scrolls through** (`_fireMatchLayer == nil` is the whole test — no second flag to keep in
+    remain behind"* — said of the match the fireball replaced). The first Escape runs
+    `blowOutFireball`: the ball and the hidden cursor go, the planted fires go on burning, and the tap stays alive **passing clicks and
+    scrolls through** (`_firePointerLayer == nil` is the whole test — no second flag to keep in
     step). A **second** Escape clears them. With nothing planted, the first Escape is the
     full stop it always was.
     - **What still puts the planted fires out on their own**: the clip's own length, whose
-      timer is deliberately *not* cancelled by `blowOutMatch` (it does not touch
+      timer is deliberately *not* cancelled by `blowOutFireball` (it does not touch
       `_fireGeneration`), plus the tablet's stop and `stopAllActiveEffects`. The
       self-termination rule holds — nothing here can be left burning by a lost message.
     - This is the first effect with a *user* exit, and it needs one: 36 s is far too long to
