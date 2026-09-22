@@ -1681,6 +1681,39 @@ webhook is the smallest thing that carries the gesture across. With no
 `eventWebhook` configured the ☕ still charges and still pops; nothing else
 happens.
 
+## ⏸️ Suspending everything for a few seconds
+
+`GET /effect/suspend` · `/effect/suspend/<seconds>` · `/effect/resume`
+(`EffectsSuspension`, pure + tested; gate in `EffectsEngine.runEffect` and
+`spawnEmoji`).
+
+Walkie Talkie drags a crop box out of the screen with the **wheel held down**,
+and whatever is floating over the desktop at that moment lands in the picture.
+That crop is the one capture in the rig that takes *seconds* rather than a
+millisecond — Victor frames it while still talking — so "it will be gone by the
+time the shutter fires" is not true for it: the room keeps tapping ☕ while he
+frames. It therefore suspends on the press and resumes on the release
+(2026-09-22).
+
+A suspend both **clears what is on screen** (it calls `stopAll`) and **drops
+what arrives next**; a suspend with a storm still raging would be half the job.
+
+**It is a deadline, never a flag.** The process that suspends is a different
+app: it can be killed, redeployed or crash between the suspend and the resume,
+and a boolean would leave this app silently deaf for the rest of the day with
+nothing on screen to say why. The hold expires by itself, `resume` is only an
+optimisation that ends it sooner, and `maxSeconds` (60) caps what any caller may
+ask for. A second suspend **extends but never shortens**, so two overlapping
+crops cannot have the first one's resume cut the second one short.
+
+`suspend`, `suspend/<n>`, `resume` and `stop-all` are the four words that are
+always heard — a hold that could not be lifted or extended is the exact trap the
+deadline exists to avoid, and "clear the screen" can never be what a cleared
+screen refuses. Everything else is dropped with a log line naming it.
+
+Victor Addons proxies `/effect/*` verbatim, so the caller talks to **55123** like
+every other client and never needs to know this app's port.
+
 ### ☕ The calm lane — every cup comes to the cursor
 
 Below the storm threshold a ☕ no longer drifts off on its own random sideways

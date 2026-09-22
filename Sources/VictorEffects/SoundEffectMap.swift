@@ -72,6 +72,12 @@ enum SoundEffectMap {
         // resizes it while it burns. onStop is still mapped: the tablet's stop is
         // the polite exit, the clip's length is the guaranteed one.
         "11_fire.mp3":           "fire",
+        // Tile 6 (©️ the Pink Panther theme): the tile's own artwork is
+        // Inspector Clouseau stooped over a magnifying glass, so the desktop
+        // gets the glass. It follows the pointer and magnifies only what is
+        // inside its lens, for the length of the clip; the stop below is the
+        // polite exit, the clip's length is the guaranteed one.
+        "06_copyright_cartoon.mp3": "magnifier",
         "29_gangnam_style.mp3":  "gangnam",
         "41_love_hearts.mp3":    "love-hands",
         "55_star_wars.mp3":      "star-wars",
@@ -164,6 +170,7 @@ enum SoundEffectMap {
         "37_rainbow.mp3":        "rainbow/stop",
         "67_sfx_109.mp3":        "brother/stop",
         "29_gangnam_style.mp3":  "gangnam/stop",
+        "06_copyright_cartoon.mp3": "magnifier/stop",
         "55_star_wars.mp3":      "star-wars/stop",
         "26_drum.mp3":           "drum-roll/stop",
         "59_game_over.mp3":      "game-over/stop",

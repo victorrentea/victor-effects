@@ -96,8 +96,33 @@ final class EffectsEngine {
     // MARK: - Effects
 
     func spawnEmoji(_ emoji: String, count: Int, glow: String?) {
+        if isSuspended { effectsInfo("⏸️ suspended — dropping \(count)× \(emoji)"); return }
         overlayPanel.refreshScreenFrame()
         for _ in 0..<count { animator.spawnEmoji(emoji, glow: glow) }
+    }
+
+    // MARK: - ⏸️ Suspension (Walkie Talkie's wheel-held crop)
+
+    private var suspension = EffectsSuspension()
+
+    var isSuspended: Bool { suspension.isSuspended(at: Date().timeIntervalSince1970) }
+
+    /// Clear the screen and keep it clear for `seconds` — see `EffectsSuspension`
+    /// for why this is a deadline and not a flag. Returns the seconds granted.
+    @discardableResult
+    func suspendEffects(seconds: TimeInterval) -> TimeInterval {
+        let granted = suspension.suspend(for: seconds, at: Date().timeIntervalSince1970)
+        // Clear what is already on screen as well as holding back what is next:
+        // "suspend" with a storm still raging would be half the job.
+        stopAll()
+        effectsInfo("⏸️ effects suspended for \(String(format: "%.1f", granted))s")
+        return granted
+    }
+
+    func resumeEffects() {
+        guard isSuspended else { return }
+        suspension.resume()
+        effectsInfo("▶️ effects resumed")
     }
 
     func startProgressBar(seconds: Int, rider: String?) {
@@ -117,6 +142,32 @@ final class EffectsEngine {
     /// Run one effect by its route name, with the Bluetooth visual delay that
     /// keeps it in sync with a sound that was just routed here.
     func runEffect(_ name: String) {
+        // ⏸️ The two control words are always heard — a suspend that could not be
+        // lifted, or extended, would be the exact trap the deadline exists to
+        // avoid. `stop-all` too: "clear the screen" can never be the thing a
+        // clear screen refuses.
+        // `/effect/suspend/<seconds>` — the caller says how long it needs. Read
+        // before the gate below, so an already-suspended app can still be asked
+        // to hold longer.
+        if name.hasPrefix("suspend/"), let n = Double(name.dropFirst("suspend/".count)) {
+            suspendEffects(seconds: n)
+            return
+        }
+        switch name {
+        case "suspend":
+            suspendEffects(seconds: EffectsSuspension.defaultSeconds)
+            return
+        case "resume":
+            resumeEffects()
+            return
+        case "stop-all":
+            break
+        default:
+            if isSuspended {
+                effectsInfo("⏸️ suspended — dropping effect '\(name)'")
+                return
+            }
+        }
         // If a routed sound was just started on THIS Mac with Bluetooth
         // compensation, delay the paired visual by the same amount so it stays
         // in sync with the silence-prepended audio. 0 for stop/utility signals
@@ -151,6 +202,10 @@ final class EffectsEngine {
         case "applause":      animator.showApplause(playSound: false)
         case "applause/stop": animator.stopApplause()
         case "heartbeat":     animator.showHeartbeat()
+        // 🔍 Tile #6 (Pink Panther): a drawn magnifying glass rides the pointer
+        // and magnifies ONLY what is inside its lens, for the length of the clip.
+        case "magnifier":     animator.showMagnifier()
+        case "magnifier/stop": animator.stopMagnifier()
         case "spiral-hearts": animator.showSpiralHearts()
         case "spiral-hearts/stop": animator.stopSpiralHearts()
         case "fireworks":     animator.showFireworks(playSound: false)

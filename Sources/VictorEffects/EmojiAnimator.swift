@@ -6064,6 +6064,240 @@ class EmojiAnimator {
         return CGPoint(x: min(max(relX, 0), 1), y: min(max(relY, 0), 1))
     }
 
+    // MARK: - 🔍 Magnifier (sfx #6, 06_copyright_cartoon.mp3 — the Pink Panther)
+
+    /// Tile #6 is the Pink Panther theme with Inspector Clouseau on the artwork,
+    /// stooped over a magnifying glass. So the desktop gets the glass: a drawn
+    /// prop a third of the screen tall that rides the pointer and magnifies
+    /// **only what is inside its lens** — the rest of the screen is untouched,
+    /// which is the whole difference between this and the 💓 heartbeat's
+    /// whole-screen bump.
+    static let magnifierSound = "06_copyright_cartoon.mp3"
+
+    /// Measured length of that clip, used only when the mp3 is not on this
+    /// machine (this repo carries no soundboard audio).
+    static let magnifierFallbackDuration: TimeInterval = 37.8
+
+    /// How often the glass is put back on the pointer. Same 20 Hz as the
+    /// heartbeat's lens and the companions, and for the same reason: the overlay
+    /// panel is click-through, so it receives no mouse events at all and polling
+    /// `NSEvent.mouseLocation` is the only reading there is. A magnifier that
+    /// snapped to the mouse four times a second would read as broken.
+    private static let magnifierFollowInterval: TimeInterval = 0.05
+
+    /// …and how often the desktop **under** it is retaken: 4 fps, the heartbeat's
+    /// rate. Not a frame rate anybody watches — the rate at which the picture
+    /// stops being stale. Deliberately NOT the follow rate: moving the glass is
+    /// two layer positions, while a recapture is a ScreenCaptureKit round trip.
+    private static let magnifierRecaptureInterval: TimeInterval = 0.25
+
+    /// The glass drops onto the pointer rather than blinking into existence, and
+    /// lifts off at the end of the clip.
+    private static let magnifierEntrance: CFTimeInterval = 0.32
+    private static let magnifierFade: CFTimeInterval = 0.4
+
+    /// 🔍 Show the glass on the pointer for the length of the Pink Panther clip.
+    ///
+    /// Three layers, and the split matters: a round **clip** layer holding the
+    /// screenshot scaled `MagnifierGlass.zoom` times (the magnification), the
+    /// drawn **glass** on top of it (rim, collar, handle, glare), and a container
+    /// so one `stop-all` takes both away. The zoom is a layer frame inside a
+    /// masked circle rather than a `CIBumpDistortion` because this lens is not a
+    /// bulge: everything inside the rim is magnified by exactly the same factor,
+    /// the way looking through a real glass works, and everything outside it is
+    /// not merely less magnified but literally the untouched desktop.
+    func showMagnifier() {
+        // A re-press PREEMPTS rather than being swallowed: the tablet fires
+        // /effect/stop-all before every press anyway, and restarting is what the
+        // audio does on its own path, so the two halves agree.
+        _ = cancelIfRunning("magnifier")
+        let bounds = hostLayer.bounds
+        let diameter = MagnifierGlass.outerDiameter(in: bounds)
+        guard diameter > 1 else { return }
+
+        // On screen for exactly as long as the clip plays — the lifecycle rule.
+        // A `/sound/stopped` → "magnifier/stop" is the polite exit; this is the
+        // guaranteed one.
+        var clipDuration = Self.magnifierFallbackDuration
+        if let url = SoundManager.shared.soundURL(for: Self.magnifierSound) {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric { clipDuration = CMTimeGetSeconds(d) }
+        }
+
+        let scale = Screens.overlayScreen()?.backingScaleFactor ?? 2.0
+        guard let art = MagnifierGlass.image(outerDiameter: diameter, scale: scale) else {
+            overlayError("🔍 magnifier: the glass could not be drawn at \(Int(diameter))pt")
+            return
+        }
+        let glassRadius = MagnifierGlass.glassRadius(outerDiameter: diameter)
+        let focus = Self.magnifierFocus(bounds: bounds, hostLayer: hostLayer)
+
+        let container = CALayer()
+        container.frame = bounds
+
+        // The lens: a circular window with the whole screenshot behind it,
+        // blown up and slid until the pointer's spot sits in the middle.
+        let clip = CALayer()
+        clip.bounds = CGRect(x: 0, y: 0, width: glassRadius * 2, height: glassRadius * 2)
+        clip.position = focus
+        clip.cornerRadius = glassRadius
+        clip.masksToBounds = true
+        let shot = CALayer()
+        shot.contentsGravity = .resize
+        shot.contentsScale = scale
+        shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus, glassRadius: glassRadius)
+        clip.addSublayer(shot)
+        container.addSublayer(clip)
+
+        // The prop, hung off its own lens centre (`lensAnchor`) so it and the
+        // lens share one position — and so the entrance scales about the glass
+        // rather than about the handle's far end.
+        let glass = CALayer()
+        glass.contents = art
+        glass.contentsScale = scale
+        glass.bounds = CGRect(origin: .zero, size: MagnifierGlass.canvasSize(outerDiameter: diameter))
+        glass.anchorPoint = MagnifierGlass.lensAnchor(outerDiameter: diameter)
+        glass.position = focus
+        glass.shadowColor = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
+        glass.shadowOpacity = 0.35
+        glass.shadowRadius = diameter * 0.03
+        glass.shadowOffset = CGSize(width: diameter * 0.018, height: -diameter * 0.018)
+        container.addSublayer(glass)
+
+        // Tracked BEFORE the capture, as a placeholder: the screencapture
+        // subprocess takes a couple of hundred ms, and a second press in that
+        // window must preempt this run rather than stack a second glass on it.
+        let startedAt = CACurrentMediaTime()
+        trackEffect("magnifier", layer: container, duration: clipDuration)
+        overlayInfo(String(format: "🔍 magnifier: %.0fpt lens at %.0f×, following the pointer for %.1fs",
+                           diameter, MagnifierGlass.zoom, clipDuration))
+
+        // The first picture is taken while the overlay is still EMPTY — nothing
+        // of ours is on screen yet, so `screencapture(1)` cannot photograph the
+        // effect's own output. Every refresh after this one has to exclude the
+        // panel explicitly (`captureScreenExcludingOverlay`).
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let captured = Self.captureBuiltInDisplay()
+            DispatchQueue.main.async {
+                guard let self = self, self.activeEffects["magnifier"] === container else { return }
+                if let captured = captured { shot.contents = captured }
+                self.hostLayer.addSublayer(container)
+
+                // Added here rather than above: a layer outside the render tree
+                // has nothing to run an animation against, so the drop would be
+                // over before the glass was ever visible.
+                let drop = CABasicAnimation(keyPath: "transform.scale")
+                drop.fromValue = 1.45
+                drop.toValue = 1.0
+                drop.duration = Self.magnifierEntrance
+                drop.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                clip.add(drop, forKey: "magnifierDrop")
+                glass.add(drop, forKey: "magnifierDrop")
+                let fadeIn = CABasicAnimation(keyPath: "opacity")
+                fadeIn.fromValue = 0.0
+                fadeIn.toValue = 1.0
+                fadeIn.duration = Self.magnifierEntrance * 0.7
+                container.add(fadeIn, forKey: "magnifierIn")
+
+                // The lift-off, timed from the press (not from the capture) so
+                // it always lands just before `trackEffect` takes the layer away.
+                let fadeOut = CABasicAnimation(keyPath: "opacity")
+                fadeOut.fromValue = 1.0
+                fadeOut.toValue = 0.0
+                fadeOut.beginTime = startedAt + max(0, clipDuration - Self.magnifierFade)
+                fadeOut.duration = Self.magnifierFade
+                fadeOut.fillMode = .forwards
+                fadeOut.isRemovedOnCompletion = false
+                container.add(fadeOut, forKey: "magnifierOut")
+
+                self.watchMagnifier(clip: clip, shot: shot, glass: glass, effect: container,
+                                    bounds: bounds, until: startedAt + clipDuration)
+            }
+        }
+    }
+
+    /// "magnifier/stop" — the clip was stopped on the tablet. Fades rather than
+    /// cuts, so a stop mid-clip looks like the inspector pocketing the glass.
+    func stopMagnifier() {
+        guard let container = activeEffects["magnifier"] else { return }
+        // Dropping the key is also what stops the follow timer and any in-flight
+        // capture: both check that this container is still the active one.
+        activeEffects.removeValue(forKey: "magnifier")
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.magnifierFade)
+        container.opacity = 0
+        CATransaction.commit()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.magnifierFade) { [weak container] in
+            container?.removeFromSuperlayer()
+        }
+    }
+
+    /// The pointer, in the overlay's own points.
+    private static func magnifierFocus(bounds: CGRect, hostLayer: CALayer) -> CGPoint {
+        let anchor = layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+                                 panelOrigin: hostLayer.bounds.origin,
+                                 hostLayer: hostLayer)
+        return CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height)
+    }
+
+    /// Keeps the glass honest about the two things a still picture would freeze:
+    /// **where** it is and **what** it is looking at. Same shape as
+    /// `watchHeartbeatScreen`, including the rule that captures never overlap —
+    /// a tick that finds the previous one still in flight skips its turn instead
+    /// of queueing behind it, and a capture that answers nil leaves the current
+    /// frame alone, so every failure degrades to "the view is frozen" rather
+    /// than to an empty lens.
+    private func watchMagnifier(clip: CALayer, shot: CALayer, glass: CALayer, effect: CALayer,
+                                bounds: CGRect, until deadline: CFTimeInterval) {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        var capturing = false
+        // The first picture is milliseconds old here, so the first refresh is a
+        // whole interval away rather than immediate.
+        var nextCaptureAt = CACurrentMediaTime() + Self.magnifierRecaptureInterval
+        let glassRadius = clip.bounds.width / 2
+
+        let advance: () -> Bool = { [weak self, weak clip, weak shot, weak glass, weak effect] in
+            guard let self = self, let clip = clip, let shot = shot, let glass = glass,
+                  let effect = effect, self.activeEffects["magnifier"] === effect,
+                  CACurrentMediaTime() < deadline else { return false }
+
+            // 1. The glass goes where the pointer is — instantly, with no
+            //    implicit slide. A magnifier easing in behind the hand reads as
+            //    lag; this one is held, not thrown.
+            let focus = Self.magnifierFocus(bounds: bounds, hostLayer: self.hostLayer)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            clip.position = focus
+            glass.position = focus
+            shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus,
+                                                  glassRadius: glassRadius)
+            CATransaction.commit()
+
+            // 2. …and four times a second, the desktop it is looking at.
+            let now = CACurrentMediaTime()
+            guard !capturing, now >= nextCaptureAt else { return true }
+            capturing = true
+            nextCaptureAt = now + Self.magnifierRecaptureInterval
+            Self.captureScreenExcludingOverlay { [weak self, weak shot, weak effect] image in
+                capturing = false
+                guard let self = self, let shot = shot, let effect = effect,
+                      self.activeEffects["magnifier"] === effect, let image = image else { return }
+                // `contents` has a default implicit animation, and a cross-fade
+                // between two nearly identical screenshots smears every refresh.
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                shot.contents = image
+                CATransaction.commit()
+            }
+            return true
+        }
+
+        timer.schedule(deadline: .now() + Self.magnifierFollowInterval,
+                       repeating: Self.magnifierFollowInterval)
+        timer.setEventHandler { if !advance() { timer.cancel() } }
+        timer.resume()
+    }
+
     // MARK: - Love hands (sound #41) — two hands close in from edges, then hearts
     // spiral up out of the meeting point.
 
