@@ -324,7 +324,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // for the two to be separated, and for Quit to carry ⌘Q like any app.
         // The shortcut only fires while the menu is open (a status-item app
         // never becomes key), but the hint is what makes the row read as Quit.
-        let versionItem = NSMenuItem(title: "Version: " + MenuBar.BUILD_TIME,
+        let versionItem = NSMenuItem(title: "Built " + MenuBar.BUILD_TIME,
                                      action: nil, keyEquivalent: "")
         versionItem.isEnabled = false
         menu.addItem(versionItem)
