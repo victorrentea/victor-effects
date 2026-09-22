@@ -6103,6 +6103,23 @@ class EmojiAnimator {
     private static let magnifierEntrance: CFTimeInterval = 0.32
     private static let magnifierFade: CFTimeInterval = 0.4
 
+    /// The live magnification, between `MagnifierGlass.minZoom` and `maxZoom`.
+    /// Reset to the floor on every press: the glass is a prop the room knows at
+    /// one size, and having it come back at whatever the last demo was left on
+    /// would make the same tile mean two different things.
+    private var _magnifierZoom: CGFloat = MagnifierGlass.zoom
+
+    /// The wheel and the click, taken away from the app underneath while the
+    /// glass is up — the same bargain as the 🔥 fire's tap and for the same
+    /// reason: the overlay is click-through, so an `NSEvent` monitor could only
+    /// *watch* the scroll go into Victor's editor behind the lens.
+    private var _magnifierInputTap: CFMachPort?
+    private var _magnifierInputTapSource: CFRunLoopSource?
+    private var _magnifierScrollAccum: CGFloat = 0     // trackpad pixels → notches
+    /// Read from the tap's own thread, so it is a flag and not a dictionary
+    /// lookup: `activeEffects` is only ever mutated on main.
+    fileprivate var _magnifierIsLive = false
+
     /// 🔍 Show the glass on the pointer for the length of the Pink Panther clip.
     ///
     /// Three layers, and the split matters: a round **clip** layer holding the
@@ -6118,6 +6135,7 @@ class EmojiAnimator {
         // /effect/stop-all before every press anyway, and restarting is what the
         // audio does on its own path, so the two halves agree.
         _ = cancelIfRunning("magnifier")
+        _magnifierZoom = MagnifierGlass.minZoom
         let bounds = hostLayer.bounds
         let diameter = MagnifierGlass.outerDiameter(in: bounds)
         guard diameter > 1 else { return }
@@ -6152,7 +6170,8 @@ class EmojiAnimator {
         let shot = CALayer()
         shot.contentsGravity = .resize
         shot.contentsScale = scale
-        shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus, glassRadius: glassRadius)
+        shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus, glassRadius: glassRadius,
+                                              zoom: _magnifierZoom)
         clip.addSublayer(shot)
         container.addSublayer(clip)
 
@@ -6176,8 +6195,12 @@ class EmojiAnimator {
         // window must preempt this run rather than stack a second glass on it.
         let startedAt = CACurrentMediaTime()
         trackEffect("magnifier", layer: container, duration: clipDuration)
-        overlayInfo(String(format: "🔍 magnifier: %.0fpt lens at %.0f×, following the pointer for %.1fs",
-                           diameter, MagnifierGlass.zoom, clipDuration))
+        // Armed here rather than after the capture: the first picture takes a
+        // couple of hundred ms, and a click in that window means "not this one"
+        // just as much as a click a second later does.
+        startMagnifierInputCapture()
+        overlayInfo(String(format: "🔍 magnifier: %.0fpt lens at %.0f…%.0f×, following the pointer for %.1fs",
+                           diameter, MagnifierGlass.minZoom, MagnifierGlass.maxZoom, clipDuration))
 
         // The first picture is taken while the overlay is still EMPTY — nothing
         // of ours is on screen yet, so `screencapture(1)` cannot photograph the
@@ -6186,7 +6209,14 @@ class EmojiAnimator {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let captured = Self.captureBuiltInDisplay()
             DispatchQueue.main.async {
-                guard let self = self, self.activeEffects["magnifier"] === container else { return }
+                guard let self = self else { return }
+                guard self.activeEffects["magnifier"] === container else {
+                    // Stopped while the first picture was being taken. A re-press
+                    // has already armed its own tap; a stop-all has not, and the
+                    // wheel would otherwise stay ours with no glass to serve.
+                    if self.activeEffects["magnifier"] == nil { self.stopMagnifierInputCapture() }
+                    return
+                }
                 if let captured = captured { shot.contents = captured }
                 self.hostLayer.addSublayer(container)
 
@@ -6230,6 +6260,7 @@ class EmojiAnimator {
         // Dropping the key is also what stops the follow timer and any in-flight
         // capture: both check that this container is still the active one.
         activeEffects.removeValue(forKey: "magnifier")
+        stopMagnifierInputCapture()
         CATransaction.begin()
         CATransaction.setAnimationDuration(Self.magnifierFade)
         container.opacity = 0
@@ -6277,7 +6308,8 @@ class EmojiAnimator {
             clip.position = focus
             glass.position = focus
             shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus,
-                                                  glassRadius: glassRadius)
+                                                  glassRadius: glassRadius,
+                                                  zoom: self._magnifierZoom)
             CATransaction.commit()
 
             // 2. …and four times a second, the desktop it is looking at.
@@ -6301,8 +6333,120 @@ class EmojiAnimator {
 
         timer.schedule(deadline: .now() + Self.magnifierFollowInterval,
                        repeating: Self.magnifierFollowInterval)
-        timer.setEventHandler { if !advance() { timer.cancel() } }
+        timer.setEventHandler { [weak self] in
+            guard !advance() else { return }
+            timer.cancel()
+            // Whatever ended the glass — the clip running out, a stop-all, a
+            // click — the wheel and the mouse go back to the room within one
+            // tick. Not when a re-press has already armed a tap of its own.
+            if let self, self.activeEffects["magnifier"] == nil { self.stopMagnifierInputCapture() }
+        }
         timer.resume()
+    }
+
+    // MARK: Click to put it away, wheel to zoom inside the lens
+
+    /// One tap for both gestures, for the 🔥 fire's reason: both have to be
+    /// *taken away* from the app underneath. The overlay panel is click-through,
+    /// so while the glass is up every click and every notch of the wheel is on
+    /// its way into whatever is behind the lens — an editor that scrolls out
+    /// from under the thing Victor is pointing at, or a button pressed by the
+    /// click that was meant to dismiss the prop. An `NSEvent` global monitor can
+    /// only observe; a tap can consume.
+    private func startMagnifierInputCapture() {
+        stopMagnifierInputCapture()
+
+        let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseUp.rawValue)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let animator = Unmanaged<EmojiAnimator>.fromOpaque(refcon).takeUnretainedValue()
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = animator._magnifierInputTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
+            // **Once the glass is gone, the mouse is his again.** Every teardown
+            // path already disarms this tap; this is the belt for the run where
+            // one of them was outrun by an event in flight.
+            guard animator._magnifierIsLive else {
+                DispatchQueue.main.async { animator.stopMagnifierInputCapture() }
+                return Unmanaged.passUnretained(event)
+            }
+            if type == .leftMouseDown {
+                // A click means "put it away" (Victor, 2026-09-22). Only the
+                // glass goes: the Pink Panther plays on, the way the fire's
+                // first Escape leaves the clip alone — the tile is a piece of
+                // music with a prop on it, not a prop with a jingle.
+                DispatchQueue.main.async { animator.stopMagnifier() }
+                return nil   // consume — the click was spent dismissing the glass
+            }
+            if type == .leftMouseUp {
+                // The down was swallowed above, so delivering the up alone would
+                // hand the app underneath half a click. The pair goes together.
+                return nil
+            }
+            if type == .scrollWheel {
+                // Cmd+scroll is left alone: EventTapManager turns it into
+                // terminal font zoom, and eating that for 38 s would look like
+                // the shortcut had broken.
+                if event.flags.contains(.maskCommand) { return Unmanaged.passUnretained(event) }
+                animator.handleMagnifierScroll(event)
+                return nil   // consume — don't scroll the app below while zooming
+            }
+            return Unmanaged.passUnretained(event)
+        }
+        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                          options: .defaultTap, eventsOfInterest: mask,
+                                          callback: callback, userInfo: refcon) else { return }
+        let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        _magnifierInputTap = tap
+        _magnifierInputTapSource = src
+        _magnifierIsLive = true
+    }
+
+    private func stopMagnifierInputCapture() {
+        // Cleared FIRST: it is what the tap's own thread reads, and it has to be
+        // false for every event still on its way in while the port is torn down.
+        _magnifierIsLive = false
+        if let tap = _magnifierInputTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+        if let src = _magnifierInputTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
+        _magnifierInputTap = nil
+        _magnifierInputTapSource = nil
+        _magnifierScrollAccum = 0
+    }
+
+    /// Scroll up = closer, scroll down = wider, between `MagnifierGlass.minZoom`
+    /// and `maxZoom`. Runs on the tap's thread, so it only computes the new
+    /// number and hops it to main.
+    ///
+    /// The wheel writes the magnification; the **20 Hz follow tick is what paints
+    /// it**, out of the same `shotFrame` call that keeps the lens on the pointer.
+    /// One writer for `shot.frame`, and one place where "what the glass shows" is
+    /// decided — a second path that also set the frame would have to re-derive
+    /// the pointer, and the two would disagree for a frame on every notch.
+    fileprivate func handleMagnifierScroll(_ event: CGEvent) {
+        var notches = 0
+        if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 {
+            // Trackpad: continuous pixels, accumulated into notch-sized steps so
+            // a two-finger flick doesn't jump the lens across its whole range.
+            _magnifierScrollAccum += CGFloat(event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1))
+            while _magnifierScrollAccum >= 12 { notches += 1; _magnifierScrollAccum -= 12 }
+            while _magnifierScrollAccum <= -12 { notches -= 1; _magnifierScrollAccum += 12 }
+        } else {
+            let dy = event.getDoubleValueField(.scrollWheelEventDeltaAxis1)   // + up, - down
+            if dy > 0 { notches = 1 } else if dy < 0 { notches = -1 }
+        }
+        guard notches != 0 else { return }
+
+        let factor = pow(MagnifierGlass.zoomStep, CGFloat(notches))
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.activeEffects["magnifier"] != nil else { return }
+            self._magnifierZoom = MagnifierGlass.clampZoom(self._magnifierZoom * factor)
+        }
     }
 
     // MARK: - Love hands (sound #41) — two hands close in from edges, then hearts
@@ -9676,24 +9820,52 @@ class EmojiAnimator {
     /// and the right silhouette.
     static let fireballZ: CGFloat = 9_350
 
-    /// **After each fire is laid the ball gets out of the way**: it vanishes on
-    /// the instant of the click, stays gone for `fireballHideAfterPlant`, and
-    /// then fades back over `fireballReturnFade` — *"mărind impactul focului
-    /// care l-a născut"*. The blackout is the whole effect: a new fire has about
-    /// two seconds of being the only thing that moved, instead of sharing the
-    /// frame with the ball that made it.
+    /// **After each fire is laid the ball gets out of the way**: on the instant
+    /// of the click it drops to `fireballShrinkFactor` of its size, holds there
+    /// for `fireballShrunkAfterPlant`, and then grows back over
+    /// `fireballReturnGrow` — *"mărind impactul focului care l-a născut"*. The
+    /// gap is the whole effect: a new fire gets three seconds of being the only
+    /// thing that moved, instead of sharing the frame with the ball that made
+    /// it.
+    ///
+    /// **It shrinks rather than vanishes** (2026-09-22: *"în loc să dispară,
+    /// bila să se micșoreze de 10x, și apoi resize up"*). Vanishing was the
+    /// first cut and it gave up something the effect could not spare: with the
+    /// real cursor hidden for the whole run, a ball at zero left the screen with
+    /// **no pointer at all** — which during a drag meant sweeping a line of
+    /// fires blind. At a tenth it is a 7 pt spark: out of the fire's way by any
+    /// measure the eye uses, and still exactly where his hand is.
     ///
     /// The clock RESTARTS on every plant, so a drag that lays a line of fires
-    /// keeps the ball away for the whole sweep and it returns once, after the
-    /// last one — the alternative is a ball strobing in and out every 50 pt of
-    /// travel.
+    /// keeps the ball small for the whole sweep and it grows back once, after
+    /// the last one — the alternative is a ball pumping in and out every 50 pt
+    /// of travel.
     ///
     /// 3 s and 0.5 s since he watched it (the first pass was 2 s and 0.7 s): a
     /// longer gap and a quicker return, which is the pair that makes the beat
-    /// land — the silence is what the new fire gets to itself, and dragging the
-    /// ball back in slowly only spends some of it again.
-    static let fireballHideAfterPlant: Double = 3.0
-    static let fireballReturnFade: Double = 0.5
+    /// land — the quiet is what the new fire gets to itself, and bringing the
+    /// ball back slowly only spends some of it again.
+    static let fireballShrinkFactor: CGFloat = 0.1
+    static let fireballShrunkAfterPlant: Double = 3.0
+    static let fireballReturnGrow: Double = 0.5
+
+    /// The ball growing back out of its spark after a fire has had the frame to
+    /// itself. Eased OUT — it springs back and settles, the way the fire it is
+    /// made of behaves, rather than creeping up at a constant rate.
+    ///
+    /// A function for `fireballEntryFade`'s reason, and it matters more here:
+    /// this is the animation the NEXT plant has to be able to overrule. Left
+    /// filling forwards it would pin the ball at full size and every shrink
+    /// after the first would silently do nothing — the exact bug the entry fade
+    /// already cost us once, one property over.
+    static func fireballGrowBack() -> CABasicAnimation {
+        let grow = CABasicAnimation(keyPath: "transform")
+        grow.fromValue = CATransform3DMakeScale(fireballShrinkFactor, fireballShrinkFactor, 1)
+        grow.toValue = CATransform3DIdentity
+        grow.duration = fireballReturnGrow
+        grow.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        return grow
+    }
 
     /// The ball's entry fade. A function rather than six lines inline so a test
     /// can hold the thing that broke: see `testTheFireballEntryFadeRemovesItself`.
@@ -9728,7 +9900,7 @@ class EmojiAnimator {
     private var _fireScrollAccum: CGFloat = 0     // trackpad pixels → notches
     private var _firePlanted: [CALayer] = []      // fires struck by clicking, oldest first; the LAST is the wheel's
     private var _fireLastPlantPoint: CGPoint?     // where the last one was struck; the drag measures from here
-    private var _fireballHideToken = 0            // every plant bumps it; a stale return bails
+    private var _fireballShrinkToken = 0          // every plant bumps it; a stale grow-back bails
 
     /// How far the fireball has to travel before a drag plants the next fire.
     /// Small enough that a sweep reads as a continuous line of flame, large
@@ -10074,7 +10246,7 @@ class EmojiAnimator {
         hostLayer.addSublayer(copy)
         _firePlanted.append(copy)
         _fireLastPlantPoint = point
-        hideFireballWhileTheFireTakes()
+        shrinkFireballWhileTheFireTakes()
 
         while _firePlanted.count > Self.fireMaxPlanted {
             let oldest = _firePlanted.removeFirst()
@@ -10117,32 +10289,25 @@ class EmojiAnimator {
     /// the ball is away for the whole gesture and comes back once, at the end.
     /// Without it, a two-second timer per fire would bring the ball back in the
     /// middle of the sweep and take it away again, strobing.
-    private func hideFireballWhileTheFireTakes() {
+    private func shrinkFireballWhileTheFireTakes() {
         guard let ball = _firePointerLayer else { return }
-        _fireballHideToken &+= 1
-        let token = _fireballHideToken
+        _fireballShrinkToken &+= 1
+        let token = _fireballShrinkToken
 
-        // Both of them, and belt-and-braces about it: an opacity animation still
-        // attached is an opacity animation still being obeyed, and a click that
-        // lands inside the entry fade's 0.12 s would otherwise leave the ball up
-        // for the rest of it — the one moment this beat cannot afford to miss.
-        ball.removeAnimation(forKey: "fadeIn")
+        // A running grow-back is the only thing that could argue with this; the
+        // entry fade is opacity and this is `transform`, so the two never meet.
         ball.removeAnimation(forKey: "return")
         CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        ball.opacity = 0
+        CATransaction.setDisableActions(true)   // instant, the way vanishing was
+        ball.transform = CATransform3DMakeScale(Self.fireballShrinkFactor,
+                                                Self.fireballShrinkFactor, 1)
         CATransaction.commit()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireballHideAfterPlant) { [weak self] in
-            guard let self, self._fireballHideToken == token,
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireballShrunkAfterPlant) { [weak self] in
+            guard let self, self._fireballShrinkToken == token,
                   let ball = self._firePointerLayer else { return }
-            let back = CABasicAnimation(keyPath: "opacity")
-            back.fromValue = 0.0
-            back.toValue = 1.0
-            back.duration = Self.fireballReturnFade
-            back.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            ball.opacity = 1
-            ball.add(back, forKey: "return")
+            ball.transform = CATransform3DIdentity
+            ball.add(Self.fireballGrowBack(), forKey: "return")
         }
     }
 

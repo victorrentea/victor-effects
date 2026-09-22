@@ -1397,9 +1397,9 @@ rule from the start.
   when the audio is not on this machine) and magnifies **only what is inside its
   lens** — everything outside the rim is the untouched desktop, not a less-zoomed
   one. That is the whole difference from the 💓 heartbeat, whose
-  `CIBumpDistortion` bulges the screen itself; this lens is a flat **2×**
-  (`MagnifierGlass.zoom`), the same factor everywhere inside the glass, the way
-  looking through a real one works.
+  `CIBumpDistortion` bulges the screen itself; this lens is a flat **2×…6×**
+  (`MagnifierGlass.zoom`, which is also `minZoom` — the wheel, below), the same
+  factor everywhere inside the glass, the way looking through a real one works.
   **Size: the lens is two thirds of the screen height** — 745 pt on the retina,
   so the glass shows a ~372 pt square of desktop, a good handful of lines of
   code. It was born a third (Victor, 2026-09-22: *"cam la o treime din înălțimea
@@ -1450,6 +1450,45 @@ rule from the start.
   and the container is only added to the host layer once it comes back, so the
   glass never appears over a hole. It is tracked before that, as the debounce
   placeholder a re-press preempts.
+  **A click puts it away, the wheel zooms inside it** (2026-09-22). Both
+  gestures are *taken away* from the app underneath by one `CGEventTap`
+  (`startMagnifierInputCapture`) — the same bargain as the 🔥 fire's tap and for
+  the same reason: the overlay panel is click-through, so without a tap the
+  click that was meant to dismiss the prop presses a button behind the lens, and
+  the notch that was meant to zoom scrolls Victor's editor out from under the
+  very thing he is pointing at. A global `NSEvent` monitor can only watch that
+  happen; a tap can consume. The click's `up` is swallowed with its `down` —
+  delivering the up alone hands the app below half a click.
+  The click stops **only the glass**: the Pink Panther plays on, the way the
+  fire's first Escape leaves its clip alone. The tile is a piece of music with a
+  prop on it, not a prop with a jingle — and the tablet, not this Mac, owns
+  whether a sound is playing.
+  **The wheel's floor is the glass the room already knows** (Victor: *"zoomul
+  merge însă între limite (minim cât e acum)"*) — `minZoom == zoom`, so scrolling
+  down can only bring the lens back to how it dropped onto the pointer, never to
+  a pane of plain glass that magnifies nothing. The ceiling is **6×**: a 124 pt
+  square of desktop, three or four lines of code, and still crisp because the
+  capture comes off a retina at 2 device pixels per point, so 6 point-times is
+  only 3 native-times. One notch is a **factor** (`zoomStep` 1.15, the whole
+  range about eight notches apart), not an addend — a dial that adds a constant
+  feels coarse at the bottom of its range and sluggish at the top. The trackpad's
+  continuous pixels are accumulated into notch-sized steps so a two-finger flick
+  doesn't cross the range in one gesture. ⌘-scroll is passed through untouched:
+  `EventTapManager` turns it into terminal font zoom, and eating that for 38 s
+  would look like the shortcut had broken.
+  The wheel **only writes the number**; the 20 Hz follow tick is what paints it,
+  out of the same `shotFrame` call that keeps the lens on the pointer. One writer
+  for `shot.frame` — a second path that also set the frame would have to
+  re-derive the pointer, and the two would disagree for a frame on every notch.
+  The tap is armed *with* the effect, before the first capture (a click during
+  those couple of hundred ms means "not this one" just as much as a click a
+  second later does), and disarmed by **whichever teardown gets there first**:
+  `stopMagnifier`, the follow timer noticing the glass is gone (within one tick,
+  and not when a re-press has already armed a tap of its own), or the capture
+  completion finding itself preempted with nothing to replace it. A flag the tap
+  thread reads (`_magnifierIsLive`) is the belt for the event already in flight —
+  `activeEffects` is a dictionary mutated on main and has no business being read
+  from a tap callback.
   It **self-terminates at the clip's length** (lifecycle rule) with a 0.4 s
   lift-off timed from the press, not from the capture; `/effect/magnifier/stop`
   (the tablet's `/sound/stopped`) is the polite exit and fades the same way.

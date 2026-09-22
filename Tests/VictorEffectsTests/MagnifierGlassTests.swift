@@ -61,6 +61,49 @@ final class MagnifierGlassTests: XCTestCase {
         XCTAssertGreaterThan(MagnifierGlass.zoom, 1, "a magnifier that does not magnify")
     }
 
+    // MARK: The wheel
+
+    /// The floor is the glass the room already knows: scrolling down can bring
+    /// the lens back to how it dropped onto the pointer and no further, so the
+    /// wheel can never leave a pane of plain glass magnifying nothing.
+    func testTheWheelCannotZoomOutPastTheGlassItStartsAt() {
+        XCTAssertEqual(MagnifierGlass.minZoom, MagnifierGlass.zoom, accuracy: 0.001)
+        XCTAssertEqual(MagnifierGlass.clampZoom(0.5), MagnifierGlass.zoom, accuracy: 0.001)
+        XCTAssertEqual(MagnifierGlass.clampZoom(1.0), MagnifierGlass.zoom, accuracy: 0.001)
+        XCTAssertGreaterThan(MagnifierGlass.maxZoom, MagnifierGlass.minZoom)
+        XCTAssertEqual(MagnifierGlass.clampZoom(99), MagnifierGlass.maxZoom, accuracy: 0.001)
+        XCTAssertEqual(MagnifierGlass.clampZoom(3.5), 3.5, accuracy: 0.001)
+    }
+
+    /// One notch has to be a *step*, and a step in the direction it was turned:
+    /// a factor of 1 would make the wheel dead, and the clamp must not eat the
+    /// first notch off the floor.
+    func testANotchMovesTheZoomAndTheRangeIsAFlickApart() {
+        XCTAssertGreaterThan(MagnifierGlass.zoomStep, 1)
+        let up = MagnifierGlass.clampZoom(MagnifierGlass.minZoom * MagnifierGlass.zoomStep)
+        XCTAssertGreaterThan(up, MagnifierGlass.minZoom)
+        let down = MagnifierGlass.clampZoom(up / MagnifierGlass.zoomStep)
+        XCTAssertEqual(down, MagnifierGlass.minZoom, accuracy: 0.001)
+        // …and the whole range is a flick, not a minute of scrolling.
+        let notches = log(MagnifierGlass.maxZoom / MagnifierGlass.minZoom) / log(MagnifierGlass.zoomStep)
+        XCTAssertLessThan(notches, 15, "the wheel takes too long to cross its own range")
+    }
+
+    /// Zoomed in, the spot under the pointer still has to be the spot in the
+    /// middle of the glass — the whole arithmetic is recomputed per notch, so
+    /// the centring is pinned at the far end of the range too, not just at 2×.
+    func testTheFocusStaysCentredAtEveryZoom() {
+        let d = MagnifierGlass.outerDiameter(in: retina)
+        let r = MagnifierGlass.glassRadius(outerDiameter: d)
+        for z in [MagnifierGlass.minZoom, 3.1, MagnifierGlass.maxZoom] {
+            let focus = CGPoint(x: 1200, y: 300)
+            let frame = MagnifierGlass.shotFrame(screen: retina, focus: focus, glassRadius: r, zoom: z)
+            XCTAssertEqual(frame.minX + focus.x * z, r, accuracy: 0.001, "off centre at \(z)×")
+            XCTAssertEqual(frame.minY + focus.y * z, r, accuracy: 0.001, "off centre at \(z)×")
+            XCTAssertEqual(frame.width, retina.width * z, accuracy: 0.001)
+        }
+    }
+
     /// The canvas has to hold the whole prop — a handle cropped by the edge of
     /// its own image is the failure this catches, and it is invisible in code
     /// because the layer would happily draw the truncated bitmap.

@@ -44,6 +44,31 @@ enum MagnifierGlass {
     /// twice as coarsely.
     static let zoom: CGFloat = 2.0
 
+    /// The floor the wheel cannot go under, and it is `zoom` **by definition**
+    /// (Victor, 2026-09-22: *"zoomul merge însă între limite (minim cât e
+    /// acum)"*): the glass the room already knows is the least magnified one it
+    /// can be, so scrolling down can only ever bring it back to how it dropped
+    /// onto the pointer, never to a pane of plain glass that magnifies nothing.
+    static let minZoom: CGFloat = zoom
+
+    /// …and the ceiling. At 6× the 745 pt lens shows a 124 pt square of desktop
+    /// — three or four lines of code, which is the tightest thing anybody in a
+    /// room ever needs pointed at. It is also still crisp: the screenshot comes
+    /// off a retina at 2 device pixels per point, so 6 point-times is only 3
+    /// native-times, and past that the glass starts showing the capture's own
+    /// pixels instead of the thing being examined.
+    static let maxZoom: CGFloat = 6.0
+
+    /// One wheel notch, as a factor rather than an addend — a dial that adds a
+    /// constant feels coarse at the bottom of its range and sluggish at the top.
+    /// 1.15 puts the whole 2×…6× span about eight notches apart, a flick.
+    static let zoomStep: CGFloat = 1.15
+
+    /// Keep a proposed magnification inside those limits.
+    static func clampZoom(_ z: CGFloat) -> CGFloat {
+        min(maxZoom, max(minZoom, z))
+    }
+
     // MARK: - The prop, in fractions of the outer diameter D
 
     /// Thickness of the metal rim, so the clear glass is `D - 2·0.085·D` across.
