@@ -420,6 +420,25 @@ final class EmojiAnimatorTests: XCTestCase {
         }
     }
 
+    /// Every declared sheet is IN THE BUNDLE and cuts into exactly the frames
+    /// its grid promises. This is the half `testEveryFireballGridHoldsItsFrames`
+    /// cannot see: that one checks the numbers against each other, this one
+    /// checks them against the png. A sheet that never made it into
+    /// `Resources/` fails here at build time — `showFireCursor` would otherwise
+    /// answer a press by logging to a stdout nobody is reading and leaving the
+    /// pointer alone, which on stage looks exactly like the tile being dead.
+    func testEveryFireballSheetIsInTheBundleAndCutsCleanly() {
+        for ball in EmojiAnimator.fireballs {
+            let frames = EmojiAnimator.fireballFrames(ball)
+            XCTAssertEqual(frames.count, ball.count,
+                           "\(ball.asset).png: expected \(ball.count) cells, cut \(frames.count)")
+            guard let first = frames.first else { continue }
+            XCTAssertGreaterThan(first.width, 0, "\(ball.asset): empty cell")
+            XCTAssertEqual(Double(first.width), Double(first.height), accuracy: 2,
+                           "\(ball.asset): the tool square-crops every ball — this cell is not square")
+        }
+    }
+
     /// The rotation is a ROTATION, not a random draw (Victor: *"pe rând … la
     /// porniri succesive"*). Random repeats one press in three, and the room
     /// reads a repeat as the tile being broken rather than as chance.
