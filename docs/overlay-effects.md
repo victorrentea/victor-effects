@@ -898,6 +898,16 @@ rule from the start.
       a cursor blinking. *Retimed from 2 s / 0.7 s once he had watched it: the gap is what the
       new fire gets to itself, so it wants to be longer, and the return wants to be quicker,
       because fading the ball back in slowly spends some of that silence again.*
+      - **It shipped not working, and the bug is worth keeping written down.** The entry
+        fade was `fillMode = .forwards` + `isRemovedOnCompletion = false`, copied from the
+        match, where it was harmless because nothing ever hid the match. A finished animation
+        that goes on filling forwards keeps **overriding the model layer**, so the blackout
+        set `opacity = 0` and the ball stayed visibly on screen — the hide looks completely
+        correct where it is written, and the cause is forty lines away in a line that reads
+        like boilerplate. `fireballEntryFade()` is a function now purely so
+        `testTheFireballEntryFadeRemovesItself` can hold it, and the blackout strips **both**
+        opacity animations before writing 0, because a click landing inside the fade's 0.12 s
+        would otherwise keep the ball up for the rest of it.
       - **The clock restarts on every plant** (`_fireballHideToken`), which is what makes a
         drag behave: a sweep lays a fire every 50 pt, so only the last one's return survives
         and the ball is away for the whole gesture, coming back once at the end. A plain
@@ -976,10 +986,17 @@ rule from the start.
   - **Escape puts the POINTER out; the fires he lit stay** (2026-09-18, Victor: *"if I click
     Escape, the match and the fire disappear, and only the fire that I've laid on the screen
     remain behind"* — said of the match the fireball replaced). The first Escape runs
-    `blowOutFireball`: the ball and the hidden cursor go, the planted fires go on burning, and the tap stays alive **passing clicks and
-    scrolls through** (`_firePointerLayer == nil` is the whole test — no second flag to keep in
-    step). A **second** Escape clears them. With nothing planted, the first Escape is the
-    full stop it always was.
+    `blowOutFireball`: the ball and the hidden cursor go, the planted fires go on burning
+    **and so does the clip**, and the tap stays alive **passing clicks and scrolls through**
+    (`_firePointerLayer == nil` is the whole test — no second flag to keep in step). A
+    **second** Escape clears them, and takes the sound with them. With nothing planted, the
+    first Escape is the full stop it always was.
+    - **The first Escape leaves the SOUND too** (2026-09-22: *"la primul escape sa ramana
+      focurile + SUNET"*). It used to cut the clip on the reasoning that Escape means
+      *enough* — but it does not, when there are fires standing, and a burning screen in
+      silence is a screenshot. That press hands him back his mouse and leaves the scene
+      exactly as it was; only the press that clears the fires is a full stop, and only it
+      calls `stopTabletSound` + `stopAllPlayers`.
     - **What still puts the planted fires out on their own**: the clip's own length, whose
       timer is deliberately *not* cancelled by `blowOutFireball` (it does not touch
       `_fireGeneration`), plus the tablet's stop and `stopAllActiveEffects`. The
