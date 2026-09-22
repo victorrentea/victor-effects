@@ -17,12 +17,11 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 45 of the 91 tiles.
+    /// Asset → the effect its tile fires on the desktop. 44 of the 91 tiles.
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
         "06_copyright_cartoon.mp3": "magnifier",  // 🔍 the Pink Panther's glass, on the pointer
-        "07_animated_phone.mp3": "red-button",  // the one that waits to be clicked
         "08_scream_man.mp3":     "fear",
         "10_red_phone.mp3":      "phone-ring",
         "11_fire.mp3":           "fire",
@@ -83,11 +82,13 @@ final class EffectsCatalogTests: XCTestCase {
     }
 
     func testASoundWithNoVisualHasNoEffectName() {
-        // #01 baby and #52 saw: ordinary tiles. The saw in particular USED to
-        // have a visual, and its absence here is the shape of a removal done
-        // right.
+        // #01 baby, #52 saw and #07 animated phone: ordinary tiles. The last
+        // two USED to have a visual — the saw's animation, and the 🔴 red button
+        // that grew out of the pointer — and their absence here is the shape of
+        // a removal done right: the clip still plays, nothing draws.
         XCTAssertNil(EffectsCatalog.effectName(forAsset: "01_baby.mp3"))
         XCTAssertNil(EffectsCatalog.effectName(forAsset: "52_saw.mp3"))
+        XCTAssertNil(EffectsCatalog.effectName(forAsset: "07_animated_phone.mp3"))
         XCTAssertNil(EffectsCatalog.effectName(forAsset: "nope.mp3"))
     }
 

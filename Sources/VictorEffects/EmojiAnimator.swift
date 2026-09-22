@@ -10733,67 +10733,6 @@ class EmojiAnimator {
         trackEffect("sketch-arrow", layer: layer, duration: SketchArrow.totalDuration)
     }
 
-    // MARK: - 🔴 Big red button (tile #7)
-
-    /// The one effect the room does not just watch. A big red button zooms out of
-    /// the pointer, waits to be hovered and pressed, and shrinks back into the
-    /// pixel it came from. All of the mechanism — geometry, alpha hit-test, the
-    /// phase order, the hit panel and the tap — is in `RedButton.swift`; here it
-    /// is only hung on the host layer, tracked, and given the click hook.
-    ///
-    /// Tracked with `trackEffect` so `GET /state` reports it and a stop-all
-    /// sweeps the artwork, but the controller owns the real teardown (it holds a
-    /// tap and a real window, like the fire cursor and the bombardment) — hence
-    /// the explicit `stopRedButton` in `stopAllActiveEffects` below.
-    func showRedButton() {
-        // A second press restarts it rather than stacking two buttons — and it
-        // never leaks the previous run's tap or hit panel.
-        stopRedButton()
-
-        let screenOrigin = Screens.overlayScreen()?.frame.origin ?? .zero
-        guard let controller = RedButtonController(hostLayer: hostLayer,
-                                                   origin: NSEvent.mouseLocation,
-                                                   screenOrigin: screenOrigin) else {
-            overlayInfo("showRedButton: no \(RedButton.assetName) in \(EffectsConfig.shared.assetsDir.path)")
-            return
-        }
-
-        // The payoff: the press goes through to whatever the button was
-        // covering. The prop ate a real click — the hit panel had to consume it
-        // to know it was pressed — so it hands one back at the same pixel, and a
-        // button grown over a link, a Play or a Run still leaves that button
-        // clicked. `deliverClickBelow` posts it one runloop turn late, after the
-        // hit panel has gone deaf; see its doc for why that is not optional.
-        controller.onButtonClicked = { origin in
-            RedButtonController.deliverClickBelow(at: origin)
-        }
-
-        controller.onFinished = { [weak self] in
-            guard let self else { return }
-            // The run can end long before `trackEffect`'s deadline (one click is
-            // enough), and `/state` must not keep claiming the button is up.
-            if self.activeEffects["red-button"] === controller.layer {
-                self.activeEffects.removeValue(forKey: "red-button")
-            }
-            if self._redButton === controller { self._redButton = nil }
-        }
-        _redButton = controller
-        controller.start()
-        trackEffect("red-button", layer: controller.layer,
-                    duration: RedButton.maxLifetime + RedButton.shrinkDuration + 0.2)
-    }
-
-    /// Take the button down now, whatever phase it is in. Idempotent.
-    func stopRedButton() {
-        guard let controller = _redButton else { return }
-        _redButton = nil
-        activeEffects.removeValue(forKey: "red-button")
-        controller.onFinished = nil
-        controller.stop()
-    }
-
-    private var _redButton: RedButtonController?
-
     var activeEffectNames: [String] { activeEffects.keys.sorted() }
 
     // MARK: - Stop all active effects (called when tablet stops any sound)
@@ -10833,11 +10772,6 @@ class EmojiAnimator {
         // eating clicks in the top-left corner of the screen forever.
         peekHitPanel?.dismiss()
         peekHitPanel = nil
-        // 🔴 The red button is the mascot's problem twice over: a hit panel AND a
-        // tap that is swallowing Escape. The loop below would drop the artwork
-        // and leave both behind — half the screen deaf to clicks with nothing on
-        // it to explain why.
-        stopRedButton()
         // 📺 A running CRT shutdown IS in activeEffects and dies in the loop
         // below; what the loop cannot reach is one that game-over has ARMED but
         // not started yet. Bumping the epoch cancels that pending start, so a

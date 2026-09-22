@@ -20,9 +20,9 @@
 // Two filters, because the gallery has two audiences:
 //
 //   --display   the whole overlay screen. Everything the app can draw ends up
-//               in the frame, including the five effects that live in their
-//               OWN windows (whip, red button, claude-peek, green-flash, the
-//               thumbnail panel) and the mouse cursor. The backdrop is whatever
+//               in the frame, including the four effects that live in their
+//               OWN windows (whip, claude-peek, green-flash, the thumbnail
+//               panel) and the mouse cursor. The backdrop is whatever
 //               is really on screen, which is the point — but it also means the
 //               screen is *being recorded*, so the script holds the 🔒 locks.
 //

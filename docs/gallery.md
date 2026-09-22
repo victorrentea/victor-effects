@@ -87,8 +87,8 @@ parser that cannot see them.
 `show*` schedules its own teardown; `activeEffects` in `GET /state` is that
 teardown made visible. The script fires, polls, and stops the recorder when the
 effect stops. The exceptions are the effects that outlive their clip on purpose
-(the red button waits for a click, the whip and the siren are toggles, the ☕
-waits for a cursor that never comes) — those get a fixed hold and an explicit
+(the whip and the siren are toggles, the ☕ waits for a cursor that never
+comes) — those get a fixed hold and an explicit
 stop, because `/state` would report them until the heat death of the laptop.
 
 **macOS has quietly removed both obvious ways to record a screen from a script.**
@@ -109,8 +109,8 @@ over a real editor window, cursor included.
 a still backdrop inside the recorder, so none of Victor's own windows are in the
 frames. It costs twelve effects, which the script skips by name and reason:
 
-- **their own window, not the panel** — whip, red-button, claude-peek,
-  green-flash (`WhipOverlay`, `RedButton`, `PeekMascot`, `EdgeFlash`);
+- **their own window, not the panel** — whip, claude-peek, green-flash
+  (`WhipOverlay`, `PeekMascot`, `EdgeFlash`);
 - **they copy the real screen into themselves** — broken-glass, earthquake,
   chainsaw, heartbeat, fbi-knock, dark-door, beethoven, phone-ring, all through
   `captureBuiltInDisplay*`. Filming the panel alone would smuggle the real

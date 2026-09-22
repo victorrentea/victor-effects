@@ -50,15 +50,6 @@ enum SoundEffectMap {
         // the clip plays down the ordinary routed path — and it self-terminates
         // at the clip's length, so no onStop entry is needed.
         "71_one_more_time.mp3":  "sketch-arrow",
-        // Tile 7 (☎️ animated phone): 🔴 the big red button grows out of the
-        // pointer and waits to be PRESSED. The only effect in the catalogue that
-        // deliberately outlives its clip — the clip is a couple of seconds, the
-        // button is a prop Victor talks over and then presses — so there is no
-        // onStop entry: the tablet's /sound/stopped must NOT take it away. It
-        // ends on the click, on Escape, on a stop-all, or on its own 20 s
-        // deadline (`RedButton.maxLifetime`), which is the self-termination rule
-        // for an effect with no clip length to inherit.
-        "07_animated_phone.mp3": "red-button",
         // Tile 18 (🪚 chainsaw): the mouse pointer itself becomes a running
         // chainsaw for the length of the clip. Press starts it, stop puts the
         // real pointer back (see onStop) — and the effect self-stops at the
@@ -119,6 +110,13 @@ enum SoundEffectMap {
         // stays "playing" — a re-tap within that window fires /effect/stop-all,
         // which stops the tracked minion layer (stop-on-re-tap).
         "80_badumtss.mp3":       "minion",
+        // Tile 7 (☎️ animated phone) is intentionally absent for the saw's
+        // reason, and it took a whole effect with it: the 🔴 big red button that
+        // grew out of the pointer and waited to be PRESSED was removed on
+        // 2026-09-22 — it played as a gimmick in front of a room, not as an
+        // effect. The clip still plays down the ordinary routed path (it was
+        // never special-cased in onSoundPlay), so tile 7 keeps its sound and
+        // fires no overlay.
         // Tile 52 (🪚 saw) is intentionally absent: the desktop saw animation was
         // removed, leaving only the sound. The real saw SFX (`52_saw.mp3`) still
         // plays normally on the routed /sound/play path (it was never special-cased

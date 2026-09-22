@@ -191,8 +191,8 @@ coffee/pop|fires the eventWebhook at the addons app: a real side effect, not a p
 
 # Effects that draw in their OWN window rather than on the overlay panel, and so
 # are invisible to --mode window. Found by grepping for NSPanel/NSWindow in
-# Sources: EdgeFlash, PeekMascot, RedButton, WhipOverlay.
-OWN_WINDOW="green-flash claude-peek red-button whip"
+# Sources: EdgeFlash, PeekMascot, WhipOverlay.
+OWN_WINDOW="green-flash claude-peek whip"
 
 # Effects that copy the real screen into themselves (`captureBuiltInDisplay*`)
 # to distort it. In --mode window they would smuggle Victor's actual desktop
@@ -221,7 +221,6 @@ effect_hold() {
   case "$1" in
     alarm)        echo "6|/alarm/stop" ;;
     whip)         echo "5|/effect/whip" ;;       # a toggle: the same route puts it away
-    red-button)   echo "7|/effect/red-button/stop" ;;
     coffee)       echo "7|/effect/stop-all" ;;   # the ☕ wait for a cursor that will not come
     elephant)     echo "9|/effect/elephant/stop" ;;
     claude-peek)  echo "5|/effect/claude-peek/stop" ;;

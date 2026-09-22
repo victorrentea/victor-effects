@@ -28,7 +28,7 @@ recording is of his actual display. So:
   black frames, it gives *no* frames, and the run ends with 50 empty clips and
   no error.
 - Tell him the mouse is unusable for the duration. Several effects are anchored
-  to the cursor (chainsaw, fire, whip, red button) and a hand on the mouse mid-run
+  to the cursor (chainsaw, fire, whip, magnifier) and a hand on the mouse mid-run
   shows up in the film.
 - **The Mac must be unlocked, not merely awake.** This is the failure that looks
   like success: macOS draws the lock screen over everything, ScreenCaptureKit
@@ -92,8 +92,8 @@ reports the effect in `activeEffects` until it does. So the script fires, polls
 `/state`, and stops the recorder when the effect stops — with a floor of 3 s (a
 1.4 s effect is otherwise unwatchable) and a cap of 16 s (nothing in the
 catalogue legitimately runs longer, and an effect that never clears must not
-stall the run). The handful that outlive their clip on purpose — the red button,
-the whip, the siren, the elephant, the ☕ — are held for a fixed few seconds and
+stall the run). The handful that outlive their clip on purpose — the whip, the
+siren, the elephant, the ☕ — are held for a fixed few seconds and
 then explicitly stopped, because `/state` would report them forever.
 
 **Capture is ScreenCaptureKit, and that was not a preference.** On this machine
@@ -122,8 +122,8 @@ and composites it over a still backdrop inside the recorder. Victor's actual
 windows never enter the frames. It is the polite mode, and it is honestly
 limited:
 
-- Five effects draw in **their own windows** (whip, red button, claude-peek,
-  green-flash, the thumbnail panel) and are simply not in that window's pixels.
+- Four effects draw in **their own windows** (whip, claude-peek, green-flash,
+  the thumbnail panel) and are simply not in that window's pixels.
 - Seven effects **copy the real screen into themselves** to distort it —
   broken-glass/earthquake, chainsaw, heartbeat, fbi-knock, dark-door, beethoven,
   phone-ring, all via `captureBuiltInDisplay*`. In window mode they would smuggle

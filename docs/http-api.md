@@ -119,7 +119,7 @@ the star appear with no tablet redeploy.
 
 Two test files hold this together, and both are guards rather than copies:
 
-- `EffectsCatalogTests` writes the 45-name set out BY HAND. It is the only place
+- `EffectsCatalogTests` writes the 44-name set out BY HAND. It is the only place
   that says which tiles are *supposed* to animate the desktop, so adding an
   effect costs a deliberate second edit and the diff says so out loud.
 - `SoundEffectMapDriftTests` PARSES `EffectsEngine.swift` — `fireEffect`'s switch
