@@ -470,14 +470,16 @@ final class EmojiAnimatorTests: XCTestCase {
 
     /// The blackout after a plant is long enough to be a beat and short enough
     /// not to lose the pointer, and the way back is a fade rather than a snap.
-    /// The 0.7 s is a READING of a dictated *"70 de secunde"* — 70 would outlast
-    /// the 36 s clip twice over — so this pins the reading, not just the number.
+    /// Retimed to 3 s / 0.5 s after he watched it: the gap is what the new fire
+    /// gets to itself, so it wants to be longer, and the return wants to be
+    /// quicker because a slow fade back spends some of that silence again.
     func testTheBallStaysAwayLongEnoughToBeABeatAndComesBackAsAFade() {
-        XCTAssertEqual(EmojiAnimator.fireballHideAfterPlant, 2.0, accuracy: 0.001)
+        XCTAssertEqual(EmojiAnimator.fireballHideAfterPlant, 3.0, accuracy: 0.001)
         XCTAssertGreaterThan(EmojiAnimator.fireballReturnFade, 0.2,
                              "a snap back would read as the cursor blinking")
-        XCTAssertLessThan(EmojiAnimator.fireballReturnFade, 5,
-                          "dictated as 70 s; anything near that outlives the clip")
+        XCTAssertLessThan(EmojiAnimator.fireballReturnFade,
+                          EmojiAnimator.fireballHideAfterPlant,
+                          "the way back must not eat the silence it is returning from")
     }
 
     func testSpawnEmojiWithoutGlowHasNoHalo() {

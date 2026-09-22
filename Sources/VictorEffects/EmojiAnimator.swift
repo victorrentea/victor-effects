@@ -9687,10 +9687,13 @@ class EmojiAnimator {
     /// keeps the ball away for the whole sweep and it returns once, after the
     /// last one — the alternative is a ball strobing in and out every 50 pt of
     /// travel.
-    static let fireballHideAfterPlant: Double = 2.0
-    /// 0.7 s, dictated as *"70 de secunde"*; 70 would outlast the 36 s clip
-    /// twice over, so it is read as the fade it plainly is.
-    static let fireballReturnFade: Double = 0.7
+    ///
+    /// 3 s and 0.5 s since he watched it (the first pass was 2 s and 0.7 s): a
+    /// longer gap and a quicker return, which is the pair that makes the beat
+    /// land — the silence is what the new fire gets to itself, and dragging the
+    /// ball back in slowly only spends some of it again.
+    static let fireballHideAfterPlant: Double = 3.0
+    static let fireballReturnFade: Double = 0.5
 
     /// The ball's box, keeping the sheet's aspect. Pure, so the geometry is
     /// asserted without a screen — see `EmojiAnimatorTests`.
@@ -9715,7 +9718,6 @@ class EmojiAnimator {
     private var _fireScrollAccum: CGFloat = 0     // trackpad pixels → notches
     private var _firePlanted: [CALayer] = []      // fires struck by clicking, oldest first; the LAST is the wheel's
     private var _fireLastPlantPoint: CGPoint?     // where the last one was struck; the drag measures from here
-    private var _fireGrabOffset: CGSize?          // ⌘-drag: mouse → fire root, captured on the press
     private var _fireballHideToken = 0            // every plant bumps it; a stale return bails
 
     /// How far the fireball has to travel before a drag plants the next fire.
@@ -10116,58 +10118,6 @@ class EmojiAnimator {
         }
     }
 
-    /// **⌘ + left drag moves the last fire he laid** (2026-09-22, Victor:
-    /// *"după ce așez focul, să-l pot și trage apăsând Command și drag cu
-    /// butonul stâng"*).
-    ///
-    /// The target is `_firePlanted.last`, deliberately the SAME fire the wheel
-    /// sizes rather than whichever one happens to be under the pointer. There is
-    /// one "current fire" in this effect and both gestures address it: hit-
-    /// testing instead would mean a fire you can drag but not size, and a room
-    /// watching him miss a flame by ten points is a room watching him fight the
-    /// tool.
-    ///
-    /// **⌘ and not ⌃**, although ⌃ is what the second dictation said: on macOS
-    /// ⌃ + left click IS a right click, so the system would turn half of this
-    /// gesture into a context menu before the tap ever saw it.
-    ///
-    /// The offset is captured on the press so the fire keeps the grip it was
-    /// grabbed by — without it the root jumps under the cursor on the first
-    /// moved pixel.
-    fileprivate func grabFireAtCursor() {
-        guard _firePointerLayer != nil, let fire = _firePlanted.last else { return }
-        let here = mousePointInHostLayer()
-        _fireGrabOffset = CGSize(width: fire.position.x - here.x,
-                                 height: fire.position.y - here.y)
-    }
-
-    /// One handler for both things a left-drag can mean, decided on the main
-    /// thread from state only it owns: carrying a fire, or laying a line of new
-    /// ones. ⌘ held with nothing grabbed does NOTHING on purpose — ⌘ means
-    /// "move the fire", and a press that finds no fire to move should not
-    /// quietly fall back to lighting one.
-    fileprivate func dragFire(commandHeld: Bool) {
-        if let offset = _fireGrabOffset, let fire = _firePlanted.last {
-            let here = mousePointInHostLayer()
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)   // follow the hand, no servo lag
-            fire.position = CGPoint(x: here.x + offset.width, y: here.y + offset.height)
-            CATransaction.commit()
-            // The drag re-homes the fire, so the NEXT drag-planted flame must
-            // measure its spacing from where this one ended up, not from where
-            // it was originally struck.
-            _fireLastPlantPoint = fire.position
-            return
-        }
-        guard !commandHeld else { return }
-        plantFireIfDragged()
-    }
-
-    /// The button came up: whatever was being carried is put down.
-    fileprivate func releaseFireGrab() {
-        _fireGrabOffset = nil
-    }
-
     /// Layer box for a given wheel scale, keeping the sprite's aspect ratio.
     private static func fireBounds(for frame: CGImage, scale: CGFloat) -> CGRect {
         let w = fireBaseWidth * scale
@@ -10212,23 +10162,13 @@ class EmojiAnimator {
             if animator._firePointerLayer == nil {
                 return Unmanaged.passUnretained(event)
             }
-            // ⌘ turns the press from "burn here" into "carry the fire I just
-            // laid". The flag is read here and handed on, so the decision is
-            // still made on main where `_firePlanted` lives — this callback runs
-            // on the tap's own thread and must not read that array.
             if type == .leftMouseDown {
-                let cmd = event.flags.contains(.maskCommand)
-                DispatchQueue.main.async {
-                    if cmd { animator.grabFireAtCursor() } else { animator.plantFireAtCursor() }
-                }
-                return nil   // consume — while he carries the ball, a click is ours
+                DispatchQueue.main.async { animator.plantFireAtCursor() }
+                return nil   // consume — while he carries the ball, a click means "burn here"
             }
             if type == .leftMouseDragged {
-                // Either he is dragging a fire he grabbed, or he struck one on
-                // the way down and is laying more as he sweeps. `dragFire` knows
-                // which; both are ours.
-                let cmd = event.flags.contains(.maskCommand)
-                DispatchQueue.main.async { animator.dragFire(commandHeld: cmd) }
+                // He struck one on the way down; keep laying them as he sweeps.
+                DispatchQueue.main.async { animator.plantFireIfDragged() }
                 return nil   // consume — the down was ours, so the drag is ours too
             }
             if type == .leftMouseUp {
@@ -10236,7 +10176,6 @@ class EmojiAnimator {
                 // hand the app underneath half a click: a button that highlights
                 // and never fires, a text view that loses its selection. The pair
                 // goes or stays together.
-                DispatchQueue.main.async { animator.releaseFireGrab() }
                 return nil
             }
             if type == .scrollWheel {

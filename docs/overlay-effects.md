@@ -819,7 +819,7 @@ rule from the start.
 - **🔥 Fireball & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
   the pointer becomes a **burning sphere of fire**, and every fire on screen is one he put
   down with it: a click lays a fire where the ball was, the wheel sizes **that** fire on the
-  spot, ⌘ + drag carries it, the next click starts another, and Escape puts
+  spot, the next click starts another, and Escape puts
   the ball out and leaves them burning.
   The real pointer is hidden for the run (fourth member of the hidden-cursor family, bound
   by the same rule: **outside `activeEffects`**, torn down explicitly by
@@ -893,11 +893,11 @@ rule from the start.
       așezare a incendiului, bila de foc dispare pentru două secunde, după care reapare …
       mărind impactul focului care l-a născut"*). Out on the instant of the click with **no
       fade** — a ball that dissolves competes with the fire climbing next to it for exactly
-      the half second the fire needs — gone for **`fireballHideAfterPlant` (2 s)**, then back
-      over **`fireballReturnFade` (0.7 s)**, slow enough to read as rekindling rather than as
-      a cursor blinking. *Dictated as "70 de secunde"; 70 would outlast the 36 s clip twice
-      over, so it is read as the fade it plainly is — and `testTheBallStaysAwayLongEnough…`
-      pins the reading, not just the number.*
+      the half second the fire needs — gone for **`fireballHideAfterPlant` (3 s)**, then back
+      over **`fireballReturnFade` (0.5 s)**, slow enough to read as rekindling rather than as
+      a cursor blinking. *Retimed from 2 s / 0.7 s once he had watched it: the gap is what the
+      new fire gets to itself, so it wants to be longer, and the return wants to be quicker,
+      because fading the ball back in slowly spends some of that silence again.*
       - **The clock restarts on every plant** (`_fireballHideToken`), which is what makes a
         drag behave: a sweep lays a fire every 50 pt, so only the last one's return survives
         and the ball is away for the whole gesture, coming back once at the end. A plain
@@ -944,24 +944,6 @@ rule from the start.
     consumes `leftMouseDragged` for the same reason it consumes the down and the up — the
     pair (and everything between) goes or stays together, or the app underneath gets half a
     gesture.
-  - **⌘ + left drag carries the fire he just laid** (2026-09-22, *"după ce așez focul, să-l
-    pot și trage apăsând Command și drag cu butonul stâng"*, `grabFireAtCursor` / `dragFire`).
-    - The target is **`_firePlanted.last`**, deliberately the same fire the wheel sizes
-      rather than whichever one happens to sit under the pointer. There is one "current fire"
-      in this effect and both gestures address it; hit-testing instead would mean a fire you
-      can drag but not size, and a room watching him miss a flame by ten points is a room
-      watching him fight the tool.
-    - **⌘ and not ⌃**, although the dictation said *"control cu mouse-ul stâng"*: on macOS
-      ⌃ + left click **is** a right click, so the system would turn half the gesture into a
-      context menu before the tap ever saw it.
-    - The grab **offset is captured on the press**, so the fire keeps the grip it was grabbed
-      by instead of snapping its root under the cursor on the first moved pixel. Dropping it
-      also re-homes `_fireLastPlantPoint`, so a later drag spaces its next flame from where
-      this one ended up rather than from where it was originally struck.
-    - ⌘ held with **nothing grabbed does nothing**, on purpose: ⌘ means "move the fire", and a
-      press that finds no fire to move must not quietly fall back to lighting one.
-    - The modifier is read on the tap's thread and *handed on*; the decision is made on main,
-      where `_firePlanted` lives. That callback must never read the array itself.
   - **The wheel sizes the fire he just struck, in place** (2026-09-19, Victor: *"then I can
     zoom with the wheel to increase the size of that fire"*). Until then the wheel sized the
     pointer and a click planted at that size, which is backwards: he only knows how big a
