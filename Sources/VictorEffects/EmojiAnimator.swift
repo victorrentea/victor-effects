@@ -9695,6 +9695,16 @@ class EmojiAnimator {
     static let fireballHideAfterPlant: Double = 3.0
     static let fireballReturnFade: Double = 0.5
 
+    /// The ball's entry fade. A function rather than six lines inline so a test
+    /// can hold the thing that broke: see `testTheFireballEntryFadeRemovesItself`.
+    static func fireballEntryFade() -> CABasicAnimation {
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 0.0
+        fade.toValue = 1.0
+        fade.duration = 0.12
+        return fade
+    }
+
     /// The ball's box, keeping the sheet's aspect. Pure, so the geometry is
     /// asserted without a screen — see `EmojiAnimatorTests`.
     static func fireballBounds(for frame: CGImage) -> CGRect {
@@ -9818,14 +9828,17 @@ class EmojiAnimator {
 
         // Snap in rather than drift in, same as the chainsaw: the cursor is a
         // thing the user is already looking at, and a slow fade there reads as lag.
-        let fadeIn = CABasicAnimation(keyPath: "opacity")
-        fadeIn.fromValue = 0.0
-        fadeIn.toValue = 1.0
-        fadeIn.duration = 0.12
-        fadeIn.fillMode = .forwards
-        fadeIn.isRemovedOnCompletion = false
+        //
+        // It REMOVES ITSELF when it is done, unlike the match's version, which
+        // held `fillMode = .forwards` and `isRemovedOnCompletion = false`. On
+        // the match that was harmless because nothing ever hid it; on the ball
+        // it was a silent bug with teeth — a finished animation that goes on
+        // filling forwards keeps *overriding the model layer*, so
+        // `hideFireballWhileTheFireTakes` set `opacity = 0` and the ball stayed
+        // visibly, stubbornly on screen. The model value is already 1 before it
+        // is added, so there is nothing for the fill to preserve anyway.
         pointer.opacity = 1
-        pointer.add(fadeIn, forKey: "fadeIn")
+        pointer.add(Self.fireballEntryFade(), forKey: "fadeIn")
 
         // Hide the real pointer for the run. The arm step lifts the "frontmost
         // app only" restriction so it also works while the user is in another
@@ -9929,9 +9942,14 @@ class EmojiAnimator {
     /// burning screen was to keep carrying the fire around over it.
     ///
     /// So Escape is now the **pointer's** exit, not the effect's. The fires he
-    /// lit go on burning, the real pointer comes straight back, and the sound
-    /// stops either way — Escape means *enough*, and 30 more seconds of
-    /// crackling would be the opposite of that.
+    /// lit go on burning, the real pointer comes straight back — **and so does
+    /// the sound** (2026-09-22: *"la primul escape sa ramana focurile +
+    /// SUNET"*). That first press used to cut the clip too, on the reasoning
+    /// that Escape means *enough*; it does not, when there are fires standing.
+    /// A burning screen in silence is a screenshot. The first Escape hands him
+    /// back his mouse and leaves the scene exactly as it was — fires, crackle
+    /// and all — and only the press that clears the fires takes the sound with
+    /// them.
     ///
     /// **What still puts THEM out**, because nothing here is allowed to live
     /// forever (the self-termination rule): the clip's own length, which is
@@ -9940,11 +9958,16 @@ class EmojiAnimator {
     /// tablet's stop and `stopAllActiveEffects`. With nothing planted there is
     /// nothing to keep, so Escape is the full stop it always was.
     fileprivate func escapeFire() {
-        // Reaches the routed tablet clip; a press the tablet chose to play on
-        // its OWN speaker is not ours to stop.
-        SoundManager.shared.stopTabletSound()
-        SoundManager.shared.stopAllPlayers()
-        guard _firePointerLayer != nil, !_firePlanted.isEmpty else { stopFireCursor(); return }
+        // Nothing left standing → this press IS the full stop, so it takes the
+        // sound with it. `stopTabletSound` reaches the routed clip; a press the
+        // tablet chose to play on its OWN speaker is not ours to stop.
+        guard _firePointerLayer != nil, !_firePlanted.isEmpty else {
+            SoundManager.shared.stopTabletSound()
+            SoundManager.shared.stopAllPlayers()
+            stopFireCursor()
+            return
+        }
+        // Fires standing: only the ball goes. The clip plays on under them.
         blowOutFireball()
     }
 
@@ -10099,6 +10122,11 @@ class EmojiAnimator {
         _fireballHideToken &+= 1
         let token = _fireballHideToken
 
+        // Both of them, and belt-and-braces about it: an opacity animation still
+        // attached is an opacity animation still being obeyed, and a click that
+        // lands inside the entry fade's 0.12 s would otherwise leave the ball up
+        // for the rest of it — the one moment this beat cannot afford to miss.
+        ball.removeAnimation(forKey: "fadeIn")
         ball.removeAnimation(forKey: "return")
         CATransaction.begin()
         CATransaction.setDisableActions(true)
