@@ -45,12 +45,15 @@ final class EffectsEngine {
 
     func startWatchdog() {
         // If a client stops pinging (crash, network drop) while a routed sound
-        // is playing, stop it — a long sound would otherwise blare on with no
-        // way to stop it from the device that started it.
+        // it started is playing, stop it — a long sound would otherwise blare
+        // on with no way to stop it from the device that started it. Only a
+        // sound that HAD a pinging client behind it: see `PingWatchdog`.
         soundWatchdog = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             guard let self, SoundManager.shared.isTabletSoundPlaying,
-                  let last = self.lastPingAt, Date().timeIntervalSince(last) > 12 else { return }
-            effectsInfo("Client ping lost >12s — stopping routed sound")
+                  PingWatchdog.shouldStop(now: Date(), lastPing: self.lastPingAt,
+                                          soundStartedAt: SoundManager.shared.tabletSoundStartedAt)
+            else { return }
+            effectsInfo("Client ping lost >\(Int(PingWatchdog.timeout))s — stopping routed sound")
             SoundManager.shared.stopTabletSound()
             self.playing = nil
         }

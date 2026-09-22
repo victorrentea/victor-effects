@@ -88,7 +88,7 @@ is less than a cold sounds hash takes — hence `soundsHash` is read from a cach
 that never blocks and may legitimately answer `""` (see `docs/sound-routing.md`).
 
 Every `/ping` also feeds the routed-sound watchdog: 12 s without one stops a
-playing sound.
+playing sound — one a pinging client started (`docs/sound-routing.md`).
 
 `effectsHash` needs no cache of its own: it is a SHA-256 over ~43 short strings
 already in memory, with no I/O, so it cannot be the thing that blows the 1.5 s.

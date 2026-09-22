@@ -60,6 +60,11 @@ class SoundManager {
     /// MediaPlayer semantics: same button = stop, other button = preempt).
     private var tabletPlayer: AVAudioPlayer?
 
+    /// When the current tablet-routed sound was started — the lost-ping
+    /// watchdog needs it to tell "the client that started this went quiet"
+    /// from "no pinging client was ever behind this sound" (`PingWatchdog`).
+    private(set) var tabletSoundStartedAt: Date?
+
     /// Playback volume (0..1) for tablet-routed sounds, controlled from the
     /// tablet's volume buttons/wedge. Player-level only — the macOS system
     /// volume is never touched.
@@ -390,6 +395,7 @@ class SoundManager {
             player.volume = tabletVolume
             player.prepareToPlay()
             tabletPlayer = player
+            tabletSoundStartedAt = Date()
             let lead = lead ?? Self.pairedEffectStartDelays[filename] ?? 0
             // When this Mac's own output is Bluetooth, prepend silence to warm
             // the A2DP link (so the sound isn't clipped) and remember the

@@ -39,7 +39,13 @@ locally:
   volume; plays `click.wav` at the new level as feedback.
 - **Watchdog**: the routed sound is stopped if `/ping` stops arriving for >12 s
   (`EffectsEngine.startWatchdog`) — a crashed or disconnected client must not be
-  able to leave a long clip blaring with no way to stop it.
+  able to leave a long clip blaring with no way to stop it. **Only a sound that
+  had a pinging client behind it** (`PingWatchdog`: a ping within 12 s before
+  the start, or after it). Until 2026-09-22 it asked only "is the last ping
+  stale?", which is also true whenever the tablet is simply not connected — so
+  every sound started from the Mac itself (right-⌘ panel, `/press/<n>`,
+  `/test/*`) was cut at the next 5 s tick, a few seconds in, logged as
+  `Client ping lost >12s`. `PingWatchdogTests` pins both halves.
 
 Seven files are **not** plain playback (`EffectsEngine.playSound`): their visual
 has to start from the same call as their audio, because the cue sits at a fixed
