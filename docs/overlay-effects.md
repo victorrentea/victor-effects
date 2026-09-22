@@ -1681,6 +1681,40 @@ webhook is the smallest thing that carries the gesture across. With no
 `eventWebhook` configured the ☕ still charges and still pops; nothing else
 happens.
 
+### ☕🌊 The storm
+
+A flood of coffees — a room tapping ☕ together — is a different thing from a
+cup or two, and it looks like one. `CoffeeStormGauge` (pure, tested) counts
+arrivals in `spawnEmoji`: **more than 4 inside any one second** trips a storm,
+which then **lingers 2 s** past the last second that was over the rate, so the
+salvos a room actually sends do not switch it on and off between taps. Its
+`intensity` is 0 at the threshold and 1 at twice it (8/s), decaying across the
+linger with a 0.3 floor.
+
+While it is on:
+
+- every ☕ spawns **1.7–2.5× bigger**, as a scale (so a released charge's
+  shrink-back still works unchanged);
+- `CoffeeStormScreen` puts a screenshot of the built-in display **under** the
+  emoji (index 0 of the host layer) as 28 horizontal strips that slosh sideways
+  in a sine wave rolling upward, while the whole sheet jitters and rolls a
+  little — amplitude follows the intensity. It is captured with the overlay
+  cut out (`captureScreenExcludingOverlay`) and refreshed every ~0.4 s, so the
+  desktop under the wave stays roughly live; the first frame uses the fast
+  `CGDisplayCreateImage` path because the overlay holds nothing but emoji at
+  that instant;
+- a pop passes `violence` 2.2–3.5 to `pixelDissolve`: fragments fly that much
+  further and spin harder, the bloom goes to ~2×, the soft glow becomes a warm
+  muzzle flash up to three times the size, and the sheet takes a `kick`.
+
+The screen **polls the gauge every frame and takes itself down** (0.4 s fade)
+the moment it says calm — self-terminating, per the rules; nothing ever has
+to send a stop. `stopAllActiveEffects` resets the gauge and drops the sheet
+with no fade, because the sheet is outside `activeEffects` and a stale gauge
+would put it straight back up on the next ☕.
+
+`/effect/coffee/storm` is the rehearsal: ~8 ☕/s for 2.5 s.
+
 `/effect/coffee` spawns three so the gesture can be exercised by hand;
 `/effect/coffee/pop` (`popCoffeeForTest`) skips the three-second hold entirely
 and fires the same event, which is the headless proof of the whole chain.

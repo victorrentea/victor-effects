@@ -223,6 +223,12 @@ final class EffectsEngine {
             for emoji in EffectsConfig.shared.chargeEmoji.prefix(1) {
                 for _ in 0..<3 { animator.spawnEmoji(emoji) }
             }
+        case "coffee/storm":
+            // A salvo well past the 4-per-second threshold: bigger cups, the
+            // desktop shaking and sloshing under them, harder pops. Hover a
+            // few to see a storm pop; it calms down on its own ~2 s after the
+            // salvo ends.
+            animator.spawnCoffeeStormForTest()
         case "coffee/pop":
             // Skip the hold entirely: pop a fully charged ☕ mid-screen and fire
             // the same event a real pop fires, so the whole chain can be checked
