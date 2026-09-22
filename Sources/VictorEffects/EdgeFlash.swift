@@ -25,8 +25,14 @@ enum EdgeFlash {
                       duration: CFTimeInterval = 1.5,
                       thickness: CGFloat = 30,
                       color: NSColor = .systemYellow) {
+        // The same slice the alarm's vignette respects: with macOS screen zoom
+        // on, a border around the whole display is magnified off the glass, so
+        // the flash hugs the edges of what is actually being looked at. Unlike
+        // the vignette it does not follow a pan — it is an acknowledgement that
+        // is over in a second, not an effect you talk over.
+        let frame = ScreenZoom.visibleRect(in: screen.frame, of: screen)
         let panel = NSPanel(
-            contentRect: screen.frame,
+            contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -38,7 +44,7 @@ enum EdgeFlash {
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)))
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
-        let size = screen.frame.size
+        let size = frame.size
         let view = NSView(frame: NSRect(origin: .zero, size: size))
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.clear.cgColor
@@ -47,7 +53,7 @@ enum EdgeFlash {
         }
 
         panel.contentView = view
-        panel.setFrame(screen.frame, display: true)
+        panel.setFrame(frame, display: true)
         panel.orderFrontRegardless()
         activePanels.append(panel)
 

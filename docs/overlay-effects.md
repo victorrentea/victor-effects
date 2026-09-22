@@ -100,6 +100,62 @@ gif frames come from `Bundle.module`; the seven large/licensed ones come from
 nothing when they are absent. Audio comes from `EffectsConfig.soundsDir`
 (`docs/sound-routing.md`) — **no soundboard mp3 is in this repo**.
 
+### 🔍 When the screen is zoomed, the edges move
+
+macOS screen zoom (⌥-scroll, Accessibility › Zoom) magnifies the
+**framebuffer**, overlay panel included. So an effect that hugs "the edges of
+the screen" hugs the edges of the *unzoomed* display: at 2× the alarm's red
+border is a full screen away from the glass in every direction and the room
+sees no alarm at all — which is exactly how this was found, mid-workshop,
+zoomed in on a method.
+
+`ScreenZoom` asks the window server which slice is blown up and hands back the
+part of a rect that is really on the glass:
+
+```swift
+let live = ScreenZoom.visibleRect(in: hostLayer.bounds, of: Screens.overlayScreen())
+```
+
+Whatever coordinates go in come back out — the viewport is worked out as a
+**fraction of the display** and only then mapped onto the rect it was given —
+so one helper serves a CALayer's `bounds` (the vignette) and an `NSPanel`'s
+global frame (`EdgeFlash`) without either knowing about the other's axes.
+
+Three things worth knowing before touching it:
+
+- **The getter is private.** Nothing public answers this: `UAZoomEnabled()` only
+  says *whether* zoom is on and `UAZoomChangeFocus` only *moves* it. The answer
+  is `SLSGetZoomParametersForDisplay(cid, display, &centre, &factor, &smoothing)`
+  in SkyLight, whose `centre` is the middle of the visible slice in global CG
+  points (y down) and whose `factor` is the magnification — `1.0` and the
+  display's own middle while that display is at rest, which is what makes "not
+  zoomed" and "zoomed to nothing" the same reading. Every lookup is a `dlsym`
+  allowed to fail: a macOS that renames the symbol costs the zoom-awareness and
+  nothing else, because `visibleRect` then answers the whole rect it was handed,
+  which is the behaviour that existed before the file.
+- **The clamp is load-bearing, not hygiene.** macOS keeps the viewport inside
+  the display, so a centre reported near an edge describes a slice that hangs
+  off it. Clamping reproduces what is actually on the glass — and keeps the
+  answer right even if a future macOS starts reporting an unclamped focus point
+  instead of a clamped centre.
+- **A three-second effect outlives the pan.** The viewport moves with the
+  pointer, so `visibleRect` alone would leave the border behind the first time
+  Victor pans while talking. `ZoomFollower.shared.track(layer, full:)` re-pins a
+  layer at 30 Hz, with implicit animation off (an animated 33 ms correction
+  reads as the border swimming). Entries are **weak** and are dropped the moment
+  a layer is deallocated or leaves its superlayer, and the timer stops with the
+  last one — the follower must never be what keeps an effect alive, nor what
+  has to be told an effect ended (the self-termination rule).
+
+Two effects are zoom-aware today, both because they are literally borders: the
+**🚨 alarm / danger vignette** (`showVignette` — the radial gradient
+carries the frame, the container only carries the opacity animation, so there is
+one frame to re-pin) and the **green `EdgeFlash`**. The flash does *not* follow
+a pan: it is an acknowledgement that is over in a second, not an effect you talk
+over. Nothing else is adjusted — an effect that plays in the middle of the
+screen is magnified along with everything else and is fine.
+
+
 
 
 **Sound → overlay-effect mapping (Mac-owned).** The tablet no longer decides

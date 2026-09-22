@@ -904,10 +904,16 @@ class EmojiAnimator {
         vignetteLayer.frame = bounds
         vignetteLayer.opacity = 0
 
-        // Build radial gradient: transparent center → colored edges
+        // Build radial gradient: transparent center → colored edges.
+        // The gradient — not the container — is what carries the frame, because
+        // it is also what ScreenZoom shrinks: while macOS screen zoom is on,
+        // "the edges of the screen" are the edges of the magnified SLICE, and a
+        // vignette painted around the whole display would be entirely off the
+        // glass. `ZoomFollower` keeps it there while the pointer pans.
         let gradientLayer = CAGradientLayer()
         gradientLayer.type = .radial
         gradientLayer.frame = bounds
+        ZoomFollower.shared.track(gradientLayer, full: bounds)
         gradientLayer.colors = [
             NSColor.clear.cgColor,
             color.withAlphaComponent(0.0).cgColor,
@@ -954,6 +960,7 @@ class EmojiAnimator {
                 self.activeEffects.removeValue(forKey: key)
             }
             vignetteLayer?.removeFromSuperlayer()
+            ZoomFollower.shared.untrack(gradientLayer)
             if let sound = soundToStop {
                 SoundManager.shared.stop(sound)
             }
