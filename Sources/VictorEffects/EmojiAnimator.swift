@@ -51,17 +51,23 @@ class EmojiAnimator {
     private var coffeeCharges: [CoffeeCharge] = []
     static let coffeeChargeSeconds: Double = 3.0
 
-    // ☕🌊 A flood of coffees — more than 4 in a second — is a STORM: from then
-    // on the cups spawn bigger, the desktop under them shakes and sloshes
-    // (`CoffeeStormScreen`), and every pop goes off far more violently than the
-    // quiet dissolve a lone cup gets. `CoffeeStormGauge` is the pure decision;
-    // the screen polls it every frame and takes itself down when it says calm.
+    // ☕🌊 A flood of coffees — more than 4 in a second — is a STORM. The key
+    // is that the cups MOVE differently: instead of the calm rise they fly a
+    // wild flight (`addStormFlight`) — spawned across the width, swinging in
+    // wide zigzags, tumbling, climbing higher and faster — somewhat bigger,
+    // and at the top of it they DETONATE into many pieces instead of fading
+    // out. A hovered pop during the storm goes off the same way. All of it is
+    // progressive: the longer and denser the flood, the wilder, bigger and
+    // more violent (`CoffeeStormGauge.intensity`). A first cut also shook and
+    // rippled the desktop under the cups; that was too disruptive to present
+    // over and came out the same morning — the cups carry the storm alone.
     private var coffeeStorm = CoffeeStormGauge()
-    private lazy var coffeeStormScreen = CoffeeStormScreen(hostLayer: hostLayer)
     /// How much bigger a ☕ spawns during a storm, at intensity 0 and 1.
-    private static let coffeeStormSpawnScale: ClosedRange<CGFloat> = 1.7...2.5
-    /// How much harder a storm pop flings its fragments, at intensity 0 and 1.
-    private static let coffeeStormViolence: ClosedRange<CGFloat> = 2.2...3.5
+    private static let coffeeStormSpawnScale: ClosedRange<CGFloat> = 1.3...2.0
+    /// How hard a storm pop flings its fragments, at intensity 0 and 1.
+    private static let coffeeStormViolence: ClosedRange<CGFloat> = 2.0...3.6
+    /// A storm cup shatters into this many tiles per side (a calm pop: 12).
+    private static let coffeeStormGrid = 22
     var coffeeStormActive: Bool { coffeeStorm.isStorm(at: CACurrentMediaTime()) }
     private static let coffeeChargeGrowScale: CGFloat = 2.6
     private static let coffeeHitSlop: CGFloat = 34
@@ -225,16 +231,12 @@ class EmojiAnimator {
         if isCoffee { activeCoffeeLayers.append(layer) }
 
         // Storm? Every ☕ arrival feeds the gauge; past the threshold the cup
-        // spawns enlarged (a scale, so a released charge still knows how to
-        // shrink it back) and the desktop starts shaking under it.
-        var baseScale: CGFloat = 1.0
+        // takes the wild flight instead of the calm rise.
         if isCoffee {
             let now = CACurrentMediaTime()
             if coffeeStorm.record(at: now) {
-                let k = coffeeStorm.intensity(at: now)
-                let r = Self.coffeeStormSpawnScale
-                baseScale = r.lowerBound + (r.upperBound - r.lowerBound) * k
-                startCoffeeStormIfNeeded()
+                addStormFlight(layer, intensity: coffeeStorm.intensity(at: now))
+                return
             }
         }
 
@@ -246,28 +248,126 @@ class EmojiAnimator {
                        rise: Self.emojiRiseHeight,
                        driftX: CGFloat.random(in: -50...50),
                        duration: duration,
-                       scaleValues: [baseScale, baseScale * Self.emojiRiseScale],
+                       scaleValues: [1.0, Self.emojiRiseScale],
                        scaleKeyTimes: [0, 1],
                        fadeStartFraction: 0.4,
                        isCoffee: isCoffee)
     }
 
-    /// Put the shaking desktop up if the gauge says storm and it is not up
-    /// already. The screen polls the gauge itself from then on and comes down
-    /// on its own once the rate has been calm for the linger — no stop message
-    /// is ever needed.
-    private func startCoffeeStormIfNeeded() {
-        guard !coffeeStormScreen.isRunning else { return }
-        coffeeStormScreen.start { [weak self] in
-            guard let self else { return nil }
-            let now = CACurrentMediaTime()
-            return self.coffeeStorm.isStorm(at: now) ? self.coffeeStorm.intensity(at: now) : nil
+    private static func stormViolence(at intensity: CGFloat) -> CGFloat {
+        let r = coffeeStormViolence
+        return r.lowerBound + (r.upperBound - r.lowerBound) * intensity
+    }
+
+    /// ☕🌊 The storm flight, `k` = intensity 0…1. Everything about it scales
+    /// with `k`:
+    ///
+    /// - **where** it starts: the calm cups all leave from x≈100; a storm cup
+    ///   can leave from anywhere across up to the whole width;
+    /// - **how** it flies: a wide sideways zigzag (80…400 px either way, 1.5…3
+    ///   swings) with a sideways drift, tumbling as it goes (a rock of ±20° at
+    ///   the start, whole spins at full intensity), climbing higher (up to the
+    ///   top of the screen) and faster than the calm rise;
+    /// - **how big**: 1.3…2× the calm cup, still growing on the way up;
+    /// - **how it ends**: solid to the top, then it goes off 100% into
+    ///   `coffeeStormGrid`² fragments at `stormViolence`. Visual only — the
+    ///   break-timer payoff belongs to the deliberate hover gesture, so a cup
+    ///   nobody touched fires no webhook.
+    ///
+    /// It stays hoverable throughout: it is in `activeCoffeeLayers` like any
+    /// other cup, a catch freezes it where it is (`beginCoffeeCharge`) and a
+    /// release resumes the CALM rise from there (`releaseCoffeeCharge` knows
+    /// only that one) — an accepted simplification, the storm has plenty more.
+    private func addStormFlight(_ layer: CATextLayer, intensity k: CGFloat) {
+        let bounds = hostLayer.bounds
+        let r = Self.coffeeStormSpawnScale
+        let baseScale = r.lowerBound + (r.upperBound - r.lowerBound) * k
+        let violence = Self.stormViolence(at: k)
+
+        // Spread across the screen as the flood grows.
+        let spread = (bounds.width - 200) * k
+        let startX = 100 + CGFloat.random(in: 0...max(spread, 1))
+        let start = CGPoint(x: startX, y: layer.position.y)
+        layer.position = start
+
+        let rise = min(Self.emojiRiseHeight * (1 + 0.9 * k), bounds.height - start.y - 60 * baseScale)
+        let swayAmp = 80 + 320 * k
+        let swings = 1.5 + 1.5 * k + CGFloat.random(in: -0.3...0.3)
+        let phase = CGFloat.random(in: 0...(2 * .pi))
+        let drift = CGFloat.random(in: -1...1) * (60 + 200 * k)
+        let steps = 48
+        let path = CGMutablePath()
+        path.move(to: start)
+        var end = start
+        for i in 1...steps {
+            let t = CGFloat(i) / CGFloat(steps)
+            // The zigzag widens as the cup climbs: it leaves in a hurry and
+            // gets thrown around more the higher it goes.
+            let x = start.x + drift * t + swayAmp * t * sin(t * 2 * .pi * swings + phase)
+            let y = start.y + rise * (1 - (1 - t) * (1 - t))     // ease-out climb
+            end = CGPoint(x: min(max(x, 40), bounds.width - 40), y: y)
+            path.addLine(to: end)
         }
+        let move = CAKeyframeAnimation(keyPath: "position")
+        move.path = path
+        move.calculationMode = .cubic
+
+        // Tumble: rocking at low intensity, whole spins at high.
+        let spins = CGFloat.random(in: 1...3) * k * (Bool.random() ? 1 : -1)
+        let rock = (0.35 + 0.6 * k) * (Bool.random() ? 1 : -1)
+        var angles: [CGFloat] = []
+        var scales: [CGFloat] = []
+        for i in 0...steps {
+            let t = CGFloat(i) / CGFloat(steps)
+            angles.append(rock * sin(t * 2 * .pi * swings + phase) + spins * 2 * .pi * t)
+            // Grows on the way up with a throb riding on the swing.
+            scales.append(baseScale * (1 + (Self.emojiRiseScale - 1) * t) * (1 + 0.08 * k * sin(t * 4 * .pi * swings)))
+        }
+        var frames: [NSValue] = []
+        for (a, sc) in zip(angles, scales) {
+            var m = CATransform3DMakeRotation(a, 0, 0, 1)
+            m = CATransform3DScale(m, sc, sc, 1)
+            frames.append(NSValue(caTransform3D: m))
+        }
+        let tumble = CAKeyframeAnimation(keyPath: "transform")
+        tumble.values = frames
+
+        let duration = Double.random(in: 2.4...3.4) / Double(1 + 0.4 * k)
+        // Solid to the end: it is about to blow up, and a cup that had already
+        // faded would blow up invisibly. A hair of fade so the swap to the
+        // fragments never shows a seam.
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1.0
+        fade.toValue = 0.0
+        fade.beginTime = duration * 0.97
+        fade.duration = duration * 0.03
+        fade.fillMode = .forwards
+
+        let group = CAAnimationGroup()
+        group.animations = [move, tumble, fade]
+        group.duration = duration
+        group.fillMode = .forwards
+        group.isRemovedOnCompletion = false
+
+        let side = Self.emojiSize * (scales.last ?? baseScale)
+        let grid = Self.coffeeStormGrid
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self, weak layer] in
+            guard let layer = layer else { return }
+            // Caught mid-flight for a hold-charge: the charge owns it now.
+            if self?.coffeeCharges.contains(where: { $0.layer === layer }) == true { return }
+            layer.removeFromSuperlayer()
+            self?.activeCoffeeLayers.removeAll { $0 === layer }
+            self?.pixelDissolve(at: end, side: side, violence: violence, grid: grid)
+        }
+        layer.add(group, forKey: "floatAndFade")
+        CATransaction.commit()
     }
 
     /// Test hook (`/test/coffee/storm`): a salvo of ☕ at ~8 per second for
     /// `seconds`, well past the 4/s threshold, so the storm can be rehearsed
-    /// without a room tapping the tablet.
+    /// without a room tapping the tablet. 2.5 s × 8 = 20 cups, close to the
+    /// gauge's escalation cap, so the salvo shows the whole ramp.
     func spawnCoffeeStormForTest(seconds: Double = 2.5) {
         let emoji = EffectsConfig.shared.chargeEmoji.first ?? "☕"
         let perSecond = 8
@@ -465,18 +565,16 @@ class EmojiAnimator {
 
         coffee.removeAllAnimations()
         coffee.removeFromSuperlayer()
-        // In a storm the cup does not dissolve, it DETONATES: fragments fly
-        // further and spin harder, the flash is a real flash, and the desktop
-        // takes the hit.
-        var violence: CGFloat = 1
+        // In a storm the cup does not dissolve, it DETONATES: many more
+        // fragments, flying further and spinning harder, under a real flash.
         let now = CACurrentMediaTime()
         if coffeeStorm.isStorm(at: now) {
-            let k = coffeeStorm.intensity(at: now)
-            let r = Self.coffeeStormViolence
-            violence = r.lowerBound + (r.upperBound - r.lowerBound) * k
-            coffeeStormScreen.kick(0.8 + k)
+            pixelDissolve(at: center, side: side,
+                          violence: Self.stormViolence(at: coffeeStorm.intensity(at: now)),
+                          grid: Self.coffeeStormGrid)
+        } else {
+            pixelDissolve(at: center, side: side)
         }
-        pixelDissolve(at: center, side: side, violence: violence)
         return center
     }
 
@@ -486,14 +584,14 @@ class EmojiAnimator {
     /// popped cup gives ~20px fragments: chunky enough to read as pixels, fine
     /// enough to still look like a cup for the first frames.
     private static let dissolveGrid = 12
-    private static var _dissolveTiles: [(row: Int, col: Int, image: CGImage)]?
+    private static var _dissolveTiles: [Int: [(row: Int, col: Int, image: CGImage)]] = [:]
 
     /// The cup rendered once and cut into tiles, laid out the way `CATextLayer`
     /// draws it inside its box — horizontally centred, anchored at the TOP (that's
     /// where CATextLayer puts the first line) — so each fragment starts on exactly
     /// the pixels it replaces and the swap is invisible.
-    private static func dissolveTiles() -> [(row: Int, col: Int, image: CGImage)] {
-        if let cached = _dissolveTiles { return cached }
+    private static func dissolveTiles(grid g: Int = dissolveGrid) -> [(row: Int, col: Int, image: CGImage)] {
+        if let cached = _dissolveTiles[g] { return cached }
         let side: CGFloat = 91                        // the spawnEmoji box
         let img = NSImage(size: NSSize(width: side, height: side))
         img.lockFocus()
@@ -504,7 +602,6 @@ class EmojiAnimator {
         var rect = CGRect(x: 0, y: 0, width: side, height: side)
         guard let cg = img.cgImage(forProposedRect: &rect, context: nil, hints: nil) else { return [] }
         var out: [(row: Int, col: Int, image: CGImage)] = []
-        let g = dissolveGrid
         for r in 0..<g {
             for c in 0..<g {
                 // Integer pixel bounds, so no row/column is dropped or doubled.
@@ -515,7 +612,7 @@ class EmojiAnimator {
                 }
             }
         }
-        _dissolveTiles = out
+        _dissolveTiles[g] = out
         return out
     }
 
@@ -533,12 +630,14 @@ class EmojiAnimator {
     /// `violence` is 1 for the quiet dissolve above; a storm pop passes 2–3.5,
     /// which scales how far and how fast the fragments fly, how much they
     /// spin, how big the bloom gets and how bright the flash is.
-    private func pixelDissolve(at center: CGPoint, side: CGFloat, violence: CGFloat = 1) {
-        let tiles = Self.dissolveTiles()
+    /// `grid` is tiles per side: 12 for the calm pop, more for a storm's
+    /// "many pieces".
+    private func pixelDissolve(at center: CGPoint, side: CGFloat, violence: CGFloat = 1,
+                               grid g: Int = dissolveGrid) {
+        let tiles = Self.dissolveTiles(grid: g)
         let v = max(1, violence)
-        let extra = v - 1                                   // 0 in calm, up to 2.5 in a storm
+        let extra = v - 1                                   // 0 in calm, up to 2.6 in a storm
         guard !tiles.isEmpty else { return }
-        let g = Self.dissolveGrid
         let cell = side / CGFloat(g)
         let contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
 
@@ -4091,7 +4190,7 @@ class EmojiAnimator {
     /// but still the only capture cheap enough to run *before* showing a cursor
     /// replacement; `captureBuiltInDisplay()`'s `screencapture` remains the
     /// fallback for the day it stops answering.
-    static func captureBuiltInDisplayFast() -> CGImage? {
+    private static func captureBuiltInDisplayFast() -> CGImage? {
         var count: UInt32 = 0
         guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return nil }
         var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
@@ -5572,7 +5671,7 @@ class EmojiAnimator {
     /// Recording permission, or when our own panel is missing from the window
     /// list. "Cannot exclude the overlay" must mean "do not capture", because the
     /// alternative is the recursion above.
-    static func captureScreenExcludingOverlay(_ done: @escaping (CGImage?) -> Void) {
+    private static func captureScreenExcludingOverlay(_ done: @escaping (CGImage?) -> Void) {
         guard #available(macOS 14.0, *) else { done(nil); return }
         // Main thread: `NSApp.windows` is AppKit state, and the only caller is a
         // main-queue timer.
@@ -10440,12 +10539,8 @@ class EmojiAnimator {
         // stop-all during the GAME OVER picture means no tube closing a second
         // later over whatever the next tile put on screen.
         _crtArmEpoch &+= 1
-        // ☕🌊 The storm screen sits UNDER the emoji at index 0 of the host
-        // layer, outside activeEffects, and polls its own gauge to end — so a
-        // stop-all has to reset the gauge AND drop the sheet, or the next ☕
-        // would find the storm still "on" and put it straight back up.
+        // ☕🌊 A stop-all also ends the coffee storm: the next ☕ arrives calm.
         coffeeStorm = CoffeeStormGauge()
-        coffeeStormScreen.stop(fade: 0)
         for (_, layer) in activeEffects {
             layer.removeAllAnimations()
             layer.removeFromSuperlayer()

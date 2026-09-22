@@ -1684,36 +1684,43 @@ happens.
 ### ☕🌊 The storm
 
 A flood of coffees — a room tapping ☕ together — is a different thing from a
-cup or two, and it looks like one. `CoffeeStormGauge` (pure, tested) counts
+cup or two, and it moves like one. `CoffeeStormGauge` (pure, tested) counts
 arrivals in `spawnEmoji`: **more than 4 inside any one second** trips a storm,
 which then **lingers 2 s** past the last second that was over the rate, so the
 salvos a room actually sends do not switch it on and off between taps. Its
-`intensity` is 0 at the threshold and 1 at twice it (8/s), decaying across the
-linger with a 0.3 floor.
+`intensity` is 0 at the threshold and 1 at twice it (8/s) **or** once the
+storm has carried 24 cups, whichever is higher — the flood escalates the
+longer it lasts, not only the denser it gets — and it decays across the linger
+with a 0.3 floor.
 
-While it is on:
+**The key is that the cups move, not that they grow.** A storm cup skips the
+calm rise for `addStormFlight`, every part of which scales with the intensity:
 
-- every ☕ spawns **1.7–2.5× bigger**, as a scale (so a released charge's
-  shrink-back still works unchanged);
-- `CoffeeStormScreen` puts a screenshot of the built-in display **under** the
-  emoji (index 0 of the host layer) as 28 horizontal strips that slosh sideways
-  in a sine wave rolling upward, while the whole sheet jitters and rolls a
-  little — amplitude follows the intensity. It is captured with the overlay
-  cut out (`captureScreenExcludingOverlay`) and refreshed every ~0.4 s, so the
-  desktop under the wave stays roughly live; the first frame uses the fast
-  `CGDisplayCreateImage` path because the overlay holds nothing but emoji at
-  that instant;
-- a pop passes `violence` 2.2–3.5 to `pixelDissolve`: fragments fly that much
-  further and spin harder, the bloom goes to ~2×, the soft glow becomes a warm
-  muzzle flash up to three times the size, and the sheet takes a `kick`.
+- it leaves from anywhere across up to the whole width instead of x≈100;
+- it swings in a wide sideways zigzag (80–400 px either way, 1.5–3 swings,
+  widening as it climbs) with a sideways drift, tumbling as it goes — a ±20°
+  rock at first, whole spins at full intensity — and climbs higher (up to the
+  top of the screen) and faster than the calm rise;
+- it is 1.3–2× the calm cup, still growing on the way up, with a throb riding
+  on the swing;
+- it stays solid to the top and **detonates there, 100%**: `pixelDissolve`
+  with `violence` 2–3.6 (fragments fly that much further and spin harder, the
+  bloom goes to ~2×, the soft glow becomes a warm muzzle flash up to three
+  times the size) over a **22×22** grid — 484 pieces against the calm pop's
+  144. Visual only: no webhook, the break-timer payoff belongs to the
+  deliberate hover.
 
-The screen **polls the gauge every frame and takes itself down** (0.4 s fade)
-the moment it says calm — self-terminating, per the rules; nothing ever has
-to send a stop. `stopAllActiveEffects` resets the gauge and drops the sheet
-with no fade, because the sheet is outside `activeEffects` and a stale gauge
-would put it straight back up on the next ☕.
+A hovered pop during the storm goes off the same violent way. A storm cup is
+still hoverable; a release resumes the calm rise from where it was frozen (an
+accepted simplification). `stopAllActiveEffects` resets the gauge.
 
-`/effect/coffee/storm` is the rehearsal: ~8 ☕/s for 2.5 s.
+A first cut (the same morning) also put a screenshot of the desktop under the
+cups, sliced into strips that sloshed while the whole sheet shook. It worked,
+and it was too disruptive to present over: the storm is carried by the cups
+alone.
+
+`/effect/coffee/storm` is the rehearsal: ~8 ☕/s for 2.5 s, 20 cups — nearly
+the escalation cap, so it shows the whole ramp.
 
 `/effect/coffee` spawns three so the gesture can be exercised by hand;
 `/effect/coffee/pop` (`popCoffeeForTest`) skips the three-second hold entirely

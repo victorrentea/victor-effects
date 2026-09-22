@@ -53,4 +53,23 @@ final class CoffeeStormGaugeTests: XCTestCase {
         XCTAssertTrue(g.isStorm(at: 14.2))
         XCTAssertFalse(g.isStorm(at: 14.4))
     }
+
+    func testALongSalvoEscalatesEvenAtASteadyRate() {
+        var g = CoffeeStormGauge()
+        // A steady 6/s: rate-wise that is intensity 0.5 forever.
+        for i in 0..<6 { g.record(at: 10 + Double(i) / 6) }
+        let early = g.intensity(at: 11.0)
+        for i in 6..<30 { g.record(at: 10 + Double(i) / 6) }
+        let late = g.intensity(at: 15.0)
+        XCTAssertEqual(early, 0.5, accuracy: 0.01)
+        XCTAssertEqual(late, 1, accuracy: 0.001)
+        XCTAssertGreaterThanOrEqual(g.stormCount, 24)
+    }
+
+    func testEscalationResetsOnceTheStormHasPassed() {
+        var g = CoffeeStormGauge()
+        for i in 0..<30 { g.record(at: 10 + Double(i) / 6) }
+        XCTAssertFalse(g.record(at: 30))
+        XCTAssertEqual(g.stormCount, 0)
+    }
 }
