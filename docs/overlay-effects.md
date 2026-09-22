@@ -1259,6 +1259,58 @@ rule from the start.
   `totalDuration + 1 s` for the run where the capture never returns and no timer is ever
   armed.
 
+- **🔍 Magnifier** (tile #6 `06_copyright_cartoon.mp3` → `magnifier`,
+  `showMagnifier`, geometry and artwork in `MagnifierGlass.swift`): the tile is the
+  **Pink Panther** theme and its artwork is Inspector Clouseau stooped over a
+  magnifying glass, so the desktop gets the glass. It rides the pointer for the
+  length of the clip (~37.8 s, measured off the mp3; `magnifierFallbackDuration`
+  when the audio is not on this machine) and magnifies **only what is inside its
+  lens** — everything outside the rim is the untouched desktop, not a less-zoomed
+  one. That is the whole difference from the 💓 heartbeat, whose
+  `CIBumpDistortion` bulges the screen itself; this lens is a flat **2×**
+  (`MagnifierGlass.zoom`), the same factor everywhere inside the glass, the way
+  looking through a real one works.
+  **Size: the lens is a third of the screen height** (Victor, 2026-09-22: *"cam
+  la o treime din înălțimea ecranului"*) — 372 pt on the retina, so the glass
+  shows a ~186 pt square of desktop, about a line of code and its neighbours. A
+  fraction of the **height** and not of the area, for `HeartbeatBump`'s reason: a
+  share of `W · H` grows and shrinks with the aspect ratio of whatever display it
+  lands on. Every other number in the prop is a fraction of that one diameter, so
+  resizing the lens moves the rim, the collar, the handle and the glare together.
+  **The glass is drawn, not photographed** — a `CGImage` built at the overlay
+  screen's backing scale: chrome rim with a black cartoon outline inside and out,
+  a metal collar, a tapered wooden handle hanging down-right at 45° (the way the
+  inspector holds it on the tile), and one diagonal glare streak at 16 % white.
+  Two things about the drawing are load-bearing. The middle is **transparent** —
+  it is the hole the magnified desktop shows through, so anything filled in there
+  hides the effect behind its own prop (`testTheMiddleOfTheLensIsTransparent`) —
+  and the handle is drawn **clipped out of the glass disc**: it is tucked a few
+  points under the rim so no seam shows, which puts its square shoulder across
+  the inner circle, where it read as a dark sliver floating inside the lens.
+  **Three layers:** a round clip layer (`cornerRadius` = the glass radius,
+  `masksToBounds`) holding the screenshot scaled 2× and slid until the pointer's
+  spot sits dead centre (`MagnifierGlass.shotFrame` — the one piece of arithmetic
+  that is easy to get backwards, so it is pinned by a test at four corners of the
+  screen); the drawn glass above it, hung off its own lens centre via
+  `anchorPoint` (`lensAnchor`), so **one position drives both** and the entrance
+  scales about the glass rather than about the far end of the handle; and a
+  container so one `stop-all` takes the pair away.
+  **Two clocks, the heartbeat's pair and for its reasons.** The glass is put back
+  on the pointer at **20 Hz** — the overlay is click-through and receives no
+  mouse events at all, so `NSEvent.mouseLocation` is polled — instantly, with
+  `setDisableActions`, because a magnifier easing in behind the hand reads as lag.
+  The picture *under* it is retaken at **4 fps** through
+  `captureScreenExcludingOverlay`, which must exclude our own panel or the lens
+  photographs its own output, one level deeper every 250 ms. Captures never
+  overlap and a nil answer leaves the current frame alone, so every failure
+  degrades to "the view is frozen", never to an empty lens. The **first** capture
+  is the plain `screencapture(1)` one, taken while the overlay is still empty —
+  and the container is only added to the host layer once it comes back, so the
+  glass never appears over a hole. It is tracked before that, as the debounce
+  placeholder a re-press preempts.
+  It **self-terminates at the clip's length** (lifecycle rule) with a 0.4 s
+  lift-off timed from the press, not from the capture; `/effect/magnifier/stop`
+  (the tablet's `/sound/stopped`) is the polite exit and fades the same way.
 - **🚪 FBI knock** (tile #64 `64_fbi.mp3`, `showFbiKnock`): the built-in Retina is
   captured and redrawn full-screen, then **shoved 7% larger on each of the three door
   bangs** before the FBI starts shouting; the capture holds for the rest of the clip and

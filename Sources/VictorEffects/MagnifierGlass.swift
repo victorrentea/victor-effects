@@ -155,6 +155,19 @@ enum MagnifierGlass {
         //    drawn FIRST so the rim overlaps them rather than the other way
         //    round — the glass is in front of the hand holding it.
         ctx.saveGState()
+        // …and clipped OUT of the glass disc first. The handle is tucked a few
+        // points under the rim so no seam shows between them, and its square
+        // shoulder therefore pokes across the inner circle — where it would be
+        // drawn straight over the desktop the lens is supposed to be showing,
+        // as a dark sliver floating inside the glass.
+        let glassHole = CGMutablePath()
+        glassHole.addRect(CGRect(origin: .zero, size: canvas))
+        glassHole.addEllipse(in: CGRect(x: centre.x - glassRadius(outerDiameter: d),
+                                        y: centre.y - glassRadius(outerDiameter: d),
+                                        width: glassRadius(outerDiameter: d) * 2,
+                                        height: glassRadius(outerDiameter: d) * 2))
+        ctx.addPath(glassHole)
+        ctx.clip(using: .evenOdd)
         ctx.translateBy(x: centre.x, y: centre.y)
         ctx.rotate(by: tiltRadians)
 
