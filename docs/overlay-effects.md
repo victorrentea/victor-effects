@@ -889,25 +889,32 @@ rule from the start.
       *floating on top of* the fire rather than as the thing that started it, and at 75 pt it
       simply disappears into the flame it is sitting on. Underneath, the fire swallows it as
       it grows, which is both the right story and the right silhouette.
-    - **After each fire is laid the ball gets out of the way** (2026-09-22, *"după fiecare
+    - **After each fire is laid the ball shrinks out of the way** (2026-09-22, *"după fiecare
       așezare a incendiului, bila de foc dispare pentru două secunde, după care reapare …
-      mărind impactul focului care l-a născut"*). Out on the instant of the click with **no
-      fade** — a ball that dissolves competes with the fire climbing next to it for exactly
-      the half second the fire needs — gone for **`fireballHideAfterPlant` (3 s)**, then back
-      over **`fireballReturnFade` (0.5 s)**, slow enough to read as rekindling rather than as
-      a cursor blinking. *Retimed from 2 s / 0.7 s once he had watched it: the gap is what the
-      new fire gets to itself, so it wants to be longer, and the return wants to be quicker,
-      because fading the ball back in slowly spends some of that silence again.*
+      mărind impactul focului care l-a născut"*, then *"în loc să dispară, bila să se
+      micșoreze de 10x, și apoi resize up"*). On the instant of the click it drops to
+      **`fireballShrinkFactor` (0.1)** of its size with no animation, holds there for
+      **`fireballShrunkAfterPlant` (3 s)**, and grows back over **`fireballReturnGrow`
+      (0.5 s)**, eased out.
+      - **It shrinks rather than vanishes**, and the first cut did vanish. Zero opacity gave
+        up something the effect cannot spare: the real cursor is hidden for the whole run, so
+        a ball at zero leaves the screen with **no pointer at all** — during a drag that meant
+        sweeping a line of fires blind. At a tenth it is a 7 pt spark: out of the fire's way
+        by any measure the eye uses, and still exactly where his hand is.
+      - *Retimed from 2 s / 0.7 s once he had watched it: the quiet is what the new fire gets
+        to itself, so it wants to be longer, and the return wants to be quicker, because
+        bringing the ball back slowly spends some of that quiet again.*
       - **It shipped not working, and the bug is worth keeping written down.** The entry
         fade was `fillMode = .forwards` + `isRemovedOnCompletion = false`, copied from the
         match, where it was harmless because nothing ever hid the match. A finished animation
         that goes on filling forwards keeps **overriding the model layer**, so the blackout
         set `opacity = 0` and the ball stayed visibly on screen — the hide looks completely
         correct where it is written, and the cause is forty lines away in a line that reads
-        like boilerplate. `fireballEntryFade()` is a function now purely so
-        `testTheFireballEntryFadeRemovesItself` can hold it, and the blackout strips **both**
-        opacity animations before writing 0, because a click landing inside the fade's 0.12 s
-        would otherwise keep the ball up for the rest of it.
+        like boilerplate. Both of the ball's own animations are **functions** now
+        (`fireballEntryFade`, `fireballGrowBack`) purely so
+        `testTheBallsAnimationsBothRemoveThemselves` can hold them — the grow-back is the
+        same trap one property over, and left filling forwards it would pin the ball at full
+        size and make every shrink after the first silently do nothing.
       - **The clock restarts on every plant** (`_fireballHideToken`), which is what makes a
         drag behave: a sweep lays a fire every 50 pt, so only the last one's return survives
         and the ball is away for the whole gesture, coming back once at the end. A plain

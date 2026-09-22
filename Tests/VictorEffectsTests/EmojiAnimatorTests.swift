@@ -468,36 +468,53 @@ final class EmojiAnimatorTests: XCTestCase {
                           "the ball has to pass behind the fires it lights")
     }
 
-    /// **The entry fade must remove itself.** It shipped with
-    /// `fillMode = .forwards` and `isRemovedOnCompletion = false`, copied from
-    /// the match, where it was harmless because nothing ever hid the match. On
-    /// the ball it was a bug with teeth: a finished animation that goes on
-    /// filling forwards keeps overriding the model layer, so the blackout after
-    /// a plant set `opacity = 0` and the ball stayed visibly on screen. It cost
-    /// a round trip to the room to find, and it leaves no trace in the code
-    /// that broke — the hide looks correct where it is written.
-    func testTheFireballEntryFadeRemovesItself() {
-        let fade = EmojiAnimator.fireballEntryFade()
-        XCTAssertTrue(fade.isRemovedOnCompletion,
-                      "an animation left attached goes on overriding opacity = 0")
-        XCTAssertNotEqual(fade.fillMode, .forwards,
-                          "filling forwards pins the ball visible for the rest of the run")
-        XCTAssertGreaterThan(fade.duration, 0)
-        XCTAssertLessThan(fade.duration, 0.3, "the cursor is already being looked at")
+    /// **Neither of the ball's own animations may outlive itself.** The entry
+    /// fade shipped with `fillMode = .forwards` and `isRemovedOnCompletion =
+    /// false`, copied from the match, where it was harmless because nothing
+    /// ever hid the match. On the ball it was a bug with teeth: a finished
+    /// animation that goes on filling forwards keeps overriding the model
+    /// layer, so the beat after a plant wrote its value and the ball sat there
+    /// ignoring it. It cost a round trip to the room to find, and it leaves no
+    /// trace in the code that breaks — the write looks correct where it is.
+    ///
+    /// The grow-back is the same trap one property over: left filling forwards
+    /// it would pin the ball at full size and every shrink after the first
+    /// would silently do nothing.
+    func testTheBallsAnimationsBothRemoveThemselves() {
+        for (what, anim) in [("entry fade", EmojiAnimator.fireballEntryFade()),
+                             ("grow-back", EmojiAnimator.fireballGrowBack())] {
+            XCTAssertTrue(anim.isRemovedOnCompletion,
+                          "\(what): left attached it goes on overriding the model layer")
+            XCTAssertNotEqual(anim.fillMode, .forwards,
+                              "\(what): filling forwards outlives the animation")
+            XCTAssertGreaterThan(anim.duration, 0)
+        }
     }
 
-    /// The blackout after a plant is long enough to be a beat and short enough
-    /// not to lose the pointer, and the way back is a fade rather than a snap.
+    /// The spark is small enough to be out of the fire's way and big enough to
+    /// still be a pointer — the whole reason it shrinks instead of vanishing
+    /// (*"în loc să dispară, bila să se micșoreze de 10x"*): the real cursor is
+    /// hidden for the run, so a ball at zero leaves the screen with no pointer
+    /// at all, and a drag then lays its line of fires blind.
+    func testTheShrunkBallIsStillSomethingHeCanSee() {
+        let spark = EmojiAnimator.fireballCursorWidth * EmojiAnimator.fireballShrinkFactor
+        XCTAssertGreaterThan(spark, 4, "below this it is not a pointer any more")
+        XCTAssertLessThan(spark, EmojiAnimator.fireballCursorWidth / 4,
+                          "it has to read as having got out of the fire's way")
+    }
+
+    /// The shrink after a plant is long enough to be a beat and short enough not
+    /// to strand the pointer, and the way back is a grow rather than a snap.
     /// Retimed to 3 s / 0.5 s after he watched it: the gap is what the new fire
     /// gets to itself, so it wants to be longer, and the return wants to be
-    /// quicker because a slow fade back spends some of that silence again.
-    func testTheBallStaysAwayLongEnoughToBeABeatAndComesBackAsAFade() {
-        XCTAssertEqual(EmojiAnimator.fireballHideAfterPlant, 3.0, accuracy: 0.001)
-        XCTAssertGreaterThan(EmojiAnimator.fireballReturnFade, 0.2,
-                             "a snap back would read as the cursor blinking")
-        XCTAssertLessThan(EmojiAnimator.fireballReturnFade,
-                          EmojiAnimator.fireballHideAfterPlant,
-                          "the way back must not eat the silence it is returning from")
+    /// quicker because coming back slowly spends some of that quiet again.
+    func testTheBallStaysSmallLongEnoughToBeABeatAndGrowsBackQuicker() {
+        XCTAssertEqual(EmojiAnimator.fireballShrunkAfterPlant, 3.0, accuracy: 0.001)
+        XCTAssertGreaterThan(EmojiAnimator.fireballReturnGrow, 0.2,
+                             "a snap back would read as the cursor jumping")
+        XCTAssertLessThan(EmojiAnimator.fireballReturnGrow,
+                          EmojiAnimator.fireballShrunkAfterPlant,
+                          "the way back must not eat the quiet it is returning from")
     }
 
     func testSpawnEmojiWithoutGlowHasNoHalo() {
