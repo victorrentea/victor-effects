@@ -4,8 +4,9 @@ import XCTest
 
 /// 🔍 The prop's geometry, checked without a screen.
 ///
-/// Two things here are promises rather than implementation: the lens is **a
-/// third of the screen height** (what Victor asked for), and the point under
+/// Two things here are promises rather than implementation: the lens is **two
+/// thirds of the screen height** (what Victor asked for — a third, then twice
+/// that on the same day), and the point under
 /// the pointer is **exactly** in the middle of the glass — a magnifier that
 /// magnifies something half an inch off the thing being pointed at is worse
 /// than no magnifier, and the arithmetic that keeps it honest is two
@@ -14,8 +15,8 @@ final class MagnifierGlassTests: XCTestCase {
 
     private let retina = CGRect(x: 0, y: 0, width: 1728, height: 1117)
 
-    func testLensIsOneThirdOfTheScreenHeight() {
-        XCTAssertEqual(MagnifierGlass.outerDiameter(in: retina), 1117.0 / 3, accuracy: 0.001)
+    func testLensIsTwoThirdsOfTheScreenHeight() {
+        XCTAssertEqual(MagnifierGlass.outerDiameter(in: retina), 1117.0 * 2 / 3, accuracy: 0.001)
         // …and of the HEIGHT, not the width or the area: the same lens has to
         // read the same on a wide external as on the built-in.
         let wide = CGRect(x: 0, y: 0, width: 3440, height: 1117)

@@ -17,21 +17,31 @@ enum MagnifierGlass {
 
     // MARK: - How big, and how much bigger
 
-    /// Outer diameter of the lens as a fraction of the screen **height**
-    /// (Victor, 2026-09-22: *"cam la o treime din înălțimea ecranului"*).
+    /// Outer diameter of the lens as a fraction of the screen **height**. It
+    /// started at a third (Victor, 2026-09-22: *"cam la o treime din înălțimea
+    /// ecranului"*) and was **doubled the same day** — *"trebuie să fie de două
+    /// ori mai mare"*: from the back of the room a third of the height is a
+    /// prop you notice, not a lens you can read through.
+    ///
+    /// Doubled as the **diameter**, not as the area: "twice as big" about a
+    /// thing on a screen is how wide it looks, and doubling the area would have
+    /// grown it by only 1.41 — visibly less than what was asked for.
     ///
     /// A share of the height rather than of the area or the width, for
     /// `HeartbeatBump`'s reason: a fraction of `W · H` grows and shrinks with
     /// the aspect ratio of whatever display it lands on, while a fraction of the
     /// height reads the same on the retina, on the projector and on the wide
-    /// external. On the built-in (1728 × 1117 pt) that is a 372 pt lens.
-    static let diameterFraction: CGFloat = 1.0 / 3.0
+    /// external. On the built-in (1728 × 1117 pt) that is a 745 pt lens.
+    static let diameterFraction: CGFloat = 2.0 / 3.0
 
     /// How much bigger the desktop looks inside the glass. 2× is what the word
-    /// "magnifier" promises and what fits: at 2× the 372 pt lens shows a 186 pt
-    /// square of desktop, about one line of code and its neighbours — enough to
-    /// be the point of the gesture. Past ~3× the room sees pixels rather than
-    /// content and loses track of where on the screen it is looking.
+    /// "magnifier" promises and what fits: at 2× the 745 pt lens shows a 372 pt
+    /// square of desktop, a good handful of lines of code — enough to be the
+    /// point of the gesture. Past ~3× the room sees pixels rather than content
+    /// and loses track of where on the screen it is looking. The zoom is
+    /// deliberately **unchanged** by the resize: a bigger lens was asked for,
+    /// not a closer one, and raising both would have shown the same few pixels
+    /// twice as coarsely.
     static let zoom: CGFloat = 2.0
 
     // MARK: - The prop, in fractions of the outer diameter D

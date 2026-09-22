@@ -1291,13 +1291,25 @@ rule from the start.
   `CIBumpDistortion` bulges the screen itself; this lens is a flat **2×**
   (`MagnifierGlass.zoom`), the same factor everywhere inside the glass, the way
   looking through a real one works.
-  **Size: the lens is a third of the screen height** (Victor, 2026-09-22: *"cam
-  la o treime din înălțimea ecranului"*) — 372 pt on the retina, so the glass
-  shows a ~186 pt square of desktop, about a line of code and its neighbours. A
-  fraction of the **height** and not of the area, for `HeartbeatBump`'s reason: a
-  share of `W · H` grows and shrinks with the aspect ratio of whatever display it
-  lands on. Every other number in the prop is a fraction of that one diameter, so
-  resizing the lens moves the rim, the collar, the handle and the glare together.
+  **Size: the lens is two thirds of the screen height** — 745 pt on the retina,
+  so the glass shows a ~372 pt square of desktop, a good handful of lines of
+  code. It was born a third (Victor, 2026-09-22: *"cam la o treime din înălțimea
+  ecranului"*) and **doubled the same day** (*"trebuie să fie de două ori mai
+  mare"*): from the back of the room a third of the height is a prop you notice,
+  not a lens you can read through. Doubled as the **diameter**, not the area —
+  "twice as big" about something on a screen is how wide it looks, and doubling
+  the area would have grown it by 1.41, visibly short of the ask. The **zoom
+  stayed at 2×** on purpose: a bigger lens was asked for, not a closer one, and
+  raising both would have shown the same few pixels twice as coarsely.
+  A fraction of the **height** and not of the area, for `HeartbeatBump`'s reason:
+  a share of `W · H` grows and shrinks with the aspect ratio of whatever display
+  it lands on. Every other number in the prop is a fraction of that one diameter,
+  so resizing the lens moved the rim, the collar, the handle and the glare
+  together — the doubling is one constant, `MagnifierGlass.diameterFraction`.
+  At this size the drawn canvas (~1300 pt square, since the handle leaves at 45°)
+  is taller than the screen, so with the pointer low and to the right the handle
+  runs off the edge. That is the prop behaving like a prop and nothing clips it:
+  the container is unmasked, only the window bounds cut it off.
   **The glass is drawn, not photographed** — a `CGImage` built at the overlay
   screen's backing scale: chrome rim with a black cartoon outline inside and out,
   a metal collar, a tapered wooden handle hanging down-right at 45° (the way the
