@@ -817,9 +817,9 @@ rule from the start.
     `/effect/chainsaw` fire it silently.
 
 - **🔥 Fireball & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
-  the pointer becomes a **burning fireball** — a different one of three on each press — and
-  every fire on screen is one he put down with it: a click lays a fire where the ball was,
-  the wheel sizes **that** fire on the spot, the next click starts another, and Escape puts
+  the pointer becomes a **burning sphere of fire**, and every fire on screen is one he put
+  down with it: a click lays a fire where the ball was, the wheel sizes **that** fire on the
+  spot, ⌘ + drag carries it, the next click starts another, and Escape puts
   the ball out and leaves them burning.
   The real pointer is hidden for the run (fourth member of the hidden-cursor family, bound
   by the same rule: **outside `activeEffects`**, torn down explicitly by
@@ -837,77 +837,131 @@ rule from the start.
     screen for a **36 s** sound and fire at 15 fps reads as a strobing loop within seconds —
     and each gets its own random phase into the loop, or a row of them flickers in lockstep
     and announces "sprite sheet" louder than any of them announces "fire".
-  - **The fireball pointer** (2026-09-22, Victor: *"mouse-ul se transformă, pe rând, într-una
-    din celelalte trei, la porniri succesive … doar vorbim despre înlocuirea cursorului"*).
-    It replaced the **drawn match** of 2026-09-18/19, and the match is worth remembering,
-    because it was an answer to a real problem: between 09-08 and 09-19 a bare flame burned
-    on the pointer, which read as a *decal* over the slide, and the gesture the effect invites
-    — clicking to set something alight — had nothing doing the lighting. The match gave the
-    flame a cause, and 09-19 then took the flame off its head so the planted fire stopped
-    being a *copy* of something already on screen. A fireball keeps both of those wins and
-    costs the stick: it is not a flame *on* the pointer, it **is** the pointer, and "why
-    click?" still has an answer — to put some of it down.
-    - **Three balls, handed out in rotation** (`fireballs`, `nextFireball`). Successive
-      presses get the *next* one, never a random one: a room that sees the tile twice in an
-      hour should get a visibly different answer the second time, and random picks a repeat
-      one press in three. The index lives in RAM and is deliberately **not** reset by a stop —
-      `fireRememberedScale`'s reasoning inside out: the size is a thing he tuned and wants
-      back, the ball is a thing he has just shown a room and wants a different one of.
-    - **Art**: three sprite sheets, `fireball-burst` (12×12, 143 frames, 20 fps — a spiky
-      white-hot burst), `fireball-plasma` (6×6, 32, 16.7 — a dense sphere of dark rock under
-      glowing veins) and `fireball-lava` (5×4, 17, 10 — a flat cartoon ball in a red glow).
-      Sheets and not the gifs they came from, for `fire-frames.png`'s reason. Each carries
-      **its own fps**: they differ by 2×, so played at one shared rate the slow one strobes
-      and the fast one crawls. Cut from the sheet lazily, **per variant** — a session that
-      presses the tile once should pay to decode one ball, not 8 MB of png.
-      - `tools/make-fireball-sheets.py` is the converter, and the two awkward clips are
-        documented in it. One arrived on **white**, so its alpha is `(255 − min(r,g,b)) × 1.6`
-        and its colour is un-premultiplied back off white or the red glow stays milky. The
-        plasma sphere's interior is **genuinely black** (rock between veins) and a luminance
-        key cannot tell it from the black around the ball — left alone the sphere becomes a
-        stencil and the slide shows through every crack. Flood-filling the silhouette is the
-        obvious fix and it **does not work**: the rim is filaments, not a contour, and the
-        fill leaks through. So the ball is treated as the disc it is — a measured radial
-        profile puts the body's edge at 0.78 of the half-width, so everything inside 0.75 is
-        forced opaque and 0.75 → 0.83 feathers back to the keyed value.
-      - The grid is **typed into `fireballs`, not read off the png**, so
-        `testEveryFireballGridHoldsItsFrames` is what catches a drift: too few cells and the
+  - **The fireball pointer** (2026-09-22, Victor: *"doar vorbim despre înlocuirea
+    cursorului"*). It replaced the **drawn match** of 2026-09-18/19, and the match is worth
+    remembering, because it was an answer to a real problem: between 09-08 and 09-19 a bare
+    flame burned on the pointer, which read as a *decal* over the slide, and the gesture the
+    effect invites — clicking to set something alight — had nothing doing the lighting. The
+    match gave the flame a cause, and 09-19 then took the flame off its head so the planted
+    fire stopped being a *copy* of something already on screen. A fireball keeps both of
+    those wins and costs the stick: it is not a flame *on* the pointer, it **is** the
+    pointer, and "why click?" still has an answer — to put some of it down.
+    - **One ball, not three.** It shipped that afternoon as a rotation of three sheets and
+      lost two of them within the hour (*"bila a doua … sfera care arde ca un soare … las-o
+      doar pe ea, de departe"*). The rotation was answering a question nobody had asked — a
+      tile pressed twice in an hour does not need to surprise anybody the second time — and
+      the other two were a spiky burst and a flat cartoon, neither of which is what a fire
+      *starts* from. Both sheets are **deleted** rather than left unused: 5 MB of png in a
+      public repo that nothing reads. `tools/make-fireball-sheets.py` and commit `cc41ea4`
+      are where they live now.
+    - **Art**: `Resources/fireball-plasma.png`, a **6×6 sheet** of 32 cells at **16.7 fps** —
+      a dense sphere of dark rock under glowing veins. A sheet and not the gif it came from,
+      for `fire-frames.png`'s reason. It carries **its own fps** rather than the flame's 30:
+      a sprite played at somebody else's rate either strobes or crawls.
+      - The converter is `tools/make-fireball-sheets.py`, and the awkward bit is documented
+        there. The sphere's interior is **genuinely black** (rock between veins) and a
+        luminance key cannot tell it from the black around the ball — left alone the sphere
+        becomes a stencil and the slide shows through every crack. Flood-filling the
+        silhouette is the obvious fix and it **does not work**: the rim is filaments, not a
+        contour, and the fill leaks through. So the ball is treated as the disc it is — a
+        measured radial profile puts the body's edge at 0.78 of the half-width, so everything
+        inside 0.75 is forced opaque and 0.75 → 0.83 feathers back to the keyed value.
+      - The grid is **typed into `fireball`, not read off the png**, so
+        `testTheFireballGridHoldsItsFrames` is what catches a drift: too few cells and the
         crop runs past the bottom edge (a hole in the loop), a spare row is empty cells the
-        png is carrying for nothing.
+        png is carrying for nothing. `testTheFireballSheetIsInTheBundleAndCutsCleanly` is the
+        other half — it opens the png out of `Bundle.module`, so a sheet that never reached
+        `Resources/` fails the build instead of turning the tile into a dead press on stage.
     - **Its CENTRE is the layer's `anchorPoint`.** A ball has no tip, and the middle is where
       the eye puts the pointer, so that is the pixel under the mouse and the pixel a click
       lights a fire on. (The match's anchor was its *head*, for the same reason stated about
       a different shape.)
-    - **Its size is FIXED at `fireballCursorWidth`** (150 pt) — well under the flame's
-      `fireBaseWidth` of 280, because this is the *pointer* and the fires it lights are the
-      thing that should be big. It does not move with the wheel, for the reason the match's
-      size did not either: the wheel belongs to the fire on the ground, and a pointer that
-      grew with it would have him sizing two things with one gesture.
-    - **`zPosition` 9 450**, above the planted fires (9 400): it is the pointer, so it
-      passes in front of the fires it has already lit. `opacity` fades in over **0.12 s** —
-      the cursor is a thing you are already looking at, and a slow fade there reads as lag;
-      out over 0.25 s, with the real cursor restored only **after** the fade, so the two are
-      never on screen together.
+    - **75 pt wide** (`fireballCursorWidth`), halved from 150 the day it shipped
+      (*"micșorează-o la 50%"*) — a bit over a quarter of the flame's `fireBaseWidth` of 280.
+      That ratio is the point: this is the *pointer*, and the fire it lights is the thing
+      that should be big. It does not move with the wheel, for the reason the match's size
+      did not either: the wheel belongs to the fire on the ground, and a pointer that grew
+      with it would have him sizing two things with one gesture.
+    - **It is drawn UNDER the fires it starts** — `fireballZ` **9 350** against their 9 400
+      (2026-09-22, *"să fie randate sub incendiul pe care le lansează"*). It was 9 450, above
+      them, for the match's reason: a pointer passes in front of things. A ball of fire is
+      not a pointer-shaped arrow, though — drawn over a blaze twice its size it reads as
+      *floating on top of* the fire rather than as the thing that started it, and at 75 pt it
+      simply disappears into the flame it is sitting on. Underneath, the fire swallows it as
+      it grows, which is both the right story and the right silhouette.
+    - **After each fire is laid the ball gets out of the way** (2026-09-22, *"după fiecare
+      așezare a incendiului, bila de foc dispare pentru două secunde, după care reapare …
+      mărind impactul focului care l-a născut"*). Out on the instant of the click with **no
+      fade** — a ball that dissolves competes with the fire climbing next to it for exactly
+      the half second the fire needs — gone for **`fireballHideAfterPlant` (2 s)**, then back
+      over **`fireballReturnFade` (0.7 s)**, slow enough to read as rekindling rather than as
+      a cursor blinking. *Dictated as "70 de secunde"; 70 would outlast the 36 s clip twice
+      over, so it is read as the fade it plainly is — and `testTheBallStaysAwayLongEnough…`
+      pins the reading, not just the number.*
+      - **The clock restarts on every plant** (`_fireballHideToken`), which is what makes a
+        drag behave: a sweep lays a fire every 50 pt, so only the last one's return survives
+        and the ball is away for the whole gesture, coming back once at the end. A plain
+        two-second timer per fire would bring it back mid-sweep and take it away again,
+        strobing. The trade is real and deliberate: **during a sweep there is no pointer on
+        screen at all** — the line of fires appearing under the hand is what tells him where
+        he is.
+    - **`opacity` fades in over 0.12 s** at the start of a run — the cursor is a thing you are
+      already looking at, and a slow fade there reads as lag; out over 0.25 s, with the real
+      cursor restored only **after** the fade, so the two are never on screen together.
     - The ball burns on **its own clip's clock** (a repeating discrete `contents` keyframe),
       not on the 60 Hz follow timer. The timer's job is *where* the pointer is; driving the
       sprite from it would tie the flame's rate to how often we can afford to poll the mouse.
   - **A click strikes a fire** (`plantFireAtCursor`). It stands at the ball's pixel, rooted
     there by `fireRootAnchor` `(0.5, 0.10)` — the flame's **root**, near the bottom edge and
     centred, so it grows *upward out of* the spot rather than swallowing it. `zPosition`
-    9 400, under the fireball and over every other effect. `fireMaxPlanted` (60) is the
-    ceiling — out of reach for single clicks, reachable by a long drag — and past it the
-    oldest fire goes out, which reads as having burnt itself out rather than as a limit.
+    9 400, over the ball and every other effect. `fireMaxPlanted` (60) is the ceiling — out
+    of reach for single clicks, reachable by a long drag — and past it the oldest fire goes
+    out, which reads as having burnt itself out rather than as a limit.
+    - **It catches rather than appears** (2026-09-22, *"focul, când apare, să crească la
+      dimensiunea la care este targetat să fie pe parcursul a jumătate de secundă, cum se
+      aprinde incendiul"*). `fireCatchDuration` **0.5 s**, eased out, from
+      `fireCatchFromScale` **0.15** of the target box — not from zero, because a fire growing
+      out of nothing is a dot expanding, while one that starts as a spark and takes hold is
+      what the eye reads as catching. Half a second is short enough that the click still
+      feels answered at once.
+    - It animates **`bounds`, not `transform`**, for the wheel's reason: the anchor is the
+      root, so growing the box makes the flame climb *up out of* the spot instead of
+      ballooning around its own middle. The model value is the full size from the first
+      instant, so anything reading the box mid-climb sees where it is going, not where it is.
+    - **The wheel drops a running climb** (`removeAnimation(forKey: "catch")`). A fire
+      scrolled during its half second has two answers for its box; the hand on it right now
+      wins, or the animation finishing would snap the flame back to the size he just
+      scrolled away from.
   - **Dragging draws a line of fire** (2026-09-19, `plantFireIfDragged`). With the button
     held down the ball keeps laying fires as it sweeps, one every **`fireDragSpacing`
-    (50 pt)** of travel: the gesture of dragging a match along a fuse, instead of one click
-    per flame when he wants an edge of the screen alight. The spacing is the whole trick —
-    a drag reports 60+ events a second, so without it a single sweep would stack flames on
-    the same pixel and exhaust `fireMaxPlanted` before the wrist stopped moving. It is
-    measured from the last fire **planted**, never from the last event, so a slow drag
-    spaces them exactly like a fast one: speed changes *when* the next fire appears, never
-    how far apart they stand. The tap consumes `leftMouseDragged` for the same reason it
-    consumes the down and the up — the pair (and everything between) goes or stays together,
-    or the app underneath gets half a gesture.
+    (50 pt)** of travel: the gesture of dragging a match along a fuse — the one thing about
+    the old pointer the new one still quotes — instead of one click per flame when he wants
+    an edge of the screen alight. The spacing is the whole trick: a drag reports 60+ events a
+    second, so without it a single sweep would stack flames on the same pixel and exhaust
+    `fireMaxPlanted` before the wrist stopped moving. It is measured from the last fire
+    **planted**, never from the last event, so a slow drag spaces them exactly like a fast
+    one: speed changes *when* the next fire appears, never how far apart they stand. The tap
+    consumes `leftMouseDragged` for the same reason it consumes the down and the up — the
+    pair (and everything between) goes or stays together, or the app underneath gets half a
+    gesture.
+  - **⌘ + left drag carries the fire he just laid** (2026-09-22, *"după ce așez focul, să-l
+    pot și trage apăsând Command și drag cu butonul stâng"*, `grabFireAtCursor` / `dragFire`).
+    - The target is **`_firePlanted.last`**, deliberately the same fire the wheel sizes
+      rather than whichever one happens to sit under the pointer. There is one "current fire"
+      in this effect and both gestures address it; hit-testing instead would mean a fire you
+      can drag but not size, and a room watching him miss a flame by ten points is a room
+      watching him fight the tool.
+    - **⌘ and not ⌃**, although the dictation said *"control cu mouse-ul stâng"*: on macOS
+      ⌃ + left click **is** a right click, so the system would turn half the gesture into a
+      context menu before the tap ever saw it.
+    - The grab **offset is captured on the press**, so the fire keeps the grip it was grabbed
+      by instead of snapping its root under the cursor on the first moved pixel. Dropping it
+      also re-homes `_fireLastPlantPoint`, so a later drag spaces its next flame from where
+      this one ended up rather than from where it was originally struck.
+    - ⌘ held with **nothing grabbed does nothing**, on purpose: ⌘ means "move the fire", and a
+      press that finds no fire to move must not quietly fall back to lighting one.
+    - The modifier is read on the tap's thread and *handed on*; the decision is made on main,
+      where `_firePlanted` lives. That callback must never read the array itself.
   - **The wheel sizes the fire he just struck, in place** (2026-09-19, Victor: *"then I can
     zoom with the wheel to increase the size of that fire"*). Until then the wheel sized the
     pointer and a click planted at that size, which is backwards: he only knows how big a

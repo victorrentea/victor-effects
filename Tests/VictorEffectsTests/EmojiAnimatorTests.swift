@@ -405,50 +405,34 @@ final class EmojiAnimatorTests: XCTestCase {
 
     // MARK: - 🔥 The fireball the pointer turns into (2026-09-22)
 
-    /// Every sheet has to declare a grid that can actually hold its frames, and
-    /// no more rows than it needs. This is the one thing about a sprite sheet a
-    /// test can catch and an eye cannot: too few cells and `fireballFrames`
-    /// crops past the bottom edge (missing frames, a hole in the loop); a
-    /// spare row is a row of empty cells nobody asked the png to carry.
-    func testEveryFireballGridHoldsItsFrames() {
-        for ball in EmojiAnimator.fireballs {
-            XCTAssertGreaterThanOrEqual(ball.cols * ball.rows, ball.count,
-                                        "\(ball.asset): the grid cannot hold \(ball.count) frames")
-            XCTAssertLessThan(ball.cols * (ball.rows - 1), ball.count,
-                              "\(ball.asset): the last row is empty — one row too many")
-            XCTAssertGreaterThan(ball.fps, 0, "\(ball.asset): a clip with no rate never advances")
-        }
+    /// The sheet's grid has to be able to hold its frames, and no more rows
+    /// than it needs. This is the one thing about a sprite sheet a test can
+    /// catch and an eye cannot: too few cells and `fireballFrames` crops past
+    /// the bottom edge (missing frames, a hole in the loop); a spare row is a
+    /// row of empty cells the png is carrying for nothing.
+    func testTheFireballGridHoldsItsFrames() {
+        let ball = EmojiAnimator.fireball
+        XCTAssertGreaterThanOrEqual(ball.cols * ball.rows, ball.count,
+                                    "the grid cannot hold \(ball.count) frames")
+        XCTAssertLessThan(ball.cols * (ball.rows - 1), ball.count,
+                          "the last row is empty — one row too many")
+        XCTAssertGreaterThan(ball.fps, 0, "a clip with no rate never advances")
     }
 
-    /// Every declared sheet is IN THE BUNDLE and cuts into exactly the frames
-    /// its grid promises. This is the half `testEveryFireballGridHoldsItsFrames`
-    /// cannot see: that one checks the numbers against each other, this one
-    /// checks them against the png. A sheet that never made it into
-    /// `Resources/` fails here at build time — `showFireCursor` would otherwise
-    /// answer a press by logging to a stdout nobody is reading and leaving the
-    /// pointer alone, which on stage looks exactly like the tile being dead.
-    func testEveryFireballSheetIsInTheBundleAndCutsCleanly() {
-        for ball in EmojiAnimator.fireballs {
-            let frames = EmojiAnimator.fireballFrames(ball)
-            XCTAssertEqual(frames.count, ball.count,
-                           "\(ball.asset).png: expected \(ball.count) cells, cut \(frames.count)")
-            guard let first = frames.first else { continue }
-            XCTAssertGreaterThan(first.width, 0, "\(ball.asset): empty cell")
-            XCTAssertEqual(Double(first.width), Double(first.height), accuracy: 2,
-                           "\(ball.asset): the tool square-crops every ball — this cell is not square")
-        }
-    }
-
-    /// The rotation is a ROTATION, not a random draw (Victor: *"pe rând … la
-    /// porniri succesive"*). Random repeats one press in three, and the room
-    /// reads a repeat as the tile being broken rather than as chance.
-    func testSuccessivePressesHandOutEachFireballInTurn() {
-        let n = EmojiAnimator.fireballs.count
-        XCTAssertGreaterThan(n, 1, "a rotation of one is not a rotation")
-        let firstLap = (0..<n).map { _ in EmojiAnimator.nextFireball().asset }
-        XCTAssertEqual(Set(firstLap).count, n, "one lap must show every ball exactly once")
-        let secondLap = (0..<n).map { _ in EmojiAnimator.nextFireball().asset }
-        XCTAssertEqual(firstLap, secondLap, "and then start the same lap again")
+    /// The sheet is IN THE BUNDLE and cuts into exactly the frames its grid
+    /// promises. This is the half the test above cannot see: that one checks the
+    /// numbers against each other, this one checks them against the png. A sheet
+    /// that never made it into `Resources/` fails here at build time —
+    /// `showFireCursor` would otherwise answer a press by logging to a stdout
+    /// nobody is reading and leaving the pointer alone, which on stage looks
+    /// exactly like the tile being dead.
+    func testTheFireballSheetIsInTheBundleAndCutsCleanly() {
+        let frames = EmojiAnimator.fireballFrames()
+        XCTAssertEqual(frames.count, EmojiAnimator.fireball.count,
+                       "expected \(EmojiAnimator.fireball.count) cells, cut \(frames.count)")
+        guard let first = frames.first else { return }
+        XCTAssertEqual(Double(first.width), Double(first.height), accuracy: 2,
+                       "the tool square-crops the ball — this cell is not square")
     }
 
     /// The ball keeps its sheet's aspect at whatever width it is drawn — the
@@ -468,10 +452,32 @@ final class EmojiAnimatorTests: XCTestCase {
     /// (`fireBaseWidth`, 280 pt). A pointer as big as its own output stops
     /// reading as a pointer, which is what made a 280 pt flame unusable as one.
     func testTheFireballPointerIsSmallerThanTheFiresItLights() {
-        XCTAssertLessThan(EmojiAnimator.fireballCursorWidth, 280,
-                          "the pointer must not be the size of the fire it plants")
+        XCTAssertLessThan(EmojiAnimator.fireballCursorWidth, 280 / 2,
+                          "the pointer must read as smaller than the fire it plants")
         XCTAssertGreaterThan(EmojiAnimator.fireballCursorWidth, 40,
                              "below this it is a spark, not a ball anyone can see on a projector")
+    }
+
+    /// **The ball is drawn UNDER the fires it starts** (2026-09-22, *"să fie
+    /// randate sub incendiul pe care le lansează"*). Planted fires sit at 9 400;
+    /// if this ever climbs above them the ball reads as floating on top of the
+    /// blaze instead of as the thing that started it — and at 75 pt against a
+    /// 280 pt flame it would simply vanish into it.
+    func testTheFireballIsDrawnUnderThePlantedFires() {
+        XCTAssertLessThan(EmojiAnimator.fireballZ, 9_400,
+                          "the ball has to pass behind the fires it lights")
+    }
+
+    /// The blackout after a plant is long enough to be a beat and short enough
+    /// not to lose the pointer, and the way back is a fade rather than a snap.
+    /// The 0.7 s is a READING of a dictated *"70 de secunde"* — 70 would outlast
+    /// the 36 s clip twice over — so this pins the reading, not just the number.
+    func testTheBallStaysAwayLongEnoughToBeABeatAndComesBackAsAFade() {
+        XCTAssertEqual(EmojiAnimator.fireballHideAfterPlant, 2.0, accuracy: 0.001)
+        XCTAssertGreaterThan(EmojiAnimator.fireballReturnFade, 0.2,
+                             "a snap back would read as the cursor blinking")
+        XCTAssertLessThan(EmojiAnimator.fireballReturnFade, 5,
+                          "dictated as 70 s; anything near that outlives the clip")
     }
 
     func testSpawnEmojiWithoutGlowHasNoHalo() {

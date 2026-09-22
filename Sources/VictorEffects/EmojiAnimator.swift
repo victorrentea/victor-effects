@@ -9586,34 +9586,35 @@ class EmojiAnimator {
 
     // MARK: The fireball the pointer turns into (2026-09-22)
 
-    /// Victor: *"mouse-ul se transformă, pe rând, într-una din celelalte trei, la
-    /// porniri succesive … doar vorbim despre înlocuirea cursorului."*
+    /// Victor: *"doar vorbim despre înlocuirea cursorului"* — the pointer is a
+    /// **burning sphere**, and nothing downstream of it moved.
     ///
-    /// This replaces the drawn match of 2026-09-18, and it is worth saying what
-    /// the match was FOR before replacing it: a bare flame hanging on the
-    /// pointer read as a decal over the slide, and the gesture the effect
+    /// It replaced the drawn match of 2026-09-18/19, and the match is worth
+    /// remembering, because it answered a real problem: a bare flame hanging on
+    /// the pointer read as a *decal* over the slide, and the gesture the effect
     /// invites — clicking to set something alight — had nothing doing the
     /// lighting. The match gave the flame a cause. A fireball needs no cause,
-    /// because it is not a flame *on* the pointer: it IS the pointer, a ball of
-    /// fire being carried, and "why click?" still has an answer — to put some of
-    /// it down. So the one thing that changes is the sprite. A click still
-    /// plants a `fire-frames.png` flame where the pointer was, a drag still
-    /// draws a line of them, the wheel still sizes the last one, and Escape
-    /// still blows the pointer out while leaving the fires standing.
+    /// because it is not a flame *on* the pointer: it IS the pointer, and "why
+    /// click?" still has an answer — to put some of it down.
     ///
-    /// **Three of them, in rotation.** Successive presses of tile #11 hand out
-    /// the *next* ball, never a random one: a room that sees the tile twice in
-    /// an hour should get a visibly different answer the second time, and random
-    /// picks a repeat one press in three.
+    /// **One ball, not three.** It shipped as a rotation of three sheets the
+    /// same afternoon and lost two of them within the hour (*"bila a doua …
+    /// sfera care arde ca un soare … las-o doar pe ea, de departe"*). The
+    /// rotation was answering a question nobody had asked: a tile pressed twice
+    /// in an hour does not need to surprise anybody the second time, and the
+    /// other two balls were a spiky burst and a flat cartoon — neither of which
+    /// is what a fire *starts* from. The two sheets are gone from `Resources/`
+    /// rather than left unused; `tools/make-fireball-sheets.py` and the history
+    /// are where they live now.
     ///
-    /// **Sheets, not the gifs they came from** — `fire-frames.png`'s reason,
+    /// **A sheet, not the gif it came from** — `fire-frames.png`'s reason,
     /// unchanged: a gif carries 1-bit alpha, so a gif of fire fringes against
-    /// every desktop. `tools/make-fireball-sheets.py` keys each clip's matte
-    /// into 8-bit alpha and writes the grid, read row-major exactly like the
-    /// flame's. That tool is also where the two awkward clips are dealt with —
-    /// one arrived on white, and one is a sphere whose interior is genuinely
-    /// black and had to be given a forced opaque core or the slide shows through
-    /// its cracks.
+    /// every desktop. The tool keys the matte into 8-bit alpha and writes the
+    /// grid, read row-major exactly like the flame's. This clip needed one
+    /// trick beyond that, documented there: its interior is genuinely BLACK
+    /// (dark rock between glowing veins) and a luminance key cannot tell that
+    /// black from the black around the ball, so the sphere is given a forced
+    /// opaque core or the slide shows through its cracks.
     struct Fireball {
         let asset: String
         let cols: Int, rows: Int
@@ -9621,43 +9622,27 @@ class EmojiAnimator {
         /// is the grid, this is the count, and cropping past it would hand the
         /// animation a strip of empty cells to flash through.
         let count: Int
-        /// Each clip's OWN rate. They differ by 2× (20 / 16.7 / 10 fps), so this
-        /// cannot be one constant the way the flame's `fireFPS` is: played at a
-        /// shared rate the slow one strobes and the fast one crawls.
+        /// The clip's own rate, not the flame's `fireFPS`: this sheet is 16.7,
+        /// that one is 30, and a sprite played at somebody else's rate either
+        /// strobes or crawls.
         let fps: Double
     }
 
-    /// The rotation, in the order a run hands them out.
-    static let fireballs: [Fireball] = [
-        // A spiky white-hot burst — the most obviously *on fire* of the three,
-        // so it is the one a first press gets.
-        Fireball(asset: "fireball-burst",  cols: 12, rows: 12, count: 143, fps: 20),
-        // A dense plasma sphere, dark rock under glowing veins.
-        Fireball(asset: "fireball-plasma", cols: 6,  rows: 6,  count: 32,  fps: 16.7),
-        // A cartoon lava ball inside a red glow — flat where the other two are
-        // photographic, which is exactly why it earns a slot.
-        Fireball(asset: "fireball-lava",   cols: 5,  rows: 4,  count: 17,  fps: 10),
-    ]
+    /// The ball the pointer becomes. A dense sphere of dark rock under glowing
+    /// veins — *"sfera care arde ca un soare"*.
+    static let fireball = Fireball(asset: "fireball-plasma", cols: 6, rows: 6, count: 32, fps: 16.7)
 
-    /// Which ball the NEXT press gets. RAM only and deliberately NOT reset by a
-    /// stop — `fireRememberedScale`'s reasoning turned inside out: the size is a
-    /// thing he tuned and wants back, the ball is a thing he has just shown a
-    /// room and wants a different one of.
-    private static var fireballNext = 0
+    /// Cells cut out of the sheet, once and kept for the life of the process.
+    /// The press has to be instant — the cursor is already moving under his hand
+    /// — and this is 3 MB of png to decode.
+    private static var fireballFrameCache: [CGImage]?
 
-    /// Cells cut out of a sheet, once per sheet and kept for the life of the
-    /// process. The press has to be instant — the cursor is already moving under
-    /// his hand — and the largest sheet is 4 MB of png to decode. Lazy per
-    /// variant rather than all three up front: a session that only ever presses
-    /// the tile once should pay for one ball.
-    private static var fireballFrameCache: [String: [CGImage]] = [:]
-
-    static func fireballFrames(_ ball: Fireball) -> [CGImage] {
-        if let cached = fireballFrameCache[ball.asset] { return cached }
+    static func fireballFrames(_ ball: Fireball = fireball) -> [CGImage] {
+        if let cached = fireballFrameCache { return cached }
         guard let url = Bundle.module.url(forResource: ball.asset, withExtension: "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let sheet = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-            fireballFrameCache[ball.asset] = []   // a missing sheet is asked about once
+            fireballFrameCache = []   // a missing sheet is asked about once
             return []
         }
         let cw = sheet.width / ball.cols
@@ -9668,27 +9653,44 @@ class EmojiAnimator {
                               width: cw, height: ch)
             if let cell = sheet.cropping(to: rect) { frames.append(cell) }
         }
-        fireballFrameCache[ball.asset] = frames
+        fireballFrameCache = frames
         return frames
     }
 
-    /// The ball the given press gets, and the rotation advanced past it. One
-    /// function so "which one is next" has a single answer and a test can walk
-    /// it without a screen.
-    static func nextFireball() -> Fireball {
-        defer { fireballNext = (fireballNext + 1) % fireballs.count }
-        return fireballs[fireballNext % fireballs.count]
-    }
+    /// The pointer ball's displayed width, in points. Halved from 150 on the day
+    /// it shipped (*"micșorează-o la 50%"*), which put it at a bit over a
+    /// quarter of the flame's `fireBaseWidth` (280). That ratio is the point:
+    /// this is the POINTER, and the fire it lights is the thing that should be
+    /// big. It does not move with the wheel, for the reason the match's size did
+    /// not either — the wheel belongs to the fire on the ground, and a pointer
+    /// that grew with it would leave him sizing two things with one gesture.
+    static let fireballCursorWidth: CGFloat = 75
 
-    /// The pointer ball's displayed width, in points — *"acea animație
-    /// micșorată în locul mouse-ului"*. Deliberately well under the flame's
-    /// `fireBaseWidth` (280): this is the POINTER, and the fires it lights are
-    /// the thing that should be big.
+    /// **The ball is drawn UNDER the fires it starts** (`zPosition` 9 350
+    /// against their 9 400). It was 9 450 — above them — for the match's reason,
+    /// that a pointer passes in front of things. A ball of fire is not a
+    /// pointer-shaped arrow, though: drawn over a blaze twice its size it reads
+    /// as *floating on top of* the fire rather than as the thing that started
+    /// it, and at 75 pt it simply disappears into the flame it is sitting on.
+    /// Underneath, the fire swallows it as it grows, which is the right story
+    /// and the right silhouette.
+    static let fireballZ: CGFloat = 9_350
+
+    /// **After each fire is laid the ball gets out of the way**: it vanishes on
+    /// the instant of the click, stays gone for `fireballHideAfterPlant`, and
+    /// then fades back over `fireballReturnFade` — *"mărind impactul focului
+    /// care l-a născut"*. The blackout is the whole effect: a new fire has about
+    /// two seconds of being the only thing that moved, instead of sharing the
+    /// frame with the ball that made it.
     ///
-    /// It does not move with the wheel, for the reason the match's size did not
-    /// either: the wheel belongs to the fire on the ground, and a pointer that
-    /// grew with it would leave him sizing two things with one gesture.
-    static let fireballCursorWidth: CGFloat = 150
+    /// The clock RESTARTS on every plant, so a drag that lays a line of fires
+    /// keeps the ball away for the whole sweep and it returns once, after the
+    /// last one — the alternative is a ball strobing in and out every 50 pt of
+    /// travel.
+    static let fireballHideAfterPlant: Double = 2.0
+    /// 0.7 s, dictated as *"70 de secunde"*; 70 would outlast the 36 s clip
+    /// twice over, so it is read as the fade it plainly is.
+    static let fireballReturnFade: Double = 0.7
 
     /// The ball's box, keeping the sheet's aspect. Pure, so the geometry is
     /// asserted without a screen — see `EmojiAnimatorTests`.
@@ -9713,12 +9715,21 @@ class EmojiAnimator {
     private var _fireScrollAccum: CGFloat = 0     // trackpad pixels → notches
     private var _firePlanted: [CALayer] = []      // fires struck by clicking, oldest first; the LAST is the wheel's
     private var _fireLastPlantPoint: CGPoint?     // where the last one was struck; the drag measures from here
+    private var _fireGrabOffset: CGSize?          // ⌘-drag: mouse → fire root, captured on the press
+    private var _fireballHideToken = 0            // every plant bumps it; a stale return bails
 
     /// How far the fireball has to travel before a drag plants the next fire.
     /// Small enough that a sweep reads as a continuous line of flame, large
     /// enough that the flames stay separate fires rather than one smeared blob
     /// — and that a second of wrist movement doesn't exhaust `fireMaxPlanted`.
     private static let fireDragSpacing: CGFloat = 50
+
+    /// How long a fire takes to climb to its full size, and the fraction of it
+    /// it starts from. Not zero: a fire growing out of nothing is a dot
+    /// expanding, while one that starts as a spark and takes hold is what the
+    /// eye reads as catching.
+    private static let fireCatchDuration: Double = 0.5
+    private static let fireCatchFromScale: CGFloat = 0.15
 
     /// Ceiling on planted fires. Never reached by hand — it exists so a stuck
     /// mouse button (or a tablet demo where the trackpad gets leaned on) can't
@@ -9728,8 +9739,8 @@ class EmojiAnimator {
     private static let fireMaxPlanted = 60
 
     /// Replace the mouse pointer with a **burning fireball** that follows it
-    /// across the built-in screen — a different one of the three on each press
-    /// (`nextFireball`). A click puts some of it down as a standing fire, the
+    /// across the built-in screen. A click puts some of it down as a standing
+    /// fire, the
     /// wheel then sizes **that** fire on the spot, and the next click starts
     /// another one. Unlike every other tile effect this one has THREE ways to
     /// end — the length of `11_fire.mp3`, an Escape keypress, or the tablet's
@@ -9748,8 +9759,8 @@ class EmojiAnimator {
             overlayError("fire-frames.png not found in bundle")
             return
         }
-        let ball = Self.nextFireball()
-        let ballFrames = Self.fireballFrames(ball)
+        let ball = Self.fireball
+        let ballFrames = Self.fireballFrames()
         guard let firstBallFrame = ballFrames.first else {
             overlayError("\(ball.asset).png not found in bundle")
             return
@@ -9775,15 +9786,14 @@ class EmojiAnimator {
         // anchor — a ball has no tip, and the middle of it is where the eye puts
         // the pointer — so that is the pixel that rides the mouse and the point
         // a click plants a fire at. Its size is FIXED at `fireballCursorWidth`:
-        // the wheel belongs to the fire on the ground. `zPosition` 9 450, above
-        // the planted fires (9 400) — it is the pointer, so it passes in front
-        // of the fires it has lit.
+        // the wheel belongs to the fire on the ground. `fireballZ` puts it
+        // BELOW the fires it starts — see that constant for why.
         let pointer = CALayer()
         pointer.bounds = Self.fireballBounds(for: firstBallFrame)
         pointer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         pointer.contents = firstBallFrame
         pointer.contentsGravity = .resizeAspect
-        pointer.zPosition = 9_450
+        pointer.zPosition = Self.fireballZ
         pointer.opacity = 0
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -10012,9 +10022,34 @@ class EmojiAnimator {
         burn.timeOffset = Double.random(in: 0..<burn.duration)
         copy.add(burn, forKey: "burn")
 
+        // **It catches rather than appears** (2026-09-22, Victor: *"focul, când
+        // apare, să crească la dimensiunea la care este targetat să fie pe
+        // parcursul a jumătate de secundă, cum se aprinde incendiul"*). A fire
+        // that arrives at full size is a *decal being pasted*; one that climbs
+        // to it over half a second is something taking hold, and the half
+        // second is short enough that a click still feels answered at once.
+        //
+        // `bounds`, not `transform`, for the wheel's reason: the anchor is the
+        // flame's root, so growing the box makes it climb UP out of the spot it
+        // was struck on instead of ballooning around its own middle. The model
+        // value is the full size from this instant, so anything that reads the
+        // box mid-climb (the wheel, a drag) sees where it is going, not where
+        // it is. Eased out — fire flares and then settles, it does not arrive
+        // at a constant rate.
+        let full = copy.bounds
+        let catchFire = CABasicAnimation(keyPath: "bounds")
+        catchFire.fromValue = CGRect(x: 0, y: 0,
+                                     width: full.width * Self.fireCatchFromScale,
+                                     height: full.height * Self.fireCatchFromScale)
+        catchFire.toValue = full
+        catchFire.duration = Self.fireCatchDuration
+        catchFire.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        copy.add(catchFire, forKey: "catch")
+
         hostLayer.addSublayer(copy)
         _firePlanted.append(copy)
         _fireLastPlantPoint = point
+        hideFireballWhileTheFireTakes()
 
         while _firePlanted.count > Self.fireMaxPlanted {
             let oldest = _firePlanted.removeFirst()
@@ -10042,6 +10077,95 @@ class EmojiAnimator {
         let dx = here.x - last.x, dy = here.y - last.y
         guard dx * dx + dy * dy >= Self.fireDragSpacing * Self.fireDragSpacing else { return }
         plantFireAtCursor()
+    }
+
+    /// **The ball gets out of the way of the fire it just made** (2026-09-22,
+    /// Victor: *"după fiecare așezare a incendiului, bila de foc dispare pentru
+    /// două secunde, după care reapare … mărind impactul focului care l-a
+    /// născut"*). Out on the instant — no fade, because a ball that *dissolves*
+    /// competes with the fire climbing next to it for exactly the half second
+    /// the fire needs — and back over `fireballReturnFade`, which is slow enough
+    /// to read as the ball rekindling rather than as a cursor blinking.
+    ///
+    /// The token is what makes a DRAG behave. A sweep plants a fire every 50 pt,
+    /// so each plant restarts the clock and only the last one's return survives:
+    /// the ball is away for the whole gesture and comes back once, at the end.
+    /// Without it, a two-second timer per fire would bring the ball back in the
+    /// middle of the sweep and take it away again, strobing.
+    private func hideFireballWhileTheFireTakes() {
+        guard let ball = _firePointerLayer else { return }
+        _fireballHideToken &+= 1
+        let token = _fireballHideToken
+
+        ball.removeAnimation(forKey: "return")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        ball.opacity = 0
+        CATransaction.commit()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireballHideAfterPlant) { [weak self] in
+            guard let self, self._fireballHideToken == token,
+                  let ball = self._firePointerLayer else { return }
+            let back = CABasicAnimation(keyPath: "opacity")
+            back.fromValue = 0.0
+            back.toValue = 1.0
+            back.duration = Self.fireballReturnFade
+            back.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            ball.opacity = 1
+            ball.add(back, forKey: "return")
+        }
+    }
+
+    /// **⌘ + left drag moves the last fire he laid** (2026-09-22, Victor:
+    /// *"după ce așez focul, să-l pot și trage apăsând Command și drag cu
+    /// butonul stâng"*).
+    ///
+    /// The target is `_firePlanted.last`, deliberately the SAME fire the wheel
+    /// sizes rather than whichever one happens to be under the pointer. There is
+    /// one "current fire" in this effect and both gestures address it: hit-
+    /// testing instead would mean a fire you can drag but not size, and a room
+    /// watching him miss a flame by ten points is a room watching him fight the
+    /// tool.
+    ///
+    /// **⌘ and not ⌃**, although ⌃ is what the second dictation said: on macOS
+    /// ⌃ + left click IS a right click, so the system would turn half of this
+    /// gesture into a context menu before the tap ever saw it.
+    ///
+    /// The offset is captured on the press so the fire keeps the grip it was
+    /// grabbed by — without it the root jumps under the cursor on the first
+    /// moved pixel.
+    fileprivate func grabFireAtCursor() {
+        guard _firePointerLayer != nil, let fire = _firePlanted.last else { return }
+        let here = mousePointInHostLayer()
+        _fireGrabOffset = CGSize(width: fire.position.x - here.x,
+                                 height: fire.position.y - here.y)
+    }
+
+    /// One handler for both things a left-drag can mean, decided on the main
+    /// thread from state only it owns: carrying a fire, or laying a line of new
+    /// ones. ⌘ held with nothing grabbed does NOTHING on purpose — ⌘ means
+    /// "move the fire", and a press that finds no fire to move should not
+    /// quietly fall back to lighting one.
+    fileprivate func dragFire(commandHeld: Bool) {
+        if let offset = _fireGrabOffset, let fire = _firePlanted.last {
+            let here = mousePointInHostLayer()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)   // follow the hand, no servo lag
+            fire.position = CGPoint(x: here.x + offset.width, y: here.y + offset.height)
+            CATransaction.commit()
+            // The drag re-homes the fire, so the NEXT drag-planted flame must
+            // measure its spacing from where this one ended up, not from where
+            // it was originally struck.
+            _fireLastPlantPoint = fire.position
+            return
+        }
+        guard !commandHeld else { return }
+        plantFireIfDragged()
+    }
+
+    /// The button came up: whatever was being carried is put down.
+    fileprivate func releaseFireGrab() {
+        _fireGrabOffset = nil
     }
 
     /// Layer box for a given wheel scale, keeping the sprite's aspect ratio.
@@ -10088,13 +10212,23 @@ class EmojiAnimator {
             if animator._firePointerLayer == nil {
                 return Unmanaged.passUnretained(event)
             }
+            // ⌘ turns the press from "burn here" into "carry the fire I just
+            // laid". The flag is read here and handed on, so the decision is
+            // still made on main where `_firePlanted` lives — this callback runs
+            // on the tap's own thread and must not read that array.
             if type == .leftMouseDown {
-                DispatchQueue.main.async { animator.plantFireAtCursor() }
-                return nil   // consume — while he carries the ball, a click means "burn here"
+                let cmd = event.flags.contains(.maskCommand)
+                DispatchQueue.main.async {
+                    if cmd { animator.grabFireAtCursor() } else { animator.plantFireAtCursor() }
+                }
+                return nil   // consume — while he carries the ball, a click is ours
             }
             if type == .leftMouseDragged {
-                // He struck one on the way down; keep laying them as he sweeps.
-                DispatchQueue.main.async { animator.plantFireIfDragged() }
+                // Either he is dragging a fire he grabbed, or he struck one on
+                // the way down and is laying more as he sweeps. `dragFire` knows
+                // which; both are ours.
+                let cmd = event.flags.contains(.maskCommand)
+                DispatchQueue.main.async { animator.dragFire(commandHeld: cmd) }
                 return nil   // consume — the down was ours, so the drag is ours too
             }
             if type == .leftMouseUp {
@@ -10102,6 +10236,7 @@ class EmojiAnimator {
                 // hand the app underneath half a click: a button that highlights
                 // and never fires, a text view that loses its selection. The pair
                 // goes or stays together.
+                DispatchQueue.main.async { animator.releaseFireGrab() }
                 return nil
             }
             if type == .scrollWheel {
@@ -10169,6 +10304,12 @@ class EmojiAnimator {
             // it swells upward out of the thing it is burning instead of
             // ballooning around its own middle. No implicit animation: the wheel
             // should feel like a physical dial, not a servo.
+            //
+            // A fire scrolled DURING its half-second catch has two answers for
+            // its box: the climb and the wheel. Drop the climb — the wheel is a
+            // hand on the thing right now, and letting the animation finish
+            // would snap the flame back to the size he just scrolled away from.
+            fire.removeAnimation(forKey: "catch")
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             fire.bounds = Self.fireBounds(for: frame, scale: scale)
