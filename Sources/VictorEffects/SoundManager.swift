@@ -158,14 +158,18 @@ class SoundManager {
     /// Called by `/config/reload` so a corrected path is reported again.
     static func resetSoundsDirWarning() { loggedMissingSoundsDir = false }
 
-    /// Resolve a sound file: the configured `soundsDir` first, then the handful
-    /// of sounds bundled with the app itself (click, phoenix, confetti, the whip
-    /// cracks).
+    /// Resolve a sound file: the configured `soundsDir` first, then `assetsDir`
+    /// (Mac-owned effect media that is deliberately not in the public repo —
+    /// the same precedence `EffectsConfig.assetURL` applies), then the handful
+    /// of sounds bundled with the app itself (click, phoenix, confetti, the
+    /// whip cracks).
     func soundURL(for filename: String) -> URL? {
         if let dir = Self.sharedSoundsDir() {
             let shared = dir.appendingPathComponent(filename)
             if FileManager.default.fileExists(atPath: shared.path) { return shared }
         }
+        let external = EffectsConfig.shared.assetsDir.appendingPathComponent(filename)
+        if FileManager.default.fileExists(atPath: external.path) { return external }
         // bundleURL, not resourceURL: NSBundle reports <bundle>/Resources as
         // the resource dir for this flat SPM bundle, which would double the
         // "Resources" path component.

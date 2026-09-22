@@ -8706,6 +8706,123 @@ class EmojiAnimator {
     /// enough that the flat cartoon art still holds its own colours.
     private static let microwaveOpacity: Float = 0.85
 
+    // MARK: - Universal minions (tile #14, 14_universal.mp3)
+
+    /// The 14_universal.mp3 tile is the Universal fanfare WITHOUT the animated
+    /// logo — the animation arrives as a matted frame sequence the Mac plays
+    /// itself. The cue sits 23.83 s into the combined clip (`universal-minions.mp3`,
+    /// the tile's fanfare followed by the clip's own tail), so like the radar and
+    /// the microwave the effect must own the audio: the press path cannot know
+    /// when the handover is, and the routed /sound/play path plays the clip AND
+    /// stamps this visual's clock in one call.
+    ///
+    /// The sequence runs 7.5 s at 30 fps, pinned flush to the bottom-left corner
+    /// at half the screen's width. Frames decode on a background queue during
+    /// the long lead-in and the animation is installed exactly on the cue; a
+    /// missing frame set degrades to audio-only, a missing clip returns 0 so the
+    /// tablet falls back to its own local copy.
+    static let universalMinionsClipDuration: Double = 31.29   // combined audio length
+    static let universalMinionsCue: Double = 23.83             // fanfare → clip-tail handover
+    static let universalMinionsAnimDuration: Double = 7.5      // matted sequence length
+    static let universalMinionsFrames: Int = 225               // 7.5 s at 30 fps
+
+    @discardableResult
+    func showUniversalMinions(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
+        _ = cancelIfRunning("universal-minions", sound: playSound ? "universal-minions.mp3" : nil)
+
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return 0 }
+
+        // Live exactly as long as the combined clip; fall back to its known length.
+        var duration: Double = Self.universalMinionsClipDuration
+        if let soundURL = SoundManager.shared.soundURL(for: "universal-minions.mp3") {
+            let d = AVURLAsset(url: soundURL).duration
+            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+        }
+
+        // On Bluetooth output `playTabletSound` prepends `btComp` of warm-up
+        // silence, so the audio really starts that much later and the whole
+        // visual timeline shifts with it — same bargain as the microwave. The
+        // audio is the one half that must not silently fail: with no clip to
+        // play, answer 0 so the tablet falls back to its own local copy.
+        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        if playSound {
+            guard SoundManager.shared.playTabletSound("universal-minions.mp3", volume: volume) != nil else {
+                return 0
+            }
+        }
+        let clock0 = CACurrentMediaTime() + btComp
+
+        // 50% of the screen width, aspect-preserved height (the frame canvas is
+        // 16:9), FLUSH to the bottom-left corner — hostLayer is AppKit y-up, so
+        // the bottom edge is y = 0.
+        let layerW = bounds.width * 0.5
+        let layerH = layerW * 540.0 / 960.0
+        let frameLayer = CALayer()
+        frameLayer.frame = CGRect(x: 0, y: 0, width: layerW, height: layerH)
+        frameLayer.contentsGravity = .resizeAspect
+        frameLayer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        frameLayer.opacity = 0              // invisible through the 23.83 s lead-in
+        hostLayer.addSublayer(frameLayer)
+        trackEffect("universal-minions", layer: frameLayer,
+                    duration: btComp + Self.universalMinionsCue + Self.universalMinionsAnimDuration + 0.35)
+
+        // Entrance fade ON the cue. The matte's own tail frames already carry
+        // the dissolve at the end, so the layer only helps it out with a short
+        // fade-out over the last 0.4 s of the sequence.
+        let fadeIn = CABasicAnimation(keyPath: "opacity")
+        fadeIn.fromValue = 0.0
+        fadeIn.toValue = 1.0
+        fadeIn.beginTime = clock0 + Self.universalMinionsCue
+        fadeIn.duration = 0.15
+        fadeIn.fillMode = .backwards
+        frameLayer.add(fadeIn, forKey: "universalMinionsFadeIn")
+
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.fromValue = 1.0
+        fadeOut.toValue = 0.0
+        fadeOut.beginTime = clock0 + Self.universalMinionsCue + Self.universalMinionsAnimDuration - 0.4
+        fadeOut.duration = 0.4
+        fadeOut.fillMode = .forwards
+        fadeOut.isRemovedOnCompletion = false
+        frameLayer.add(fadeOut, forKey: "universalMinionsFadeOut")
+
+        // Decode the frames on a background queue — the 23.83 s lead-in is the
+        // budget. Installed on the main thread; the identity guard drops the
+        // result if a re-press preempted the layer while the decode was in
+        // flight. A late install (slow disk) starts the keyframes mid-sequence
+        // instead of at 0, which is the right catch-up behaviour.
+        let framesDir = EffectsConfig.shared.assetsDir.appendingPathComponent("universal-minions")
+        DispatchQueue.global(qos: .userInitiated).async { [weak self, weak frameLayer] in
+            var images: [CGImage] = []
+            images.reserveCapacity(Self.universalMinionsFrames)
+            for i in 1...Self.universalMinionsFrames {
+                let url = framesDir.appendingPathComponent(String(format: "f_%03d.png", i))
+                guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+                      let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else { continue }
+                images.append(cg)
+            }
+            DispatchQueue.main.async {
+                guard let self = self, let frameLayer = frameLayer,
+                      self.activeEffects["universal-minions"] === frameLayer,
+                      let first = images.first else {
+                    return    // preempted, or no frames — the audio keeps playing
+                }
+                frameLayer.contents = first
+                let anim = CAKeyframeAnimation(keyPath: "contents")
+                anim.values = images
+                anim.duration = Self.universalMinionsAnimDuration
+                anim.calculationMode = .discrete       // step frames, never cross-fade
+                anim.fillMode = .forwards
+                anim.isRemovedOnCompletion = false
+                anim.beginTime = clock0 + Self.universalMinionsCue
+                frameLayer.add(anim, forKey: "universalMinionsFrames")
+            }
+        }
+
+        return btComp + duration
+    }
+
     // MARK: - Rainbow (translucent semicircle smeared in like a wiper, toggled by tablet sound #37)
 
     func showRainbow(playSound: Bool = true) {

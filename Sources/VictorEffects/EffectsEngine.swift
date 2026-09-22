@@ -250,6 +250,10 @@ final class EffectsEngine {
         // owns its own audio rather than trusting a separate routed play to land
         // on the same millisecond.
         case "microwave":     animator.showMicrowave(playSound: true)
+        // Like the microwave: the minions' cue sits 23.83 s inside the combined
+        // clip, so the effect owns its audio. Fired silent here — the routed
+        // /sound/play path is the one that plays the clip and starts the visual.
+        case "universal-minions": animator.showUniversalMinions()
         case "wrong-x":       animator.showWrongX(playSound: false)
         case "drum-roll":     animator.showDrumRoll(playSound: false)
         case "drum-roll/stop": animator.stopDrumRoll()
@@ -451,6 +455,15 @@ final class EffectsEngine {
         // Tile #51 (🎼 Beethoven): six hits 0.11 s apart.
         if name == "51_beethoven.mp3" {
             let duration = animator.showBeethoven(playSound: true, volume: volume)
+            guard duration > 0 else { return nil }
+            return remember(Int(duration * 1000))
+        }
+        // Tile #14 (🌍 Universal fanfare): the matted minions animation enters
+        // at a fixed point INSIDE the combined clip — the tile's fanfare gives
+        // way to the clip's own tail 23.83 s in — so the effect owns the audio,
+        // same reason as the microwave. The tablet never plays its own copy.
+        if name == "14_universal.mp3" {
+            let duration = animator.showUniversalMinions(playSound: true, volume: volume)
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }

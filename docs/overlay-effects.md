@@ -200,6 +200,29 @@ rule from the start.
   full-screen wash. The layer's anchor is its **top edge** (`anchorPoint.y = 1`),
   so the shrink comes off the bottom and the band stays glued to the top of the
   screen — the same anchor the 1.5 s vertical-scale reveal grows down from.
+- **🌍 Universal minions** (tile #14 `14_universal.mp3` → `universal-minions`,
+  `showUniversalMinions`): the tile's own clip is the Universal fanfare WITHOUT
+  the animated logo — the animation arrives as a **matted frame sequence**
+  (`~/.victor-effects/assets/universal-minions/f_001..225.png`, BirefNet alpha
+  matte, 16:9 canvas) the Mac plays itself, pinned **flush to the bottom-left
+  corner at 50% of the screen's width** for the sequence's 7.5 s. The cue sits
+  **23.83 s INTO the combined clip** (`universal-minions.mp3` in `assetsDir` —
+  the tile's fanfare followed by the clip's own tail, which the tablet's copy
+  does not contain), so like the radar and the microwave the effect **owns the
+  audio**: `playTabletSound("universal-minions.mp3")` plays the whole clip and
+  stamps the visual's clock in the same call. The 225 frames decode on a
+  background queue during the 23.83 s lead-in and install as a discrete
+  `contents` keyframe animation **exactly on the cue** (identity-guarded, so a
+  re-press mid-decode discards the result; a late install catches up
+  mid-sequence). The layer carries only a 0.15 s entrance fade — the matte's
+  own tail frames already contain the dissolve. Bluetooth compensation shifts
+  the whole timeline the microwave way. Missing frames degrade to audio-only;
+  a missing clip returns 0 → 404 → the tablet falls back to its own copy.
+  **Trigger:** driven from the **routed `/sound/play/14_universal.mp3`** path
+  (`onSoundPlay` special-cases it → `showUniversalMinions(playSound:true)`),
+  so the press plays the combined clip AND the animation with no double audio;
+  `14_universal.mp3` is therefore intentionally **absent from
+  `SoundEffectMap`** (the press path would otherwise double-trigger it).
 - **🛰️ Sonar** (sfx #23 `23_radar.mp3` → `sonar`, `showSonar`): a full-screen
   black wash fades in (0→45% over 1s; darker **70% disc** inside the radar
   circle), then a phosphor-green radar **drawn entirely as CALayers** (no gif):

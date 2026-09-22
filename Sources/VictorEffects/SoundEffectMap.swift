@@ -156,6 +156,12 @@ enum SoundEffectMap {
         // effect is driven from the routed /sound/play path (onSoundPlay),
         // which plays the beep-synced audio itself — mapping the press too
         // would double-trigger it.
+        // 14_universal.mp3 is NOT here either, for the microwave's reason: the
+        // minions animation enters 23.83 s INTO the combined clip (the tile's
+        // fanfare hands over to the clip's own tail), so the visual must own
+        // the audio and hang off the same clock. Driven from the routed
+        // /sound/play path (onSoundPlay); mapping the press too would
+        // double-trigger it.
     ]
 
     /// Effect to stop when a sound finishes / is stopped (long-running effects:
@@ -195,6 +201,7 @@ enum SoundEffectMap {
     /// effect is a name that lies to the client.
     static let playPathVisuals: [String: String] = [
         "23_radar.mp3":       "sonar",       // 🛰️ sonar (owns its beep-synced audio)
+        "14_universal.mp3":   "universal-minions", // 🌍 matted logo animation, cue 23.83 s in
         "53_rain.mp3":        "money",       // 💸 money rise
         "61_dinner.mp3":      "microwave",   // ⏲️ door on the BING, 2.695 s in
         "13_heartbeat.mp3":   "heartbeat",   // 💓 zoom peaking on each measured onset
