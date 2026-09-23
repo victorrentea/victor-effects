@@ -10236,9 +10236,11 @@ class EmojiAnimator {
         let fps: Double
     }
 
-    /// The ball the pointer becomes. A dense sphere of dark rock under glowing
-    /// veins — *"sfera care arde ca un soare"*.
-    static let fireball = Fireball(asset: "fireball-plasma", cols: 6, rows: 6, count: 32, fps: 16.7)
+    /// The ball the pointer becomes: a white-hot sun with ragged flames round
+    /// its rim (2026-09-23). It replaced the plasma sphere of dark rock under
+    /// glowing veins that shipped on 2026-09-22. Its gif carries its own
+    /// transparency, so the tool forces no opaque core for it.
+    static let fireball = Fireball(asset: "fireball-sun", cols: 12, rows: 12, count: 143, fps: 20)
 
     /// Cells cut out of the sheet, once and kept for the life of the process.
     /// The press has to be instant — the cursor is already moving under his hand

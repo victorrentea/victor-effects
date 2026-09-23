@@ -5,8 +5,9 @@ Same recipe `fire-frames.png` was made with, and for the same reason: a gif
 carries 1-bit alpha, so a gif of fire fringes against every desktop. We key the
 matte out ourselves and write soft alpha into a png grid, read row-major.
 
-`core` is this clip's tax, and it is the whole reason this file exists rather
-than a one-line `sips` call. The ball's interior is genuinely BLACK — dark rock
+`core` was the plasma ball's tax (the sheet before this one, up to 2026-09-23;
+commit history has it), and it is why this file exists rather than a one-line
+`sips` call. That ball's interior is genuinely BLACK — dark rock
 between glowing veins — and a luminance key cannot tell that black from the
 black around the ball. Left alone it turns the sphere into a stencil and the
 slide shows through every crack. Flood-filling the silhouette is the obvious fix
@@ -21,7 +22,7 @@ Run it from anywhere:
 
     python3 tools/make-fireball-sheets.py <gifs-dir> [cell-width]
 
-where <gifs-dir> holds `plasma.gif`. The sheet lands in
+where <gifs-dir> holds `sun.gif`. The sheet lands in
 Sources/VictorEffects/Resources/, and the grid it comes out with has to be typed
 back into `EmojiAnimator.fireball` — the png does not carry its own row/column
 count, and `testTheFireballGridHoldsItsFrames` is what catches you if the two
@@ -38,7 +39,11 @@ from PIL import Image, ImageSequence
 
 SRC = {
     # sheet name: (source gif, gain, opaque_core)
-    "fireball-plasma": ("plasma.gif", 2.0, True),
+    # The white-hot sun (2026-09-23). Its gif already carries real
+    # transparency, holes included, and its body is bright all the way in, so
+    # the gif's own alpha is kept and no core is forced — forcing one would
+    # paint its see-through holes black.
+    "fireball-sun": ("sun.gif", 2.0, False),
 }
 
 GIFS = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
