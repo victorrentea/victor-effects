@@ -1864,6 +1864,32 @@ webhook is the smallest thing that carries the gesture across. With no
 `eventWebhook` configured the ☕ still charges and still pops; nothing else
 happens.
 
+### ☕🚀 Critical mass — past seven pops a cup becomes a rocket
+
+`CoffeePopTally` (pure, tested) counts the cups that actually **popped**.
+
+- **Escalation.** More than **3 explosions inside one second** and every *next*
+  one goes off bigger: +0.6 `violence` per explosion past the third, capped at
+  4.5, on the storm's 22×22 grid. Spread-out pops stay the quiet dissolve.
+- **Critical mass = 7 pops inside a sliding 10 min.** The first pop starts the
+  10-min UNTIL BREAK watch and each later one takes a minute off, so by the
+  seventh the break is settled and one more minute is noise. From then on a cup
+  the cursor touches **does not charge**: it launches at once **from the hand**
+  (`launchCoffeeRocket`) — a short lift-off, then an accelerating arc to a
+  scattered point around the middle of the screen (`CoffeeFlight.blastPoint`,
+  ±36%/30%), shedding a trail of sparks (a `CAEmitterLayer` whose
+  `emitterPosition` rides the same path, so the sparks stay where they were
+  shed) — and bursts there like a firework, starting at violence 2.4 and
+  escalating with the burst rate like any other explosion.
+- **Only cups caught after the seventh pop.** Cups already charging when the
+  mass is reached finish their hold and pay out normally.
+- **A rocket fires no webhook and never counts toward critical mass** — a
+  firework is not a minute. It does feed the burst rate, so a swipe through a
+  crowd of cups goes off bigger and bigger.
+- The window is sliding, so the state wears off on its own 10 min after the
+  pops stop; `stop-all` resets it at once. `/effect/coffee/pop` counts as a pop,
+  so seven of them rehearse the whole thing headlessly.
+
 ## ⏸️ Suspending everything for a few seconds
 
 `GET /effect/suspend` · `/effect/suspend/<seconds>` · `/effect/resume`

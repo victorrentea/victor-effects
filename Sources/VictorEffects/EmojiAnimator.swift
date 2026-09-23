@@ -69,6 +69,12 @@ class EmojiAnimator {
     /// A storm cup shatters into this many tiles per side (a calm pop: 12).
     private static let coffeeStormGrid = 22
     var coffeeStormActive: Bool { coffeeStorm.isStorm(at: CACurrentMediaTime()) }
+    // ☕🚀 Pops that actually happened: past 7 of them the break is settled and a
+    // caught cup becomes a rocket instead of a minute; more than 3 in a second and
+    // each next explosion goes off bigger (`CoffeePopTally`).
+    private var coffeePops = CoffeePopTally()
+    /// A rocket's burst starts here and escalates like any other explosion.
+    private static let coffeeRocketViolence: CGFloat = 2.4
     private static let coffeeChargeGrowScale: CGFloat = 2.6
     private static let coffeeHitSlop: CGFloat = 34
     /// How long a calm ☕ hangs at the cursor before fading — comfortably longer
@@ -565,8 +571,13 @@ class EmojiAnimator {
         coffeeCharges = stillCharging
 
         // --- Catch EVERY fresh coffee under the cursor (they all inflate together) ---
+        // Past critical mass the break is already settled: a touched cup does not
+        // charge, it launches from the hand as a rocket and bursts as a firework.
+        // Only cups caught from now on — the ones already charging still pay out.
+        let critical = coffeePops.isCritical(at: now)
         for layer in activeCoffeeLayers where box(layer).contains(p) {
-            beginCoffeeCharge(layer, now: now)   // snapshot semantics: safe to mutate the pool inside
+            // snapshot semantics: safe to mutate the pool inside
+            if critical { launchCoffeeRocket(layer) } else { beginCoffeeCharge(layer, now: now) }
         }
         return exploded
     }
@@ -650,16 +661,121 @@ class EmojiAnimator {
         coffee.removeFromSuperlayer()
         // In a storm the cup does not dissolve, it DETONATES: many more
         // fragments, flying further and spinning harder, under a real flash.
+        // More than 3 pops inside a second and every next one goes off bigger.
         let now = CACurrentMediaTime()
-        if coffeeStorm.isStorm(at: now) {
-            pixelDissolve(at: center, side: side,
-                          violence: Self.stormViolence(at: coffeeStorm.intensity(at: now)),
-                          grid: Self.coffeeStormGrid)
-        } else {
-            pixelDissolve(at: center, side: side)
-        }
+        let storm = coffeeStorm.isStorm(at: now)
+        let base = storm ? Self.stormViolence(at: coffeeStorm.intensity(at: now)) : 1
+        let violence = coffeePops.violence(at: now, base: base)
+        coffeePops.recordPop(at: now)
+        pixelDissolve(at: center, side: side, violence: violence,
+                      grid: violence > 1 ? Self.coffeeStormGrid : Self.dissolveGrid)
         return center
     }
+
+    /// ☕🚀 Past critical mass: the touched cup leaves FROM THE HAND like a rocket —
+    /// a short climb, then it bends over and accelerates toward a scattered point
+    /// around the middle of the screen, dragging a trail of sparks, and bursts
+    /// there as a firework. Visual only: no webhook, the break is already settled.
+    private func launchCoffeeRocket(_ layer: CATextLayer) {
+        let pres = layer.presentation()
+        let start = pres?.position ?? layer.position
+        let scale = CGFloat((pres?.value(forKeyPath: "transform.scale") as? Double) ?? 1)
+        activeCoffeeLayers.removeAll { $0 === layer }
+        layer.removeAllAnimations()
+        layer.position = start
+        layer.opacity = 1
+
+        let bounds = hostLayer.bounds
+        let target = CoffeeFlight.clamp(
+            CoffeeFlight.blastPoint(center: CGPoint(x: bounds.midX, y: bounds.midY),
+                                    spread: CGSize(width: bounds.width * 0.36, height: bounds.height * 0.3),
+                                    angle: CGFloat.random(in: 0...(2 * .pi)),
+                                    unitRadius: CGFloat.random(in: 0...1)),
+            in: bounds, margin: 120)
+        // Lift-off first: the control point sits above the higher of the two ends,
+        // so the cup climbs off the hand before it leans over toward its mark.
+        let lift = CGFloat.random(in: 160...300)
+        let control = CoffeeFlight.clamp(
+            CGPoint(x: start.x + (target.x - start.x) * 0.2, y: max(start.y, target.y) + lift),
+            in: bounds, margin: 40)
+        let path = CGMutablePath()
+        path.move(to: start)
+        path.addQuadCurve(to: target, control: control)
+        let duration = Double.random(in: 0.9...1.25)
+        // Accelerating, like a motor that keeps pushing.
+        let thrust = CAMediaTimingFunction(controlPoints: 0.55, 0, 0.9, 0.6)
+
+        let move = CAKeyframeAnimation(keyPath: "position")
+        move.path = path
+        move.timingFunction = thrust
+        let shrink = CABasicAnimation(keyPath: "transform.scale")
+        shrink.fromValue = scale
+        shrink.toValue = scale * 0.8
+        let group = CAAnimationGroup()
+        group.animations = [move, shrink]
+        group.duration = duration
+        group.fillMode = .forwards
+        group.isRemovedOnCompletion = false
+
+        // Sparks left BEHIND: the emitter lives on the host layer and its position
+        // rides the same path, so the particles stay where they were shed.
+        let sparks = CAEmitterLayer()
+        sparks.frame = bounds
+        sparks.emitterPosition = start
+        sparks.emitterShape = .point
+        let cell = CAEmitterCell()
+        cell.contents = Self.sparkImage
+        cell.birthRate = 140
+        cell.lifetime = 0.7
+        cell.lifetimeRange = 0.3
+        cell.velocity = 40
+        cell.velocityRange = 40
+        cell.emissionRange = .pi * 2
+        cell.scale = 0.5
+        cell.scaleRange = 0.25
+        cell.scaleSpeed = -0.5
+        cell.alphaSpeed = -1.4
+        cell.color = NSColor(calibratedRed: 1, green: 0.78, blue: 0.4, alpha: 1).cgColor
+        sparks.emitterCells = [cell]
+        hostLayer.insertSublayer(sparks, below: layer)
+        let trail = CAKeyframeAnimation(keyPath: "emitterPosition")
+        trail.path = path
+        trail.timingFunction = thrust
+        trail.duration = duration
+        trail.fillMode = .forwards
+        trail.isRemovedOnCompletion = false
+
+        let side = Self.emojiSize * scale * 0.8
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self, weak layer, weak sparks] in
+            layer?.removeFromSuperlayer()
+            sparks?.birthRate = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { sparks?.removeFromSuperlayer() }
+            guard let self else { return }
+            let now = CACurrentMediaTime()
+            let violence = self.coffeePops.violence(at: now, base: Self.coffeeRocketViolence)
+            self.coffeePops.recordBurst(at: now)
+            self.pixelDissolve(at: target, side: side, violence: violence, grid: Self.coffeeStormGrid)
+        }
+        layer.add(group, forKey: "rocket")
+        sparks.add(trail, forKey: "rocket")
+        CATransaction.commit()
+    }
+
+    /// A soft round dot for the rocket's sparks, drawn once.
+    private static let sparkImage: CGImage? = {
+        let d = 16
+        guard let ctx = CGContext(data: nil, width: d, height: d, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                           colors: [CGColor(red: 1, green: 1, blue: 1, alpha: 1),
+                                    CGColor(red: 1, green: 1, blue: 1, alpha: 0)] as CFArray,
+                           locations: [0, 1])!
+        let c = CGPoint(x: d / 2, y: d / 2)
+        ctx.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: CGFloat(d) / 2, options: [])
+        return ctx.makeImage()
+    }()
 
     // MARK: - Pixel dissolve
 
@@ -11202,6 +11318,7 @@ class EmojiAnimator {
         _crtArmEpoch &+= 1
         // ☕🌊 A stop-all also ends the coffee storm: the next ☕ arrives calm.
         coffeeStorm = CoffeeStormGauge()
+        coffeePops = CoffeePopTally()
         for (_, layer) in activeEffects {
             layer.removeAllAnimations()
             layer.removeFromSuperlayer()
