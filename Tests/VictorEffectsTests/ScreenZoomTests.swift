@@ -73,4 +73,53 @@ final class ScreenZoomTests: XCTestCase {
         let full = CGRect(x: 1728, y: 37, width: 1920, height: 1080)
         XCTAssertEqual(ScreenZoom.visibleRect(in: full, of: nil), full)
     }
+
+    // MARK: ZoomSlice — the frozen slice screenshot effects draw into
+
+    /// A 400×200 capture whose TOP half is red, the way a screenshot of a red
+    /// menu bar region would be.
+    private func topRedImage() -> CGImage {
+        let ctx = CGContext(data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.setFillColor(CGColor(red: 0, green: 0, blue: 1, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 200))
+        ctx.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 100, width: 400, height: 100))   // context y is up: the top half
+        return ctx.makeImage()!
+    }
+
+    private func isRed(_ image: CGImage) -> Bool {
+        var px = [UInt8](repeating: 0, count: 4)
+        let ctx = CGContext(data: &px, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                            space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        return px[0] > 200 && px[2] < 50
+    }
+
+    /// The flip that is easy to get backwards: the unit viewport counts y UP,
+    /// the image's rows count DOWN. A slice at the top of the display must crop
+    /// the first rows of the picture, not the last.
+    func testCropOfATopSliceTakesTheTopRowsOfTheCapture() {
+        let slice = ZoomSlice(unit: CGRect(x: 0, y: 0.5, width: 0.5, height: 0.5),
+                              rect: CGRect(x: 0, y: 558.5, width: 864, height: 558.5))
+        let cropped = slice.crop(topRedImage())!
+        XCTAssertEqual(cropped.width, 200)
+        XCTAssertEqual(cropped.height, 100)
+        XCTAssertTrue(isRed(cropped))
+    }
+
+    func testCropOfABottomSliceTakesTheBottomRows() {
+        let slice = ZoomSlice(unit: CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5),
+                              rect: CGRect(x: 864, y: 0, width: 864, height: 558.5))
+        XCTAssertFalse(isRed(slice.crop(topRedImage())!))
+    }
+
+    func testAnUnzoomedSliceLeavesTheCaptureAlone() {
+        let image = topRedImage()
+        let slice = ZoomSlice(unit: nil, rect: display)
+        XCTAssertTrue(slice.crop(image) === image)
+        XCTAssertEqual(slice.local, CGRect(origin: .zero, size: display.size))
+    }
 }

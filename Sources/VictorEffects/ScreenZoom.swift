@@ -125,6 +125,8 @@ final class ZoomFollower {
     private struct Entry {
         weak var layer: CALayer?
         let full: CGRect
+        /// Shrink the whole layer into the slice instead of resizing it.
+        let stage: Bool
     }
 
     /// 30 Hz. The viewport moves with the pointer, so anything slower reads as
@@ -139,8 +141,36 @@ final class ZoomFollower {
     /// unzoomed, in its superlayer's coordinates.
     func track(_ layer: CALayer, full: CGRect) {
         layer.frame = ScreenZoom.visibleRect(in: full, of: Screens.overlayScreen())
+        follow(Entry(layer: layer, full: full, stage: false))
+    }
+
+    /// Pins a CONTAINER whose children are laid out over the whole of `full`:
+    /// instead of being resized (which only a border survives), it is scaled
+    /// down by the zoom factor and centred on the slice, so after the
+    /// magnification every cloud, drop and stamp in it is exactly the size and
+    /// in exactly the place it is unzoomed — just on the glass. The children
+    /// never learn about the zoom. `full` must have its origin at zero in the
+    /// superlayer, which the overlay's `bounds` has.
+    func stage(_ layer: CALayer, full: CGRect) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        Self.applyStage(layer, full: full, screen: Screens.overlayScreen())
+        CATransaction.commit()
+        follow(Entry(layer: layer, full: full, stage: true))
+    }
+
+    private static func applyStage(_ layer: CALayer, full: CGRect, screen: NSScreen?) {
+        let visible = ScreenZoom.visibleRect(in: full, of: screen)
+        let scale = full.width > 0 ? visible.width / full.width : 1
+        layer.bounds = CGRect(origin: .zero, size: full.size)
+        layer.position = CGPoint(x: visible.midX, y: visible.midY)
+        layer.transform = scale == 1 ? CATransform3DIdentity : CATransform3DMakeScale(scale, scale, 1)
+    }
+
+    private func follow(_ entry: Entry) {
+        guard let layer = entry.layer else { return }
         entries.removeAll { $0.layer === layer || $0.layer == nil }
-        entries.append(Entry(layer: layer, full: full))
+        entries.append(entry)
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: Self.interval, repeats: true) { [weak self] _ in
             self?.tick()
@@ -157,13 +187,16 @@ final class ZoomFollower {
         entries.removeAll { $0.layer == nil || $0.layer?.superlayer == nil }
         for entry in entries {
             guard let layer = entry.layer else { continue }
-            let target = ScreenZoom.visibleRect(in: entry.full, of: screen)
-            guard layer.frame != target else { continue }
             // Without this the implicit animation turns every 33 ms correction
             // into a quarter-second slide, and the border swims behind the pan.
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            layer.frame = target
+            if entry.stage {
+                Self.applyStage(layer, full: entry.full, screen: screen)
+            } else {
+                let target = ScreenZoom.visibleRect(in: entry.full, of: screen)
+                if layer.frame != target { layer.frame = target }
+            }
             CATransaction.commit()
         }
         stopIfIdle()
@@ -173,5 +206,52 @@ final class ZoomFollower {
         guard entries.isEmpty else { return }
         timer?.invalidate()
         timer = nil
+    }
+}
+
+/// The zoom viewport frozen at the moment an effect starts, for the effects
+/// that are drawn once rather than followed.
+///
+/// A screenshot effect is the reason this exists. The capture is the UNZOOMED
+/// framebuffer, and the overlay that shows it is magnified along with the rest
+/// — so a full-screen screenshot lines up with the desktop fine, but the
+/// effect's *motion* does not: a knock that scales about the middle of the
+/// display, or a crack that starts at a random point of it, happens mostly off
+/// the glass. Laying the layer over `rect` and showing only `crop(_:)` of the
+/// capture moves the whole effect into the slice, where the magnification then
+/// blows it back up to exactly the size it has when nobody is zoomed.
+///
+/// One snapshot per effect, and it is the SAME snapshot for the frame and the
+/// crop: two reads either side of a pan would hand the layer one slice and the
+/// picture another.
+struct ZoomSlice {
+    /// The viewport as fractions of the display, y up; nil while unzoomed.
+    let unit: CGRect?
+    /// The visible part of the rect it was taken for, in that rect's coordinates.
+    let rect: CGRect
+
+    static func current(in full: CGRect) -> ZoomSlice {
+        let unit = ScreenZoom.unitViewport(of: Screens.overlayScreen())
+        guard let unit else { return ZoomSlice(unit: nil, rect: full) }
+        return ZoomSlice(unit: unit, rect: CGRect(
+            x: full.minX + unit.minX * full.width,
+            y: full.minY + unit.minY * full.height,
+            width: unit.width * full.width,
+            height: unit.height * full.height))
+    }
+
+    /// `rect` with its origin moved to zero — for code that lays out children
+    /// inside a container already placed at `rect`.
+    var local: CGRect { CGRect(origin: .zero, size: rect.size) }
+
+    /// The part of a whole-display capture that is on the glass. Unzoomed, the
+    /// image itself.
+    func crop(_ image: CGImage?) -> CGImage? {
+        guard let image, let unit else { return image }
+        let w = CGFloat(image.width), h = CGFloat(image.height)
+        // The image counts y down from the top, the unit rect up from the bottom.
+        let pixels = CGRect(x: unit.minX * w, y: (1 - unit.maxY) * h,
+                            width: unit.width * w, height: unit.height * h).integral
+        return image.cropping(to: pixels) ?? image
     }
 }

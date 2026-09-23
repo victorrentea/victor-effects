@@ -1136,18 +1136,25 @@ class EmojiAnimator {
         // main. Same path as the heartbeat: it grabs the currently-visible space —
         // including a fullscreen app — on the screen the overlay sits on, never the
         // wrong (primary) display nor the desktop behind a fullscreen window.
+        // Over the zoomed slice only, with the capture cropped to match
+        // (`ZoomSlice`): the effect's motion then happens on the glass.
+        let slice = ZoomSlice.current(in: bounds)
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let screenshot = Self.captureBuiltInDisplay()
+            let screenshot = slice.crop(Self.captureBuiltInDisplay())
             DispatchQueue.main.async {
                 guard let self, let screenshot else { return }
-                self.renderBrokenGlass(screenshot: screenshot, bounds: bounds, totalDuration: totalDuration)
+                self.renderBrokenGlass(screenshot: screenshot, slice: slice, totalDuration: totalDuration)
             }
         }
     }
 
-    private func renderBrokenGlass(screenshot: CGImage, bounds: CGRect, totalDuration: Double) {
+    private func renderBrokenGlass(screenshot: CGImage, slice: ZoomSlice, totalDuration: Double) {
+        // The container sits on the slice; everything inside is laid out in
+        // its own zero-origin coordinates, exactly as it was over the display.
+        let bounds = slice.local
         let container = CALayer()
-        container.frame = bounds
+        container.frame = slice.rect
         hostLayer.addSublayer(container)
 
         // Black background revealed as shards fall
@@ -4808,7 +4815,9 @@ class EmojiAnimator {
 
     func showFail(playSound: Bool = true) {
         guard activeEffects["fail"] == nil else { return }
-        let bounds = hostLayer.bounds
+        // The zoomed slice, not the display: a stamp in the middle of the
+        // display is off the glass as soon as Victor zooms into a corner.
+        let bounds = ZoomSlice.current(in: hostLayer.bounds).rect
         let duration: Double = 4.2
 
         // Licensed stock art, so it is not in the repo: drop it into assetsDir
@@ -4822,8 +4831,8 @@ class EmojiAnimator {
         let imgH = bounds.height * 1.0
         let imgW = imgH * (img.size.width / img.size.height)
         let imgLayer = CALayer()
-        imgLayer.frame = CGRect(x: (bounds.width - imgW) / 2,
-                                y: -bounds.height / 4 + bounds.height * 0.30,
+        imgLayer.frame = CGRect(x: bounds.minX + (bounds.width - imgW) / 2,
+                                y: bounds.minY - bounds.height / 4 + bounds.height * 0.30,
                                 width: imgW, height: imgH)
         imgLayer.contents = img
         imgLayer.contentsGravity = .resizeAspect
@@ -6554,7 +6563,11 @@ class EmojiAnimator {
         _ = cancelIfRunning("magnifier")
         _magnifierZoom = MagnifierGlass.minZoom
         let bounds = hostLayer.bounds
-        let diameter = MagnifierGlass.outerDiameter(in: bounds)
+        // Sized on the zoomed slice, not the display: the lens is two thirds of
+        // what the room SEES, and at 2× screen zoom two thirds of the display
+        // would be a lens taller than the glass. Only the size — the lens still
+        // rides the pointer, which is always inside the slice anyway.
+        let diameter = MagnifierGlass.outerDiameter(in: ZoomSlice.current(in: bounds).rect)
         guard diameter > 1 else { return }
 
         // On screen for exactly as long as the clip plays — the lifecycle rule.
@@ -7699,6 +7712,10 @@ class EmojiAnimator {
         let container = CALayer()
         container.frame = bounds
         hostLayer.addSublayer(container)
+        // Staged, not resized: the sky is laid out over the whole display and
+        // shrunk into the zoomed slice as one piece, and it follows a pan for
+        // the length of the clip (`docs/overlay-effects.md`, zoom section).
+        ZoomFollower.shared.stage(container, full: bounds)
         activeEffects["storm"] = container
 
         // 1. The gloom. Model value is the END state with a `.forwards` ramp on
@@ -8173,15 +8190,18 @@ class EmojiAnimator {
         // Tracked before the capture goes out, so a second tap is debounced and a
         // stop-all reaches this even while the subprocess is still running. It is
         // contents-less until the capture returns, i.e. invisible.
+        // Over the zoomed slice only, with the capture cropped to match
+        // (`ZoomSlice`): the effect's motion then happens on the glass.
+        let slice = ZoomSlice.current(in: bounds)
         let imgLayer = CALayer()
-        imgLayer.frame = bounds
+        imgLayer.frame = slice.rect
         hostLayer.addSublayer(imgLayer)
         trackEffect("fbi-knock", layer: imgLayer,
                     duration: btComp + clipLength + Self.fbiCaptureAllowance,
                     sound: playSound ? "64_fbi.mp3" : nil)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let screenshot = Self.captureBuiltInDisplay()
+            let screenshot = slice.crop(Self.captureBuiltInDisplay())
             DispatchQueue.main.async {
                 guard let self = self,
                       self.activeEffects["fbi-knock"] === imgLayer else { return }
@@ -8322,15 +8342,18 @@ class EmojiAnimator {
         // Tracked (and contents-less, i.e. invisible) before the capture goes
         // out, so a second tap is debounced and a stop-all reaches this even
         // while the subprocess is still running. The FBI knock's pattern.
+        // Over the zoomed slice only, with the capture cropped to match
+        // (`ZoomSlice`): the effect's motion then happens on the glass.
+        let slice = ZoomSlice.current(in: bounds)
         let imgLayer = CALayer()
-        imgLayer.frame = bounds
+        imgLayer.frame = slice.rect
         hostLayer.addSublayer(imgLayer)
         trackEffect("dark-door", layer: imgLayer,
                     duration: btComp + clipLength + Self.darkDoorCaptureAllowance,
                     sound: playSound ? "25_dark_door.mp3" : nil)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let screenshot = Self.captureBuiltInDisplay()
+            let screenshot = slice.crop(Self.captureBuiltInDisplay())
             DispatchQueue.main.async {
                 guard let self = self,
                       self.activeEffects["dark-door"] === imgLayer else { return }
@@ -8487,15 +8510,18 @@ class EmojiAnimator {
 
         // Tracked before the capture goes out, so a second tap is debounced and a
         // stop-all reaches this even while the subprocess is still running.
+        // Over the zoomed slice only, with the capture cropped to match
+        // (`ZoomSlice`): the effect's motion then happens on the glass.
+        let slice = ZoomSlice.current(in: bounds)
         let imgLayer = CALayer()
-        imgLayer.frame = bounds
+        imgLayer.frame = slice.rect
         hostLayer.addSublayer(imgLayer)
         trackEffect("beethoven", layer: imgLayer,
                     duration: btComp + clipLength + Self.fbiCaptureAllowance,
                     sound: playSound ? "51_beethoven.mp3" : nil)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let screenshot = Self.captureBuiltInDisplay()
+            let screenshot = slice.crop(Self.captureBuiltInDisplay())
             DispatchQueue.main.async {
                 guard let self = self,
                       self.activeEffects["beethoven"] === imgLayer else { return }
@@ -8583,11 +8609,15 @@ class EmojiAnimator {
         let totalDuration = 2.29
 
         // Retina capture off-main (see showBrokenGlass); play + build on main.
+        // Over the zoomed slice only, with the capture cropped to match
+        // (`ZoomSlice`): the effect's motion then happens on the glass.
+        let slice = ZoomSlice.current(in: bounds)
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let screenshot = Self.captureBuiltInDisplay()
+            let screenshot = slice.crop(Self.captureBuiltInDisplay())
             DispatchQueue.main.async {
                 guard let self, let screenshot else { return }
-                self.renderPhoneRing(screenshot: screenshot, bounds: bounds, totalDuration: totalDuration, playSound: playSound)
+                self.renderPhoneRing(screenshot: screenshot, bounds: slice.rect, totalDuration: totalDuration, playSound: playSound)
             }
         }
     }

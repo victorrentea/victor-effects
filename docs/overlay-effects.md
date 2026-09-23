@@ -147,13 +147,42 @@ Three things worth knowing before touching it:
   last one — the follower must never be what keeps an effect alive, nor what
   has to be told an effect ended (the self-termination rule).
 
-Two effects are zoom-aware today, both because they are literally borders: the
-**🚨 alarm / danger vignette** (`showVignette` — the radial gradient
-carries the frame, the container only carries the opacity animation, so there is
-one frame to re-pin) and the **green `EdgeFlash`**. The flash does *not* follow
-a pan: it is an acknowledgement that is over in a second, not an effect you talk
-over. Nothing else is adjusted — an effect that plays in the middle of the
-screen is magnified along with everything else and is fine.
+The **borders** were first: the **🚨 alarm / danger vignette** (`showVignette` — the
+radial gradient carries the frame, the container only carries the opacity
+animation, so there is one frame to re-pin) and the **green `EdgeFlash`**. The
+flash does *not* follow a pan: it is an acknowledgement that is over in a
+second, not an effect you talk over.
+
+Since 2026-09-23 the rest of the effects that were landing off the glass use
+one of two more tools (Victor: *"efecte … doar pe zona în care e zumat
+ecranul"*):
+
+- **`ZoomSlice` — frozen once, for effects drawn once.** `ZoomSlice.current(in:)`
+  snapshots the viewport; the effect lays its layer over `slice.rect` and, if
+  it shows a screenshot, shows `slice.crop(capture)`. The capture is the
+  *unzoomed* framebuffer, so a full-screen screenshot lined up fine before —
+  but the motion did not: the knock scaled about the middle of the display, the
+  crack started at a random point of it, the phone rang in its bottom-left
+  corner, all off the glass. Over the slice with the matching crop, the
+  magnification blows the effect back up to exactly how it looks unzoomed. The
+  frame and the crop come from **one** snapshot, so a pan between two reads
+  cannot hand the layer one slice and the picture another. Used by
+  **❌ fail (#19)**, **🚪 dark door (#25)**, **🎼 Beethoven (#51)**, **🚔 FBI knock
+  (#64)**, **☎️ phone ring (#10)** and **💥 broken glass (#90)**, and by the
+  **🔍 Pink Panther magnifier (#6)** for its *size* only: the lens is two
+  thirds of the slice's height, since two thirds of the display at 2× was a
+  lens taller than the glass. It still rides the pointer, which is inside the
+  slice anyway.
+- **`ZoomFollower.stage(_:full:)` — for a long effect you talk over.** The
+  container keeps its children laid out over the whole display and is itself
+  scaled by `1/factor` and centred on the slice, re-pinned at 30 Hz like the
+  borders. Nothing inside learns about the zoom; clouds sliding in from outside
+  the display now slide in from outside the slice. Used by **⛈️ storm (#20)**,
+  whose clip is long enough that Victor pans during it.
+
+Not done yet: the 💓 heartbeat (live re-capture with a companion that follows
+the pointer) and the 🪚 chainsaw (a cut mask over the pointer's path); both
+work under the pointer, which is always on the glass.
 
 
 
