@@ -328,13 +328,14 @@ rule from the start.
   Like Christmas"*, snow already falling in its artwork — so pressing it now snows on
   the desktop for the length of the clip (~10.5 s, read off the mp3 via `AVURLAsset`).
   The flakes are **drawn, not emoji** (`snowflakePath`: six spokes, two branch pairs
-  each — the least detail that still reads as a snowflake and not an asterisk), white
-  stroke with a white glow, because ❄️ renders as the system's blue-tinted glyph and
-  what is wanted here is white snow over whatever is on screen. **One number — depth
+  each — the least detail that still reads as a snowflake and not an asterisk), an
+  **ice-blue stroke with a deeper blue glow** (`snowflakeColor` / `snowflakeHaloColor`,
+  2026-09-23). It was white-on-white-glow until then, which disappeared over a white
+  slide — most of what is ever on screen. **One number — depth
   0…1 — drives size, fall speed, brightness and sway width together**, so a flake can
   never read as a contradiction (big but distant, tiny but racing); near flakes are
-  **40 px**, bright and cross in ~3.5 s, far ones **10 px**, faint and take ~6.5 s —
-  twice the size they started at, because at 5–20 px they read as specks on a
+  **60 px**, bright and cross in ~3.5 s, far ones **15 px**, faint and take ~6.5 s —
+  three times the size they started at (×2, then ×1.5 on 2026-09-23), because at 5–20 px they read as specks on a
   projected screen from the back of a room, which is the only place this is ever
   watched from, and correspondingly faster, because a flake that big drifting at the
   old speed reads as floating rather than falling. Each falls
@@ -736,67 +737,46 @@ rule from the start.
   screen edges. Head and tail are **one keyframe opacity track**, not two animations, so the
   fade-out can never begin before the fade-in has finished on a short clip.
 
-- **🔫 Minigun** (sfx #22 `22_minigun.mp3` → `bullet-holes`, `showBulletHoles`): the burst
-  that punches bullet holes around the cursor now has a **visible shooter**. A pixel-art
-  minigun sprite (`Resources/minigun.gif`, 64 frames, transparent, top empty rows cropped)
-  rises out of the **screen's bottom edge** and shifts only west–east at half the mouse travel:
-  `bodyX = mouseX × 0.5`. A centred cursor therefore parks the mount at **25% of the screen
-  width**, and its complete edge-to-edge travel remains inside the left half. The weapon
-  **never rotates**; it keeps the firing angle painted into the GIF while the mount slides
-  under the reticle. Position rides the **same 60 fps tick as the reticle**
-  (`startMinigunReticle(following:)`), so the gun cannot lag a frame behind the crosshair.
-  The reticle remains the shot target while the mouse
-  is still: bullet spread stays clustered within 140 px of it for the whole burst, instead of
-  reverting to random full-screen hits after one second. Only an off-screen cursor uses the
-  unaimed full-screen fallback. The sprite is drawn firing **north-west**, so its child is
-  **mirrored on X** to give the starting north-east pose; `minigunSpriteFacesWest = false`
-  shows it as drawn if the other orientation is ever wanted. The tracking anchor uses the
-  receiver's measured horizontal centre line (`minigunSpriteGunCentreX`), not the geometric
-  centre of a frame that is mostly empty sky for the ejected brass.
-  Width is 44 % of the screen *for the whole frame*, which puts the gun body itself at ~20 %
-  and lets the casings arc up and to the right over the lower-left of the desktop;
-  aspect-preserved, drawn
-  with **`.nearest` magnification** — bilinear smoothing at that scale turns the barrels into
-  grey mush. The 64-frame loop keeps the source gif's own **0.02 s/frame — 1.28 s a turn**:
-  the muzzle flash cycles every 8 frames (~6 flashes/s, a believable cyclic rate) while the
-  casings need all 64 to finish their arc, so speeding the loop up would fling the brass out
-  at a comic speed. It rides **inside the burst's own container**, so `trackEffect` and a
-  cancelling re-press take it down with the holes; the tail's "resorb" shrink pass skips it
-  **by identity** (`hole !== gun`) so the gun doesn't implode along with the bullet holes.
-  Its opacity is **one keyframe track** (the wasn't-me pattern) beginning at **t=0**: the gun
-  is the first thing on screen, and it has faded out by the time the last hole is resorbed.
-  - **`minigunAimLeadIn` is 0 — the gun fires the instant it appears (2026-09-17).**
-    It was an aiming beat: the weapon rose out of the bottom edge and hauled itself after
-    the mouse *in silence* (0.5 s, then a full second from 2026-09-11) before the pointer
-    turned into the crosshair and the bullets started, on the reading that the gesture reads
-    as "you see the thing that is about to shoot, then it shoots". Victor's correction kills
-    the premise: *"machine gun-ul arată ca foc, ca și cum ar trage"* — `minigun.gif` is drawn
-    **mid-burst**, muzzle flashing and brass already in the air, so a second of it hanging
-    there with no bullets and no noise does not read as taking aim, it reads as the effect
-    having stalled. Gun, reticle, first bullet hole and first frame of noise now all land on
-    **t=0**.
-  - **The number stays, at 0, because it is the only thing tying those four together.**
-    The tablet starts the audio in its **own** HTTP request
-    (`/sound/play/22_minigun.mp3`, sent just before `/sound/pressed/…`), so the routed path
-    special-cases the tile in `EffectsEngine.playSound` and hands `playTabletSound` an
-    explicit `lead: EmojiAnimator.minigunAimLeadIn` — the one `lead:` override in the app,
-    for the one sound whose head start is owned by animation code instead of
-    `sound-timing.json`. An override to **zero is still an override**: it is what stops a
-    configured lead from drifting back onto this clip behind the animation's back. Putting a
-    beat back is one number, not four call sites — `revealAfter` on the crosshair, the
-    audio's `asyncAfter`, the holes' delays and `resorbStart` all still read it. The lead is
-    added to the returned `durationMs` exactly as a configured one is, so with 0 the tile is
-    lit for the clip's own ≈6.4 s.
-  - The reticle layer and its 60 fps tick are created on the press (the tick is what steers
-    the gun, and an early layer keeps every `_minigunReticleLayer === reticle` identity guard
-    covering the whole burst, so a cancelling re-press cannot leave a reveal scheduled behind
-    it) — the crosshair's opacity and the **real cursor's hide** go through `revealAfter`,
-    which at 0 fires inline. That path is what would keep the desktop from being left with no
-    pointer at all if a silent stretch were ever reinstated. `spawnStart` is **0** for the
-    same reason it has been since 2026-09-11: reticle, first hole and first frame of noise
-    land on the same instant.
-    Three log lines (`🔫 gun up…`, `🔫 reticle revealed`, `🔫 first bullet hole`) make that
-    checkable without watching the screen.
+- **🔫 Minigun → Counter-Strike AK-47** (sfx #22 `22_minigun.mp3` → `bullet-holes`,
+  `showBulletHoles`). **A session, not a burst, since 2026-09-23.** Victor: the gun should
+  stand still when it appears and fire — noise and bullets — *only while the mouse button
+  is held*, taking the clicks away from the app underneath.
+  - **The gun** is the CS 1.6 AK-47 view-model (`Resources/ak47.png`, hand + rifle, the
+    light-grey background flood-filled out and trimmed; its right and bottom edges are flat
+    cuts, which is where the screen edges are in the game). It rises out of the bottom edge
+    in 0.3 s, **at rest**: no flash, no noise, no holes. It replaced `minigun.gif`, which
+    was drawn mid-burst in every one of its 64 frames and so had no rest pose to show.
+    Width 40 % of the screen; the muzzle (`minigunSpriteMuzzle`, the front sight post) is
+    the anchor, at `0.35 W + mouseX × 0.5` — a centred cursor puts it at 0.60 W, right of
+    centre like the game. It never rotates.
+  - **Moving without firing walks it**: horizontal mouse travel advances a bob phase and
+    tops up a bob energy that drains when the mouse stops (`minigunBobOffset`, a
+    figure-of-eight, 9 × 11 pt at full energy), so the gun sways like a view-model when the
+    player walks and settles to rest when the mouse does.
+  - **Holding the left button fires**: 10 rounds/s (an AK's ~600 rpm), each one a bullet
+    hole near the crosshair, a drawn muzzle flash (jagged star, re-rolled rotation and size
+    every shot, 60 ms) and a recoil kick (back-down 10 × 14 pt, 90 ms). The noise is the
+    tablet clip on the animator's **own `AVAudioPlayer`**, started on the press with no
+    Bluetooth delay and looped over its uninterrupted first 2.35 s (`minigunFireLoopEnd` —
+    the clip has a lull at ~2.4 s and a spin-down tail), faded out in 60 ms on release.
+  - **Precision: half the area.** Rounds land within `minigunSpreadRadius` = 140 / √2 ≈
+    **99 pt** of the crosshair (area goes with r², so half the area is √2 on the radius),
+    density peaking at the centre (r ∝ u). Holes sit below the gun, capped at 250.
+  - **The clicks are taken**, by an effect-owned `CGEventTap` on the main run loop (same
+    shape as the bomb's): left down/drag/up and Esc. `minigunMouseDecision` is the rule —
+    only a press that *started* while the gun was up is swallowed, down to its release; a
+    press already in progress keeps its drag and its up, or the app underneath would be left
+    holding a button that never comes up. **Esc puts the gun away.**
+  - **Self-termination**: the 60 fps tick that drives the crosshair, the gun and the rounds
+    also ends the session `minigunIdleLifetime` (**10 s**) after the last activity (the gun
+    coming up, or the trigger's release), with a **90 s** hard cap and a scheduled backstop
+    past it. A re-press puts it away, as does stop-all (`stopMinigunSession`, which drops
+    the tick, the crosshair, the hidden cursor, the tap and the noise — everything outside
+    the container). The natural end lowers the gun and resorbs the holes over 0.6 s.
+  - **The tablet's `/sound/play/22_minigun.mp3` plays nothing** (`EffectsEngine.playSound`
+    answers `minigunIdleLifetime` as `durationMs`): the noise belongs to the trigger. The
+    press path (`/sound/pressed/…` → `bullet-holes`) still raises the gun.
+  - Log lines `🔫 AK-47 up`, `🔫 trigger pulled` / `released`, `🔫 AK-47 put away`.
 
 - **🪚 Chainsaw cursor** (tile #18 `18_chainsaw.mp3` → `chainsaw` / `chainsaw/stop`,
   `showChainsawCursor`): for the length of the clip **the mouse pointer IS a running
@@ -1065,7 +1045,7 @@ rule from the start.
 - **💘 Spiral hearts** (tile #42 `42_saxophone.mp3` → `spiral-hearts` / `spiral-hearts/stop`,
   `showSpiralHearts`): **the cursor becomes a pulsing red heart** for the length of the clip
   (the real pointer is hidden — it is the first member of the hidden-cursor family the
-  chainsaw and the minigun reticle later joined, and like them it lives *outside*
+  chainsaw and the minigun crosshair later joined, and like them it lives *outside*
   `activeEffects` so `stopAllActiveEffects` tears it down explicitly), and hearts peel off it
   at **6/s** and spiral up and off the top of the screen. Each riser gets its own net
   sideways drift, a sine wobble laid over the rise, a rotation wobble and a 3.2…4.5 s life.

@@ -127,20 +127,32 @@ class EmojiAnimator {
     private var _bombInputTap: CFMachPort?
     private var _bombInputTapSource: CFRunLoopSource?
 
-    // 🔫 Minigun aiming reticle: during the bullet-holes (#22) burst a bigger,
-    // always-red copy of the sniper crosshair tracks the cursor (where the
-    // bullets cluster), real cursor hidden. No arming/fuse — it's red from the
-    // first frame and just follows until the burst ends. It appears on the same
-    // instant as the gun, the first hole and the first frame of noise —
-    // `minigunAimLeadIn` is 0, and the reveal path still honours it if a beat is
-    // ever put back.
+    // 🔫 Minigun (tile #22, now a Counter-Strike AK-47): a session, not a
+    // burst. The gun comes up at rest; holding the left button fires. The
+    // crosshair, the hidden cursor, the trigger tap and the noise all live
+    // OUTSIDE activeEffects, so `stopMinigunSession` tears them down explicitly.
     private var _minigunReticleLayer: CALayer?
     private var _minigunReticleTimer: Timer?
     private var _minigunReticleHidCursor = false      // balance hide/unhide of the real cursor
-    // The gun sprite rides the same 60fps timer as the reticle, so it can never
-    // outlive it or lag a frame behind it: one tick moves both. Held weakly —
-    // the layer itself belongs to the burst's container.
+    private weak var _minigunContainer: CALayer?
     private weak var _minigunGunLayer: CALayer?
+    private weak var _minigunRigLayer: CALayer?
+    private weak var _minigunKickLayer: CALayer?
+    private weak var _minigunFlashLayer: CALayer?
+    private var _minigunHoles: [CALayer] = []
+    private var _minigunHoleImage: CGImage?
+    private var _minigunHoleSize: CGSize = .zero
+    private var _minigunInputTap: CFMachPort?
+    private var _minigunInputTapSource: CFRunLoopSource?
+    private var _minigunSwallowingPress = false
+    private var _minigunFiring = false
+    private var _minigunNextShot: CFTimeInterval = 0
+    private var _minigunArmedAt: CFTimeInterval = 0
+    private var _minigunLastActivity: CFTimeInterval = 0
+    private var _minigunLastMouseX: CGFloat = 0
+    private var _minigunBobPhase: CGFloat = 0
+    private var _minigunBobEnergy: CGFloat = 0
+    private var _minigunPlayer: AVAudioPlayer?
 
     // 🪚 Chainsaw cursor: for the length of tile #18 the pointer IS a running
     // chainsaw — a 16-frame sprite looping on the cursor, real cursor hidden.
@@ -3698,213 +3710,496 @@ class EmojiAnimator {
     /// How much bigger the minigun aiming reticle is than the 1.5× nuke reticle —
     /// the bullet-spray crosshair reads as a heftier "machine-gun sight".
     private static let minigunReticleScale: CGFloat = 2.5
-    /// The gun's solo — **zero since 2026-09-17**, i.e. there is no solo.
-    ///
-    /// It was a silent aiming beat (0.5 s, then a full second from 2026-09-11)
-    /// on the reading that a room needs to notice the weapon before it opens
-    /// fire. Victor's correction: *"machine gun-ul arată ca foc, ca și cum ar
-    /// trage"* — the sprite is drawn mid-burst, muzzle flashing, so a second of
-    /// it hanging there silent doesn't read as taking aim, it reads as the
-    /// effect being broken. The gun, the reticle, the first bullet hole and the
-    /// first frame of noise now all land on t=0.
-    ///
-    /// The constant stays (at 0) rather than being deleted because it is the one
-    /// place those four are tied together: it is also the delay applied to the
-    /// *audio* on the routed `/sound/play/22_minigun.mp3` path
-    /// (`EffectsEngine.playSound`), whose HTTP request is a separate one from the
-    /// one that starts the visual. Putting a beat back means changing one number,
-    /// not re-deriving four call sites.
-    static let minigunAimLeadIn: Double = 0
     static let minigunBulletHoleScale: CGFloat = 0.7
 
-    // MARK: The gun itself (minigun.gif)
+    // MARK: The trigger (2026-09-23: the gun only fires while the button is held)
 
-    /// `minigun.gif` is drawn firing up-and-to-the-LEFT (muzzle flash north-west,
-    /// spent casings arcing off the same way). Standing on the west side of the
-    /// screen it has to fire the other way — *into* the desktop, along the
-    /// bullets' trajectory — so the sprite gets mirrored on the X axis. Flip this
-    /// to `false` to show it as drawn; nothing else needs to change.
-    private static let minigunSpriteFacesWest = true
-    /// Horizontal centre line of the receiver inside the source sprite. The
-    /// frame is mostly empty sky for casings, so its geometric centre is not the
-    /// point that should track the mouse.
-    private static let minigunSpriteGunCentreX: CGFloat = 0.758
-    /// Anchor at the cut-off bottom of the mount. Keeping it on y=0 leaves the
-    /// gun welded to the desktop while its x follows the mouse.
-    private static var minigunSpriteMountAnchor: CGPoint {
-        CGPoint(x: minigunSpriteFacesWest ? 1 - minigunSpriteGunCentreX
-                                          : minigunSpriteGunCentreX,
-                y: 0)
+    /// Cyclic rate while the trigger is held: an AK-47's ~600 rounds/min, i.e.
+    /// one hole, one flash and one recoil kick every 0.1 s.
+    static let minigunShotsPerSecond: Double = 10
+    /// How far from the reticle a round may land. **99 pt, down from 140**:
+    /// Victor asked for half the covered *area*, and area goes with r², so the
+    /// radius shrinks by √2, not by 2. Density still peaks at the centre
+    /// (r ∝ u, not √u).
+    static let minigunSpreadRadius: CGFloat = 140 / 2.squareRoot()
+    /// The gun is put away this long after the last activity — its appearance,
+    /// or the trigger's last release. The self-termination rule: an effect
+    /// that only ends on a re-press or a stop-all would stay up (and keep
+    /// eating every click) forever.
+    static let minigunIdleLifetime: Double = 10
+    /// Hard cap on one session, held trigger or not.
+    static let minigunMaxLifetime: Double = 90
+    /// The stretch of `22_minigun.mp3` that is pure, uninterrupted fire: the
+    /// clip has a lull at ~2.4 s and a spin-down tail after ~5 s, so a held
+    /// trigger loops this window instead of the whole file.
+    private static let minigunFireLoopEnd: TimeInterval = 2.35
+
+    /// What a left-button event means while the gun is up. Pure, so the one
+    /// rule that matters — **never hand the app underneath half a click** — is
+    /// testable without a tap.
+    enum MinigunMouseDecision: Equatable {
+        case pullTrigger      // swallow, start firing
+        case releaseTrigger   // swallow, stop firing
+        case swallow          // a drag belonging to a press we took
+        case pass
     }
-    /// How far the gun swings compared with the cursor: half its travel, so you
-    /// swing the crosshair 400px and the weapon hauls itself 200px after it.
-    private static let minigunSpriteSwayRatio: CGFloat = 0.5
+    enum MinigunMousePhase { case down, dragged, up }
 
-    /// Pure horizontal tracking, deliberately confined to the screen's left
-    /// half. A centred cursor parks the body at W/4; edge-to-edge cursor travel
-    /// maps to 0…W/2. The artwork keeps its own fixed firing angle throughout.
-    static func minigunBodyX(forMouseX mouseX: CGFloat, inWidth _: CGFloat) -> CGFloat {
-        mouseX * minigunSpriteSwayRatio
+    /// A press that began *before* the gun came up is not ours: its drag and
+    /// its release go through, or the app would be left holding a button that
+    /// never comes up.
+    static func minigunMouseDecision(_ phase: MinigunMousePhase,
+                                     armed: Bool,
+                                     swallowingPress: Bool) -> MinigunMouseDecision {
+        switch phase {
+        case .down:    return armed ? .pullTrigger : .pass
+        case .dragged: return swallowingPress ? .swallow : .pass
+        case .up:      return swallowingPress ? .releaseTrigger : .pass
+        }
+    }
+
+    // MARK: The gun itself (ak47.png, the Counter-Strike 1.6 view-model)
+
+    /// Width of the sprite as a fraction of the screen — about the share of the
+    /// screen the CS 1.6 view-model takes in the game.
+    private static let minigunSpriteWidthFraction: CGFloat = 0.40
+    /// The muzzle inside `ak47.png` (fractions, y measured from the BOTTOM):
+    /// the front sight post, which is where the barrel ends.
+    private static let minigunSpriteMuzzle = CGPoint(x: 0.295, y: 0.86)
+    /// How far the gun swings compared with the cursor: half its travel.
+    private static let minigunSpriteSwayRatio: CGFloat = 0.5
+    /// Where the muzzle sits for a cursor on the left edge. With the half-speed
+    /// sway a centred cursor puts it at 0.60 W — the view-model's place in the
+    /// game, right of centre, hand and stock running off the bottom-right.
+    private static let minigunSpriteMuzzleBaseFraction: CGFloat = 0.35
+
+    /// Muzzle x for a cursor x. The gun never rotates — CS doesn't either.
+    static func minigunBodyX(forMouseX mouseX: CGFloat, inWidth width: CGFloat) -> CGFloat {
+        width * minigunSpriteMuzzleBaseFraction + mouseX * minigunSpriteSwayRatio
     }
 
     /// The reticle remains authoritative even when the mouse is motionless, as
-    /// it does in an FPS. An off-screen pointer has no visible aim target, so the
-    /// legacy full-screen spray remains the fallback for that case.
+    /// it does in an FPS. An off-screen pointer has no visible aim target, so
+    /// the unaimed full-screen spray remains the fallback for that case.
     static func minigunShotTarget(forMouse mouse: CGPoint, in bounds: CGRect) -> CGPoint? {
         bounds.contains(mouse) ? mouse : nil
     }
 
-    /// Width of the whole sprite frame as a fraction of the screen. The gun body
-    /// is only ~46% of that frame (the rest is the casing spray), so 0.44 puts
-    /// the gun itself at ~0.20 of the screen — big enough to read as the source
-    /// of the burst — while the ejected brass arcs up and to the right over the
-    /// lower-left of the desktop.
-    private static let minigunSpriteWidthFraction: CGFloat = 0.44
-    /// One turn of the 64-frame loop, kept at the source gif's own 0.02s/frame.
-    /// The muzzle flash cycles every 8 frames — ~6 flashes/s, a believable
-    /// cyclic rate — while the casings need all 64 to complete their arc, so
-    /// speeding the loop up would fling the brass out at a comic speed.
-    private static let minigunSpriteLoopDuration: Double = 1.28
+    /// Walk bob: moving the gun sideways without firing makes it sway the way a
+    /// view-model does when the player walks. `phase` advances with the
+    /// distance the mouse travelled; the bob is a figure-of-eight (x at half
+    /// the frequency of y), and `energy` (0…1) fades it out when the mouse
+    /// stops so the gun settles back to rest.
+    static func minigunBobOffset(phase: CGFloat, energy: CGFloat) -> CGPoint {
+        CGPoint(x: 9 * sin(phase / 2) * energy,
+                y: -11 * abs(sin(phase)) * energy)
+    }
 
-    /// Build the firing-minigun sprite with its mount on the **bottom edge**.
-    /// It slides only on X, resting at one quarter of the screen; the painted-in
-    /// barrel angle never rotates.
-    ///
-    /// Returns nil (silently) when the asset is missing: the burst itself must
-    /// still run.
-    private func makeMinigunSprite(in bounds: CGRect) -> CALayer? {
-        guard let url = Bundle.module.url(forResource: "minigun", withExtension: "gif"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-            overlayError("minigun.gif not found in bundle")
+    /// Layers: `gun` (positioned, anchored on the muzzle's x at the bottom
+    /// edge) → `rig` (walk bob, set every tick) → `kick` (recoil, animated per
+    /// shot) → sprite + muzzle flash. Three layers so the tick, the recoil and
+    /// the flash never fight over one `transform`.
+    private func makeMinigunGun(in bounds: CGRect) -> (gun: CALayer, rig: CALayer, kick: CALayer, flash: CALayer)? {
+        guard let url = Bundle.module.url(forResource: "ak47", withExtension: "png"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            overlayError("ak47.png not found in bundle")
             return nil
         }
-        let frameCount = CGImageSourceGetCount(source)
-        guard frameCount > 0 else { return nil }
-        var frames: [CGImage] = []
-        for i in 0..<frameCount {
-            if let cg = CGImageSourceCreateImageAtIndex(source, i, nil) { frames.append(cg) }
-        }
-        guard let first = frames.first else { return nil }
-
-        let aspect = CGFloat(first.width) / CGFloat(first.height)
+        let aspect = CGFloat(image.width) / CGFloat(image.height)
         let w = bounds.width * Self.minigunSpriteWidthFraction
         let h = w / aspect
 
         let gun = CALayer()
         gun.bounds = CGRect(x: 0, y: 0, width: w, height: h)
-        gun.anchorPoint = Self.minigunSpriteMountAnchor
+        gun.anchorPoint = CGPoint(x: Self.minigunSpriteMuzzle.x, y: 0)
         let mouse = mousePointInHostLayer()
         gun.position = CGPoint(x: Self.minigunBodyX(forMouseX: mouse.x, inWidth: bounds.width),
                                y: bounds.minY)
 
+        let rig = CALayer()
+        rig.frame = gun.bounds
+        gun.addSublayer(rig)
+        let kick = CALayer()
+        kick.frame = gun.bounds
+        rig.addSublayer(kick)
+
         let sprite = CALayer()
         sprite.frame = gun.bounds
-        sprite.contents = first
+        sprite.contents = image
         sprite.contentsGravity = .resizeAspect
-        // Pixel art: bilinear smoothing at this magnification turns the barrels
-        // into grey mush, so keep the hard pixel edges.
-        sprite.magnificationFilter = .nearest
-        sprite.minificationFilter = .nearest
-        if Self.minigunSpriteFacesWest {
-            sprite.transform = CATransform3DMakeScale(-1, 1, 1)
-        }
-        gun.addSublayer(sprite)
-        gun.opacity = 0
+        kick.addSublayer(sprite)
 
-        let spin = CAKeyframeAnimation(keyPath: "contents")
-        spin.values = frames
-        spin.duration = Self.minigunSpriteLoopDuration
-        spin.repeatCount = .infinity
-        spin.calculationMode = .discrete
-        sprite.add(spin, forKey: "spin")
-        return gun
+        let flash = Self.makeMuzzleFlash(size: w * 0.30)
+        flash.position = CGPoint(x: w * Self.minigunSpriteMuzzle.x, y: h * Self.minigunSpriteMuzzle.y)
+        flash.opacity = 0
+        kick.addSublayer(flash)
+        return (gun, rig, kick, flash)
     }
 
-    /// Float a bigger, always-red sniper crosshair on the cursor and follow it at
-    /// 60fps for the whole minigun burst (the real cursor is hidden, the crosshair
-    /// stands in). Tears itself down `duration`s later — keyed to this exact
-    /// reticle so a re-press (fresh reticle) isn't torn down by an old schedule.
-    ///
-    /// `gun`, if given, receives its horizontal position on the same tick — one
-    /// timer moves both, so the weapon can never lag a frame behind the
-    /// crosshair it is chasing. Its orientation remains fixed.
-    ///
-    /// `revealAfter` is the aiming lead-in: the **gun** is what appears first and
-    /// the pointer only becomes the crosshair that many seconds later, on the
-    /// same instant as the first shot. The layer and the 60 fps tick are created
-    /// up front regardless — the tick is what hauls the weapon after the mouse
-    /// during the lead-in, and creating the layer early means every identity
-    /// guard (`_minigunReticleLayer === reticle`) covers the lead-in too, so a
-    /// cancelling re-press inside it cannot leave a reveal scheduled behind it.
-    /// Only the crosshair's *visibility* and the real cursor's hide are deferred.
-    private func startMinigunReticle(following gun: CALayer?,
-                                     revealAfter leadIn: Double = 0,
-                                     autoStopAfter duration: Double) {
-        stopMinigunReticle()   // never leak a previous burst's reticle (and its gun)
-        _minigunGunLayer = gun
+    /// A drawn muzzle flash: a jagged yellow-white star with an orange glow.
+    /// Each shot re-rolls its rotation and size so consecutive flashes never
+    /// look like the same sticker.
+    private static func makeMuzzleFlash(size: CGFloat) -> CALayer {
+        let star = CAShapeLayer()
+        let path = CGMutablePath()
+        let spikes = 9
+        for i in 0..<(spikes * 2) {
+            let r = (i % 2 == 0 ? 0.5 : 0.2) * size * CGFloat.random(in: 0.75...1.0)
+            let a = CGFloat(i) * .pi / CGFloat(spikes)
+            let p = CGPoint(x: cos(a) * r, y: sin(a) * r)
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        star.path = path
+        star.bounds = CGRect(x: -size / 2, y: -size / 2, width: size, height: size)
+        star.fillColor = NSColor(calibratedRed: 1.0, green: 0.93, blue: 0.55, alpha: 1).cgColor
+        star.strokeColor = NSColor(calibratedRed: 1.0, green: 0.55, blue: 0.1, alpha: 1).cgColor
+        star.lineWidth = size * 0.04
+        star.shadowColor = NSColor.orange.cgColor
+        star.shadowRadius = size * 0.2
+        star.shadowOpacity = 1
+        star.shadowOffset = .zero
+        return star
+    }
 
+    // MARK: The session
+
+    /// 🔫 Tile #22. The AK-47 comes up out of the bottom edge **at rest** —
+    /// silent, no flash, no holes — and the pointer becomes the crosshair.
+    /// Moving the mouse walks the gun sideways (with a bob). **Holding the left
+    /// button fires**: noise, muzzle flash, recoil, a bullet hole every 0.1 s
+    /// around the crosshair. The clicks are taken from the app underneath while
+    /// the gun is up (Esc puts it away). It leaves on its own
+    /// `minigunIdleLifetime` after the last burst, on a re-press, or on stop-all.
+    func showBulletHoles() {
+        // Toggle-off: a re-press while the gun is up puts it away.
+        if activeEffects["bullet-holes"] != nil { finishMinigun(); return }
+
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        guard let url = Bundle.module.url(forResource: "bullet_hole", withExtension: "png"),
+              let image = NSImage(contentsOf: url),
+              let holeImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            overlayError("bullet_hole.png not found")
+            return
+        }
+        stopMinigunSession()
+
+        let container = CALayer()
+        container.frame = bounds
+        hostLayer.addSublayer(container)
+        activeEffects["bullet-holes"] = container
+        _minigunContainer = container
+        _minigunHoleImage = holeImage
+        _minigunHoleSize = CGSize(width: image.size.width * Self.minigunBulletHoleScale,
+                                  height: image.size.height * Self.minigunBulletHoleScale)
+
+        if let parts = makeMinigunGun(in: bounds) {
+            container.addSublayer(parts.gun)
+            _minigunGunLayer = parts.gun
+            _minigunRigLayer = parts.rig
+            _minigunKickLayer = parts.kick
+            _minigunFlashLayer = parts.flash
+            // Raised out of the bottom edge, like drawing a weapon.
+            let raise = CABasicAnimation(keyPath: "transform.translation.y")
+            raise.fromValue = -parts.gun.bounds.height
+            raise.toValue = 0
+            raise.duration = 0.3
+            raise.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            parts.gun.add(raise, forKey: "raise")
+        }
+
+        let now = CACurrentMediaTime()
+        _minigunArmedAt = now
+        _minigunLastActivity = now
+        _minigunLastMouseX = mousePointInHostLayer().x
+        startMinigunReticle()
+        startMinigunInputCapture()
+        overlayInfo("🔫 AK-47 up — hold the left button to fire")
+
+        // Belt and braces for the self-termination rule: the tick below is what
+        // normally ends the session, this ends it even if the tick has died.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.minigunMaxLifetime + 1) { [weak self, weak container] in
+            guard let self, let container, self._minigunContainer === container else { return }
+            self.finishMinigun()
+        }
+    }
+
+    /// Float a bigger, always-red sniper crosshair on the cursor (the real
+    /// cursor hidden) and drive the whole session off one 60 fps tick: the
+    /// crosshair, the gun's sway and bob, the rounds while the trigger is held,
+    /// and the idle/max-lifetime end.
+    private func startMinigunReticle() {
         let reticle = Self.makeSniperReticle(scale: Self.minigunReticleScale, armed: true)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         reticle.position = mousePointInHostLayer()
         reticle.zPosition = 9_000   // ride above the bullet holes
-        reticle.opacity = leadIn > 0 ? 0 : 1
         CATransaction.commit()
         hostLayer.addSublayer(reticle)
         _minigunReticleLayer = reticle
-
-        // Hiding the real cursor is half of "the pointer turns into a crosshair",
-        // so it happens on the same instant the reticle is shown — not before,
-        // or the lead-in would leave the desktop with no pointer at all.
-        let revealCrosshair = { [weak self, weak reticle] in
-            guard let self, let reticle, self._minigunReticleLayer === reticle else { return }
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            reticle.opacity = 1
-            CATransaction.commit()
-            if !self._minigunReticleHidCursor {
-                Self.armBackgroundCursorHiding()
-                NSCursor.hide()
-                CGDisplayHideCursor(CGMainDisplayID())
-                self._minigunReticleHidCursor = true
-            }
-            overlayInfo("🔫 reticle revealed")
-        }
-        if leadIn > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + leadIn, execute: revealCrosshair)
-        } else {
-            revealCrosshair()
+        if !_minigunReticleHidCursor {
+            Self.armBackgroundCursorHiding()
+            NSCursor.hide()
+            CGDisplayHideCursor(CGMainDisplayID())
+            _minigunReticleHidCursor = true
         }
 
         let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] t in
             guard let self, self._minigunReticleTimer === t else { t.invalidate(); return }
-            let mouse = self.mousePointInHostLayer()
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)   // follow instantly, no implicit animation
-            self._minigunReticleLayer?.position = mouse
-            if let gun = self._minigunGunLayer {
-                gun.position.x = Self.minigunBodyX(forMouseX: mouse.x,
-                                                   inWidth: self.hostLayer.bounds.width)
-            }
-            CATransaction.commit()
+            self.minigunTick()
         }
         _minigunReticleTimer = timer
+    }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self, weak reticle] in
-            guard let self, self._minigunReticleLayer === reticle else { return }
-            self.stopMinigunReticle()
+    private func minigunTick() {
+        let now = CACurrentMediaTime()
+        if now - _minigunArmedAt > Self.minigunMaxLifetime
+            || (!_minigunFiring && now - _minigunLastActivity > Self.minigunIdleLifetime) {
+            finishMinigun()
+            return
+        }
+        let mouse = mousePointInHostLayer()
+        let dx = abs(mouse.x - _minigunLastMouseX)
+        _minigunLastMouseX = mouse.x
+        // Walking: distance feeds the bob's phase and tops its energy up;
+        // standing still lets the energy drain so the gun settles.
+        _minigunBobPhase += dx * 0.045
+        _minigunBobEnergy = min(1, max(0, _minigunBobEnergy * 0.92 + min(dx, 20) * 0.02))
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        _minigunReticleLayer?.position = mouse
+        if let gun = _minigunGunLayer {
+            gun.position.x = Self.minigunBodyX(forMouseX: mouse.x, inWidth: hostLayer.bounds.width)
+        }
+        let bob = Self.minigunBobOffset(phase: _minigunBobPhase, energy: _minigunBobEnergy)
+        _minigunRigLayer?.transform = CATransform3DMakeTranslation(bob.x, bob.y, 0)
+        CATransaction.commit()
+
+        if _minigunFiring {
+            // Keep the noise on the uninterrupted stretch of the clip.
+            if let player = _minigunPlayer, player.currentTime > Self.minigunFireLoopEnd {
+                player.currentTime = 0
+            }
+            while _minigunFiring && now >= _minigunNextShot {
+                fireMinigunRound(at: mouse)
+                _minigunNextShot += 1 / Self.minigunShotsPerSecond
+            }
         }
     }
 
-    /// Stop following the cursor, remove the minigun reticle, and restore the real
-    /// cursor. Idempotent — safe to call when nothing is running (toggle-off,
-    /// stop-all, or the natural end-of-burst all funnel through here).
-    private func stopMinigunReticle() {
+    private func pullMinigunTrigger() {
+        guard _minigunContainer != nil, !_minigunFiring else { return }
+        _minigunFiring = true
+        _minigunNextShot = CACurrentMediaTime()   // the first round goes out now
+        // Its own player, started on the spot: the noise has to begin with the
+        // finger, so no Bluetooth start delay (the keep-alive holds the speaker
+        // awake) and no shared-pool "already playing, skip".
+        if let url = SoundManager.shared.soundURL(for: "22_minigun.mp3"),
+           let player = try? AVAudioPlayer(contentsOf: url) {
+            player.volume = 1
+            player.play()
+            _minigunPlayer = player
+        }
+        overlayInfo("🔫 trigger pulled")
+    }
+
+    private func releaseMinigunTrigger() {
+        guard _minigunFiring else { return }
+        _minigunFiring = false
+        _minigunLastActivity = CACurrentMediaTime()
+        stopMinigunNoise()
+        overlayInfo("🔫 trigger released")
+    }
+
+    private func stopMinigunNoise() {
+        guard let player = _minigunPlayer else { return }
+        _minigunPlayer = nil
+        // A short tail, not a cut: a hard stop mid-waveform clicks.
+        player.setVolume(0, fadeDuration: 0.06)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { player.stop() }
+    }
+
+    /// One round: a hole near the crosshair, a flash at the muzzle, a kick.
+    private func fireMinigunRound(at mouse: CGPoint) {
+        guard let container = _minigunContainer, let image = _minigunHoleImage else { return }
+        let bounds = container.bounds
+        let size = _minigunHoleSize
+        let x: CGFloat
+        let y: CGFloat
+        if let target = Self.minigunShotTarget(forMouse: mouse, in: bounds) {
+            let angle = CGFloat.random(in: 0..<(2 * .pi))
+            let r = Self.minigunSpreadRadius * CGFloat.random(in: 0...1)
+            x = min(max(target.x + r * cos(angle) - size.width / 2, 0), bounds.width - size.width)
+            y = min(max(target.y + r * sin(angle) - size.height / 2, 0), bounds.height - size.height)
+        } else {
+            x = CGFloat.random(in: 0...(bounds.width - size.width))
+            y = CGFloat.random(in: 0...(bounds.height - size.height))
+        }
+        let hole = CALayer()
+        hole.frame = CGRect(x: x, y: y, width: size.width, height: size.height)
+        hole.contents = image
+        hole.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        // Below the gun: rounds land on the desktop, not on the rifle.
+        if let gun = _minigunGunLayer {
+            container.insertSublayer(hole, below: gun)
+        } else {
+            container.addSublayer(hole)
+        }
+        _minigunHoles.append(hole)
+        // A long burst must not pile up layers without bound.
+        if _minigunHoles.count > Self.minigunMaxHoles {
+            _minigunHoles.removeFirst().removeFromSuperlayer()
+        }
+
+        if let flash = _minigunFlashLayer {
+            let pop = CAKeyframeAnimation(keyPath: "opacity")
+            pop.values = [1, 1, 0]
+            pop.keyTimes = [0, 0.5, 1]
+            pop.duration = 0.06
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            flash.transform = CATransform3DScale(
+                CATransform3DMakeRotation(CGFloat.random(in: 0..<(2 * .pi)), 0, 0, 1),
+                CGFloat.random(in: 0.7...1.15), CGFloat.random(in: 0.7...1.15), 1)
+            CATransaction.commit()
+            flash.add(pop, forKey: "pop")
+        }
+        if let kick = _minigunKickLayer {
+            // Back and down towards the shoulder, a hair of muzzle climb, and home.
+            let recoil = CAKeyframeAnimation(keyPath: "transform")
+            let back = CATransform3DRotate(CATransform3DMakeTranslation(10, -14, 0),
+                                           -0.015, 0, 0, 1)
+            recoil.values = [CATransform3DIdentity, back, CATransform3DIdentity].map { NSValue(caTransform3D: $0) }
+            recoil.keyTimes = [0, 0.25, 1]
+            recoil.duration = 0.09
+            kick.add(recoil, forKey: "recoil")
+        }
+    }
+    private static let minigunMaxHoles = 250
+
+    /// Clicks and Escape have to be *taken away* from the app underneath while
+    /// the gun is up — same reason, same shape as the bomb's capture: a click
+    /// that also pressed the button below would make every burst cost something.
+    private func startMinigunInputCapture() {
+        stopMinigunInputCapture()
+        let mask = CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseUp.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseDragged.rawValue)
+            | CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        // On the main run loop, so the callback reads and writes session state
+        // on the same thread the tick does.
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let animator = Unmanaged<EmojiAnimator>.fromOpaque(refcon).takeUnretainedValue()
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = animator._minigunInputTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
+            if type == .keyDown {
+                guard CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 else {   // Esc
+                    return Unmanaged.passUnretained(event)
+                }
+                DispatchQueue.main.async { animator.finishMinigun() }
+                return nil
+            }
+            let phase: EmojiAnimator.MinigunMousePhase = type == .leftMouseDown ? .down
+                : type == .leftMouseUp ? .up : .dragged
+            switch EmojiAnimator.minigunMouseDecision(phase,
+                                             armed: animator._minigunContainer != nil,
+                                             swallowingPress: animator._minigunSwallowingPress) {
+            case .pullTrigger:
+                animator._minigunSwallowingPress = true
+                animator.pullMinigunTrigger()
+                return nil
+            case .releaseTrigger:
+                animator._minigunSwallowingPress = false
+                animator.releaseMinigunTrigger()
+                return nil
+            case .swallow:
+                return nil
+            case .pass:
+                return Unmanaged.passUnretained(event)
+            }
+        }
+        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                          options: .defaultTap, eventsOfInterest: mask,
+                                          callback: callback, userInfo: refcon) else {
+            overlayError("🔫 could not install the trigger tap (Accessibility?) — the gun can't fire")
+            return
+        }
+        let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        _minigunInputTap = tap
+        _minigunInputTapSource = src
+    }
+
+    private func stopMinigunInputCapture() {
+        if let tap = _minigunInputTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+        if let src = _minigunInputTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
+        _minigunInputTap = nil
+        _minigunInputTapSource = nil
+        // A release still owed to a press we swallowed will now reach the app
+        // alone — harmless, an up with no down is ignored everywhere.
+        _minigunSwallowingPress = false
+    }
+
+    /// The natural end (idle, max lifetime, Esc, re-press): the gun drops back
+    /// below the edge and the holes are resorbed, then everything goes.
+    private func finishMinigun() {
+        guard let container = _minigunContainer else { return }
+        let gun = _minigunGunLayer
+        stopMinigunSession()
+        if activeEffects["bullet-holes"] === container { activeEffects.removeValue(forKey: "bullet-holes") }
+
+        let tail = 0.6
+        if let gun {
+            let lower = CABasicAnimation(keyPath: "transform.translation.y")
+            lower.fromValue = 0
+            lower.toValue = -gun.bounds.height
+            lower.duration = 0.35
+            lower.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            lower.fillMode = .forwards
+            lower.isRemovedOnCompletion = false
+            gun.add(lower, forKey: "lower")
+        }
+        for hole in container.sublayers ?? [] where hole !== gun {
+            let shrink = CABasicAnimation(keyPath: "transform.scale")
+            shrink.fromValue = 1.0
+            shrink.toValue = 0.0
+            shrink.duration = tail
+            shrink.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            shrink.fillMode = .forwards
+            shrink.isRemovedOnCompletion = false
+            hole.add(shrink, forKey: "resorb")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + tail + 0.05) { [weak container] in
+            container?.removeFromSuperlayer()
+        }
+        overlayInfo("🔫 AK-47 put away")
+    }
+
+    /// Everything the session holds OUTSIDE its container: the tick, the
+    /// crosshair, the hidden cursor, the trigger tap and the noise. Idempotent;
+    /// stop-all calls it directly (a generic sweep would drop the container
+    /// and leave the desktop with no pointer and every click still eaten).
+    private func stopMinigunSession() {
         _minigunReticleTimer?.invalidate(); _minigunReticleTimer = nil
         _minigunReticleLayer?.removeFromSuperlayer(); _minigunReticleLayer = nil
-        // The gun is owned by the burst's container (which fades and is torn down
-        // with the holes) — just stop steering it.
+        stopMinigunInputCapture()
+        _minigunFiring = false
+        stopMinigunNoise()
+        _minigunContainer = nil
         _minigunGunLayer = nil
+        _minigunRigLayer = nil
+        _minigunKickLayer = nil
+        _minigunFlashLayer = nil
+        _minigunHoles = []
+        _minigunBobEnergy = 0
         if _minigunReticleHidCursor {
             NSCursor.unhide()
             CGDisplayShowCursor(CGMainDisplayID())
@@ -4565,7 +4860,7 @@ class EmojiAnimator {
     /// just the punctuation. The AUDIO is what is actually delayed (by
     /// `wazzupLeadIn` on the routed `/sound/play/69_scream_ghost.mp3` path, see
     /// `EffectsEngine.playSound`) rather than the visual, same mechanism and
-    /// same reasoning as tile #22's `minigunAimLeadIn`: the number belongs to
+    /// the reasoning tile #22 used to have: the number belongs to
     /// the animation's own timeline, not to the tablet-tunable
     /// `sound-timing.json`. Only the last 0.35 s fade at the very end, so it
     /// leaves with the sound instead of blinking out.
@@ -7099,6 +7394,8 @@ class EmojiAnimator {
     private static let snowSpawnRate: Double = 16
     /// Flakes released in the opening cascade (see `showSnow`).
     private static let snowSeedCount = 26
+    private static let snowflakeColor = NSColor(calibratedRed: 0.55, green: 0.80, blue: 1.0, alpha: 1)
+    private static let snowflakeHaloColor = NSColor(calibratedRed: 0.15, green: 0.40, blue: 0.90, alpha: 1)
     /// How long a landed flake lingers on the floor before it has melted away.
     private static let snowSettleSeconds: Double = 1.4
     private static let snowFadeSeconds: CFTimeInterval = 1.0
@@ -7228,10 +7525,10 @@ class EmojiAnimator {
         // swings all come off it — so a flake can never read as a contradiction
         // (big but distant, tiny but racing). 0 = far, 1 = near.
         let depth = CGFloat.random(in: 0...1)
-        // 10…40 pt — twice the 5…20 this started at. At the old size the flakes
-        // read as specks on a projected screen from the back of a room, which is
-        // the only place this is ever watched from.
-        let radius = 10 + depth * 30
+        // 15…60 pt — 1.5× the 10…40 of 2026-09 (itself twice the 5…20 this
+        // started at). Flakes are only ever watched on a projected screen from the
+        // back of a room, and every step up has been "still too small".
+        let radius = 15 + depth * 45
         let brightness = Float(0.35 + depth * 0.55)
         let fallSeconds = Self.snowFallSecondsFar
             - Double(depth) * (Self.snowFallSecondsFar - Self.snowFallSecondsNear)
@@ -7239,13 +7536,16 @@ class EmojiAnimator {
         let flake = CAShapeLayer()
         flake.path = Self.snowflakePath(radius: radius)
         flake.bounds = CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)
-        flake.strokeColor = NSColor.white.cgColor
+        // Ice blue, not white (2026-09-23): white line art with a white halo
+        // vanished over a white slide, which is most of what is on screen.
+        flake.strokeColor = Self.snowflakeColor.cgColor
         flake.fillColor = nil
         flake.lineWidth = max(1.0, radius * 0.13)
         flake.lineCap = .round
         flake.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         // The halo is what makes it read as snow rather than as line art.
-        flake.shadowColor = NSColor.white.cgColor
+        // A deeper blue halo gives the flake an outline on white backgrounds too.
+        flake.shadowColor = Self.snowflakeHaloColor.cgColor
         flake.shadowRadius = radius * 0.55
         flake.shadowOpacity = 0.9
         flake.shadowOffset = .zero
@@ -7795,140 +8095,6 @@ class EmojiAnimator {
         let global = NSEvent.mouseLocation
         let origin = (hostLayer.delegate as? NSView)?.window?.frame.origin ?? .zero
         return CGPoint(x: global.x - origin.x, y: global.y - origin.y)
-    }
-
-    func showBulletHoles(playSound: Bool = true) {
-        // Toggle-off: a re-press while the burst runs cancels it — take the
-        // aiming reticle down with it.
-        if cancelIfRunning("bullet-holes") { stopMinigunReticle(); return }
-
-        let bounds = hostLayer.bounds
-        let totalDuration = 6.37  // matches minigun.mp3
-        // 42 evenly-spaced shots (~7/s): 30% lower fire rate than the original
-        // 60, spread over the same window so the burst still spans the sound.
-        let count = 42
-        // 0, not 0.25: the first hole has to land on the same instant as the
-        // reticle and the first frame of noise. A quarter second of crosshair
-        // over an unmarked desktop read as a misfire after the (now full second
-        // of) silent aiming.
-        let spawnStart = 0.0
-        let spawnEnd = totalDuration - 0.25
-
-        guard let url = Bundle.module.url(forResource: "bullet_hole", withExtension: "png"),
-              let image = NSImage(contentsOf: url) else {
-            overlayError("bullet_hole.png not found")
-            return
-        }
-
-        let container = CALayer()
-        container.frame = bounds
-        hostLayer.addSublayer(container)
-
-        // The gun that is doing the shooting. It rides inside `container` so the
-        // burst's teardown (trackEffect, or a cancelling re-press) takes it down
-        // with the holes; the resorb pass below skips it by identity.
-        let gun = makeMinigunSprite(in: bounds)
-        if let gun { container.addSublayer(gun) }
-        // The three lines this and the two below print are how the timing is
-        // checked without watching the screen: with `minigunAimLeadIn` at 0 the
-        // gun, the reticle and the first hole all stamp the same tenth.
-        overlayInfo("🔫 gun up — lead-in \(Self.minigunAimLeadIn)s, then reticle/holes/sound")
-
-        let interval = (spawnEnd - spawnStart) / Double(count - 1)
-        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        let holeW: CGFloat = image.size.width * Self.minigunBulletHoleScale
-        let holeH: CGFloat = image.size.height * Self.minigunBulletHoleScale
-
-        if playSound {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.minigunAimLeadIn) { [weak container] in
-                guard container?.superlayer != nil else { return }
-                SoundManager.shared.play("22_minigun.mp3")
-            }
-        }
-
-        for i in 0..<count {
-            let delay = Self.minigunAimLeadIn + spawnStart + Double(i) * interval
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak container] in
-                guard let self, let container, container.superlayer != nil else { return }
-                if i == 0 { overlayInfo("🔫 first bullet hole") }
-                let mouse = self.mouseInHostLayer()
-
-                let x: CGFloat
-                let y: CGFloat
-                if let target = Self.minigunShotTarget(forMouse: mouse, in: bounds) {
-                    // Cursor on-screen: cluster within 140px of the reticle,
-                    // with higher density toward the center (r ∝ u, not √u).
-                    let radius: CGFloat = 140
-                    let angle = CGFloat.random(in: 0..<(2 * .pi))
-                    let r = radius * CGFloat.random(in: 0...1)
-                    x = min(max(target.x + r * cos(angle) - holeW / 2, 0), bounds.width - holeW)
-                    y = min(max(target.y + r * sin(angle) - holeH / 2, 0), bounds.height - holeH)
-                } else {
-                    // Off-screen cursor: there is no visible aim point.
-                    x = CGFloat.random(in: 0...(bounds.width - holeW))
-                    y = CGFloat.random(in: 0...(bounds.height - holeH))
-                }
-                let hole = CALayer()
-                hole.frame = CGRect(x: x, y: y, width: holeW, height: holeH)
-                hole.contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
-                hole.contentsScale = scale
-                hole.opacity = 0
-                container.addSublayer(hole)
-                // Pop in
-                let fadeIn = CABasicAnimation(keyPath: "opacity")
-                fadeIn.fromValue = 0.0; fadeIn.toValue = 1.0
-                fadeIn.duration = 0.08
-                fadeIn.fillMode = .forwards; fadeIn.isRemovedOnCompletion = false
-                hole.add(fadeIn, forKey: "fadeIn")
-            }
-        }
-
-        // At the tail, each hole shrinks to nothing over 1s — the bullets get
-        // "resorbed" instead of fading out.
-        let resorbDuration = 1.0
-        let resorbStart = Self.minigunAimLeadIn + spawnEnd + 0.05  // just after the last bullet lands
-        // The gun swings up out of the bottom edge and opens fire on the same
-        // instant (the aiming lead-in is 0), hauls itself after the mouse for the
-        // burst, and is gone by the time the last hole is resorbed. One keyframe
-        // track (not two animations) so the tail can never overtake the head.
-        if let gun {
-            let visible = resorbStart + resorbDuration   // gun's entrance is t=0
-            let fade = CAKeyframeAnimation(keyPath: "opacity")
-            fade.values = [0.0, 1.0, 1.0, 0.0]
-            fade.keyTimes = [0,
-                             NSNumber(value: 0.15 / visible),
-                             NSNumber(value: (visible - 0.5) / visible),
-                             1]
-            fade.duration = visible
-            fade.beginTime = CACurrentMediaTime()
-            fade.fillMode = .both
-            fade.isRemovedOnCompletion = false
-            gun.add(fade, forKey: "fade")
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + resorbStart) { [weak container] in
-            guard let holes = container?.sublayers else { return }
-            for hole in holes where hole !== gun {
-                let shrink = CABasicAnimation(keyPath: "transform.scale")
-                shrink.fromValue = 1.0
-                shrink.toValue = 0.0
-                shrink.duration = resorbDuration
-                shrink.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                shrink.fillMode = .forwards
-                shrink.isRemovedOnCompletion = false
-                hole.add(shrink, forKey: "resorb")
-            }
-        }
-
-        trackEffect("bullet-holes", layer: container, duration: resorbStart + resorbDuration + 0.1, sound: playSound ? "22_minigun.mp3" : nil)
-
-        // The crosshair takes the pointer over when the shooting starts, which
-        // is now t=0 as well. `revealAfter` is kept wired to the lead-in so a
-        // reinstated aiming beat moves the crosshair with the first round rather
-        // than leaving it on an unmarked desktop.
-        startMinigunReticle(following: gun,
-                            revealAfter: Self.minigunAimLeadIn,
-                            autoStopAfter: resorbStart + resorbDuration + 0.1)
     }
 
     // MARK: - FBI Knock (the screen lurches on each door bang)
@@ -11288,10 +11454,10 @@ class EmojiAnimator {
         // but the pending self-stop would fire afterwards and clear the "storm"
         // key out from under whatever the next press put there.
         clearStorm(fadeDuration: 0)
-        // The minigun aiming reticle also lives OUTSIDE activeEffects (its own
-        // follow timer + hidden cursor), so tear it down explicitly or it would
-        // keep tracking forever after a stop-all.
-        stopMinigunReticle()
+        // The minigun session also lives OUTSIDE activeEffects (its own tick,
+        // hidden cursor and a tap eating every click), so tear it down
+        // explicitly or it would keep aiming — and swallowing clicks — forever.
+        stopMinigunSession()
         // 🪚 The chainsaw cursor is outside activeEffects for the same reason —
         // and it also HIDES the real pointer, so leaving it behind would strand
         // the desktop with no cursor at all.

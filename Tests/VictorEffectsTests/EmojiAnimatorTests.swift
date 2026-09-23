@@ -288,38 +288,56 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertLessThan(EmojiAnimator.bombFallingZ, EmojiAnimator.bombBlastZ)
     }
 
-    /// There is no aiming beat: the gun is drawn mid-burst, so the moment it is
-    /// on screen the bullets have to be flying and the noise sounding (Victor,
-    /// 2026-09-17 — it was 0.5 s, then 1.0 s of gun-only silence). The same
-    /// number delays the routed clip, which is why reticle, first hole and first
-    /// frame of noise coincide however it is set.
-    func testMinigunFiresTheInstantTheGunAppears() {
-        XCTAssertEqual(EmojiAnimator.minigunAimLeadIn, 0, accuracy: 0.001)
+    /// Victor, 2026-09-23: half the area the rounds used to cover. Area goes
+    /// with r², so the radius shrinks by √2 (140 → ~99), not by half.
+    func testMinigunSpreadCoversHalfTheOldArea() {
+        let oldArea = CGFloat.pi * 140 * 140
+        let newArea = CGFloat.pi * pow(EmojiAnimator.minigunSpreadRadius, 2)
+        XCTAssertEqual(newArea / oldArea, 0.5, accuracy: 0.001)
         XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.7, accuracy: 0.001)
     }
 
-    /// The weapon is deliberately a left-side emplacement, not a rotating FPS
-    /// view-model: its rest pose is W/4 and half-speed tracking keeps its entire
-    /// horizontal travel in the left half.
-    func testMinigunGunRestsAtOneQuarterAndStaysInTheLeftHalf() {
+    /// The gun fires only while the button is held, and the clicks are taken
+    /// from the app underneath — but only a press that STARTED while the gun
+    /// was up. A press already in progress keeps its drag and its release, or
+    /// the app would be left holding a button that never comes up.
+    func testMinigunTriggerNeverHandsTheAppHalfAClick() {
+        typealias A = EmojiAnimator
+        XCTAssertEqual(A.minigunMouseDecision(.down, armed: true, swallowingPress: false), .pullTrigger)
+        XCTAssertEqual(A.minigunMouseDecision(.dragged, armed: true, swallowingPress: true), .swallow)
+        XCTAssertEqual(A.minigunMouseDecision(.up, armed: true, swallowingPress: true), .releaseTrigger)
+
+        XCTAssertEqual(A.minigunMouseDecision(.dragged, armed: true, swallowingPress: false), .pass)
+        XCTAssertEqual(A.minigunMouseDecision(.up, armed: true, swallowingPress: false), .pass)
+        XCTAssertEqual(A.minigunMouseDecision(.down, armed: false, swallowingPress: false), .pass)
+        // The gun went away mid-press: the release still ends the burst.
+        XCTAssertEqual(A.minigunMouseDecision(.up, armed: false, swallowingPress: true), .releaseTrigger)
+    }
+
+    /// The self-termination rule: a gun that eats every click must leave on
+    /// its own, and soon once nobody is shooting.
+    func testMinigunPutsItselfAway() {
+        XCTAssertGreaterThan(EmojiAnimator.minigunIdleLifetime, 0)
+        XCTAssertLessThanOrEqual(EmojiAnimator.minigunIdleLifetime, 15)
+        XCTAssertGreaterThan(EmojiAnimator.minigunMaxLifetime, EmojiAnimator.minigunIdleLifetime)
+        XCTAssertLessThanOrEqual(EmojiAnimator.minigunMaxLifetime, 120)
+    }
+
+    /// Standing still, the gun is at rest: no bob without movement.
+    func testMinigunIsStillWithoutMovement() {
+        XCTAssertEqual(EmojiAnimator.minigunBobOffset(phase: 1.3, energy: 0), .zero)
+        XCTAssertNotEqual(EmojiAnimator.minigunBobOffset(phase: 1.3, energy: 1), .zero)
+    }
+
+    /// The CS view-model sits right of centre and follows the cursor at half
+    /// its speed; the gun never rotates.
+    func testMinigunMuzzleFollowsTheCursorAtHalfSpeed() {
         let width: CGFloat = 1600
-
-        XCTAssertEqual(EmojiAnimator.minigunBodyX(forMouseX: 0, inWidth: width),
-                       0, accuracy: 0.001)
         XCTAssertEqual(EmojiAnimator.minigunBodyX(forMouseX: width / 2, inWidth: width),
-                       width * 0.25, accuracy: 0.001)
-        XCTAssertEqual(EmojiAnimator.minigunBodyX(forMouseX: width, inWidth: width),
-                       width * 0.5, accuracy: 0.001)
-
-        // Half travel, measured between two cursor positions.
+                       width * 0.60, accuracy: 0.001)
         let near = EmojiAnimator.minigunBodyX(forMouseX: 300, inWidth: width)
         let far = EmojiAnimator.minigunBodyX(forMouseX: 700, inWidth: width)
         XCTAssertEqual(far - near, 200, accuracy: 0.001)
-
-        for mouseX in stride(from: CGFloat(0), through: width, by: 50) {
-            let bodyX = EmojiAnimator.minigunBodyX(forMouseX: mouseX, inWidth: width)
-            XCTAssertLessThanOrEqual(bodyX, width / 2 + 0.001)
-        }
     }
 
     /// Holding an FPS crosshair still does not stop aiming. The reticle remains

@@ -374,10 +374,8 @@ class SoundManager {
     /// main thread (TabletHttpServer dispatches handlers via DispatchQueue.main.sync).
     /// `lead` overrides the shared `sound-timing.json` head start for this one
     /// call, for a sound whose paired visual owns the number in code rather than
-    /// in the config file (tile #22 passes `EmojiAnimator.minigunAimLeadIn`,
-    /// which is 0 — an override to *zero* is still an override, and that is the
-    /// point: it keeps a configured lead from drifting away from the animation's
-    /// own timeline). It is added to the returned duration exactly as a
+    /// in the config file (tile #69 passes `EmojiAnimator.wazzupLeadIn`: the
+    /// number belongs to the animation's own timeline). It is added to the returned duration exactly as a
     /// configured lead is, so the client's completion timer still covers the
     /// whole clip.
     /// `startAt` skips into the clip (seconds) — the test-preview paths use it

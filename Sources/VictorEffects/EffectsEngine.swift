@@ -219,7 +219,7 @@ final class EffectsEngine {
         case "sonar":         animator.showSonar(playSound: true)
         case "sepia":         animator.showSepia(playSound: false)
         case "fire-alarm":    animator.showFireAlarm(playSound: false)
-        case "bullet-holes":  animator.showBulletHoles(playSound: false)
+        case "bullet-holes":  animator.showBulletHoles()
         case "phone-ring":    animator.showPhoneRing(playSound: false)
         case "fbi-knock":     animator.showFbiKnock(playSound: false)
         case "dark-door":     animator.showDarkDoor(playSound: false)
@@ -488,22 +488,15 @@ final class EffectsEngine {
         if name == "80_badumtss.mp3" {
             return remember(Int(EmojiAnimator.minionDuration * 1000))
         }
-        // Tile #22 (🔫 minigun): the gun, the reticle, the first bullet hole and
-        // the first frame of noise all land together — `minigunAimLeadIn` is 0
-        // since 2026-09-17, because the sprite is drawn firing and a silent beat
-        // on it read as a stall, not as taking aim. The visual half lives in
-        // `showBulletHoles` (the press path) while the audio is started here, by
-        // the client's *other* HTTP request, so the same number has to reach
-        // both; passing it explicitly is also what keeps `sound-timing.json`
-        // from putting a lead back on this clip behind the animation's back.
-        // Unlike the FBI knock this tile stays in `SoundEffectMap`: nothing here
-        // needs the capture, so the visual can keep starting from the press.
+        // Tile #22 (🔫 minigun → the Counter-Strike AK-47): SILENT on the
+        // press since 2026-09-23. The gun comes up at rest and the noise is the
+        // trigger's — it plays only while the left button is held
+        // (`EmojiAnimator.pullMinigunTrigger`), so the client's play request
+        // must not start it. The tile stays lit for the gun's idle lifetime.
+        // Unlike the FBI knock this tile stays in `SoundEffectMap`: the visual
+        // still starts from the press.
         if name == "22_minigun.mp3" {
-            guard let duration = SoundManager.shared.playTabletSound(
-                "22_minigun.mp3", volume: volume,
-                lead: EmojiAnimator.minigunAimLeadIn) else { return nil }
-            effectsInfo("🔫 minigun audio scheduled +\(EmojiAnimator.minigunAimLeadIn)s, durationMs \(Int(duration * 1000))")
-            return remember(Int(duration * 1000))
+            return remember(Int(EmojiAnimator.minigunIdleLifetime * 1000))
         }
         // Tile #69 (👻 wazzup ghost): the mask starts sliding in immediately
         // (`showWazzup`, fired by the client's separate `/sound/pressed`
