@@ -1489,10 +1489,11 @@ rule from the start.
   very thing he is pointing at. A global `NSEvent` monitor can only watch that
   happen; a tap can consume. The click's `up` is swallowed with its `down` —
   delivering the up alone hands the app below half a click.
-  The click stops **only the glass**: the Pink Panther plays on, the way the
-  fire's first Escape leaves its clip alone. The tile is a piece of music with a
-  prop on it, not a prop with a jingle — and the tablet, not this Mac, owns
-  whether a sound is playing.
+  The click puts away **the glass and the music together** (Victor, 2026-09-23 —
+  it used to leave the Pink Panther playing, and a theme with no inspector on
+  screen is a joke without its prop). `SoundManager.stopWherever` with the
+  magnifier's own file, so it fades whichever player holds it — the tablet's
+  routed one or this Mac's pool — and never an unrelated tile.
   **The wheel's floor is the glass the room already knows** (Victor: *"zoomul
   merge însă între limite (minim cât e acum)"*) — `minZoom == zoom`, so scrolling
   down can only bring the lens back to how it dropped onto the pointer, never to

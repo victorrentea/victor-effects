@@ -6792,11 +6792,15 @@ class EmojiAnimator {
                 return Unmanaged.passUnretained(event)
             }
             if type == .leftMouseDown {
-                // A click means "put it away" (Victor, 2026-09-22). Only the
-                // glass goes: the Pink Panther plays on, the way the fire's
-                // first Escape leaves the clip alone — the tile is a piece of
-                // music with a prop on it, not a prop with a jingle.
-                DispatchQueue.main.async { animator.stopMagnifier() }
+                // A click means "put it away" (Victor, 2026-09-22) — and the
+                // Pink Panther goes with it (2026-09-23): a theme playing on
+                // over a desktop with no inspector on it is a joke without its
+                // prop. `stopWherever`, because the clip may be the tablet's
+                // routed player or this Mac's own pool, and only THIS file.
+                DispatchQueue.main.async {
+                    animator.stopMagnifier()
+                    SoundManager.shared.stopWherever(EmojiAnimator.magnifierSound)
+                }
                 return nil   // consume — the click was spent dismissing the glass
             }
             if type == .leftMouseUp {
