@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 23, 23:12"
+    static let BUILD_TIME = "Sep 23, 23:49"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -426,12 +426,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private func refreshKeepAliveRow() {
         guard let keepAliveItem else { return }
         let state = keepAliveState?() ?? .off
-        // The checkmark is drawn in the title, not with `state` (Victor,
-        // 2026-09-23): one item in `.on` makes `NSMenu` open a state gutter
-        // down the left of EVERY row, and the whole menu shifts right. The
-        // emoji-presentation ✔️/✖️ are as wide as the 🔥/✨/🎦 above, so the
-        // words still start on one line.
-        keepAliveItem.title = (state.isChecked ? "✔️" : "✖️") + " BT Keepalive"
+        keepAliveItem.title = Self.keepAliveTitle(checked: state.isChecked)
         keepAliveItem.toolTip = {
             switch state {
             case .running: return "A near-silent tone is playing into the Bluetooth speaker so its amp never mutes and the next sound is not clipped. Click to switch it off."
@@ -439,6 +434,27 @@ final class MenuBar: NSObject, NSMenuDelegate {
             case .off: return "Switched off: nothing is played into the speaker, and the first sound after a silence may be clipped. Click to switch it back on."
             }
         }()
+    }
+
+    /// The checkmark is drawn in the title, not with `state` (Victor,
+    /// 2026-09-23): one item in `.on` makes `NSMenu` open a state gutter down
+    /// the left of EVERY row, and the whole menu shifts right.
+    ///
+    /// Plain-text ✓ / x, not the emoji ✔️ / ✖️ tried first: those are drawn as
+    /// black glyphs whatever the appearance, and all but vanished on the dark
+    /// menu. Text takes the menu's own colour, highlight included. It is
+    /// narrower than the 🔥/✨/🎦 above it, so hair spaces around it make up the
+    /// difference — measured, so the words still start on one line.
+    static func keepAliveTitle(checked: Bool) -> String {
+        let mark = checked ? "✓" : "x"
+        let font = NSFont.menuFont(ofSize: 0)
+        func width(_ s: String) -> CGFloat { (s as NSString).size(withAttributes: [.font: font]).width }
+        let hair = "\u{200A}"
+        let missing = max(0, width("🔥") - width(mark))
+        let count = Int((missing / width(hair)).rounded())
+        let before = String(repeating: hair, count: count / 2)
+        let after = String(repeating: hair, count: count - count / 2)
+        return before + mark + after + " BT Keepalive"
     }
 
     @objc private func showPanelAction(_ sender: NSMenuItem) {

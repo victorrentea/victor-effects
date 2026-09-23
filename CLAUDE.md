@@ -85,8 +85,8 @@ this one only routes.
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
 - **The ⭐ menu is not a second surface.** Five rows: `✨ Effects` (Right ⌘),
-  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✔️/✖️ BT Keepalive` (the Bluetooth
-  keep-alive's switch, ticked in the title — a real `state` shifts every row right — `docs/sound-routing.md`) and ⏻ Quit with the build stamp
+  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✓/x BT Keepalive` (the Bluetooth
+  keep-alive's switch — `docs/sound-routing.md`) and ⏻ Quit with the build stamp
   — plus ⚠️ Accessibility while that grant is missing. **No row carries a
   `keyEquivalent`**: `NSMenu` draws key equivalents in a column outside the
   titles that a tab stop cannot reach, so one native ⌘Q left every hint an icon
@@ -115,6 +115,12 @@ this one only routes.
   hold, a show that now re-reads `tiles.json` itself). A menu row that
   duplicates a picture is a second list to keep in step, and this repo has
   already paid for one of those. `docs/thumbnail-panel.md`.
+- **Menu titles are checked in dark AND light.** The BT Keepalive tick lives in
+  the title (a real `state` opens a gutter that shifts every row right) and is
+  plain-text ✓/x: the emoji ✔️/✖️ tried first are black glyphs and vanished on
+  the dark menu (2026-09-23). `swift test --filter MenuKeepAliveRowTests` asserts
+  contrast and width and leaves `menu-rows-{light,dark}.png` in `$TMPDIR` —
+  look at both after any menu title change.
 - **The two apps degrade independently.** Addons answers `effectsUp:false` while
   this app is down; this app's webhook is fire-and-forget. Never introduce a
   dependency that makes one wait for the other. **The panel's 🎬 video page is the
