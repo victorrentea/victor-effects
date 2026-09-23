@@ -304,7 +304,7 @@ final class EmojiAnimatorTests: XCTestCase {
     func testMinigunTriggerNeverHandsTheAppHalfAClick() {
         typealias A = EmojiAnimator
         XCTAssertEqual(A.minigunMouseDecision(.down, armed: true, swallowingPress: false), .pullTrigger)
-        XCTAssertEqual(A.minigunMouseDecision(.dragged, armed: true, swallowingPress: true), .swallow)
+        XCTAssertEqual(A.minigunMouseDecision(.dragged, armed: true, swallowingPress: true), .moveOnly)
         XCTAssertEqual(A.minigunMouseDecision(.up, armed: true, swallowingPress: true), .releaseTrigger)
 
         XCTAssertEqual(A.minigunMouseDecision(.dragged, armed: true, swallowingPress: false), .pass)

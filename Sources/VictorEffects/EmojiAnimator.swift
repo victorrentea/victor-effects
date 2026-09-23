@@ -3740,7 +3740,7 @@ class EmojiAnimator {
     enum MinigunMouseDecision: Equatable {
         case pullTrigger      // swallow, start firing
         case releaseTrigger   // swallow, stop firing
-        case swallow          // a drag belonging to a press we took
+        case moveOnly         // a drag belonging to a press we took: pass it as a plain move
         case pass
     }
     enum MinigunMousePhase { case down, dragged, up }
@@ -3753,16 +3753,17 @@ class EmojiAnimator {
                                      swallowingPress: Bool) -> MinigunMouseDecision {
         switch phase {
         case .down:    return armed ? .pullTrigger : .pass
-        case .dragged: return swallowingPress ? .swallow : .pass
+        case .dragged: return swallowingPress ? .moveOnly : .pass
         case .up:      return swallowingPress ? .releaseTrigger : .pass
         }
     }
 
     // MARK: The gun itself (ak47.png, the Counter-Strike 1.6 view-model)
 
-    /// Width of the sprite as a fraction of the screen — about the share of the
-    /// screen the CS 1.6 view-model takes in the game.
-    private static let minigunSpriteWidthFraction: CGFloat = 0.40
+    /// Width of the sprite as a fraction of the screen. Born at 0.40 — the share
+    /// the CS 1.6 view-model takes in the game — and halved (2026-09-23): at
+    /// that size it covered the slide it was shooting at.
+    private static let minigunSpriteWidthFraction: CGFloat = 0.20
     /// The muzzle inside `ak47.png` (fractions, y measured from the BOTTOM):
     /// the front sight post, which is where the barrel ends.
     private static let minigunSpriteMuzzle = CGPoint(x: 0.295, y: 0.86)
@@ -4119,8 +4120,13 @@ class EmojiAnimator {
                 animator._minigunSwallowingPress = false
                 animator.releaseMinigunTrigger()
                 return nil
-            case .swallow:
-                return nil
+            case .moveOnly:
+                // Dropping the drag froze the pointer — and with it the aim —
+                // for as long as the trigger was held. Retyped as a plain move
+                // it still moves the cursor, and the app underneath sees a
+                // hover, never a drag with a button it didn't see go down.
+                event.type = .mouseMoved
+                return Unmanaged.passUnretained(event)
             case .pass:
                 return Unmanaged.passUnretained(event)
             }

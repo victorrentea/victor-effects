@@ -746,7 +746,8 @@ rule from the start.
     cuts, which is where the screen edges are in the game). It rises out of the bottom edge
     in 0.3 s, **at rest**: no flash, no noise, no holes. It replaced `minigun.gif`, which
     was drawn mid-burst in every one of its 64 frames and so had no rest pose to show.
-    Width 40 % of the screen; the muzzle (`minigunSpriteMuzzle`, the front sight post) is
+    Width **20 %** of the screen (born 40 %, the in-game share; halved the same day because
+    it hid the slide it was shooting at); the muzzle (`minigunSpriteMuzzle`, the front sight post) is
     the anchor, at `0.35 W + mouseX × 0.5` — a centred cursor puts it at 0.60 W, right of
     centre like the game. It never rotates.
   - **Moving without firing walks it**: horizontal mouse travel advances a bob phase and
@@ -764,7 +765,10 @@ rule from the start.
     density peaking at the centre (r ∝ u). Holes sit below the gun, capped at 250.
   - **The clicks are taken**, by an effect-owned `CGEventTap` on the main run loop (same
     shape as the bomb's): left down/drag/up and Esc. `minigunMouseDecision` is the rule —
-    only a press that *started* while the gun was up is swallowed, down to its release; a
+    only a press that *started* while the gun was up is swallowed, down to its release — its
+    **drags are retyped as plain `mouseMoved` and passed on**, not dropped: dropping them froze
+    the pointer (and so the aim) while the trigger was held, and a move is the one thing the
+    app underneath can receive without seeing half a click; a
     press already in progress keeps its drag and its up, or the app underneath would be left
     holding a button that never comes up. **Esc puts the gun away.**
   - **Self-termination**: the 60 fps tick that drives the crosshair, the gun and the rounds
