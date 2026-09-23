@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Sep 23, 19:09"
+    static let BUILD_TIME = "Sep 23, 23:12"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -301,7 +301,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.addItem(whipItem)
         giveHint("⌃W", to: whipItem)
 
-        // ✅ Keep Speaker Awake — the Bluetooth keep-alive's switch and its only
+        // ✓ BT Keepalive — the Bluetooth keep-alive's switch and its only
         // lamp. It belongs in *this* app (moved here with the effects split) for
         // the same reason the soundboard did: it is audio. It gets a row, unlike
         // everything else that self-gates, because its tone is inaudible by
@@ -421,14 +421,15 @@ final class MenuBar: NSObject, NSMenuDelegate {
         refreshKeepAliveRow()
     }
 
-    /// One row, one live read. The label names what the switch does, not the
-    /// mechanism — "Bluetooth keep-alive" is what it is called in the log and in
-    /// `BluetoothKeepAlive`, but the row has to say what it is *for* to someone
-    /// looking at it mid-workshop with a JBL on the table.
+    /// One row, one live read: the checkmark is the switch, the tooltip says
+    /// whether the tone is actually playing right now.
     private func refreshKeepAliveRow() {
         guard let keepAliveItem else { return }
         let state = keepAliveState?() ?? .off
-        keepAliveItem.title = "\(state.emoji) Keep Speaker Awake"
+        // A real checkbox (Victor, 2026-09-23): AppKit's own ✓ in the gutter
+        // when switched on, nothing when off — no emoji to learn.
+        keepAliveItem.title = "BT Keepalive"
+        keepAliveItem.state = state.isChecked ? .on : .off
         keepAliveItem.toolTip = {
             switch state {
             case .running: return "A near-silent tone is playing into the Bluetooth speaker so its amp never mutes and the next sound is not clipped. Click to switch it off."

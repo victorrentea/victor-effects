@@ -36,13 +36,9 @@ import Foundation
 /// without quitting the app. Off is remembered (`KeepAliveSettings`), because
 /// the reason to switch it off outlives a relaunch.
 final class BluetoothKeepAlive {
-    /// What the menu row shows, and the only three answers there are.
-    ///
-    /// ✅ rather than the log's 🔵 for `running` (Victor, 2026-09-14): a row
-    /// that is a switch should read like a ticked box, and a tick is the one
-    /// glyph nobody has to learn. The other two stay in the log's vocabulary —
-    /// ⚪️ is its "idle" — and 🚫 is the new answer the log never had to give,
-    /// because it is about the switch, not the speaker.
+    /// What the menu row shows, and the only three answers there are. The row
+    /// itself is a plain checkbox (✓ = switched on, i.e. `running` or `idle`);
+    /// the running/idle difference lives in its tooltip.
     enum State {
         /// The tone is playing: a matching speaker is the default output.
         case running
@@ -51,13 +47,8 @@ final class BluetoothKeepAlive {
         /// Switched off in the menu (or no speaker name configured at all).
         case off
 
-        var emoji: String {
-            switch self {
-            case .running: return "✅"
-            case .idle: return "⚪️"
-            case .off: return "🚫"
-            }
-        }
+        /// The menu row's ✓: on whenever the switch is, playing or not.
+        var isChecked: Bool { self != .off }
     }
 
     /// The three-way answer, from the three facts that decide it. Pure and

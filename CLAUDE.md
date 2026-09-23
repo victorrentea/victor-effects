@@ -85,7 +85,7 @@ this one only routes.
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
 - **The ⭐ menu is not a second surface.** Five rows: `✨ Effects` (Right ⌘),
-  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✅ Keep Speaker Awake` (the Bluetooth
+  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✓ BT Keepalive` (the Bluetooth
   keep-alive's switch — `docs/sound-routing.md`) and ⏻ Quit with the build stamp
   — plus ⚠️ Accessibility while that grant is missing. **No row carries a
   `keyEquivalent`**: `NSMenu` draws key equivalents in a column outside the

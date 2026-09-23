@@ -27,9 +27,8 @@ final class BluetoothKeepAliveStateTests: XCTestCase {
         XCTAssertEqual(KA.state(enabled: true, configured: false, playing: false), .off)
     }
 
-    func testEachStateHasItsOwnGlyph() {
-        let glyphs = [KA.State.running, .idle, .off].map(\.emoji)
-        XCTAssertEqual(glyphs, ["✅", "⚪️", "🚫"])
-        XCTAssertEqual(Set(glyphs).count, 3, "two states drawn the same way is a row that cannot be read")
+    /// The row is a checkbox over the *switch*: armed-but-idle is still ticked.
+    func testCheckmarkFollowsTheSwitchNotThePlayer() {
+        XCTAssertEqual([KA.State.running, .idle, .off].map(\.isChecked), [true, true, false])
     }
 }

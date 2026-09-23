@@ -22,7 +22,7 @@ open "/Applications/Victor Effects.app"
 ```
 
 A ⭐ appears in the menu bar — six rows: `✨ Effects` (Right ⌘),
-`🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✅ Keep Speaker Awake` (the Bluetooth
+`🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✓ BT Keepalive` (the Bluetooth
 keep-alive's switch and its only lamp — ✅ playing, ⚪️ armed, 🚫 off), a disabled
 `Version: <timestamp>`, which tells you which binary is running, and `⏻ Quit` (⌘Q).
 (A seventh, `⚠️ Grant Accessibility`, appears only while the grant is missing.)
