@@ -245,7 +245,7 @@ final class EffectsEngine {
         case "cavalry":       animator.showCavalry(playSound: false)
         case "counter-strike": animator.showCounterStrike(playSound: false)
         case "wasnt-me":      animator.showWasntMe(playSound: false)
-        case "chainsaw":      animator.showChainsawCursor(playSound: false)
+        case "chainsaw":      animator.showChainsawCursor()
         case "chainsaw/stop": animator.stopChainsawCursor()
         case "fire":          animator.showFireCursor(playSound: false)
         case "fire/stop":     animator.stopFireCursor()
@@ -342,15 +342,18 @@ final class EffectsEngine {
     /// of its own, so the status item shows 🛑 for as long as it is out.
     ///
     /// What it does NOT see is the handful of overlays kept outside
-    /// `activeEffects` on purpose (the 🕳️ iris, the 🪚 chainsaw cursor, the
-    /// spiral hearts…) and the short spawns that were never tracked at all
-    /// (rising emoji, confetti). The first group is a real gap of at most one
+    /// `activeEffects` on purpose (the 🕳️ iris, the spiral hearts…) and the
+    /// short spawns that were never tracked at all (rising emoji, confetti).
+    /// The 🪚 chainsaw is the exception, asked for by name since it stopped
+    /// ending on its own (2026-09-23): a saw that runs until Escape is exactly
+    /// what someone reaches for the 🛑 to kill. The first group is a real gap of at most one
     /// icon; the second is gone before a hand could reach the menu bar.
     var isAnythingRunning: Bool {
         SoundManager.shared.isTabletSoundPlaying
             || !animator.activeEffectNames.isEmpty
             || progressBar.isRunning
             || whipIsShowing
+            || animator.isChainsawRunning
     }
 
     func stopAll() {
@@ -497,6 +500,16 @@ final class EffectsEngine {
         // still starts from the press.
         if name == "22_minigun.mp3" {
             return remember(Int(EmojiAnimator.minigunIdleLifetime * 1000))
+        }
+        // Tile #18 (🪚 chainsaw): SILENT on the press since 2026-09-23, same
+        // reasoning as the AK-47 above. The saw now idles until Escape and
+        // screams only while the button is held, so its engine noise is the
+        // animator's own (`ChainsawSound`) and a clip that ends by itself has
+        // nothing to add. The tile stays lit for the clip's old length; its
+        // completion stop maps to nothing (no `onStop` entry), so the saw
+        // outlives it.
+        if name == "18_chainsaw.mp3" {
+            return remember(Int(EmojiAnimator.chainsawTileLitDuration * 1000))
         }
         // Tile #69 (👻 wazzup ghost): the mask starts sliding in immediately
         // (`showWazzup`, fired by the client's separate `/sound/pressed`

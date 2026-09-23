@@ -51,10 +51,9 @@ enum SoundEffectMap {
         // at the clip's length, so no onStop entry is needed.
         "71_one_more_time.mp3":  "sketch-arrow",
         // Tile 18 (🪚 chainsaw): the mouse pointer itself becomes a running
-        // chainsaw for the length of the clip. Press starts it, stop puts the
-        // real pointer back (see onStop) — and the effect self-stops at the
-        // clip's length regardless, because a lost /sound/stopped here would
-        // leave the desktop with no visible cursor at all.
+        // chainsaw, idling until Escape and cutting only while the button is
+        // held. Deliberately NOT in onStop: the tablet reports every clip's
+        // completion as a stop, and the saw must outlive the tile's clip.
         "18_chainsaw.mp3":       "chainsaw",
         // Tile 11 (🔥 fire): the same cursor-replacement idea as the chainsaw —
         // the pointer becomes a flame for the length of the clip. Two things are
@@ -180,7 +179,6 @@ enum SoundEffectMap {
         "59_game_over.mp3":      "game-over/stop",
         "46_michael_buble.mp3":  "snow/stop",
         "20_storm.mp3":          "storm/stop",
-        "18_chainsaw.mp3":       "chainsaw/stop",
         "11_fire.mp3":           "fire/stop",
     ]
 

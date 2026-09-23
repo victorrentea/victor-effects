@@ -811,10 +811,13 @@ rule from the start.
     press path (`/sound/pressed/…` → `bullet-holes`) still raises the gun.
   - Log lines `🔫 AK-47 up`, `🔫 trigger pulled` / `released`, `🔫 AK-47 put away`.
 
-- **🪚 Chainsaw cursor** (tile #18 `18_chainsaw.mp3` → `chainsaw` / `chainsaw/stop`,
-  `showChainsawCursor`): for the length of the clip **the mouse pointer IS a running
-  chainsaw** — the real cursor is hidden and a 16-frame sprite loops on it, chasing
-  `NSEvent.mouseLocation` at 60 fps. It is the third member of the hidden-cursor family
+- **🪚 Chainsaw cursor** (tile #18 `18_chainsaw.mp3` → `chainsaw`, `showChainsawCursor`):
+  **the mouse pointer IS a running chainsaw until Escape** — the real cursor is hidden and a
+  16-frame sprite loops on it, chasing `NSEvent.mouseLocation` at 60 fps. **A session, not a
+  clip, since 2026-09-23** (Victor: *"Drujba trebuie să dispară doar la Escape; să sune totul
+  în buclă, iar când apăs cu mouse-ul, ea trebuie să taie doar atunci, nu permanent"*): it
+  idles on the pointer and **bites only while the left button is held**.
+  It is the third member of the hidden-cursor family
   (💘 spiral-hearts' beating heart, 🔫 minigun's reticle) and follows their rules: it lives
   **outside `activeEffects`** because it owns a follow timer *and* a hidden system cursor,
   so `stopAllActiveEffects` tears it down **explicitly** — a generic sweep would drop the
@@ -822,6 +825,28 @@ rule from the start.
   `armBackgroundCursorHiding()` (the private `SetsCursorInBackground` flag) so it also
   applies while Victor is in someone else's app, and the unhide is balanced by a single
   `_chainsawHidCursor` flag so a spurious stop can't force the cursor back mid-run.
+  - **The clicks are taken** by the saw's own `CGEventTap` (left down/drag/up + Esc), on the
+    AK-47's rule, `minigunMouseDecision`, reused as is: only a press that *started* while the
+    saw was up is swallowed down to its release, its drags are retyped as plain `mouseMoved`
+    so the saw keeps following the hand, and a press already in progress keeps its drag and
+    up. Down → `startChainsawCut` (kerf restarts at the pointer, never joined to the last
+    cut — the saw was in the air in between; sparks on; throttle open). Up → sparks off,
+    throttle closes. The kerf and the fallen pieces **stay** until the saw is put away.
+  - **The engine noise is the saw's own** (`ChainsawSound`), and the tablet's
+    `/sound/play/18_chainsaw.mp3` plays **nothing** (`EffectsEngine.playSound` answers the old
+    6.09 s as `durationMs`, so the tile still lights like before). Both noises are cut out of
+    the clip itself, read off its RMS in 0.1 s windows: pull-start **0–1.7 s** (played once),
+    idle **1.7–2.7 s** (steady −30 dB), full throttle **3.1–5.8 s** (steady −16 dB, peaks
+    −2.5 dB). Two `AVAudioPlayerNode`s loop their stretch for the whole session and the button
+    only moves their volumes (equal-power, **60 ms** attack, **300 ms** release — a saw winds
+    down, it does not switch off), so the scream starts with the finger. The rev runs through
+    an `AVAudioUnitVarispeed` at **1.08** (+1.3 semitones): with −2.5 dB peaks there is no
+    headroom for "louder" by gain, so the extra bite comes from pitch — it is already 14 dB
+    over the idle. Loops are PCM buffers with their seam **crossfaded into the tail**
+    (120 ms, blending into the audio just before the loop's start), not an `AVAudioPlayer`
+    rewind like the AK's: a rewind is a jump in the waveform, fine for a two-second burst and
+    a click every second for a saw that idles for minutes. Blending into the tail (not the
+    head) is also what makes the intro → idle hand-over seamless. Teardown fades the mixer out.
   - **Art**: `Resources/chainsaw-frames.png`, a **4×4 sprite sheet**, not a gif. The smoke
     puff and the antialiased blade need real **8-bit alpha**, and gif carries 1-bit — a gif
     of this fringes white against a dark desktop. The 16 equal cells are sliced once with
@@ -846,9 +871,10 @@ rule from the start.
     `renderMode = .additive` over a soft white radial dot tinted orange with `greenRange` /
     `blueRange` spread, so the shower has hot and cool sparks in it. The narrow fan is what
     makes it read as material thrown sideways out of a groove rather than as an explosion at
-    the cursor. It burns **permanently, independent of the mouse** — an idling blade against
-    material still throws chips, and a shower that switched off when the hand stopped would
-    go dark at exactly the moments Victor is holding the saw still to point at something. On
+    the cursor. It follows the **button, not the motion** (since 2026-09-23;
+    before that it burned permanently): on for as long as the blade is in, moving or not —
+    a blade held still against material still throws chips — and off while the saw is in
+    the air, where a shower would point at a kerf nobody is making. On
     teardown `birthRate` drops to 0 first, so sparks already in the air finish their arc
     instead of being cut off mid-flight, then the emitter fades with the saw and the damage.
   - **Timing**: 16 frames at **15 fps** (1.07 s rev cycle). It started at 24 fps and read as
@@ -859,14 +885,14 @@ rule from the start.
     pointer). Fade-in is **0.12 s** — the cursor is a thing you are already looking at, and
     a slow fade there reads as lag. The fade-out is 0.25 s and the real cursor comes back
     only **after** it finishes, so the two are never on screen together.
-  - **Lifecycle**: length read off `18_chainsaw.mp3` via `AVURLAsset` (~6.09 s, with that
-    value as the fallback) and self-stopped at it, **generation-guarded** so an old run's
-    timer can't kill a newer one. The lifecycle rule matters more here than anywhere else:
-    a lost `/sound/stopped` on a flaky venue network would otherwise leave the desktop with
-    no cursor. The tablet's stop still shortens it through `onStop` → `chainsaw/stop`.
-    Press path only (`SoundEffectMap`), so the routed `/sound/play/18_chainsaw.mp3` supplies
-    the audio and the visual never double-triggers. `/test/chainsaw`, `/test/chainsaw/stop` and
-    `/effect/chainsaw` fire it silently.
+  - **Lifecycle**: **Escape** (consumed by the tap), `stopAllActiveEffects`, the 🛑 icon
+    (`isAnythingRunning` asks `animator.isChainsawRunning` by name — a saw that runs until
+    Escape is exactly what someone reaches for the icon to kill), `/effect/chainsaw/stop`, and
+    a **180 s** cap (`chainsawMaxLifetime`, generation-guarded) as the self-termination
+    guarantee for the day the tap is missing (no Accessibility: no cutting and no Esc — the
+    log says so). **No `onStop` entry any more**: the tablet reports every clip's completion
+    as `/sound/stopped`, and the saw must outlive the tile. `/test/chainsaw`,
+    `/test/chainsaw/stop` and `/effect/chainsaw` drive it, now with the engine noise.
 
 - **🔥 Fireball & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
   the pointer becomes a **burning sphere of fire**, and every fire on screen is one he put

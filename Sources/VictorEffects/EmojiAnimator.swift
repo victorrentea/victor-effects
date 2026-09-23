@@ -172,7 +172,15 @@ class EmojiAnimator {
     private var _chainsawScreenshot: CGImage?         // the sheet being sawn, grabbed before the saw appears
     private var _chainsawLastCut: CGPoint?            // previous sample, so the kerf is a stroke and not dots
     private var _chainsawTicksToSweep = 0             // connectivity runs at a fraction of the follow rate
-    private var _chainsawSparks: CAEmitterLayer?      // the shower thrown off the biting point, always on
+    private var _chainsawSparks: CAEmitterLayer?      // the shower thrown off the biting point, while cutting
+    // Since 2026-09-23 the saw is a session, not a clip: it idles until Escape
+    // and cuts only while the left button is held. The tap takes the clicks
+    // and the Escape; the engine noise is the animator's own.
+    private var _chainsawInputTap: CFMachPort?
+    private var _chainsawInputTapSource: CFRunLoopSource?
+    private var _chainsawSwallowingPress = false      // the press in progress is ours, down to its release
+    private var _chainsawCutting = false
+    private var _chainsawSound: ChainsawSound?
 
     // 🕳️ Iris close: a black radial overlay (transparent centre, opaque edges)
     // whose clear hole shrinks from the screen-circumscribing circle down to
@@ -4292,18 +4300,28 @@ class EmojiAnimator {
     /// heavy vibration, which is what a chainsaw at rest actually looks like.
     private static let chainsawFPS: Double = 15
 
-    /// Fallback length if `18_chainsaw.mp3` can't be measured (its real one).
-    private static let chainsawFallbackDuration: Double = 6.09
+    /// Backstop only. The saw is put away by Escape (or stop-all, or the 🛑
+    /// icon) — this is the self-termination rule's guarantee for the day the
+    /// tap is not there to hear the Escape, which would otherwise leave the
+    /// desktop with no pointer and every click eaten.
+    static let chainsawMaxLifetime: Double = 180
+    /// How long the tablet's tile stays lit after a press: the length the
+    /// clip used to play for. Cosmetic — the saw does not end with it.
+    static let chainsawTileLitDuration: Double = 6.09
 
-    /// Replace the mouse pointer with a running chainsaw for as long as
-    /// `18_chainsaw.mp3` lasts (or until the tile is stopped, whichever is
-    /// first). The real cursor is hidden — the saw IS the pointer.
+    /// Replace the mouse pointer with a running chainsaw until Escape. The real
+    /// cursor is hidden — the saw IS the pointer. It idles (low engine noise,
+    /// no sparks, no cut) and bites only while the left button is held: then
+    /// the engine screams, the sparks fly and the kerf follows the pointer.
     ///
     /// Not a `trackEffect` client: like the minigun reticle this owns a follow
-    /// timer and a hidden system cursor, so it must be torn down through
-    /// `stopChainsawCursor` and never by the generic `activeEffects` sweep,
-    /// which would drop the layer and leave the cursor invisible forever.
-    func showChainsawCursor(playSound: Bool = true) {
+    /// timer, a hidden system cursor and a click-eating tap, so it must be torn
+    /// down through `stopChainsawCursor` and never by the generic
+    /// `activeEffects` sweep, which would drop the layer and leave the cursor
+    /// invisible forever.
+    var isChainsawRunning: Bool { _chainsawLayer != nil }
+
+    func showChainsawCursor() {
         let frames = Self.chainsawFrames
         guard let first = frames.first else {
             overlayError("chainsaw-frames.png not found in bundle")
@@ -4319,12 +4337,6 @@ class EmojiAnimator {
         // the `screencapture` subprocess the other effects use costs hundreds of
         // ms, which on a cursor replacement would read as the shortcut misfiring.
         _chainsawScreenshot = Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay()
-
-        var duration = Self.chainsawFallbackDuration
-        if let soundURL = SoundManager.shared.soundURL(for: "18_chainsaw.mp3") {
-            let d = AVURLAsset(url: soundURL).duration
-            if d.isNumeric { duration = CMTimeGetSeconds(d) }
-        }
 
         let w = Self.chainsawWidth
         let h = w * CGFloat(first.height) / CGFloat(first.width)
@@ -4374,7 +4386,8 @@ class EmojiAnimator {
         beginChainsawDamage()
         beginChainsawSparks()
 
-        let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] t in
+        let tickInterval = 1.0 / 60.0
+        let timer = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { [weak self] t in
             guard let self, self._chainsawTimer === t else { t.invalidate(); return }
             let point = self.mousePointInHostLayer()
             CATransaction.begin()
@@ -4382,31 +4395,128 @@ class EmojiAnimator {
             self._chainsawLayer?.position = point
             self._chainsawSparks?.emitterPosition = point
             CATransaction.commit()
-            self.extendChainsawCut(to: point)
+            if self._chainsawCutting { self.extendChainsawCut(to: point) }
+            self._chainsawSound?.tick(cutting: self._chainsawCutting, dt: tickInterval)
         }
         _chainsawTimer = timer
 
-        if playSound { SoundManager.shared.play("18_chainsaw.mp3") }
+        // The engine is the saw's own, like the AK-47's noise is the gun's: the
+        // tablet's `/sound/play/18_chainsaw.mp3` plays nothing (EffectsEngine),
+        // because a clip that ends by itself cannot idle until Escape.
+        if let url = SoundManager.shared.soundURL(for: "18_chainsaw.mp3") {
+            _chainsawSound = ChainsawSound(url: url)
+            if _chainsawSound == nil { overlayError("🪚 could not build the engine loops from 18_chainsaw.mp3") }
+        }
 
-        // The lifecycle rule: the sound's length is the authoritative teardown,
-        // never the tablet's /sound/stopped (which a flaky venue network eats —
-        // and here that would leave the desktop with no visible cursor at all).
+        startChainsawInputCapture()
+
+        // The lifecycle rule: Escape is the exit, the cap is the guarantee.
         // Generation-guarded so an old run's timer can't kill a newer run.
         _chainsawGeneration += 1
         let generation = _chainsawGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.chainsawMaxLifetime) { [weak self] in
             guard let self, self._chainsawGeneration == generation else { return }
             self.stopChainsawCursor()
         }
+        overlayInfo("🪚 chainsaw up — hold the button to cut, Esc to put it away")
     }
 
-    /// Put the real pointer back. Idempotent — the early stop from the tablet,
-    /// the natural end of the clip and `stopAllActiveEffects` all funnel here.
-    /// The system cursor is restored only once the saw has finished fading, so
-    /// the two are never on screen together.
+    /// The blade goes in: engine to full throttle, sparks on, and the kerf
+    /// starts afresh where the pointer is now (never joined to the last cut —
+    /// the saw was in the air in between).
+    private func startChainsawCut() {
+        guard _chainsawLayer != nil, !_chainsawCutting else { return }
+        _chainsawCutting = true
+        _chainsawLastCut = nil
+        _chainsawSparks?.birthRate = 1
+    }
+
+    private func stopChainsawCut() {
+        guard _chainsawCutting else { return }
+        _chainsawCutting = false
+        _chainsawSparks?.birthRate = 0
+    }
+
+    /// Clicks and Escape are *taken* from the app underneath while the saw is
+    /// up — same shape as the AK-47's trigger tap, and the same rule
+    /// (`minigunMouseDecision`): only a press that started while the saw was up
+    /// is swallowed, its drags are passed on as plain moves so the saw keeps
+    /// following the hand, and a press already in progress keeps its drag and
+    /// its release.
+    private func startChainsawInputCapture() {
+        stopChainsawInputCapture()
+        let mask = CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseUp.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseDragged.rawValue)
+            | CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let animator = Unmanaged<EmojiAnimator>.fromOpaque(refcon).takeUnretainedValue()
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = animator._chainsawInputTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
+            if type == .keyDown {
+                guard CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 else {   // Esc
+                    return Unmanaged.passUnretained(event)
+                }
+                DispatchQueue.main.async { animator.stopChainsawCursor() }
+                return nil   // consume — he is putting the saw down, not closing a dialog
+            }
+            let phase: EmojiAnimator.MinigunMousePhase = type == .leftMouseDown ? .down
+                : type == .leftMouseUp ? .up : .dragged
+            switch EmojiAnimator.minigunMouseDecision(phase,
+                                                      armed: animator._chainsawLayer != nil,
+                                                      swallowingPress: animator._chainsawSwallowingPress) {
+            case .pullTrigger:
+                animator._chainsawSwallowingPress = true
+                animator.startChainsawCut()
+                return nil
+            case .releaseTrigger:
+                animator._chainsawSwallowingPress = false
+                animator.stopChainsawCut()
+                return nil
+            case .moveOnly:
+                event.type = .mouseMoved
+                return Unmanaged.passUnretained(event)
+            case .pass:
+                return Unmanaged.passUnretained(event)
+            }
+        }
+        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                          options: .defaultTap, eventsOfInterest: mask,
+                                          callback: callback, userInfo: refcon) else {
+            overlayError("🪚 could not install the chainsaw tap (Accessibility?) — no cutting, no Esc; stop it from the 🛑")
+            return
+        }
+        let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        _chainsawInputTap = tap
+        _chainsawInputTapSource = src
+    }
+
+    private func stopChainsawInputCapture() {
+        if let tap = _chainsawInputTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+        if let src = _chainsawInputTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
+        _chainsawInputTap = nil
+        _chainsawInputTapSource = nil
+        _chainsawSwallowingPress = false
+    }
+
+    /// Put the real pointer back. Idempotent — Escape, the cap, `/effect/
+    /// chainsaw/stop` and `stopAllActiveEffects` all funnel here. The system
+    /// cursor is restored only once the saw has finished fading, so the two are
+    /// never on screen together.
     func stopChainsawCursor(fade: Double = 0.25) {
         _chainsawTimer?.invalidate(); _chainsawTimer = nil
         _chainsawGeneration += 1      // any pending self-stop is now stale
+        if _chainsawLayer != nil { overlayInfo("🪚 chainsaw put away") }
+        stopChainsawInputCapture()
+        _chainsawCutting = false
+        _chainsawSound?.stop(fade: max(fade, 0.08))   // never a hard cut mid-waveform
+        _chainsawSound = nil
 
         let restoreCursor = { [weak self] in
             guard let self, self._chainsawHidCursor else { return }
@@ -4495,10 +4605,11 @@ class EmojiAnimator {
     /// one that removes material. The sparks are the answer — a bright, moving
     /// dot exactly where the kerf appears, visible across a projected room.
     ///
-    /// Deliberately independent of the mouse: it burns whether or not the saw is
-    /// being moved, because an idling blade against material still throws chips.
-    /// A shower that switched off when the hand stopped would go dark at exactly
-    /// the moments Victor is holding the saw still to point at something.
+    /// It follows the BUTTON, not the motion: it burns for as long as the blade
+    /// is in (held button), moving or not, because a blade held still against
+    /// material still throws chips. With the button up the saw is in the air
+    /// and cuts nothing, so a shower then would point at a kerf that isn't
+    /// being made.
     private func beginChainsawSparks() {
         guard let dot = Self.chainsawSparkDot else { return }
 
@@ -4513,6 +4624,7 @@ class EmojiAnimator {
         emitter.renderMode = .additive
         emitter.emitterCells = [Self.chainsawSparkCell(dot: dot, longitude: 0),
                                 Self.chainsawSparkCell(dot: dot, longitude: .pi)]
+        emitter.birthRate = 0          // off until the blade goes in (startChainsawCut)
         hostLayer.addSublayer(emitter)
         _chainsawSparks = emitter
     }
