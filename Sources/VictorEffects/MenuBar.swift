@@ -426,10 +426,12 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private func refreshKeepAliveRow() {
         guard let keepAliveItem else { return }
         let state = keepAliveState?() ?? .off
-        // A real checkbox (Victor, 2026-09-23): AppKit's own ✓ in the gutter
-        // when switched on, nothing when off — no emoji to learn.
-        keepAliveItem.title = "BT Keepalive"
-        keepAliveItem.state = state.isChecked ? .on : .off
+        // The checkmark is drawn in the title, not with `state` (Victor,
+        // 2026-09-23): one item in `.on` makes `NSMenu` open a state gutter
+        // down the left of EVERY row, and the whole menu shifts right. The
+        // emoji-presentation ✔️/✖️ are as wide as the 🔥/✨/🎦 above, so the
+        // words still start on one line.
+        keepAliveItem.title = (state.isChecked ? "✔️" : "✖️") + " BT Keepalive"
         keepAliveItem.toolTip = {
             switch state {
             case .running: return "A near-silent tone is playing into the Bluetooth speaker so its amp never mutes and the next sound is not clipped. Click to switch it off."
