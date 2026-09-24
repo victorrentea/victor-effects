@@ -1910,18 +1910,22 @@ order he gave them:
    `.common` mode, so a menu does not freeze it). While the cursor is inside a
    cup's box (presentation frame + 34 px slop) the real pointer is hidden and a
    **🫖 tilted 0.6 rad counter-clockwise** — the glyph's spout is on its left,
-   so it dips — stands in for it, **168 pt** (doubled from 84 on 2026-09-24: at
-   pointer size it read as a cursor, not a pot), offset (+60, +36) so the cursor
+   so it dips — stands in for it, **252 pt** (84 → 168 → 252, all on 2026-09-24: at
+   pointer size it read as a cursor, not a pot, and doubled was still a size short), offset (+90, +54) so the cursor
    point IS the spout, with a `CAEmitterLayer` of brown drops falling from it
    under gravity. The touched cup **freezes where it was caught and fills**
    (`freezeCoffeeCup`: the carrier's flight is stripped and its presentation
    position/scale pinned as model values, solid again even if it had started
    fading): 1.2 s of pouring takes `fill` 0→1, the glyph swells to **1.7×**
-   under a warm brown glow and bounces once when full. Full — or the pot slid
-   off it half-way — it **rises on from that spot** on a fresh chimney
-   (`thawCoffeeCup` → `launchCoffeeRise`). Until 2026-09-24 it kept rising
-   while it filled; Victor wanted the cup to stop under the pot and visibly
-   swell, which a moving target never showed. The pot stays out 0.35 s
+   under a warm brown glow and bounces once when full — and **keeps growing at
+   the same rate for as long as the pot stays on it**, up to **4×**
+   (`coffeeGlyphScale`, driven by `poured` seconds; the payoff fires once, at
+   full). Only when the pot slides off does it **rise on from that spot** on a
+   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`). The hit box grows with
+   the glyph, so a swollen cup is caught by all of it. History, all 2026-09-24:
+   first it kept rising while it filled; then it froze but left the pot the
+   moment it was full; Victor wanted it to **freeze on contact and just keep
+   growing where it is**. The pot stays out 0.35 s
    after the hand leaves the last cup (no flicker across a cluster), then the
    arrow comes back. A full cup is the **payoff**: one `coffee-popped` webhook
    (below) — the gesture changed from "hold until it pops" to "pour until it is
@@ -1941,14 +1945,13 @@ order he gave them:
    arriving after the salvo has been dealt with is offered, not detonated. Both
    are a deadline or a fact on screen, never a flag to remember to clear;
    `stop-all` resets it at once.
-4. **Even while exploding, a cup keeps its path.** This is free, by
-   construction: a cup is two layers (`CoffeeCup`). The **carrier** rides the
-   chimney (position, the 1→1.3 growth, the fade); the **glyph** inside it is
-   the only thing the pour and the explosion touch (fill scale, shake, blow-up).
-   An armed cup is never frozen — a cup caught mid-pour when a salvo arms is
-   thawed first, then explodes on its path. The one thing an
-   explosion does to the carrier is strip its `"fade"` animation (kept as its
-   own key for exactly this) so a cup that starts blowing up near the top stays
+4. **Contact freezes, whatever follows.** A cup is two layers (`CoffeeCup`).
+   The **carrier** rides the chimney (position, the 1→1.3 growth, the fade);
+   the **glyph** inside it is the only thing the pour and the explosion touch
+   (fill scale, shake, blow-up). The pot's one effect on the carrier is to
+   freeze it — for an armed cup too since 2026-09-24 (it used to explode on
+   its path): it shakes and bursts **right where it was caught**. Freezing
+   also strips the `"fade"` animation, so a cup caught near the top stays
    visible until it bursts.
 
 Which emoji counts is configuration, not a literal: `chargeEmoji` (default
