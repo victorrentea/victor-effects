@@ -9567,9 +9567,9 @@ class EmojiAnimator {
         guard activeEffects["brother"] == nil else { return }  // double-trigger guard across the async hop
 
         let bounds = hostLayer.bounds
-        let size = bounds.width * 0.32         // ~1/3 of screen width
+        let size = bounds.width * 0.416        // 1.3 × the original ~1/3 of screen width
         let x: CGFloat = 0                     // flush to left edge
-        let y: CGFloat = -40                   // 40px below bottom
+        let y: CGFloat = -52                   // below bottom, scaled with the size (was -40)
 
         let gifLayer = CALayer()
         gifLayer.frame = CGRect(x: x, y: y, width: size, height: size)
