@@ -8,8 +8,9 @@ import Foundation
 /// where it spawned, like smoke off a chimney, swaying gently side to side, and
 /// fading as it nears the top edge. Nothing steers it — not the cursor (cups
 /// used to bend over to the hand), not a flood (they used to sweep to the
-/// middle of the screen), not being filled, not being mid-explosion. The mouse
-/// decides what happens TO a cup, never where it goes.
+/// middle of the screen), not being mid-explosion. The one exception is a HOLD:
+/// the pot freezes a cup while it pours, and the cup takes a fresh chimney up
+/// from that spot once it is let go. The mouse can stop a cup, never steer it.
 enum CoffeeFlight {
 
     /// The chimney: `start` to the same x at `toY`, with a sine riding sideways.

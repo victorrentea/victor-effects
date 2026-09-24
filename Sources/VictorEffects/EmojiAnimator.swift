@@ -37,8 +37,10 @@ class EmojiAnimator {
     // GLYPH inside it is the only thing the pour and the explosion ever touch
     // (the fill scale, the shake, the final blow-up). The split is what makes
     // "even while exploding, a cup does not change its path" free: nothing the
-    // cursor does can reach the carrier's animation. Cups are the pot's hover
-    // targets — see tickCoffeePour.
+    // explosion does can reach the carrier's animation. The one thing the pot
+    // does to the carrier is STOP it: a cup being filled freezes where it was
+    // caught and rises on once full or let go (`freezeCoffeeCup`). Cups are the
+    // pot's hover targets — see tickCoffeePour.
     private final class CoffeeCup {
         let carrier: CALayer
         let glyph: CATextLayer
@@ -47,6 +49,9 @@ class EmojiAnimator {
         /// The fill reached 1 and paid out (once).
         var filled = false
         var exploding = false
+        /// The pot is pouring into it: its flight is stripped and it hangs where
+        /// it was caught until it is full or the pot leaves.
+        var frozen = false
         init(carrier: CALayer, glyph: CATextLayer) { self.carrier = carrier; self.glyph = glyph }
     }
     private var coffeeCups: [CoffeeCup] = []
@@ -69,12 +74,15 @@ class EmojiAnimator {
     /// Where the pot sits relative to the cursor: the glyph's spout is on its
     /// LEFT, and tilted `coffeePotTilt` counter-clockwise it dips to about
     /// (−30, −18) from the pot's centre — so the cursor point IS the spout.
-    private static let coffeePotOffset = CGPoint(x: 30, y: 18)
+    private static let coffeePotOffset = CGPoint(x: 60, y: 36)
+    /// The pot's box — twice the old 84: at pointer size it read as a cursor
+    /// glyph, not as a pot pouring.
+    private static let coffeePotSize: CGFloat = 168
     private static let coffeePotTilt: CGFloat = 0.6
     /// Seconds of pouring that fill a cup.
     private static let coffeeFillSeconds: Double = 1.2
     /// A full cup is this much bigger than an empty one.
-    private static let coffeeFillGrowScale: CGFloat = 1.45
+    private static let coffeeFillGrowScale: CGFloat = 1.7
     private static let coffeeHitSlop: CGFloat = 34
 
     // ☕💥 Escalation. `CoffeeStormGauge` counts arrivals in `spawnEmoji`: MORE
@@ -320,7 +328,6 @@ class EmojiAnimator {
     /// animation, keyed `"fade"`, so an explosion can strip it: a cup that
     /// starts blowing up near the top must stay visible until it bursts.
     private func spawnCoffeeCup(glyph: CATextLayer, halo: NSColor?) {
-        let bounds = hostLayer.bounds
         let size = Self.emojiSize
         let spawn = glyph.position
 
@@ -346,10 +353,20 @@ class EmojiAnimator {
 
         let cup = CoffeeCup(carrier: carrier, glyph: glyph)
         coffeeCups.append(cup)
+        launchCoffeeRise(cup)
+    }
+
+    /// The chimney flight, from wherever the carrier stands now at whatever
+    /// scale it has grown to — the spawn, or the spot where the pot let it go.
+    private func launchCoffeeRise(_ cup: CoffeeCup) {
+        let carrier = cup.carrier
+        let size = Self.emojiSize
+        let spawn = carrier.position
+        let startScale = carrier.transform.m11
 
         // All the way off the top edge, so the fade and not the edge is what
         // ends it.
-        let top = bounds.maxY + size * 0.6
+        let top = hostLayer.bounds.maxY + size * 0.6
         let pts = CoffeeFlight.chimney(from: spawn, toY: top,
                                        amplitude: CGFloat.random(in: 26...40),
                                        swings: CGFloat.random(in: 1.5...2.5),
@@ -363,8 +380,8 @@ class EmojiAnimator {
         move.path = path
         move.calculationMode = .cubic
         let grow = CABasicAnimation(keyPath: "transform.scale")
-        grow.fromValue = 1.0
-        grow.toValue = Self.emojiRiseScale
+        grow.fromValue = startScale
+        grow.toValue = max(startScale, Self.emojiRiseScale)
         grow.timingFunction = CAMediaTimingFunction(name: .easeOut)
         let group = CAAnimationGroup()
         group.animations = [move, grow]
@@ -384,8 +401,9 @@ class EmojiAnimator {
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self, weak cup] in
             guard let self, let cup else { return }
-            // Mid-explosion at the top: the burst owns the teardown.
-            if cup.exploding { return }
+            // Mid-explosion at the top: the burst owns the teardown. Frozen:
+            // the flight was stripped under the pot, not finished.
+            if cup.exploding || cup.frozen { return }
             cup.carrier.removeFromSuperlayer()
             self.coffeeCups.removeAll { $0 === cup }
         }
@@ -468,9 +486,10 @@ class EmojiAnimator {
     /// webhook — the break-timer payoff. The gesture changed from "hold until it
     /// pops" to "pour until it is full"; the minute it buys did not.
     ///
-    /// Touching a cup never moves it and never stops it: it keeps rising while
-    /// it fills (or while it grows and shakes toward a burst). The cursor only
-    /// ever decides WHAT happens to a cup, never WHERE it goes.
+    /// Pouring STOPS a cup: it hangs where it was caught while it swells, and
+    /// rises on from that spot once it is full or the pot slides off it. An
+    /// armed cup is not stopped — it grows and shakes toward its burst on its
+    /// own path. The cursor never sends a cup anywhere; at most it holds one.
     func tickCoffeePour(cursorGlobalPoint globalPoint: CGPoint) -> [CGPoint] {
         guard let frame = Self.builtInScreenFrame() else { return [] }
         let now = CACurrentMediaTime()
@@ -498,19 +517,27 @@ class EmojiAnimator {
             // The presentation frame: where the cup IS, not where its flight
             // will leave it. Generous slop keeps the pour forgiving.
             let box = (cup.carrier.presentation()?.frame ?? cup.carrier.frame).insetBy(dx: -pad, dy: -pad)
-            guard box.contains(p) else { continue }
+            guard box.contains(p) else {
+                // The pot slid off a half-full cup: it rises on from there.
+                if cup.frozen { thawCoffeeCup(cup) }
+                continue
+            }
             touching = true
             if armed {
+                if cup.frozen { thawCoffeeCup(cup) }
                 beginCoffeeExplosion(cup)
                 continue
             }
             guard !cup.filled else { continue }
+            if !cup.frozen { freezeCoffeeCup(cup) }
             cup.fill = min(1, cup.fill + CGFloat(dt / Self.coffeeFillSeconds))
             setCoffeeFill(cup)
             if cup.fill >= 1 {
                 cup.filled = true
                 markCoffeeFilled(cup)
-                payoffs.append(global(cup.carrier.presentation()?.position ?? cup.carrier.position))
+                payoffs.append(global(cup.carrier.position))
+                // Full: it leaves the pot and rises on, like any other cup.
+                thawCoffeeCup(cup)
             }
         }
 
@@ -521,6 +548,30 @@ class EmojiAnimator {
             hidePot()
         }
         return payoffs
+    }
+
+    /// The pot caught a cup: strip its flight and pin it where it IS (position,
+    /// the growth so far), solid again even if it had started fading near the
+    /// top — it hangs there swelling while the pot pours.
+    private func freezeCoffeeCup(_ cup: CoffeeCup) {
+        let pres = cup.carrier.presentation() ?? cup.carrier
+        let position = pres.position
+        let transform = pres.transform
+        cup.frozen = true
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        cup.carrier.removeAnimation(forKey: "floatAndFade")
+        cup.carrier.removeAnimation(forKey: "fade")
+        cup.carrier.position = position
+        cup.carrier.transform = transform
+        cup.carrier.opacity = 1
+        CATransaction.commit()
+    }
+
+    /// Let a frozen cup go: a fresh chimney from the spot it hung at.
+    private func thawCoffeeCup(_ cup: CoffeeCup) {
+        cup.frozen = false
+        launchCoffeeRise(cup)
     }
 
     /// The fill's visual: the glyph swells toward `coffeeFillGrowScale` and a
@@ -626,7 +677,7 @@ class EmojiAnimator {
     /// on the first call) and pour or not. `p` is the spout.
     private func showPot(at p: CGPoint, pouring: Bool) {
         if _potLayer == nil {
-            let size: CGFloat = 84
+            let size = Self.coffeePotSize
             let pot = CATextLayer()
             pot.string = "🫖"
             pot.fontSize = size * 0.8
@@ -634,9 +685,9 @@ class EmojiAnimator {
             pot.bounds = CGRect(x: 0, y: 0, width: size, height: size)
             pot.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
             pot.shadowColor = NSColor.black.cgColor
-            pot.shadowRadius = 6
+            pot.shadowRadius = 10
             pot.shadowOpacity = 0.35
-            pot.shadowOffset = CGSize(width: 0, height: -2)
+            pot.shadowOffset = CGSize(width: 0, height: -4)
 
             // The stream: brown drops born at the spout, falling under gravity.
             let stream = CAEmitterLayer()
