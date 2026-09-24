@@ -5894,13 +5894,21 @@ class EmojiAnimator {
             let center = HeartbeatBump.center(forAnchor: anchor, bounds: bounds)
             bump.name = Self.heartbeatBumpFilterName
             bump.setValue(CIVector(x: center.x, y: center.y), forKey: kCIInputCenterKey)
-            bump.setValue(HeartbeatBump.radius(in: bounds), forKey: kCIInputRadiusKey)
+            // 🔍 Sized on the zoom slice, not the display: the overlay is magnified
+            // with the desktop, so a lens sized on `bounds` would fill the glass.
+            bump.setValue(HeartbeatBump.radius(in: ZoomSlice.current(in: bounds).rect), forKey: kCIInputRadiusKey)
             bump.setValue(0.0, forKey: kCIInputScaleKey)   // at rest: identity
             imgLayer.filters = [bump]
         } else {
             overlayError("CIBumpDistortion unavailable — heartbeat falls back to the breathe alone")
         }
         container.addSublayer(imgLayer)
+        // 🔍 The 🐶/🐱 live on a STAGE that `ZoomFollower` shrinks into the zoom
+        // slice and keeps there through ⌥-scroll and pans, so under screen zoom
+        // they are on the glass at their unzoomed size. The screenshot itself
+        // stays full-display — it has to line up with the desktop under it.
+        let companionStage = CALayer()
+        companionStage.frame = bounds
         trackEffect("heartbeat", layer: container, duration: totalDuration)
 
         // 🖱️ The pointer goes away for the whole beat (Victor, 2026-09-19: "the
@@ -5952,18 +5960,21 @@ class EmojiAnimator {
                     // from somewhere nobody saw.
                     companion = HeartbeatCatFollow.makeLayer(
                         bounds: bounds,
-                        cursor: CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height))
+                        cursor: Self.heartbeatStagedCursor(
+                            CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height), full: bounds))
                     if companion == nil {
                         overlayInfo("💓 \(HeartbeatCatFollow.assetName) not in \(EffectsConfig.shared.assetsDir.path) — falling back to the 🐶")
                     }
                 }
+                container.addSublayer(companionStage)
+                ZoomFollower.shared.stage(companionStage, full: bounds)
                 if let cat = companion {
-                    container.addSublayer(cat.layer)
+                    companionStage.addSublayer(cat.layer)
                     self.watchHeartbeatCat(cat.layer, onRight: cat.onRight, effect: container,
                                            bounds: bounds, until: clock0 + totalDuration)
                 } else if let dog = Self.makeHeartbeatDogLayer(bounds: bounds) {
                     overlayInfo("💓 companion: 🐶 following dog")
-                    container.addSublayer(dog)
+                    companionStage.addSublayer(dog)
                     self.watchHeartbeatDog(dog, effect: container, bounds: bounds,
                                            until: clock0 + totalDuration)
                 }
@@ -6245,6 +6256,10 @@ class EmojiAnimator {
             CATransaction.setDisableActions(true)
             imgLayer.setValue(CIVector(x: center.x, y: center.y),
                               forKeyPath: "filters.\(Self.heartbeatBumpFilterName).inputCenter")
+            // 🔍 …and keeps the size it has unzoomed relative to the glass, even
+            // when ⌥-scroll changes the magnification mid-beat.
+            imgLayer.setValue(HeartbeatBump.radius(in: ZoomSlice.current(in: bounds).rect),
+                              forKeyPath: "filters.\(Self.heartbeatBumpFilterName).inputRadius")
             CATransaction.commit()
 
             // 2. …and four times a second, the picture under it.
@@ -6421,7 +6436,8 @@ class EmojiAnimator {
             let rel = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
                                        panelOrigin: self.hostLayer.bounds.origin,
                                        hostLayer: self.hostLayer)
-            let cursor = CGPoint(x: rel.x * bounds.width, y: rel.y * bounds.height)
+            let cursor = Self.heartbeatStagedCursor(
+                CGPoint(x: rel.x * bounds.width, y: rel.y * bounds.height), full: bounds)
             // Only the FIRST poll gets a vote. After that the dog keeps the side
             // it appeared on, whatever the pointer does — see the note above.
             if !placed {
@@ -6511,7 +6527,8 @@ class EmojiAnimator {
             let rel = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
                                        panelOrigin: self.hostLayer.bounds.origin,
                                        hostLayer: self.hostLayer)
-            let cursor = CGPoint(x: rel.x * bounds.width, y: rel.y * bounds.height)
+            let cursor = Self.heartbeatStagedCursor(
+                CGPoint(x: rel.x * bounds.width, y: rel.y * bounds.height), full: bounds)
             let to = HeartbeatCatFollow.position(size: size, in: bounds,
                                                  onRight: onRight, cursor: cursor)
             let from = cat.presentation()?.position ?? cat.position
@@ -6538,6 +6555,17 @@ class EmojiAnimator {
             if !advance() { timer.cancel() }
         }
         timer.resume()
+    }
+
+    /// A cursor in overlay coordinates, re-expressed in the coordinates of the
+    /// companion stage — the full-display space that `ZoomFollower.stage` shrinks
+    /// into the zoom slice. Unzoomed it is the identity, so the dog and cat keep
+    /// laying themselves out against the whole screen, none the wiser.
+    static func heartbeatStagedCursor(_ p: CGPoint, full: CGRect) -> CGPoint {
+        let v = ZoomSlice.current(in: full).rect
+        guard v.width > 0, v.height > 0, v != full else { return p }
+        return CGPoint(x: (p.x - v.minX) * full.width / v.width,
+                       y: (p.y - v.minY) * full.height / v.height)
     }
 
     /// The PNG faces right (muzzle toward the screen from the left), so a dog

@@ -180,9 +180,15 @@ ecranul"*):
   the display now slide in from outside the slice. Used by **⛈️ storm (#20)**,
   whose clip is long enough that Victor pans during it.
 
-Not done yet: the 💓 heartbeat (live re-capture with a companion that follows
-the pointer) and the 🪚 chainsaw (a cut mask over the pointer's path); both
-work under the pointer, which is always on the glass.
+  Also used by **💓 heartbeat** (2026-09-24), for the 🐶/🐱 only: they sit on a
+  staged sublayer, and the pointer they follow is mapped into the stage's
+  full-display coordinates (`heartbeatStagedCursor`). The screenshot is NOT
+  staged — it has to line up with the desktop — and the lens radius is sized on
+  the slice instead, re-read on every follow tick so ⌥-scroll mid-beat keeps the
+  bulge the same fraction of the glass as unzoomed.
+
+Not done yet: the 🪚 chainsaw (a cut mask over the pointer's path); it works
+under the pointer, which is always on the glass.
 
 
 
