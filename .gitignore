@@ -4,3 +4,7 @@
 
 # Local runtime data: sounds, tiles and the five optional assets live in
 # ~/.victor-effects (see EffectsConfig), never in the repo.
+
+# Burned-in edits of the tablet video clips (originals + .ass sources +
+# burn.sh). Large binaries and third-party footage: kept here, never committed.
+video-edits/
