@@ -1888,53 +1888,81 @@ rule from the start.
   in `playSound` and no `onStop` entry. `stop-all` clears it like any other
   tracked effect; re-firing redraws it (it is not a toggle).
 
-## ☕ The hold-charge gesture
+## ☕ The coffee cups — the chimney, the pot, the explosions
 
-`EmojiAnimator.tickCoffeeCharge(cursorGlobalPoint:)` is polled at 10 Hz by
-`CoffeeChargeMonitor` (`Timer` in `.common` mode, so the charge ring keeps
-filling while a menu is open). Resting the cursor on a rising ☕ **catches** it:
-the emoji freezes, grows for ~3 s, then shatters into its own pixels. Several
-under the same cursor all inflate together. Sliding off before 3 s
-**releases** rather than kills it (`releaseCoffeeCharge`) — it snaps back to
-the size an untouched flight would be at by now and resumes rising.
+Rewritten 2026-09-24 from Victor's dictated spec, after three earlier shapes
+(a hold-to-charge pop, a lane that bent every cup over to the cursor, a
+"storm" that swept them to the middle of the screen). Four rules, in the
+order he gave them:
 
-Which emoji can be charged is configuration, not a literal: `chargeEmoji`
-(default `["☕"]`).
+1. **The trajectory is the chimney, and nothing steers it.** A ☕ spawns at the
+   bottom-left (x≈100±56, the same spawn as every reaction) and rises
+   **straight up** like smoke, swaying gently side to side (`CoffeeFlight.chimney`,
+   pure + tested: ±26–40 px, 1.5–2.5 swings over the climb, the sway ramping in
+   over the first quarter so it leaves its spawn point cleanly), and **fades as
+   it nears the top edge** (`CoffeeFlight.fadeStartFraction`, 68% of the way).
+   Constant speed (190 pt/s, clamped 3.5–7 s) — slow on purpose, the pot needs
+   time to reach a cup. **The mouse has no pull on it**: no attraction, no
+   repulsion, no lane to the cursor. A test pins that the path never leaves
+   ±amplitude of the spawn column and never comes back down.
+2. **Intercept = pour, not explode.** `CoffeePourMonitor` ticks
+   `EmojiAnimator.tickCoffeePour(cursorGlobalPoint:)` at **60 Hz** (`Timer` in
+   `.common` mode, so a menu does not freeze it). While the cursor is inside a
+   cup's box (presentation frame + 34 px slop) the real pointer is hidden and a
+   **🫖 tilted 0.6 rad counter-clockwise** — the glyph's spout is on its left,
+   so it dips — stands in for it, offset (+30, +18) so the cursor point IS the
+   spout, with a `CAEmitterLayer` of brown drops falling from it under gravity.
+   The touched cup **fills**: 1.2 s of pouring takes `fill` 0→1, the glyph
+   swells to 1.45× under a warm brown glow and bounces once when full — and it
+   **keeps rising on the same path** the whole time. The pot stays out 0.35 s
+   after the hand leaves the last cup (no flicker across a cluster), then the
+   arrow comes back. A full cup is the **payoff**: one `coffee-popped` webhook
+   (below) — the gesture changed from "hold until it pops" to "pour until it is
+   full"; the minute it buys did not.
+3. **Escalation = explosions, unlocked by a salvo.** `CoffeeStormGauge` (pure,
+   tested) counts arrivals in `spawnEmoji`: **more than 3 inside one second**
+   ARMS the mode. From then on a cup the pot touches does not fill — the glyph
+   **grows to 3× (on top of its fill) while shaking harder and harder for 1.3 s,
+   then bursts** (`beginCoffeeExplosion` → `burstCoffee`): `pixelDissolve` at
+   violence 3.0–4.5 (denser salvo → harder) on the 22×22 grid, fragments thrown
+   across the screen. Each burst is also a payoff (the trainer touched it).
+   **How the mode ends** — the spec left it open, this is the decision, also in
+   the code comment on `coffeeStorm`: the gauge keeps it armed for **10 s** past
+   the last second that was over the threshold (a room taps in salvos; a mode
+   that switched off between two salvos would explode one cup and fill the next),
+   **and** it ends early the moment **no cup is left on screen**, so a straggler
+   arriving after the salvo has been dealt with is offered, not detonated. Both
+   are a deadline or a fact on screen, never a flag to remember to clear;
+   `stop-all` resets it at once.
+4. **Even while exploding, a cup keeps its path.** This is free, by
+   construction: a cup is two layers (`CoffeeCup`). The **carrier** rides the
+   chimney (position, the 1→1.3 growth, the fade); the **glyph** inside it is
+   the only thing the pour and the explosion touch (fill scale, shake, blow-up).
+   Nothing the cursor does can reach the carrier's animation. The one thing an
+   explosion does to the carrier is strip its `"fade"` animation (kept as its
+   own key for exactly this) so a cup that starts blowing up near the top stays
+   visible until it bursts.
 
-`tickCoffeeCharge` returns **where each one popped**, in global coordinates, and
-`CoffeeChargeMonitor` turns each point into one fire-and-forget
+Which emoji counts is configuration, not a literal: `chargeEmoji` (default
+`["☕"]`). A stop-all clears the cups, disarms the mode and takes the pot off
+the cursor — the pot lives outside `activeEffects` and hides the real pointer,
+so leaving it behind would strand the desktop with a teapot for a cursor.
+
+`tickCoffeePour` returns **where each payoff happened**, in global
+coordinates (fills on the spot; bursts collected from the explosion's
+completion block and handed over on the next tick), and `CoffeePourMonitor`
+turns each point into one fire-and-forget
 `GET <eventWebhook>?type=coffee-popped&x=&y=` (`EventWebhook.coffeePopped`).
 The payoff — in Victor's rig, pulling a break timer closer — lives in another
-process on purpose: the dissolve must never wait on a network call, and the
-webhook is the smallest thing that carries the gesture across. With no
-`eventWebhook` configured the ☕ still charges and still pops; nothing else
-happens.
+process on purpose: the pour must never wait on a network call, and the
+webhook is the smallest thing that carries the gesture across. The event kept
+its old name so the addons side did not have to move. With no `eventWebhook`
+configured the ☕ still fills and still bursts; nothing else happens.
 
-### ☕🚀 Critical mass — past seven pops a cup becomes a rocket
-
-`CoffeePopTally` (pure, tested) counts the cups that actually **popped**.
-
-- **Escalation.** More than **3 explosions inside one second** and every *next*
-  one goes off bigger: +0.6 `violence` per explosion past the third, capped at
-  4.5, on the storm's 22×22 grid. Spread-out pops stay the quiet dissolve.
-- **Critical mass = 7 pops inside a sliding 10 min.** The first pop starts the
-  10-min UNTIL BREAK watch and each later one takes a minute off, so by the
-  seventh the break is settled and one more minute is noise. From then on a cup
-  the cursor touches **does not charge**: it launches at once **from the hand**
-  (`launchCoffeeRocket`) — a short lift-off, then an accelerating arc to a
-  scattered point around the middle of the screen (`CoffeeFlight.blastPoint`,
-  ±36%/30%), shedding a trail of sparks (a `CAEmitterLayer` whose
-  `emitterPosition` rides the same path, so the sparks stay where they were
-  shed) — and bursts there like a firework, starting at violence 2.4 and
-  escalating with the burst rate like any other explosion.
-- **Only cups caught after the seventh pop.** Cups already charging when the
-  mass is reached finish their hold and pay out normally.
-- **A rocket fires no webhook and never counts toward critical mass** — a
-  firework is not a minute. It does feed the burst rate, so a swipe through a
-  crowd of cups goes off bigger and bigger.
-- The window is sliding, so the state wears off on its own 10 min after the
-  pops stop; `stop-all` resets it at once. `/effect/coffee/pop` counts as a pop,
-  so seven of them rehearse the whole thing headlessly.
+`/effect/coffee` spawns three (not a salvo: they fill); `/effect/coffee/storm`
+is 8 in one second (a salvo: touch one and it bursts); `/effect/coffee/pop`
+(`popCoffeeForTest`) bursts one mid-screen and fires the event, the headless
+proof of the whole chain.
 
 ## ⏸️ Suspending everything for a few seconds
 
@@ -1968,101 +1996,3 @@ screen refuses. Everything else is dropped with a log line naming it.
 
 Victor Addons proxies `/effect/*` verbatim, so the caller talks to **55123** like
 every other client and never needs to know this app's port.
-
-### ☕ The calm lane — every cup comes to the cursor
-
-Below the storm threshold a ☕ no longer drifts off on its own random sideways
-wander. Every cup rides **one lane** (`CoffeeFlight.approach`, pure + tested):
-a quadratic bézier whose control point sits **directly above the spawn point,
-at the cursor's height**, so the cup always climbs its own column first and only
-then leans across — and lands exactly on `NSEvent.mouseLocation`. That single
-control point is what makes the shape identical for every cup no matter where
-the cursor is; a trickle then queues along one readable line instead of fanning
-out over the projector. There is **no per-cup randomness left in the calm lane**,
-which a test pins.
-
-It travels at constant *speed*, not for a constant time
-(`CoffeeFlight.approachDuration`, 340 pt/s clamped to 1.5–4 s): a cup crossing
-the whole projector at the same pace as one born under the cursor is what keeps
-"the same trajectory" reading as one lane rather than a dozen unrelated speeds.
-
-Then it **hangs at the cursor for 4.5 s** before fading. The dwell is the point
-of the whole change: the hold-charge needs the cursor to rest on a cup for 3 s,
-and a cup that flew to the hand and kept going would hand back the same guessing
-game this was meant to end. It arrives, it waits, and `tickCoffeeCharge` — which
-reads the layer's *presentation* frame — finds it sitting there. Catching one is
-now a decision, not a lottery. No rotation: a cup that comes up spinning reads as
-debris, and this one is being offered.
-
-With the cursor on another display there is nothing to aim at, so the cup falls
-back to the old plain rise (`addCoffeeApproach` returns false). A cup whose hold
-was *abandoned* also rejoins the plain rise rather than the lane — flying back to
-the cursor it just slid off would re-catch it instantly, which is the opposite of
-a release.
-
-### ☕🌊 The storm
-
-A flood of coffees — a room tapping ☕ together — is a different thing from a
-cup or two, and it moves like one. `CoffeeStormGauge` (pure, tested) counts
-arrivals in `spawnEmoji`: **more than 4 inside any one second** trips a storm,
-which then **lingers 2 s** past the last second that was over the rate, so the
-salvos a room actually sends do not switch it on and off between taps. Its
-`intensity` is 0 at the threshold and 1 at twice it (8/s) **or** once the
-storm has carried 24 cups, whichever is higher — the flood escalates the
-longer it lasts, not only the denser it gets — and it decays across the linger
-with a 0.3 floor.
-
-**The key is that the cups move, not that they grow.** A storm cup skips the
-calm approach for `addStormFlight`, every part of which scales with the
-intensity:
-
-- it leaves from anywhere across up to the whole width instead of x≈100;
-- **it sweeps to the MIDDLE of the screen, not to the ceiling.** The target is
-  `CoffeeFlight.blastPoint` — a scattered point around screen centre, drawn on
-  an **elliptical** spread (screens are wider than they are tall; a circular
-  scatter reads as a bullseye) that widens with the flood, from ±16%/12% of the
-  screen at the threshold to ±38%/30% at full intensity, with `sqrt` on the
-  radius so the disc fills evenly instead of clumping in the middle. Climbing to
-  the top edge put every detonation in the same strip above the slides; the
-  middle is where the room is already looking, and "in diverse locuri" is the
-  whole ask.
-- the path there is `CoffeeFlight.sweep`: the straight run with a sine riding
-  **perpendicular** to it (80–400 px either way, 1.5–3 swings), so the wave is
-  the same shape whichever way the cup is heading. The amplitude is tapered by
-  `sin(πt)` — **zero at both ends** — so the cup leaves cleanly and, more
-  importantly, *arrives on its mark* rather than being flung sideways at the
-  instant it blows up;
-- **no rotation.** The tumble is gone — the rock-then-spin made a cup look like
-  a thrown object coming up out of the floor, and the wave already carries all
-  the violence the flood needs. Only the scale keyframes are left
-  (`transform.scale`, not a full `transform` matrix);
-- it is 1.3–2× the calm cup, still growing on the way in, with a throb riding
-  on the wave;
-- it stays solid to the end and **detonates on its mark, 100%**: `pixelDissolve`
-  with `violence` 2–3.6 (fragments fly that much further and spin harder, the
-  bloom goes to ~2×, the soft glow becomes a warm muzzle flash up to three
-  times the size) over a **22×22** grid — 484 pieces against the calm pop's
-  144. Visual only: no webhook, the break-timer payoff belongs to the
-  deliberate hover.
-
-**Why the storm does not come to the cursor like a calm cup does.** It cannot:
-the calm lane below ends *under the hand*, and a flood arriving there would
-ripen together and take the break apart a minute at a time without anyone
-deciding anything. Veering to the middle is the escape valve — past 4/s the cups
-stop being an offer and become weather.
-
-A hovered pop during the storm goes off the same violent way. A storm cup is
-still hoverable; a release resumes the calm rise from where it was frozen (an
-accepted simplification). `stopAllActiveEffects` resets the gauge.
-
-A first cut (the same morning) also put a screenshot of the desktop under the
-cups, sliced into strips that sloshed while the whole sheet shook. It worked,
-and it was too disruptive to present over: the storm is carried by the cups
-alone.
-
-`/effect/coffee/storm` is the rehearsal: ~8 ☕/s for 2.5 s, 20 cups — nearly
-the escalation cap, so it shows the whole ramp.
-
-`/effect/coffee` spawns three so the gesture can be exercised by hand;
-`/effect/coffee/pop` (`popCoffeeForTest`) skips the three-second hold entirely
-and fires the same event, which is the headless proof of the whole chain.

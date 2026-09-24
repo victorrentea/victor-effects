@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var router: EffectsRouter!
     private var server: EffectsHttpServer!
     private var hotkeyTap: EffectsHotkeyTap!
-    private var coffeeMonitor: CoffeeChargeMonitor!
+    private var coffeeMonitor: CoffeePourMonitor!
     private var panelController: ThumbnailPanelController!
     private var keepAlive: BluetoothKeepAlive?
     private var accessibilityRetry: Timer?
@@ -51,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         server = EffectsHttpServer(router: router)
         server.start(port: EffectsConfig.shared.port)
 
-        coffeeMonitor = CoffeeChargeMonitor(animator: engine.animator)
+        coffeeMonitor = CoffeePourMonitor(animator: engine.animator)
         coffeeMonitor.start()
 
         keepAlive = BluetoothKeepAlive()

@@ -53,7 +53,7 @@ press cannot drift apart.
 | `GET /effect/progress-bar/<seconds>?rider=🏁` | `ok` | `seconds` must parse and be > 0, else **404** |
 | `GET /effect/progress-bar/stop` | `ok` | |
 | `GET /effect/whip`, `GET /effect/whip/crack` | `ok` | `docs/whip.md` |
-| `GET /effect/coffee`, `GET /effect/coffee/pop`, `GET /effect/coffee/storm` | `ok` | the pop fires the webhook below; the storm rehearses the flood mode (`docs/overlay-effects.md`) |
+| `GET /effect/coffee`, `GET /effect/coffee/pop`, `GET /effect/coffee/storm` | `ok` | three cups to pour into; the pop bursts one and fires the webhook below; the storm is a salvo that arms explosions (`docs/overlay-effects.md`) |
 | `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip |
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
 | `GET /tiles` | `tiles.json` **plus** `effect` per tile and a top-level `effectsHash` | **404** `{"error":"no tiles.json in <soundsDir>"}`. See **the ⭐ catalogue** |

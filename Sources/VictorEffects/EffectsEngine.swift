@@ -8,7 +8,7 @@ import Foundation
 /// break timer. Two things did NOT come along: `training-end` and
 /// `focus-playlist`, which are training-session features and stayed with the
 /// session; and the coffee *payoff*, which now leaves as a webhook (see
-/// `CoffeeChargeMonitor`).
+/// `CoffeePourMonitor`).
 final class EffectsEngine {
     let overlayPanel: OverlayPanel
     let animator: EmojiAnimator
@@ -282,20 +282,23 @@ final class EffectsEngine {
         case "laugh":         animator.showLaugh()
         case "sketch-arrow":  animator.showSketchArrow()
         case "coffee":
-            // Spawn a few rising ☕ so the hold-charge gesture can be exercised
-            // headlessly — hover one, hold 3 s, watch it freeze, grow and pop.
+            // Spawn a few rising ☕ so the pour can be exercised headlessly —
+            // move the cursor onto one: it becomes a pot and fills the cup.
+            // Three at once is NOT a salvo (that needs more than three inside
+            // one second), so these fill rather than explode.
             for emoji in EffectsConfig.shared.chargeEmoji.prefix(1) {
                 for _ in 0..<3 { animator.spawnEmoji(emoji) }
             }
         case "coffee/storm":
-            // A salvo well past the 4-per-second threshold: cups flying wild
-            // across the screen and blowing up at the top, more so as it goes
-            // on. Hover one to pop it early; calm again ~2 s after the salvo.
+            // A salvo past the more-than-3-per-second threshold: the cups rise
+            // like any other, but explosions are ARMED — touch one with the
+            // pot and it grows, shakes and bursts. Disarms on its own once the
+            // screen is empty (or 10 s after the salvo).
             animator.spawnCoffeeStormForTest()
         case "coffee/pop":
-            // Skip the hold entirely: pop a fully charged ☕ mid-screen and fire
-            // the same event a real pop fires, so the whole chain can be checked
-            // without holding a cursor still for three seconds.
+            // Skip the salvo and the pot entirely: burst a ☕ mid-screen and fire
+            // the same event a real payoff fires, so the whole chain can be
+            // checked headlessly.
             if let at = animator.popCoffeeForTest() {
                 EventWebhook.coffeePopped(at: at)
             }
