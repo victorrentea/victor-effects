@@ -75,14 +75,19 @@ class EmojiAnimator {
     /// The pot stays out this long after the cursor slid off the last cup, so
     /// a hand wobbling across a cluster does not flicker between arrow and pot.
     private static let coffeePotGrace: Double = 0.35
-    /// Where the pot sits relative to the cursor: the glyph's spout is on its
-    /// LEFT, and tilted `coffeePotTilt` counter-clockwise it dips to about
-    /// (−90, −54) from the pot's centre — so the cursor point IS the spout.
-    private static let coffeePotOffset = CGPoint(x: 90, y: 54)
     /// The pot's box — 3× the old 84: at pointer size it read as a cursor
     /// glyph, not as a pot pouring; doubled, still a size too small.
     private static let coffeePotSize: CGFloat = 252
-    private static let coffeePotTilt: CGFloat = 0.6
+    /// Where the glyph's spout and belly are, measured once from the glyph
+    /// itself (`CoffeePot.measure`). The spout is the layer's anchorPoint, so
+    /// the cursor point IS the tip at every lean.
+    private static let coffeePotGeometry = CoffeePot.measure(size: coffeePotSize)
+    /// The lean (radians, counter-clockwise — the spout is on the glyph's
+    /// left, so leaning dips it). Upright-ish while the hand is merely near;
+    /// while pouring it bends toward the cup, within `coffeePotPourTilt`.
+    private static let coffeePotRestTilt: CGFloat = 0.2
+    private static let coffeePotPourTilt: ClosedRange<CGFloat> = 0.35...1.25
+    private var _potTilt: CGFloat = 0
     /// Seconds of pouring that fill a cup.
     fileprivate static let coffeeFillSeconds: Double = 1.2
     /// A full cup is this much bigger than an empty one.
@@ -521,6 +526,8 @@ class EmojiAnimator {
         let pad = Self.coffeeHitSlop
         let armed = coffeeStorm.isStorm(at: now)
         var touching = false
+        // The cup the pot bends toward: the touched one nearest the spout.
+        var aim: CGPoint?
         for cup in coffeeCups where !cup.exploding {
             // The presentation frame: where the cup IS, not where its flight
             // will leave it — grown by the glyph's own swelling, which the
@@ -539,6 +546,10 @@ class EmojiAnimator {
             // Contact stops it, whatever happens next: it grows (or bursts)
             // right where the pot caught it.
             if !cup.frozen { freezeCoffeeCup(cup) }
+            let at = cup.carrier.position
+            if aim.map({ hypot($0.x - p.x, $0.y - p.y) > hypot(at.x - p.x, at.y - p.y) }) ?? true {
+                aim = at
+            }
             if armed {
                 beginCoffeeExplosion(cup)
                 continue
@@ -556,7 +567,7 @@ class EmojiAnimator {
 
         if touching { _potLastTouch = now }
         if touching || now - _potLastTouch <= Self.coffeePotGrace {
-            showPot(at: p, pouring: touching)
+            showPot(at: p, aimingAt: aim, dt: dt)
         } else {
             hidePot()
         }
@@ -694,35 +705,37 @@ class EmojiAnimator {
     }
 
     /// Put the pot on the cursor (creating it — and hiding the real pointer —
-    /// on the first call) and pour or not. `p` is the spout.
-    private func showPot(at p: CGPoint, pouring: Bool) {
+    /// on the first call). `p` is the spout; `cup`, when there is one, is what
+    /// it pours into: the pot bends toward it and the stream leaves the tip
+    /// along the spout. No cup = the grace after the hand slid off: the pot
+    /// straightens up and stops pouring.
+    private func showPot(at p: CGPoint, aimingAt cup: CGPoint?, dt: Double) {
+        let geometry = Self.coffeePotGeometry
         if _potLayer == nil {
-            let size = Self.coffeePotSize
-            let pot = CATextLayer()
-            pot.string = "🫖"
-            pot.fontSize = size * 0.8
-            pot.alignmentMode = .center
-            pot.bounds = CGRect(x: 0, y: 0, width: size, height: size)
-            pot.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+            let pot = CoffeePot.makeLayer(size: Self.coffeePotSize,
+                                          scale: NSScreen.screens.first?.backingScaleFactor ?? 2.0)
+            // Pivot on the tip: position is the spout, whatever the lean.
+            pot.anchorPoint = geometry.spout
             pot.shadowColor = NSColor.black.cgColor
             pot.shadowRadius = 10
             pot.shadowOpacity = 0.35
             pot.shadowOffset = CGSize(width: 0, height: -4)
 
-            // The stream: brown drops born at the spout, falling under gravity.
+            // The stream: brown drops born at the spout, shot out along it and
+            // then falling under gravity.
             let stream = CAEmitterLayer()
             stream.frame = hostLayer.bounds
             stream.emitterShape = .point
             stream.emitterMode = .points
             let drop = CAEmitterCell()
+            drop.name = "drop"
             drop.contents = Self.dropImage
             drop.birthRate = 140
             drop.lifetime = 0.45
             drop.lifetimeRange = 0.1
-            drop.velocity = 70
+            drop.velocity = 90
             drop.velocityRange = 25
-            drop.emissionLongitude = -.pi / 2       // down (the layer's y grows upward)
-            drop.emissionRange = 0.22
+            drop.emissionRange = 0.18
             drop.yAcceleration = -1400
             drop.scale = 0.4
             drop.scaleRange = 0.12
@@ -731,10 +744,12 @@ class EmojiAnimator {
             stream.emitterCells = [drop]
             stream.birthRate = 0
 
+            // It arrives upright and bends into the pour — the lean is seen.
+            _potTilt = Self.coffeePotRestTilt
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            pot.transform = CATransform3DMakeRotation(Self.coffeePotTilt, 0, 0, 1)
-            pot.position = CGPoint(x: p.x + Self.coffeePotOffset.x, y: p.y + Self.coffeePotOffset.y)
+            pot.transform = CATransform3DMakeRotation(_potTilt, 0, 0, 1)
+            pot.position = p
             stream.emitterPosition = p
             hostLayer.addSublayer(stream)
             hostLayer.addSublayer(pot)
@@ -752,11 +767,20 @@ class EmojiAnimator {
                 _potHidCursor = true
             }
         }
+        let target = cup.map {
+            CoffeePot.aimTilt(spout: p, cup: $0, spoutAngle: geometry.spoutAngle,
+                              range: Self.coffeePotPourTilt)
+        } ?? Self.coffeePotRestTilt
+        _potTilt = CoffeePot.ease(_potTilt, toward: target, dt: dt)
         CATransaction.begin()
-        CATransaction.setDisableActions(true)   // ride the mouse, no implicit position animation
-        _potLayer?.position = CGPoint(x: p.x + Self.coffeePotOffset.x, y: p.y + Self.coffeePotOffset.y)
+        CATransaction.setDisableActions(true)   // ride the mouse, no implicit animation
+        _potLayer?.position = p
+        _potLayer?.transform = CATransform3DMakeRotation(_potTilt, 0, 0, 1)
         _potStream?.emitterPosition = p
-        _potStream?.birthRate = pouring ? 1 : 0
+        // Out along the spout as it points NOW; gravity bends it into the cup.
+        _potStream?.setValue(geometry.spoutAngle + _potTilt,
+                             forKeyPath: "emitterCells.drop.emissionLongitude")
+        _potStream?.birthRate = cup == nil ? 0 : 1
         CATransaction.commit()
     }
 

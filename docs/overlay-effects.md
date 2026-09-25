@@ -1909,11 +1909,25 @@ order he gave them:
    `EmojiAnimator.tickCoffeePour(cursorGlobalPoint:)` at **60 Hz** (`Timer` in
    `.common` mode, so a menu does not freeze it). While the cursor is inside a
    cup's box (presentation frame + 34 px slop) the real pointer is hidden and a
-   **🫖 tilted 0.6 rad counter-clockwise** — the glyph's spout is on its left,
-   so it dips — stands in for it, **252 pt** (84 → 168 → 252, all on 2026-09-24: at
-   pointer size it read as a cursor, not a pot, and doubled was still a size short), offset (+90, +54) so the cursor
-   point IS the spout, with a `CAEmitterLayer` of brown drops falling from it
-   under gravity. The touched cup **freezes where it was caught and fills**
+   **🫖** stands in for it, **252 pt** (84 → 168 → 252, all on 2026-09-24: at
+   pointer size it read as a cursor, not a pot, and doubled was still a size
+   short). **The cursor point IS the spout's tip** (`CoffeePot`, pure +
+   tested): the tip is *measured* once from the glyph itself — the leftmost
+   opaque pixel of the same `CATextLayer`, which sits in the UPPER left of the
+   box (≈ −98, +37 from the centre) — and made the layer's `anchorPoint`, so the
+   pot pivots around the cursor and no lean can pull the tip off the stream.
+   (Until 2026-09-25 it was a hand-set offset of (+90, +54) that assumed the
+   tip was lower-left; after the tilt the stream left the pot ~30 pt below and
+   right of its tip, and every resize moved the error.) **The pot bends toward
+   the cup**: while pouring it leans (counter-clockwise — the spout is on the
+   left) until the spout points at the nearest touched cup's centre
+   (`CoffeePot.aimTilt`, clamped 0.35–1.25 rad: a cup straight below, under
+   the belly or behind the pot gets the full lean, never a pot on its lid),
+   eased at 9/s so it swings rather than twitches; it arrives and straightens
+   back to 0.2 rad in the grace after the hand slides off. A `CAEmitterLayer`
+   of brown drops is born at the tip and **shot out along the spout** as it
+   points that tick (`emissionLongitude` = spout angle + lean, 90 pt/s),
+   then falls under gravity. The touched cup **freezes where it was caught and fills**
    (`freezeCoffeeCup`: the carrier's flight is stripped and its presentation
    position/scale pinned as model values, solid again even if it had started
    fading): 1.2 s of pouring takes `fill` 0→1, the glyph swells to **1.7×**
