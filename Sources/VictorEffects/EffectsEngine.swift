@@ -283,9 +283,10 @@ final class EffectsEngine {
         case "sketch-arrow":  animator.showSketchArrow()
         case "coffee":
             // Spawn a few rising ☕ so the pour can be exercised headlessly —
-            // move the cursor onto one: it becomes a pot and fills the cup.
-            // Three at once is NOT a salvo (that needs more than three inside
-            // one second), so these fill rather than explode.
+            // move the cursor onto one: it becomes a pot and fills the cup,
+            // which pops (small) when full. Three at once is NOT a salvo (that
+            // needs more than three inside one second), so these fill and pop
+            // rather than shake and burst.
             for emoji in EffectsConfig.shared.chargeEmoji.prefix(1) {
                 for _ in 0..<3 { animator.spawnEmoji(emoji) }
             }

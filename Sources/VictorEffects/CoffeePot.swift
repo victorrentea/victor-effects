@@ -101,4 +101,18 @@ enum CoffeePot {
                      rate: Double = 9) -> CGFloat {
         tilt + (target - tilt) * CGFloat(min(1, max(0, dt * rate)))
     }
+
+    /// Seconds a drop shot at `speed` along `angle` (radians, 0 = right, y up)
+    /// takes to fall `drop` points under `gravity` (a positive pull, pt/s²).
+    /// The stream's drops are given this long to live, so a pot held high
+    /// above the cup still reaches its surface instead of drizzling out in the
+    /// air — the surface clip is what ends it, never the lifetime.
+    static func fallTime(drop: CGFloat, speed: CGFloat, angle: CGFloat, gravity: CGFloat) -> Double {
+        guard gravity > 0 else { return 0 }
+        let up = speed * sin(angle)                  // + is up, against the fall
+        let h = max(0, drop)
+        // drop = −up·t + ½·g·t²  →  the positive root.
+        let t = (up + (up * up + 2 * gravity * h).squareRoot()) / gravity
+        return Double(t)
+    }
 }

@@ -1892,8 +1892,11 @@ rule from the start.
 
 Rewritten 2026-09-24 from Victor's dictated spec, after three earlier shapes
 (a hold-to-charge pop, a lane that bent every cup over to the cursor, a
-"storm" that swept them to the middle of the screen). Four rules, in the
-order he gave them:
+"storm" that swept them to the middle of the screen). The lifecycle, in his
+words of 2026-09-25: *"small coffees float up; if my coffee cup touches them,
+they stop, start enlarging, then when big enough they explode + disappear +
+cause the timer or −1"* — and *"the explosion is small, unless there's a
+flood of coffee cups"*. The rules:
 
 1. **The trajectory is the chimney, and nothing steers it.** A ☕ spawns at the
    bottom-left (x≈100±56, the same spawn as every reaction) and rises
@@ -1927,23 +1930,41 @@ order he gave them:
    back to 0.2 rad in the grace after the hand slides off. A `CAEmitterLayer`
    of brown drops is born at the tip and **shot out along the spout** as it
    points that tick (`emissionLongitude` = spout angle + lean, 90 pt/s),
-   then falls under gravity. The touched cup **freezes where it was caught and fills**
+   then falls under gravity — and **ends at the cup's coffee surface**
+   (2026-09-25). The emitter is masked (`_potStreamClip`) to everything above
+   the aimed cup's surface, so a drop that gets there is gone, as if it
+   landed; nothing of the stream shows through the cup or under it. The
+   surface is **measured from the glyph** (`CoffeeSurface.measure`: the middle
+   of the dark coffee band in ☕'s upper half, ≈5 pt above the 91 pt box's
+   centre) and scaled with the cup (carrier × glyph scale, about the centre),
+   so it climbs as the cup swells. The drops' lifetime is the fall time from
+   the tip to that surface (`CoffeePot.fallTime`, +0.12 s), so the clip, never
+   the lifetime, is what ends the stream — a fixed 0.45 s used to run it on
+   through the cup, or stop it in the air under a pot held high. After a pop
+   the clip stays put, so the drops still in the air land on the surface they
+   were aimed at. `CoffeePourRenderTests` renders the pour offscreen
+   (`CARenderer`, which draws emitters and masks as the window server does)
+   twice at one instant, with and without the stream, and fails on any stream
+   pixel below the surface; it leaves `coffee-pour.png` in `$TMPDIR`. NB the
+   spout pours down-LEFT at full lean: a tip over the cup's left rim lands on
+   the rim, which the clip also ends cleanly.
+   The touched cup **freezes where it was caught and grows**
    (`freezeCoffeeCup`: the carrier's flight is stripped and its presentation
    position/scale pinned as model values, solid again even if it had started
-   fading): 1.2 s of pouring takes `fill` 0→1, the glyph swells to **1.7×**
-   under a warm brown glow and bounces once when full — and **keeps growing at
-   the same rate for as long as the pot stays on it**, up to **4×**
-   (`coffeeGlyphScale`, driven by `poured` seconds; the payoff fires once, at
-   full). Only when the pot slides off does it **rise on from that spot** on a
-   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`). The hit box grows with
-   the glyph, so a swollen cup is caught by all of it. History, all 2026-09-24:
-   first it kept rising while it filled; then it froze but left the pot the
-   moment it was full; Victor wanted it to **freeze on contact and just keep
-   growing where it is**. The pot stays out 0.35 s
-   after the hand leaves the last cup (no flicker across a cluster), then the
-   arrow comes back. A full cup is the **payoff**: one `coffee-popped` webhook
-   (below) — the gesture changed from "hold until it pops" to "pour until it is
-   full"; the minute it buys did not.
+   fading): 1.2 s of pouring takes `fill` 0→1 and the glyph swells to
+   **1.7×** under a warm brown glow (`coffeeGlyphScale`). **Full = big
+   enough: it pops on the spot and is gone** (`burstCoffee`, 2026-09-25) —
+   a small local pop by default (rule 3). Until then it grew on under the pot
+   up to 4× and rose on once let go, paying out at full while it stayed on
+   screen; Victor wanted the cup that became his timer or −1 to *explode and
+   disappear*. Slide off before full and it **rises on from that spot** on a
+   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`), keeping what it was
+   poured. The hit box grows with the glyph, so a swollen cup is caught by all
+   of it. The pot stays out 0.35 s after the hand leaves the last cup (no
+   flicker across a cluster), then the arrow comes back. **The payoff is the
+   pop**: one `coffee-popped` webhook (below), queued by the burst and sent on
+   the next tick — so the timer / −1 always comes *after* the explosion, never
+   at the touch.
 3. **Escalation = explosions, unlocked by a salvo.** `CoffeeStormGauge` (pure,
    tested) counts arrivals in `spawnEmoji`: **more than 3 inside one second**
    ARMS the mode. From then on a cup the pot touches does not fill — the glyph
@@ -1951,6 +1972,13 @@ order he gave them:
    then bursts** (`beginCoffeeExplosion` → `burstCoffee`): `pixelDissolve` at
    violence 3.0–4.5 (denser salvo → harder) on the 22×22 grid, fragments thrown
    across the screen. Each burst is also a payoff (the trainer touched it).
+   **How big a pop is** (`CoffeeBurst.size`, pure + tested): the salvo's
+   burst above is the big one; a calm cup's pop is `pixelDissolve` at
+   violence **1** on the 12×12 grid — the quiet dissolve, fragments travelling
+   about half the cup's width — for **3 cups on screen or fewer**
+   (`quietCups`), growing linearly to violence **2** at **10 or more**
+   (`floodCups`): a crowd that built up without ever being a salvo is a flood
+   too.
    **How the mode ends** — the spec left it open, this is the decision, also in
    the code comment on `coffeeStorm`: the gauge keeps it armed for **10 s** past
    the last second that was over the threshold (a room taps in salvos; a mode
@@ -1967,13 +1995,14 @@ order he gave them:
    its path): it shakes and bursts **right where it was caught**. Freezing
    also strips the `"fade"` animation, so a cup caught near the top stays
    visible until it bursts.
-5. **A burst clears the screen** (2026-09-25). Once a cup has burst and paid
-   its −1, every other ☕ still rising fades out together in 0.4 s
+5. **A salvo's burst clears the screen** (2026-09-25). Once an armed cup has
+   burst and paid its −1, every other ☕ still rising fades out together in 0.4 s
    (`clearCoffeesAfterBurst`, `coffeeClearSeconds`) instead of drifting on as
    targets. Cups already shaking toward their own burst are left alone — each
    still owes its own −1. The screen is then empty, so the gauge disarms on the
-   next tick (point 3) and the next ☕ arrives calm. `/effect/coffee/pop` clears
-   the same way.
+   next tick (point 3) and the next ☕ arrives calm. A **calm** pop does not
+   clear: the rule exists to stop a flood turning into twenty −1s, and a calm
+   cup is one person's vote — the next cup is somebody else's.
 
 Which emoji counts is configuration, not a literal: `chargeEmoji` (default
 `["☕"]`). A stop-all clears the cups, disarms the mode and takes the pot off
@@ -1981,8 +2010,8 @@ the cursor — the pot lives outside `activeEffects` and hides the real pointer,
 so leaving it behind would strand the desktop with a teapot for a cursor.
 
 `tickCoffeePour` returns **where each payoff happened**, in global
-coordinates (fills on the spot; bursts collected from the explosion's
-completion block and handed over on the next tick), and `CoffeePourMonitor`
+coordinates (every pop is queued by `burstCoffee` and handed over on the next
+tick), and `CoffeePourMonitor`
 turns each point into one fire-and-forget
 `GET <eventWebhook>?type=coffee-popped&x=&y=` (`EventWebhook.coffeePopped`).
 The payoff — in Victor's rig, pulling a break timer closer — lives in another
@@ -1991,10 +2020,12 @@ webhook is the smallest thing that carries the gesture across. The event kept
 its old name so the addons side did not have to move. With no `eventWebhook`
 configured the ☕ still fills and still bursts; nothing else happens.
 
-`/effect/coffee` spawns three (not a salvo: they fill); `/effect/coffee/storm`
-is 8 in one second (a salvo: touch one and it bursts); `/effect/coffee/pop`
-(`popCoffeeForTest`) bursts one mid-screen and fires the event, the headless
-proof of the whole chain.
+`/effect/coffee` spawns three (not a salvo: they fill and pop small);
+`/effect/coffee/storm` is 8 in one second (a salvo: touch one and it bursts);
+`/effect/coffee/pop` (`popCoffeeForTest`) pops one mid-screen exactly as a
+payoff would go off at that moment (small, crowd-sized, or a salvo's burst
+that clears the rest) and fires the event, the headless proof of the whole
+chain.
 
 ## ⏸️ Suspending everything for a few seconds
 

@@ -72,3 +72,48 @@ struct CoffeeStormGauge {
         if !isStorm(at: now) { stormCount = 0 }
     }
 }
+
+/// How big a ☕ goes off when it pays out — Victor, 2026-09-25: "the explosion
+/// is small, unless there's a flood of coffee cups". Pure, so the thresholds
+/// are tested rather than eyeballed.
+///
+/// Two floods count, because a room can drown the screen two ways:
+/// - **a salvo** — the `CoffeeStormGauge` is armed (more than 3 ☕ in a
+///   second). The gesture itself changes then (touch commits, the cup shakes
+///   and bursts), and the burst is the big one it always was: `stormViolence`
+///   by the gauge's intensity, fragments thrown across the screen, 22×22.
+/// - **a crowd** — no salvo, but cups arrived steadily enough to stack up on
+///   screen. Each still fills and pops; the pop grows from the quiet dissolve
+///   at `quietCups` or fewer to twice as hard at `floodCups` or more.
+///
+/// One cup, or a few, is a small local pop: `pixelDissolve` at violence 1 —
+/// the fragments travel about half the cup's width and fade where they are.
+enum CoffeeBurst {
+    struct Size: Equatable {
+        /// `pixelDissolve`'s violence: 1 is the quiet dissolve.
+        var violence: CGFloat
+        /// Tiles per side.
+        var grid: Int
+    }
+
+    /// At or below this many cups on screen a pop is the quiet one.
+    static let quietCups = 3
+    /// At or above this many (without a salvo) the calm pop is at its biggest.
+    static let floodCups = 10
+    static let calmViolence: ClosedRange<CGFloat> = 1.0...2.0
+    static let calmGrid = 12
+    static let stormViolence: ClosedRange<CGFloat> = 3.0...4.5
+    static let stormGrid = 22
+
+    /// `cupsOnScreen` counts the cup that is bursting.
+    static func size(armed: Bool, intensity: CGFloat, cupsOnScreen: Int) -> Size {
+        func lerp(_ r: ClosedRange<CGFloat>, _ k: CGFloat) -> CGFloat {
+            r.lowerBound + (r.upperBound - r.lowerBound) * min(max(k, 0), 1)
+        }
+        if armed {
+            return Size(violence: lerp(stormViolence, intensity), grid: stormGrid)
+        }
+        let crowd = CGFloat(cupsOnScreen - quietCups) / CGFloat(floodCups - quietCups)
+        return Size(violence: lerp(calmViolence, crowd), grid: calmGrid)
+    }
+}

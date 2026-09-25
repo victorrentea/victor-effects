@@ -7,7 +7,7 @@ import Foundation
 ///
 /// The *payoff* — pulling a break timer closer — used to run in the same
 /// `if` as the pop, because the timer was two properties away. It now lives in
-/// another process, so each payoff (a cup filled, or burst) becomes one webhook
+/// another process, so each payoff (a cup that popped) becomes one webhook
 /// carrying the point it happened at. That the picture is local and the payoff
 /// is remote is deliberate: the pour must never wait on a network call.
 final class CoffeePourMonitor {
