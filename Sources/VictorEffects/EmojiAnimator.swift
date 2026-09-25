@@ -56,6 +56,8 @@ class EmojiAnimator {
         /// The pot is on it: its flight is stripped and it hangs where it was
         /// caught until the pot leaves.
         var frozen = false
+        /// A burst elsewhere cleared it: it is fading out and owns its teardown.
+        var leaving = false
         init(carrier: CALayer, glyph: CATextLayer) { self.carrier = carrier; self.glyph = glyph }
     }
     private var coffeeCups: [CoffeeCup] = []
@@ -127,6 +129,8 @@ class EmojiAnimator {
     private static let coffeeExplodeViolence: ClosedRange<CGFloat> = 3.0...4.5
     /// A burst shatters into this many tiles per side (a quiet dissolve: 12).
     private static let coffeeExplodeGrid = 22
+    /// How long the ☕ left on screen take to fade once a burst has paid out.
+    private static let coffeeClearSeconds: Double = 0.4
 
     // Every reaction emoji spawns at the same height, bottom-left; ☕ rides the
     // chimney flight (`spawnCoffeeCup`), everything else the plain rise.
@@ -415,7 +419,8 @@ class EmojiAnimator {
             guard let self, let cup else { return }
             // Mid-explosion at the top: the burst owns the teardown. Frozen:
             // the flight was stripped under the pot, not finished.
-            if cup.exploding || cup.frozen { return }
+            // Leaving: a burst cleared the screen and its fade removes it.
+            if cup.exploding || cup.frozen || cup.leaving { return }
             cup.carrier.removeFromSuperlayer()
             self.coffeeCups.removeAll { $0 === cup }
         }
@@ -702,6 +707,38 @@ class EmojiAnimator {
         let violence = r.lowerBound + (r.upperBound - r.lowerBound) * k
         pixelDissolve(at: center, side: side, violence: violence, grid: Self.coffeeExplodeGrid)
         coffeePayoffs.append(center)
+        clearCoffeesAfterBurst()
+    }
+
+    /// The burst paid out its −1, so the ☕ still rising have done their job:
+    /// they fade out together instead of drifting on as targets for the next
+    /// pour. Cups already exploding are left alone — each still owes its own
+    /// burst and its own −1. With the screen empty, `tickCoffeePour` disarms
+    /// the salvo, so the next ☕ arrives calm.
+    private func clearCoffeesAfterBurst() {
+        let leaving = coffeeCups.filter { !$0.exploding }
+        guard !leaving.isEmpty else { return }
+        coffeeCups.removeAll { !$0.exploding }
+        for cup in leaving {
+            cup.leaving = true
+            let carrier = cup.carrier
+            let opacity = carrier.presentation()?.opacity ?? carrier.opacity
+            let pres = carrier.presentation() ?? carrier
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            CATransaction.setCompletionBlock { carrier.removeFromSuperlayer() }
+            // Pin it where it IS: stripping the flight would snap it back to spawn.
+            carrier.position = pres.position
+            carrier.transform = pres.transform
+            carrier.removeAllAnimations()
+            carrier.opacity = 0
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = opacity
+            fade.toValue = 0
+            fade.duration = Self.coffeeClearSeconds
+            carrier.add(fade, forKey: "clear")
+            CATransaction.commit()
+        }
     }
 
     /// Put the pot on the cursor (creating it — and hiding the real pointer —
@@ -1007,6 +1044,7 @@ class EmojiAnimator {
         let side = Self.emojiSize * Self.emojiRiseScale * Self.coffeeExplodeGrowScale
         pixelDissolve(at: p, side: side, violence: Self.coffeeExplodeViolence.lowerBound,
                       grid: Self.coffeeExplodeGrid)
+        clearCoffeesAfterBurst()
         return CGPoint(x: p.x + screen.origin.x, y: p.y + screen.origin.y)
     }
 

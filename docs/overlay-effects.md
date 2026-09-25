@@ -1967,6 +1967,13 @@ order he gave them:
    its path): it shakes and bursts **right where it was caught**. Freezing
    also strips the `"fade"` animation, so a cup caught near the top stays
    visible until it bursts.
+5. **A burst clears the screen** (2026-09-25). Once a cup has burst and paid
+   its −1, every other ☕ still rising fades out together in 0.4 s
+   (`clearCoffeesAfterBurst`, `coffeeClearSeconds`) instead of drifting on as
+   targets. Cups already shaking toward their own burst are left alone — each
+   still owes its own −1. The screen is then empty, so the gauge disarms on the
+   next tick (point 3) and the next ☕ arrives calm. `/effect/coffee/pop` clears
+   the same way.
 
 Which emoji counts is configuration, not a literal: `chargeEmoji` (default
 `["☕"]`). A stop-all clears the cups, disarms the mode and takes the pot off
