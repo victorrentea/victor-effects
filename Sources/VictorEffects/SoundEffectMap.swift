@@ -121,11 +121,10 @@ enum SoundEffectMap {
         // plays normally on the routed /sound/play path (it was never special-cased
         // in onSoundPlay), so dropping the press→visual mapping here keeps the
         // sound but fires no overlay.
-        // 61_dinner.mp3 is NOT here either, for the same reason: the clip is now
-        // a kitchen timer whose BING lands 2.695s in, and the ⏲️ microwave's door
-        // must swing open on exactly that edge. Sound and visual therefore start
-        // from one call on the routed /sound/play path (onSoundPlay); mapping the
-        // press too would open a second door with no bell behind it.
+        // Tile #61 has no effect since 2026-09-25: it became Bocelli's
+        // Hallelujah (61_hallelujah.mp3) and Victor wants it plain for now. The
+        // ⏲️ microwave is still an effect (/effect/microwave, /test/microwave),
+        // just no longer a tile's.
         // 13_heartbeat.mp3 is NOT here either. The zoom has to peak ON each
         // thump, and the press path cannot know when the thump happens: it is a
         // different HTTP request from the one that starts the audio, and the
@@ -201,7 +200,6 @@ enum SoundEffectMap {
         "23_radar.mp3":       "sonar",       // 🛰️ sonar (owns its beep-synced audio)
         "14_universal.mp3":   "universal-minions", // 🌍 matted logo animation, cue 23.83 s in
         "53_rain.mp3":        "money",       // 💸 money rise
-        "61_dinner.mp3":      "microwave",   // ⏲️ door on the BING, 2.695 s in
         "13_heartbeat.mp3":   "heartbeat",   // 💓 zoom peaking on each measured onset
         "64_fbi.mp3":         "fbi-knock",   // 🚪 lurch on each bang, the first 22 ms in
         "25_dark_door.mp3":   "dark-door",   // 🚪 punch-in on each of seven knocks

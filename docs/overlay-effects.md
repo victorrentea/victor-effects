@@ -637,7 +637,7 @@ rule from the start.
     covered in 6.5 s instead of 8, so the thing moves **three times** as fast as it did.
     Twice was the ask; at exactly twice, the longer journey would need 9.8 s and no
     longer fit under the clip.
-- **⏲️ Microwave** (tile #61, repurposed from "dinner"): a **kitchen timer ticks and
+- **⏲️ Microwave** (**no tile since 2026-09-25**: #61 became Bocelli's Hallelujah, with no effect for now; fire it with `/effect/microwave`. Was tile #61, repurposed from "dinner"): a **kitchen timer ticks and
   the microwave's door swings open on the BING**. `61_dinner.mp3` is now a few
   seconds of ticking followed by a bell (the ticking was lifted +12 dB against the
   bell so it survives a room PA; the bell keeps its full dynamic punch), and

@@ -108,7 +108,7 @@ It unions the two places a sound can acquire a visual, plus the siren:
 | source | why it is separate | example |
 |---|---|---|
 | `SoundEffectMap.onPress` | the press path: the client reports the press, the Mac fires the effect | `03_explosion.mp3` → `explosion` |
-| `SoundEffectMap.playPathVisuals` | the cue sits at a fixed offset INSIDE the clip, so `EffectsEngine.playSound` owns audio and visual together; mapping the press too would double-trigger | `61_dinner.mp3` → `microwave` (the BING at 2.695 s) |
+| `SoundEffectMap.playPathVisuals` | the cue sits at a fixed offset INSIDE the clip, so `EffectsEngine.playSound` owns audio and visual together; mapping the press too would double-trigger | `53_rain.mp3` → `money` (`61_dinner.mp3` → `microwave` until 2026-09-25) |
 | `SoundboardPress.sirenAsset` | a toggled overlay via `/alarm/*`, not a self-terminating effect, so it is in neither table | `02_siren.mp3` → `alarm` |
 
 **The ⭐ badge is a promise, not a label**, and the tablet keeps no list of its

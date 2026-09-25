@@ -51,7 +51,6 @@ final class EffectsCatalogTests: XCTestCase {
         "53_rain.mp3":           "money",          // in-clip cue
         "55_star_wars.mp3":      "star-wars",
         "59_game_over.mp3":      "game-over",
-        "61_dinner.mp3":         "microwave",      // in-clip cue
         "64_fbi.mp3":            "fbi-knock",      // in-clip cue
         "65_school_bell.mp3":    "fire-alarm",
         "67_sfx_109.mp3":        "brother",

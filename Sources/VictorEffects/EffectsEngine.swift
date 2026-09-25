@@ -439,13 +439,6 @@ final class EffectsEngine {
             guard let duration = SoundManager.shared.playTabletSound("50_gong.mp3", volume: volume) else { return nil }
             return remember(Int(duration * 1000))
         }
-        // Tile #61 (⏲️ kitchen timer): the door swings open ON the bing, a fixed
-        // 2.695 s into the clip.
-        if name == "61_dinner.mp3" {
-            let duration = animator.showMicrowave(playSound: true, volume: volume)
-            guard duration > 0 else { return nil }
-            return remember(Int(duration * 1000))
-        }
         // Tile #13 (💓 heartbeat): the zoom peaks on each measured onset.
         if name == "13_heartbeat.mp3" {
             let duration = animator.showHeartbeat(playSound: true, volume: volume)
