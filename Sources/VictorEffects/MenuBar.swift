@@ -63,9 +63,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// click here stops it" — including an armed 🔥 whip, which is a *mode* and
     /// stays up until it is dismissed, so the bar sits on 🛑 for as long as the
     /// whip is out. That is the honest answer: a click there does take it down.
-    /// ⭐ means "nothing is running, a click opens the menu". Nothing else is
-    /// ever drawn there.
-    private static let idleIcon = "⭐"
+    /// 𝓯𝔁 means "nothing is running, a click opens the menu". Nothing else is
+    /// ever drawn there. It was ⭐ until 2026-09-25; 𝓯𝔁 is the same bold script
+    /// 𝓯 (U+1D4EF) + bold fraktur 𝔁 (U+1D501) walkie-talkie's `Halo 𝓯𝔁` row uses.
+    private static let idleIcon = "𝓯𝔁"
     private static let busyIcon = "🛑"
 
     /// Which of the two faces is currently drawn. **Display only** — the click
@@ -132,7 +133,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // the decision here, and the menu is re-attached for the length of one
         // `performClick` when it is actually wanted (`openMenu`).
         if let button = statusItem.button {
-            button.image = Self.emojiIcon(Self.idleIcon, pt: 15)
+            button.image = Self.fxIcon()
             button.target = self
             button.action = #selector(statusItemClicked)
             // Both buttons, and on mouse-UP: the default mask is
@@ -239,7 +240,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         let busy = isBusy?() ?? false
         guard busy != showingBusyIcon else { return }   // no needless redraws
         showingBusyIcon = busy
-        statusItem?.button?.image = Self.emojiIcon(busy ? Self.busyIcon : Self.idleIcon, pt: 15)
+        statusItem?.button?.image = busy ? Self.emojiIcon(Self.busyIcon, pt: 15) : Self.fxIcon()
     }
 
     private func buildMenu() {
@@ -595,6 +596,25 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// An emoji rendered into a status-item-sized image. A plain `button.title`
     /// works too but sits on a different baseline than every icon-based item in
     /// the bar, so ⭐ ends up visibly lower than its neighbours.
+    /// The idle face: `idleIcon` as a **template** image, so the menu bar tints
+    /// it (white on a dark bar, black on a light one) like every other monochrome
+    /// icon there — the ⭐ it replaced was a colour emoji and needed no tint.
+    static func fxIcon(pt: CGFloat = 16) -> NSImage? {
+        let str = NSAttributedString(string: idleIcon, attributes: [
+            .font: NSFont.systemFont(ofSize: pt),
+            .foregroundColor: NSColor.black,
+        ])
+        let strSize = str.size()
+        let size = NSSize(width: ceil(strSize.width) + 2, height: 18)
+        let img = NSImage(size: size)
+        img.lockFocus()
+        str.draw(at: NSPoint(x: (size.width - strSize.width) / 2,
+                             y: (size.height - strSize.height) / 2))
+        img.unlockFocus()
+        img.isTemplate = true
+        return img
+    }
+
     static func emojiIcon(_ emoji: String, pt: CGFloat) -> NSImage? {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size)
