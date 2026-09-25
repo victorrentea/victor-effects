@@ -51,7 +51,7 @@ final class SoundTimingConfig {
             .appendingPathComponent("sound-timing.json")
 
         var comp: TimeInterval = 0.55
-        var leads: [String: TimeInterval] = ["67_sfx_109.mp3": 0.30]
+        var leads: [String: TimeInterval] = ["67_sfx_109.mp3": 0.49]
 
         if let data = try? Data(contentsOf: url),
            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {

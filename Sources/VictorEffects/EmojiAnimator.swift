@@ -9586,6 +9586,13 @@ class EmojiAnimator {
 
     private static var brotherGifURL: URL? { EffectsConfig.shared.assetURL("brother_full.gif") }
 
+    /// One loop of the source clip (youtube.com/watch?v=qua9rU7D9AE): 340
+    /// frames at 30 fps, and its audio repeats every 11.325 s. The GIF's own
+    /// 60/70 ms delays add up to 11.6 s, so played at face value it fell
+    /// ~0.25 s behind the sound by the last "yeww". The phase is the
+    /// `animationLeadMs` of 67_sfx_109.mp3: the sfx starts 0.49 s into the loop.
+    static let brotherLoopSeconds = 340.0 / 30.0
+
     /// Decode every GIF frame into a bitmap-backed CGImage (cached by file mod
     /// date, so a re-downloaded GIF is picked up). Must run on brotherDecodeQueue.
     private static func decodedBrotherFrames() -> (frames: [CGImage], duration: Double)? {
@@ -9657,7 +9664,7 @@ class EmojiAnimator {
 
         let anim = CAKeyframeAnimation(keyPath: "contents")
         anim.values = images
-        anim.duration = totalDuration
+        anim.duration = Self.brotherLoopSeconds
         anim.repeatCount = .infinity
 
         CATransaction.begin()
