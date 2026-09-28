@@ -96,8 +96,13 @@ class EmojiAnimator {
     private static let coffeePotRestTilt: CGFloat = 0.2
     private static let coffeePotPourTilt: ClosedRange<CGFloat> = 0.35...1.25
     private var _potTilt: CGFloat = 0
-    /// Seconds of pouring that fill a cup.
-    fileprivate static let coffeeFillSeconds: Double = 1.2
+    /// Seconds of pouring that fill a cup — 2 and not 1.2 (Victor,
+    /// 2026-09-28): the cursor brushing a cup by accident must never be enough
+    /// to pop it. Only a hand held on it for this long is a decision.
+    fileprivate static let coffeeFillSeconds: Double = 2.0
+    /// A cup let go before it was full drains back to its normal size while it
+    /// rises on; a FULL pour drains away in this long.
+    private static let coffeeDrainSeconds: Double = 0.6
     /// A full cup is this much bigger than an empty one — and that is when it
     /// pops.
     private static let coffeeFillGrowScale: CGFloat = 1.7
@@ -111,7 +116,8 @@ class EmojiAnimator {
 
     // ☕💥 Escalation. `CoffeeStormGauge` counts arrivals in `spawnEmoji`: MORE
     // than 3 inside one second (a salvo from the room) ARMS explosions, and
-    // from then on a cup the pot touches does not fill — it grows and shakes
+    // from then on a cup the pot has FILLED (the same 2 s hold as a calm
+    // one) does not pop — it grows and shakes
     // for `coffeeExplodeSeconds` and bursts where it is, throwing its pixels
     // across the screen (`CoffeeBurst`: the big burst belongs to a flood; a
     // calm cup pops small). The flight never changes: a salvo's cup rises
@@ -553,8 +559,15 @@ class EmojiAnimator {
             let box = frame.insetBy(dx: -frame.width * (g - 1) / 2 - pad,
                                     dy: -frame.height * (g - 1) / 2 - pad)
             guard box.contains(p) else {
-                // The pot slid off the cup: it rises on from where it hung.
+                // The pot slid off the cup: it rises on from where it hung,
+                // shrinking back to its normal size on the way — the pour so
+                // far is undone, so a brush with the pot costs nothing.
                 if cup.frozen { thawCoffeeCup(cup) }
+                if cup.poured > 0 {
+                    let drain = dt * Self.coffeeFillSeconds / Self.coffeeDrainSeconds
+                    cup.poured = max(0, cup.poured - drain)
+                    setCoffeeFill(cup)
+                }
                 continue
             }
             touching = true
@@ -566,13 +579,13 @@ class EmojiAnimator {
                          > hypot(at.x - p.x, at.y - p.y) }) ?? true {
                 aim = cup
             }
-            if armed {
-                beginCoffeeExplosion(cup)
-                continue
-            }
             cup.poured += dt
             setCoffeeFill(cup)
-            if cup.fill >= 1 {
+            if cup.fill >= 1, armed {
+                // A salvo's cup needed the same full hold; only then does it
+                // commit to the shake-and-burst.
+                beginCoffeeExplosion(cup)
+            } else if cup.fill >= 1 {
                 // Big enough: it pops and is gone. The payoff is queued by
                 // the burst and handed over on the next tick — after it.
                 burstCoffee(cup, salvo: false)

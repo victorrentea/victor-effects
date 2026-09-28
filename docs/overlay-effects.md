@@ -1951,15 +1951,19 @@ flood of coffee cups"*. The rules:
    The touched cup **freezes where it was caught and grows**
    (`freezeCoffeeCup`: the carrier's flight is stripped and its presentation
    position/scale pinned as model values, solid again even if it had started
-   fading): 1.2 s of pouring takes `fill` 0→1 and the glyph swells to
+   fading): **2 s** of pouring takes `fill` 0→1 (1.2 s until 2026-09-28 —
+   a hand brushing a cup by accident popped it, and a pop cannot be undone) and the glyph swells to
    **1.7×** under a warm brown glow (`coffeeGlyphScale`). **Full = big
    enough: it pops on the spot and is gone** (`burstCoffee`, 2026-09-25) —
    a small local pop by default (rule 3). Until then it grew on under the pot
    up to 4× and rose on once let go, paying out at full while it stayed on
    screen; Victor wanted the cup that became his timer or −1 to *explode and
    disappear*. Slide off before full and it **rises on from that spot** on a
-   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`), keeping what it was
-   poured. The hit box grows with the glyph, so a swollen cup is caught by all
+   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`) **and shrinks back
+   to its normal size while it rises** — the pour drains away (a full one in
+   `coffeeDrainSeconds`, 0.6 s; until 2026-09-28 it kept what it was poured,
+   so every brush left the cup a step closer to popping). The drain is on the
+   glyph, the rise on the carrier, so the two run at once. The hit box grows with the glyph, so a swollen cup is caught by all
    of it. The pot stays out 0.35 s after the hand leaves the last cup (no
    flicker across a cluster), then the arrow comes back. **The payoff is the
    pop**: one `coffee-popped` webhook (below), queued by the burst and sent on
@@ -1967,8 +1971,10 @@ flood of coffee cups"*. The rules:
    at the touch.
 3. **Escalation = explosions, unlocked by a salvo.** `CoffeeStormGauge` (pure,
    tested) counts arrivals in `spawnEmoji`: **more than 3 inside one second**
-   ARMS the mode. From then on a cup the pot touches does not fill — the glyph
-   **grows to 3× (on top of its fill) while shaking harder and harder for 1.3 s,
+   ARMS the mode. From then on a cup the pot has **filled** (the same 2 s hold,
+   drained the same way if let go — since 2026-09-28; before, a mere touch
+   committed an armed cup, which is exactly the accident nobody could undo)
+   does not pop — the glyph **grows to 3× (on top of its fill) while shaking harder and harder for 1.3 s,
    then bursts** (`beginCoffeeExplosion` → `burstCoffee`): `pixelDissolve` at
    violence 3.0–4.5 (denser salvo → harder) on the 22×22 grid, fragments thrown
    across the screen. Each burst is also a payoff (the trainer touched it).
