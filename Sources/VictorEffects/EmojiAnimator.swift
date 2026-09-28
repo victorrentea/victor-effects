@@ -729,13 +729,18 @@ class EmojiAnimator {
 
     /// A salvo's burst paid out its −1, so the ☕ still rising have done their
     /// job: they fade out together instead of drifting on as targets for the
-    /// next pour. Cups already exploding are left alone — each still owes its
-    /// own burst and its own −1. With the screen empty, `tickCoffeePour`
-    /// disarms the salvo, so the next ☕ arrives calm.
+    /// next pour. Cups the pot has already CAUGHT are left alone — exploding,
+    /// frozen under the pot, or holding any pour: each still owes its own burst
+    /// and its own −1. Sweeping those too was the "I stopped a cloud of seven
+    /// and lost minutes" bug (2026-09-28): the first cup of a compact cloud to
+    /// fill burst, and the ones still filling beside it faded out unpaid.
+    /// With the screen empty, `tickCoffeePour` disarms the salvo, so the next
+    /// ☕ arrives calm.
     private func clearCoffeesAfterBurst() {
-        let leaving = coffeeCups.filter { !$0.exploding }
+        func caught(_ cup: CoffeeCup) -> Bool { cup.exploding || cup.frozen || cup.poured > 0 }
+        let leaving = coffeeCups.filter { !caught($0) }
         guard !leaving.isEmpty else { return }
-        coffeeCups.removeAll { !$0.exploding }
+        coffeeCups.removeAll { !caught($0) }
         for cup in leaving {
             cup.leaving = true
             let carrier = cup.carrier

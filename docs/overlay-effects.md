@@ -2004,9 +2004,14 @@ flood of coffee cups"*. The rules:
 5. **A salvo's burst clears the screen** (2026-09-25). Once an armed cup has
    burst and paid its −1, every other ☕ still rising fades out together in 0.4 s
    (`clearCoffeesAfterBurst`, `coffeeClearSeconds`) instead of drifting on as
-   targets. Cups already shaking toward their own burst are left alone — each
-   still owes its own −1. The screen is then empty, so the gauge disarms on the
-   next tick (point 3) and the next ☕ arrives calm. A **calm** pop does not
+   targets. Cups the pot has already **caught** are left alone — shaking toward
+   their own burst, frozen under the pot, or holding any pour — each still owes
+   its own −1. Until 2026-09-28 only the shaking ones were spared, so a compact
+   cloud caught at once paid out only the few that reached full within the
+   first cup's 1.3 s shake; the rest faded out unpaid under the pot ("I stopped
+   a cloud of coffees and lost minutes"). Once the caught cups have burst the
+   screen is empty, so the gauge disarms on the next tick (point 3) and the next
+   ☕ arrives calm. A **calm** pop does not
    clear: the rule exists to stop a flood turning into twenty −1s, and a calm
    cup is one person's vote — the next cup is somebody else's.
 
