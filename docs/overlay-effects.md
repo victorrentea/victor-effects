@@ -779,12 +779,17 @@ rule from the start.
   - **The gun** is the CS 1.6 AK-47 view-model (`Resources/ak47.png`, hand + rifle, the
     light-grey background flood-filled out and trimmed; its right and bottom edges are flat
     cuts, which is where the screen edges are in the game). It rises out of the bottom edge
-    in 0.3 s, **at rest**: no flash, no noise, no holes. It replaced `minigun.gif`, which
+    in 0.3 s, **at rest**: no flash, no fire noise, no holes. It replaced `minigun.gif`, which
     was drawn mid-burst in every one of its 64 frames and so had no rest pose to show.
-    Width **20 %** of the screen (born 40 %, the in-game share; halved the same day because
-    it hid the slide it was shooting at); the muzzle (`minigunSpriteMuzzle`, the front sight post) is
+    Width **24 %** of the screen (born 40 %, the in-game share; halved the same day because
+    it hid the slide it was shooting at; grown back 20 % on 2026-09-29); the muzzle (`minigunSpriteMuzzle`, the front sight post) is
     the anchor, at `0.35 W + mouseX × 0.5` — a centred cursor puts it at 0.60 W, right of
     centre like the game. It never rotates.
+  - **Drawing it is heard**: as it rises, `Resources/ak47_draw.mp3` plays — the CS 1.6
+    AK-47 bolt pull, then the radio's *"Lock and load"* 0.32 s later, mixed into one 1.5 s
+    clip (both loudness-normalised to −16 LUFS). On its own `AVAudioPlayer` like the fire
+    noise, so it starts with the gun, and **cut by the first trigger pull** — the fire noise
+    takes over rather than playing under a voice still talking. Stop-all drops it too.
   - **Moving without firing walks it**: horizontal mouse travel advances a bob phase and
     tops up a bob energy that drains when the mouse stops (`minigunBobOffset`, a
     figure-of-eight, 9 × 11 pt at full energy), so the gun sways like a view-model when the

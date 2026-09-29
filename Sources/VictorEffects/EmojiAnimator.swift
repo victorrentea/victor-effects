@@ -222,6 +222,7 @@ class EmojiAnimator {
     private var _minigunBobPhase: CGFloat = 0
     private var _minigunBobEnergy: CGFloat = 0
     private var _minigunPlayer: AVAudioPlayer?
+    private var _minigunDrawPlayer: AVAudioPlayer?
 
     // 🪚 Chainsaw cursor: for the length of tile #18 the pointer IS a running
     // chainsaw — a 16-frame sprite looping on the cursor, real cursor hidden.
@@ -3904,9 +3905,10 @@ class EmojiAnimator {
     // MARK: The gun itself (ak47.png, the Counter-Strike 1.6 view-model)
 
     /// Width of the sprite as a fraction of the screen. Born at 0.40 — the share
-    /// the CS 1.6 view-model takes in the game — and halved (2026-09-23): at
-    /// that size it covered the slide it was shooting at.
-    private static let minigunSpriteWidthFraction: CGFloat = 0.20
+    /// the CS 1.6 view-model takes in the game — halved (2026-09-23) because at
+    /// that size it covered the slide it was shooting at, then grown back 20 %
+    /// (2026-09-29, Victor: at 0.20 it read as a toy).
+    private static let minigunSpriteWidthFraction: CGFloat = 0.24
     /// The muzzle inside `ak47.png` (fractions, y measured from the BOTTOM):
     /// the front sight post, which is where the barrel ends.
     private static let minigunSpriteMuzzle = CGPoint(x: 0.295, y: 0.86)
@@ -4053,6 +4055,7 @@ class EmojiAnimator {
             raise.timingFunction = CAMediaTimingFunction(name: .easeOut)
             parts.gun.add(raise, forKey: "raise")
         }
+        playMinigunDrawSound()
 
         let now = CACurrentMediaTime()
         _minigunArmedAt = now
@@ -4134,9 +4137,31 @@ class EmojiAnimator {
         }
     }
 
+    /// Drawing the weapon, the way CS 1.6 sounds it: the AK-47's bolt pull,
+    /// then the radio's "Lock and load" (`ak47_draw.mp3`, the two mixed into
+    /// one 1.5 s clip). Its own player, like the trigger's, so it starts with
+    /// the gun rather than after a Bluetooth delay.
+    private func playMinigunDrawSound() {
+        guard let url = Bundle.module.url(forResource: "ak47_draw", withExtension: "mp3"),
+              let player = try? AVAudioPlayer(contentsOf: url) else {
+            overlayError("ak47_draw.mp3 not found in bundle")
+            return
+        }
+        player.play()
+        _minigunDrawPlayer = player
+    }
+
+    private func stopMinigunDrawSound() {
+        _minigunDrawPlayer?.stop()
+        _minigunDrawPlayer = nil
+    }
+
     private func pullMinigunTrigger() {
         guard _minigunContainer != nil, !_minigunFiring else { return }
         _minigunFiring = true
+        // The fire noise takes over: a "lock and load" still talking under
+        // the first burst would be two soundtracks at once.
+        stopMinigunDrawSound()
         _minigunNextShot = CACurrentMediaTime()   // the first round goes out now
         // Its own player, started on the spot: the noise has to begin with the
         // finger, so no Bluetooth start delay (the keep-alive holds the speaker
@@ -4342,6 +4367,7 @@ class EmojiAnimator {
         stopMinigunInputCapture()
         _minigunFiring = false
         stopMinigunNoise()
+        stopMinigunDrawSound()
         _minigunContainer = nil
         _minigunGunLayer = nil
         _minigunRigLayer = nil

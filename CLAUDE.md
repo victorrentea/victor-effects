@@ -72,8 +72,8 @@ this one only routes.
 - **Visual tests go on the non-projected screen.** The built-in retina is the
   overlay screen and may be mirrored to a room.
 - **Sounds are not in this repo.** They live in `EffectsConfig.soundsDir`; never
-  commit an mp3 beyond the bundled `click.wav`, `phoenix.mp3`, `confetti.mp3`
-  and `whip_[A-E].mp3`.
+  commit an mp3 beyond the bundled `click.wav`, `phoenix.mp3`, `confetti.mp3`,
+  `whip_[A-E].mp3` and `ak47_draw.mp3` (19 KB, the gun's own draw sound — not a tile).
 - **This repo is public.** No paths under a home directory, no client names, no
   tokens. Anything machine-specific belongs in `EffectsConfig`.
 - The HTTP handlers and the in-process callers share one entry point,
