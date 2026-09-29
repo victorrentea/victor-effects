@@ -56,8 +56,9 @@ final class CoffeePourRenderTests: XCTestCase {
         let clip = try XCTUnwrap(stream.mask, "the stream is clipped")
         let surface = clip.frame.minY
 
-        // The surface is inside the cup: above its centre, below its rim.
-        XCTAssertGreaterThan(surface, carrier.position.y)
+        // The surface is inside the cup, below its rim — and, a quarter
+        // full, low in it (`CoffeeInterior`): never down in the saucer.
+        XCTAssertGreaterThan(surface, carrier.position.y - 91 * 0.1 * 1.7)
         XCTAssertLessThan(surface, carrier.position.y + 91 * 0.25 * 1.7)
 
         let t = CACurrentMediaTime()

@@ -1959,11 +1959,21 @@ flood of coffee cups"*. The rules:
    up to 4× and rose on once let go, paying out at full while it stayed on
    screen; Victor wanted the cup that became his timer or −1 to *explode and
    disappear*. Slide off before full and it **rises on from that spot** on a
-   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`) **and shrinks back
-   to its normal size while it rises** — the pour drains away (a full one in
-   `coffeeDrainSeconds`, 0.6 s; until 2026-09-28 it kept what it was poured,
-   so every brush left the cup a step closer to popping). The drain is on the
-   glyph, the rise on the carrier, so the two run at once. The hit box grows with the glyph, so a swollen cup is caught by all
+   fresh chimney (`thawCoffeeCup` → `launchCoffeeRise`), **empty at once and
+   snapping back to its normal size** in `coffeeEmptySeconds` (0.18 s) —
+   Victor, 2026-09-29: "when I move my pot out, empty suddenly". Before that
+   the pour drained away over 0.6 s, and until 2026-09-28 the cup kept what it
+   was poured, so every brush left it a step closer to popping. The shrink is
+   on the glyph, the rise on the carrier, so the two run at once.
+   **The cup rises EMPTY and fills as you pour** (`CoffeeInterior` +
+   `CoffeeLevelLayer`, 2026-09-29): the glyph is a full cup, so a cup that only
+   swelled read as "already full, getting bigger". The coffee's ellipse and
+   pixels are measured from the glyph once (the `CoffeeSurface` rule); a
+   china-grey gradient covers it, and on top of it the glyph's own coffee,
+   clipped to the same ellipse, comes up from low and narrow (hidden behind
+   the front rim) to exactly its original place at `fill == 1`, when the
+   overlay is dropped and the real glyph shows. The stream's clip follows the
+   level (`CoffeeInterior.surfaceDrop`), so it lands on the liquid. The hit box grows with the glyph, so a swollen cup is caught by all
    of it. The pot stays out 0.35 s after the hand leaves the last cup (no
    flicker across a cluster), then the arrow comes back. **The payoff is the
    pop**: one `coffee-popped` webhook (below), queued by the burst and sent on

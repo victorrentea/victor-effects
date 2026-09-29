@@ -58,6 +58,9 @@ class EmojiAnimator {
         var frozen = false
         /// A burst elsewhere cleared it: it is fading out and owns its teardown.
         var leaving = false
+        /// The coffee inside, painted at `fill` (`CoffeeLevelLayer`): the cup
+        /// rises empty and the pot fills it. Nil for a glyph with no coffee.
+        var level: CoffeeLevelLayer?
         init(carrier: CALayer, glyph: CATextLayer) { self.carrier = carrier; self.glyph = glyph }
     }
     private var coffeeCups: [CoffeeCup] = []
@@ -100,9 +103,10 @@ class EmojiAnimator {
     /// 2026-09-28): the cursor brushing a cup by accident must never be enough
     /// to pop it. Only a hand held on it for this long is a decision.
     fileprivate static let coffeeFillSeconds: Double = 2.0
-    /// A cup let go before it was full drains back to its normal size while it
-    /// rises on; a FULL pour drains away in this long.
-    private static let coffeeDrainSeconds: Double = 0.6
+    /// A cup let go before it was full empties AT ONCE and shrinks back to
+    /// its normal size in this long (Victor, 2026-09-29: "when I move my pot
+    /// out, empty suddenly, so they shrink back to their default size").
+    private static let coffeeEmptySeconds: Double = 0.18
     /// A full cup is this much bigger than an empty one — and that is when it
     /// pops.
     private static let coffeeFillGrowScale: CGFloat = 1.7
@@ -110,6 +114,9 @@ class EmojiAnimator {
     /// The coffee's surface in the ☕, above the box's centre (fraction of the
     /// box), measured from the glyph once — where the stream ends.
     private static let coffeeSurfaceLift = CoffeeSurface.measure()
+    /// The coffee's ellipse and pixels in the ☕, measured once — what the
+    /// fill level paints (`CoffeeLevelLayer`).
+    private static let coffeeInterior = CoffeeInterior.measure()
     /// The stream's drops: how fast they leave the spout and how hard they fall.
     private static let coffeeDropSpeed: CGFloat = 90
     private static let coffeeDropGravity: CGFloat = 1400
@@ -381,6 +388,12 @@ class EmojiAnimator {
         hostLayer.addSublayer(carrier)
 
         let cup = CoffeeCup(carrier: carrier, glyph: glyph)
+        if let shape = Self.coffeeInterior {
+            let level = CoffeeLevelLayer(shape: shape, contentsScale: glyph.contentsScale)
+            glyph.addSublayer(level.layer)
+            level.set(fill: 0)
+            cup.level = level
+        }
         coffeeCups.append(cup)
         launchCoffeeRise(cup)
     }
@@ -560,13 +573,12 @@ class EmojiAnimator {
                                     dy: -frame.height * (g - 1) / 2 - pad)
             guard box.contains(p) else {
                 // The pot slid off the cup: it rises on from where it hung,
-                // shrinking back to its normal size on the way — the pour so
-                // far is undone, so a brush with the pot costs nothing.
+                // empty at once and snapping back to its normal size — the
+                // pour so far is undone, so a brush with the pot costs nothing.
                 if cup.frozen { thawCoffeeCup(cup) }
                 if cup.poured > 0 {
-                    let drain = dt * Self.coffeeFillSeconds / Self.coffeeDrainSeconds
-                    cup.poured = max(0, cup.poured - drain)
-                    setCoffeeFill(cup)
+                    cup.poured = 0
+                    setCoffeeFill(cup, shrink: Self.coffeeEmptySeconds)
                 }
                 continue
             }
@@ -632,13 +644,21 @@ class EmojiAnimator {
         1 + (Self.coffeeFillGrowScale - 1) * cup.fill
     }
 
-    /// The fill's visual: the glyph swells (`coffeeGlyphScale`) and a warm
+    /// The fill's visual: the coffee comes up inside the cup
+    /// (`CoffeeLevelLayer`), the glyph swells (`coffeeGlyphScale`) and a warm
     /// brown glow comes up under it. Model values with actions disabled —
-    /// this runs 60 times a second while the pot is on the cup.
-    private func setCoffeeFill(_ cup: CoffeeCup) {
+    /// this runs 60 times a second while the pot is on the cup — except the
+    /// snap back to normal size when the pot leaves, which takes `shrink`.
+    private func setCoffeeFill(_ cup: CoffeeCup, shrink: Double = 0) {
         let s = coffeeGlyphScale(cup)
+        cup.level?.set(fill: cup.fill)
         CATransaction.begin()
-        CATransaction.setDisableActions(true)
+        if shrink > 0 {
+            CATransaction.setAnimationDuration(shrink)
+            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+        } else {
+            CATransaction.setDisableActions(true)
+        }
         cup.glyph.transform = CATransform3DMakeScale(s, s, 1)
         cup.glyph.shadowOpacity = Float(cup.fill) * 0.9
         CATransaction.commit()
@@ -854,9 +874,14 @@ class EmojiAnimator {
             // above it shows, nothing below it does. The drops live long
             // enough to get there from however high the pot is held, so the
             // clip — not the lifetime — is what ends the stream.
+            // Lower while the cup is still filling: the stream lands on the
+            // liquid, not in the air above an emptier cup.
             let scale = cup.carrier.transform.m11 * coffeeGlyphScale(cup)
+            let drop = Self.coffeeInterior.map {
+                CoffeeInterior.surfaceDrop(rectHeight: $0.rect.height, box: Self.emojiSize, fill: cup.fill)
+            } ?? 0
             let surface = CoffeeSurface.surfaceY(centerY: cup.carrier.position.y, box: Self.emojiSize,
-                                                 scale: scale, lift: Self.coffeeSurfaceLift)
+                                                 scale: scale, lift: Self.coffeeSurfaceLift - drop)
             let b = hostLayer.bounds
             _potStreamClip?.frame = CGRect(x: b.minX, y: surface, width: b.width, height: max(0, b.maxY - surface))
             let fall = CoffeePot.fallTime(drop: p.y - surface, speed: Self.coffeeDropSpeed,
