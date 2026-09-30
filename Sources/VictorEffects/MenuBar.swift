@@ -325,9 +325,17 @@ final class MenuBar: NSObject, NSMenuDelegate {
         // for the two to be separated, and for Quit to carry ⌘Q like any app.
         // The shortcut only fires while the menu is open (a status-item app
         // never becomes key), but the hint is what makes the row read as Quit.
+        //
+        // Since 2026-09-30 it is also the way to the source: enabled, it opens
+        // the public repo, so anyone who sees the effects in a room can clone
+        // them for their own Mac. ⓘ is an SF Symbol image like Quit's ⏻, for
+        // the same reason — a text glyph would sit narrower than the column.
         let versionItem = NSMenuItem(title: "Built " + MenuBar.BUILD_TIME,
-                                     action: nil, keyEquivalent: "")
-        versionItem.isEnabled = false
+                                     action: #selector(openRepo), keyEquivalent: "")
+        versionItem.image = Self.symbolIcon("info.circle")
+        versionItem.target = self
+        versionItem.isEnabled = true
+        versionItem.toolTip = MenuBar.REPO_URL
         menu.addItem(versionItem)
 
         // ⌘Q is drawn as a hint like every other gesture here, and Quit carries
@@ -482,6 +490,14 @@ final class MenuBar: NSObject, NSMenuDelegate {
             guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
             NSWorkspace.shared.open(url)
         }
+    }
+
+    /// The public repo, opened in the default browser from the build row.
+    static let REPO_URL = "https://github.com/victorrentea/victor-effects"
+
+    @objc private func openRepo() {
+        guard let url = URL(string: MenuBar.REPO_URL) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func quitApp() {
