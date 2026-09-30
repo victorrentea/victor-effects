@@ -17,6 +17,10 @@ enum SoundEffectMap {
     /// Effect to start when a sound button is pressed.
     static let onPress: [String: String] = [
         "03_explosion.mp3":      "explosion",
+        // Tile 4 (🐺 wolf): a wolf howls at the moon in the bottom-left corner,
+        // one howl lasting exactly the clip. Self-terminating and non-looping,
+        // so no onStop entry.
+        "04_wolf.mp3":           "wolf-howl",
         "90_breaking-glass.mp3": "broken-glass",
         "59_game_over.mp3":      "game-over",
         "15_flatline.mp3":       "pulse",

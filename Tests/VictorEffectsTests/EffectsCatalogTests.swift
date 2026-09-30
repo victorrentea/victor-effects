@@ -17,10 +17,11 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 45 of the 91 tiles.
+    /// Asset → the effect its tile fires on the desktop. 46 of the 91 tiles.
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
+        "04_wolf.mp3":           "wolf-howl",      // 🐺 one howl at the moon, bottom-left
         "06_copyright_cartoon.mp3": "magnifier",  // 🔍 the Pink Panther's glass, on the pointer
         "08_scream_man.mp3":     "fear",
         "10_red_phone.mp3":      "phone-ring",

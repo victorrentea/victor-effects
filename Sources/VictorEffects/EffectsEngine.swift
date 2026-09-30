@@ -271,6 +271,7 @@ final class EffectsEngine {
         // rehearsed without sitting through the picture and the clip first.
         case "crt-shutdown":  animator.showCrtShutdown()
         case "minion":        animator.showMinion()
+        case "wolf-howl":     animator.showWolfHowl()
         case "elephant":      animator.showElephant()
         case "elephant/stop": animator.stopElephant()
         case "claude-peek":   animator.showClaudePeek()

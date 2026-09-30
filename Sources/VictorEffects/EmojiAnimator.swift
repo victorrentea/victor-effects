@@ -2669,6 +2669,90 @@ class EmojiAnimator {
         trackEffect("minion", layer: gifLayer, duration: total, sound: nil)
     }
 
+    // MARK: - Wolf howl (tile #4 `04_wolf.mp3` — one howl at the moon)
+
+    /// Tile #4 (`04_wolf.mp3`) — a wolf on a rock howls at a full moon, pinned
+    /// FLUSH BOTTOM-LEFT, for exactly the length of the howl, and **once**.
+    ///
+    /// The asset is `wolf-howl.gif` (500×500, transparent, 151 frames ≈ 25 fps,
+    /// 6.06 s = the clip). It was built from a 13-frame 2.6 s looping GIF: only
+    /// the RISING half of that loop is used (its frames 10 → 12 → 0 → 8, head
+    /// low to head up), stretched to the clip with optical-flow in-betweens.
+    /// The other half is the head dropping back down in two frames — too fast
+    /// to interpolate, it read as the head fading out at the top and popping in
+    /// lower — so the animation never loops: it ends on the held howl, and the
+    /// effect ends with it.
+    ///
+    /// Plays the frames with the GIF's own per-frame delays (the last one is
+    /// 60 ms, not 40), so its end lands on the clip's end. The clip itself plays
+    /// down the ordinary routed path; this is the press-path visual only.
+    func showWolfHowl() {
+        if cancelIfRunning("wolf-howl") { return }
+
+        guard let url = Bundle.module.url(forResource: "wolf-howl", withExtension: "gif", subdirectory: "Resources")
+                ?? Bundle.module.url(forResource: "wolf-howl", withExtension: "gif"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            overlayError("wolf-howl.gif not found")
+            return
+        }
+
+        var images: [CGImage] = []
+        var delays: [Double] = []
+        for i in 0..<CGImageSourceGetCount(source) {
+            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
+            images.append(cg)
+            let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [String: Any]
+            let gif  = props?[kCGImagePropertyGIFDictionary as String] as? [String: Any]
+            delays.append(gif?[kCGImagePropertyGIFUnclampedDelayTime as String] as? Double
+                          ?? gif?[kCGImagePropertyGIFDelayTime as String] as? Double ?? 0.04)
+        }
+        let total = delays.reduce(0, +)
+        guard let first = images.first, total > 0 else { return }
+
+        // A square 40% of the screen's HEIGHT, flush to the bottom-left corner:
+        // the rock is the bottom of the canvas, so the wolf stands on the
+        // screen's edge. hostLayer is AppKit y-up, so the bottom edge is y = 0.
+        let side = hostLayer.bounds.height * 0.40
+        let gifLayer = CALayer()
+        gifLayer.frame = CGRect(x: 0, y: 0, width: side, height: side)
+        gifLayer.contentsGravity = .resizeAspect
+        gifLayer.contents = first
+        hostLayer.addSublayer(gifLayer)
+
+        // One pass, each frame for its own delay, holding the last frame under
+        // the fade-out instead of snapping back to the first.
+        var keyTimes: [NSNumber] = []
+        var t = 0.0
+        for d in delays { keyTimes.append(NSNumber(value: t / total)); t += d }
+        let anim = CAKeyframeAnimation(keyPath: "contents")
+        anim.values = images
+        anim.keyTimes = keyTimes
+        anim.calculationMode = .discrete
+        anim.duration = total
+        anim.fillMode = .forwards
+        anim.isRemovedOnCompletion = false
+        gifLayer.add(anim, forKey: "wolfFrames")
+
+        let fadeIn = CABasicAnimation(keyPath: "opacity")
+        fadeIn.fromValue = 0.0
+        fadeIn.toValue = 1.0
+        fadeIn.duration = 0.25
+        gifLayer.add(fadeIn, forKey: "wolfFadeIn")
+
+        // The howl itself is over by ~5.6 s; the last 0.4 s is its tail, which
+        // is where the wolf goes.
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.fromValue = 1.0
+        fadeOut.toValue = 0.0
+        fadeOut.beginTime = CACurrentMediaTime() + max(0, total - 0.4)
+        fadeOut.duration = 0.4
+        fadeOut.fillMode = .forwards
+        fadeOut.isRemovedOnCompletion = false
+        gifLayer.add(fadeOut, forKey: "wolfFadeOut")
+
+        trackEffect("wolf-howl", layer: gifLayer, duration: total, sound: nil)
+    }
+
     // MARK: - Pulse / heartbeat (one-shot: 2 QRS cycles then flatline)
 
     func showPulse(playSound: Bool = false) {

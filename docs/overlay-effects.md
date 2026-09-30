@@ -223,6 +223,19 @@ so an old run's timer can never kill a newer run of the same effect. The one
 deliberate exception is the siren's alarm overlay (an unbounded toggle — its
 sound loops until explicitly stopped). When adding a new effect, follow this
 rule from the start.
+- **🐺 Wolf howl** (tile #4 `04_wolf.mp3` → `wolf-howl`, `showWolfHowl`,
+  2026-09-30): a wolf on a rock howls at a full moon, `wolf-howl.gif` (500×500,
+  transparent, 151 frames ≈ 25 fps, **6.06 s = the clip**), a square 40% of the
+  screen's height **flush to the bottom-left corner**, played **once** with the
+  GIF's own per-frame delays and held on its last frame under a 0.4 s fade (the
+  howl is over by ~5.6 s). The asset is a 13-frame, 2.6 s looping GIF cut down to
+  the **rising half** of its loop — source frames 10 → 12 → 0 → 8, head low to
+  head up — and stretched to the clip with optical-flow in-betweens (OpenCV DIS,
+  colour and alpha warped by the same flow). The other half of that loop is the
+  head dropping back in two frames: too fast for any interpolator, it came out as
+  the head fading at the top and popping in lower, so **it must not loop** — a
+  second pass would replay that drop as a cut. Press path, self-terminating, no
+  onStop entry; the clip plays down the ordinary routed path.
 - **🩸 Blood drip** (sfx #40 `40_joker.mp3` → `blood-drip`): `blood-drip.gif`
   (white bg made transparent via ImageMagick `-coalesce -fuzz 20% -transparent`,
   full-canvas frames) shown as a blood band pinned to the **top of the screen**
