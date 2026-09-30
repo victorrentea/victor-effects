@@ -80,6 +80,10 @@ class EmojiAnimator {
     /// Off only in the render test, which pours in a process that must not
     /// take the real pointer away from whoever is at the Mac.
     var potHidesPointer = true
+    /// The espresso machine heard while the stream runs (`CoffeePourSound`).
+    /// Off in the same render test, which must not make noise in the room.
+    var potMakesSound = true
+    private let coffeePourSound = CoffeePourSound()
     private var _potHidCursor = false
     private var _potLastTouch: CFTimeInterval = -.infinity
     private var _potLastTick: CFTimeInterval = 0
@@ -612,6 +616,8 @@ class EmojiAnimator {
         } else {
             hidePot()
         }
+        // Heard exactly while the stream runs: an aimed cup, not the grace.
+        if potMakesSound { coffeePourSound.setPouring(aim != nil) }
         return payoffs
     }
 
@@ -897,6 +903,7 @@ class EmojiAnimator {
     /// Take the pot away and give the real pointer back. Idempotent — called
     /// from the tick once the grace has run out and from `stopAllActiveEffects`.
     private func hidePot() {
+        coffeePourSound.setPouring(false)
         guard _potLayer != nil || _potHidCursor else { return }
         _potLayer?.removeFromSuperlayer(); _potLayer = nil
         if let stream = _potStream {

@@ -1991,7 +1991,19 @@ flood of coffee cups"*. The rules:
    overlay is dropped and the real glyph shows. The stream's clip follows the
    level (`CoffeeInterior.surfaceDrop`), so it lands on the liquid. The hit box grows with the glyph, so a swollen cup is caught by all
    of it. The pot stays out 0.35 s after the hand leaves the last cup (no
-   flicker across a cluster), then the arrow comes back. **The payoff is the
+   flicker across a cluster), then the arrow comes back. **While the stream
+   runs you hear an espresso machine, quietly** (`CoffeePourSound`,
+   2026-09-30 — Victor: "în surdină, nu prea tare"): one looping
+   `AVAudioPlayer` at volume **0.22**, faded in over 0.25 s when a cup is
+   aimed at and out over 0.4 s when none is (the grace included — the pot
+   still shows, the pour has stopped), then *paused*, not stopped, so the next
+   pour resumes the pump mid-stroke. No Bluetooth start delay: a sound that
+   trails the pot reads as another event. The clip is bundled,
+   `Resources/espresso_pour.mp3` (12.5 s mono, 98 KB): the steady pump stretch
+   (4–17.5 s) of Wikimedia Commons' **public-domain** "Espresso machine.ogg",
+   normalised to −18 LUFS, its last second cross-faded into its first so the
+   loop has no seam. `hidePot` silences it, so `stop-all` does too; the render
+   test turns it off (`potMakesSound`). **The payoff is the
    pop**: one `coffee-popped` webhook (below), queued by the burst and sent on
    the next tick — so the timer / −1 always comes *after* the explosion, never
    at the touch.

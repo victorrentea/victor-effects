@@ -30,6 +30,7 @@ final class CoffeePourRenderTests: XCTestCase {
         root.actions = ["sublayers": NSNull()]
         let animator = EmojiAnimator(hostLayer: root)
         animator.potHidesPointer = false
+        animator.potMakesSound = false
         defer { animator.stopAllActiveEffects() }
 
         animator.spawnEmoji("☕")
