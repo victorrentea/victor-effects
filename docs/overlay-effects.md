@@ -2013,8 +2013,20 @@ flood of coffee cups"*. The rules:
    `Resources/espresso_pour.mp3` (12.5 s mono, 98 KB): the steady pump stretch
    (4–17.5 s) of Wikimedia Commons' **public-domain** "Espresso machine.ogg",
    normalised to −18 LUFS, its last second cross-faded into its first so the
-   loop has no seam. `hidePot` silences it, so `stop-all` does too; the render
-   test turns it off (`potMakesSound`). **The payoff is the
+   loop has no seam. **Once the break timer is open the machine stays off**
+   (2026-09-30 — Victor: "the coffee pot is already full, I'm just pouring into
+   a new cup"): each further pour plays `Resources/coffee_pour.mp3` instead —
+   hot water into a mug, 5.6 s mono, 44 KB, the steady stream (3.0–9.6 s) of
+   Commons' public-domain "Boiling water being poured into a mug for tea.ogg",
+   its natural fade-out ramped flat (+1.9 dB/s) before the same cross-fade and
+   −18 LUFS. The choice is `CoffeePourSound.potIsFull`, read only when a pour
+   *starts*. The timer is the addons app's, so every ☕ arrival asks it
+   (`BreakTimerProbe`, async `GET <addonsBaseURL>/test/break/state` →
+   `showing`) long before the pot can reach the cup — the pour never waits on
+   it; our own payout sets it at once, and a "not showing" within 3 s of that
+   payout is ignored (the webhook has not landed yet). Addons down = no
+   answer = the last belief stands. `hidePot` silences it, so `stop-all` does
+   too; the render test turns it off (`potMakesSound`). **The payoff is the
    pop**: one `coffee-popped` webhook (below), queued by the burst and sent on
    the next tick — so the timer / −1 always comes *after* the explosion, never
    at the touch.

@@ -84,6 +84,10 @@ class EmojiAnimator {
     /// Off in the same render test, which must not make noise in the room.
     var potMakesSound = true
     private let coffeePourSound = CoffeePourSound()
+    /// When this app last paid a cup out. A pop opens the break timer over
+    /// there, so for a moment after it a "not showing" answer is only the
+    /// webhook still in flight — see `refreshCoffeePotIsFull`.
+    private var _lastCoffeePayout: CFTimeInterval = -.infinity
     private var _potHidCursor = false
     private var _potLastTouch: CFTimeInterval = -.infinity
     private var _potLastTick: CFTimeInterval = 0
@@ -330,6 +334,7 @@ class EmojiAnimator {
             // Every arrival feeds the gauge that ARMS explosions (more than 3 in
             // a second). The flight is the same either way.
             coffeeStorm.record(at: CACurrentMediaTime())
+            refreshCoffeePotIsFull()
             spawnCoffeeCup(glyph: layer, halo: halo)
             return
         }
@@ -623,6 +628,20 @@ class EmojiAnimator {
         return payoffs
     }
 
+    /// Ask the addons app whether the break timer is open, so the pour picks
+    /// its clip (`CoffeePourSound.potIsFull`) — on every ☕ arrival, long before
+    /// the pot can reach it, so the pour itself never waits. A "not showing"
+    /// within a few seconds of our own payout is ignored: that pop's webhook
+    /// has not been handled yet, and the timer is about to open.
+    private func refreshCoffeePotIsFull() {
+        guard potMakesSound else { return }
+        BreakTimerProbe.isShowing { [weak self] showing in
+            guard let self else { return }
+            if !showing, CACurrentMediaTime() - self._lastCoffeePayout < 3 { return }
+            self.coffeePourSound.potIsFull = showing
+        }
+    }
+
     /// The pot caught a cup: strip its flight and pin it where it IS (position,
     /// the growth so far), solid again even if it had started fading near the
     /// top — it hangs there swelling while the pot pours.
@@ -753,6 +772,10 @@ class EmojiAnimator {
 
         pixelDissolve(at: center, side: side, violence: size.violence, grid: size.grid)
         coffeePayoffs.append(center)
+        // This pop opens the break timer (or pulls it closer): from here on the
+        // pot is full, and the next cup is poured, not brewed.
+        _lastCoffeePayout = CACurrentMediaTime()
+        coffeePourSound.potIsFull = true
         if salvo { clearCoffeesAfterBurst() }
     }
 

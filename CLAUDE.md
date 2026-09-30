@@ -74,7 +74,9 @@ this one only routes.
 - **Sounds are not in this repo.** They live in `EffectsConfig.soundsDir`; never
   commit an mp3 beyond the bundled `click.wav`, `phoenix.mp3`, `confetti.mp3`,
   `whip_[A-E].mp3`, `ak47_draw.mp3` (19 KB, the gun's own draw sound — not a tile)
-  and `espresso_pour.mp3` (98 KB, the ☕ pour's loop, public domain — not a tile).
+  `espresso_pour.mp3` (98 KB, the first ☕ pour's loop) and `coffee_pour.mp3`
+  (44 KB, the loop of every pour once the break timer is open) — both public
+  domain, neither a tile.
 - **This repo is public.** No paths under a home directory, no client names, no
   tokens. Anything machine-specific belongs in `EffectsConfig`.
 - The HTTP handlers and the in-process callers share one entry point,
