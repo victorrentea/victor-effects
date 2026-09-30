@@ -74,8 +74,14 @@ enum CoffeeInterior {
         let pad = 1 * scale
         let pxRect = CGRect(x: minX - pad, y: top - pad,
                             width: maxX - minX + 1 + 2 * pad, height: bottom - top + 1 + 2 * pad)
-        guard let crop = image.cropping(to: pxRect),
-              let coffee = ellipse(crop, inset: CGFloat(pad)) else { return nil }
+        // The liquid is only the coffee INSIDE that pad (and a pixel in from
+        // its lighter edge), stretched to the whole padded ellipse: the china
+        // paints that ellipse, so a liquid a point smaller left a white ring
+        // of china round the coffee as the cup came up to full.
+        let inner = CGRect(x: minX, y: top, width: maxX - minX + 1, height: bottom - top + 1)
+            .insetBy(dx: 1, dy: 1)
+        guard let crop = image.cropping(to: inner),
+              let coffee = ellipse(crop) else { return nil }
         let s = CGFloat(scale)
         let rect = CGRect(x: pxRect.minX / s, y: box - pxRect.maxY / s,
                           width: pxRect.width / s, height: pxRect.height / s)
@@ -84,14 +90,14 @@ enum CoffeeInterior {
 
     /// Just the liquid: the crop's corners are the cup's white rim, which a
     /// shrunk surface low in the cup must not carry down with it.
-    private static func ellipse(_ image: CGImage, inset: CGFloat) -> CGImage? {
+    private static func ellipse(_ image: CGImage) -> CGImage? {
         guard let ctx = CGContext(data: nil, width: image.width, height: image.height,
                                   bitsPerComponent: 8, bytesPerRow: image.width * 4,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         else { return nil }
         let full = CGRect(x: 0, y: 0, width: image.width, height: image.height)
-        ctx.addEllipse(in: full.insetBy(dx: inset, dy: inset))
+        ctx.addEllipse(in: full)
         ctx.clip()
         ctx.draw(image, in: full)
         return ctx.makeImage()
