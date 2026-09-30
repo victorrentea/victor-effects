@@ -1832,8 +1832,19 @@ rule from the start.
 - **🔁 Sketch arrow** (sfx #71 `71_one_more_time.mp3` → `sketch-arrow`,
   `SketchArrow.swift`): tile #71's own artwork — a ring open at the top with a
   big open chevron at its head — **drawn live** across the middle of the desktop
-  in cyan, as if somebody were sketching it with a marker, then held for the clip
-  and dissolved.
+  in cyan, as if somebody were sketching it with a marker — **twice, once per sung
+  "One more try"** — then held for the clip and dissolved.
+  **Two takes, on the voice** (2026-09-30, Victor: *"should fire twice, in sync with
+  where the voice says … one more try"*). The pen comes down at `takeStarts` =
+  **0.55 s and 6.95 s** after the press: the onsets of the two "**One** more try"s,
+  read off the clip's RMS envelope (the voice rises out of the intro at 0.5 s and,
+  after a quiet bar at 5.9–6.9 s, jumps back at 7.0 s). Whisper's word times
+  (0.0 / 6.64 s) were earlier than both — it pins a word on the breath before it —
+  so the envelope wins. Each take is its own sublayer of the one tracked container;
+  the first dissolves over 0.5 s and is gone 0.25 s before the second pen lands
+  (`takeFadeOut`, `takeGap`), so the room sees the arrow *re-drawn* rather than
+  drawn over its own ghost. The last take has no fade of its own — the container's
+  closing dissolve is it. Re-cut the clip and `takeStarts` moves.
   **Procedural, not a picture.** The glyph is `CAShapeLayer`s whose `strokeEnd`
   runs 0 → 1; a PNG could be shown but not *drawn*, and would have to be re-cut
   for every display size. The geometry was measured off the tile's jpg (threshold
@@ -1857,8 +1868,8 @@ rule from the start.
   not start or stop a 294° curve at speed), then flicks the two barbs **from the
   apex outwards** (0.32 s each, 0.18 s apart), the second starting 0.12 s before
   the ring lands so the head reads as the same gesture rather than a second
-  drawing. Pen-up is at **`drawDuration` ≈ 2.04 s** — the *last* pass's, not the
-  first's.
+  drawing. Pen-up is at **`drawDuration` ≈ 2.04 s** after each take's pen-down —
+  the *last* pass's, not the first's.
   **Then it boils.** Every stroke cycles between three wobble variants at 8 fps
   (a discrete `path` keyframe animation), the trick hand-drawn animation uses to
   keep an inked line alive; without it a 13 s hold is thirteen seconds of a frozen

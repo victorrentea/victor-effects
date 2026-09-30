@@ -26,6 +26,12 @@ import QuartzCore
 /// stroke cycles between three wobble variants at 8 fps, the trick every
 /// hand-drawn animation uses to keep an inked line alive. Without it a 13 s hold
 /// is thirteen seconds of a frozen decal.
+///
+/// **Drawn twice, once per "One more try".** The clip sings the line twice, and
+/// each time the voice comes in the pen comes down with it (`takeStarts`). The
+/// first take dissolves just before the second one starts, so the room sees the
+/// arrow being *re-drawn* the way the song repeats itself rather than a single
+/// decal waiting out the chorus.
 enum SketchArrow {
 
     // MARK: - Geometry
@@ -110,7 +116,7 @@ enum SketchArrow {
     static let headLead: Double = 0.12
     /// The second barb follows the first, the way a hand lifts and comes back.
     static let barbGap: Double = 0.18
-    /// Pen-down to pen-up — of the **last** pass to finish, not the first. Each
+    /// Pen-down to pen-up **of one take** — of the **last** pass to finish, not the first. Each
     /// pass carries its own delay and speed, so the slow one trailing the others
     /// is what decides when the drawing is over (and therefore when the boil may
     /// start): taking pass 0's timing would set the line squirming while a pen
@@ -118,6 +124,20 @@ enum SketchArrow {
     static let drawDuration: Double = passes.map {
         $0.delay + $0.speed * (ringDraw + barbDraw) - headLead + barbGap
     }.max() ?? (ringDraw + barbDraw)
+
+    /// When the pen comes down, from the press: the onsets of the two sung
+    /// "**One** more try"s in `71_one_more_time.mp3`. Read off the clip's RMS
+    /// envelope (100 ms windows): the voice rises out of the intro at **0.5 s**
+    /// and, after the quiet bar at 5.9–6.9 s, jumps back at **7.0 s**. Whisper's
+    /// word times (0.0 s / 6.64 s) were earlier than both — it pins a word on
+    /// the breath before it — so the envelope is what these follow. Re-cut the
+    /// clip and these move.
+    static let takeStarts: [Double] = [0.55, 6.95]
+    /// A take that another one follows dissolves over this long…
+    static let takeFadeOut: Double = 0.5
+    /// …and is gone this long before the next pen comes down, so the second
+    /// drawing starts on a clean desktop instead of over the first one's ghost.
+    static let takeGap: Double = 0.25
 
     /// `71_one_more_time.mp3` is 13.56 s (`afinfo`). The arrow lives exactly as
     /// long as the clip, fade included — re-cut the clip and this moves.
@@ -218,6 +238,48 @@ enum SketchArrow {
 
         let t0 = CACurrentMediaTime()
 
+        for (i, start) in takeStarts.enumerated() {
+            let take = makeTake(centre: centre, r: r, lineW: lineW, bounds: bounds, scale: scale,
+                                penDown: t0 + start)
+            // Every take but the last clears the desktop for the one after it;
+            // the last one goes with the container's own closing fade below.
+            if i + 1 < takeStarts.count {
+                let out = CABasicAnimation(keyPath: "opacity")
+                out.fromValue = 1
+                out.toValue = 0
+                out.beginTime = t0 + takeStarts[i + 1] - takeGap - takeFadeOut
+                out.duration = takeFadeOut
+                out.fillMode = .forwards
+                out.isRemovedOnCompletion = false
+                take.add(out, forKey: "fade")
+            }
+            container.addSublayer(take)
+        }
+
+        // The whole drawing dissolves inside its own lifetime, so the layer the
+        // caller removes at `totalDuration` is already invisible when it goes.
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = overallOpacity
+        fade.toValue = 0
+        fade.beginTime = t0 + totalDuration - fadeOut
+        fade.duration = fadeOut
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        container.add(fade, forKey: "fade")
+
+        return container
+    }
+
+    /// One complete drawing of the glyph — all three passes, ring and both
+    /// barbs — whose first pen touches the screen at `penDown`. Its strokes stay
+    /// invisible until then (`.backwards` on the draw), so a take hung on the
+    /// container seconds early shows nothing until its line in the song.
+    private static func makeTake(centre: CGPoint, r: CGFloat, lineW: CGFloat, bounds: CGRect,
+                                 scale: CGFloat, penDown: CFTimeInterval) -> CALayer {
+        let take = CALayer()
+        take.frame = bounds
+        take.contentsScale = scale
+
         for pass in passes {
             // Three wobble variants per stroke: variant 0 is what gets drawn,
             // the other two are only ever the boil's other frames.
@@ -233,32 +295,20 @@ enum SketchArrow {
             let outer = variants { barbPoints(to: barbOuter, seed: $0 &+ 7, wobble: pass.wobble) }
             let inner = variants { barbPoints(to: barbInner, seed: $0 &+ 13, wobble: pass.wobble) }
 
-            let ringStart = t0 + pass.delay
+            let ringStart = penDown + pass.delay
             let headStart = ringStart + ringDraw * pass.speed - headLead
 
-            container.addSublayer(stroked(ring, pass: pass, width: lineW * pass.widthRatio, scale: scale,
-                                         begin: ringStart, duration: ringDraw * pass.speed,
-                                         boilAt: t0 + drawDuration))
-            container.addSublayer(stroked(outer, pass: pass, width: lineW * pass.widthRatio * barbWidthRatio, scale: scale,
-                                         begin: headStart, duration: barbDraw * pass.speed,
-                                         boilAt: t0 + drawDuration))
-            container.addSublayer(stroked(inner, pass: pass, width: lineW * pass.widthRatio * barbWidthRatio, scale: scale,
-                                         begin: headStart + barbGap, duration: barbDraw * pass.speed,
-                                         boilAt: t0 + drawDuration))
+            take.addSublayer(stroked(ring, pass: pass, width: lineW * pass.widthRatio, scale: scale,
+                                    begin: ringStart, duration: ringDraw * pass.speed,
+                                    boilAt: penDown + drawDuration))
+            take.addSublayer(stroked(outer, pass: pass, width: lineW * pass.widthRatio * barbWidthRatio, scale: scale,
+                                    begin: headStart, duration: barbDraw * pass.speed,
+                                    boilAt: penDown + drawDuration))
+            take.addSublayer(stroked(inner, pass: pass, width: lineW * pass.widthRatio * barbWidthRatio, scale: scale,
+                                    begin: headStart + barbGap, duration: barbDraw * pass.speed,
+                                    boilAt: penDown + drawDuration))
         }
-
-        // The whole drawing dissolves inside its own lifetime, so the layer the
-        // caller removes at `totalDuration` is already invisible when it goes.
-        let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = overallOpacity
-        fade.toValue = 0
-        fade.beginTime = t0 + totalDuration - fadeOut
-        fade.duration = fadeOut
-        fade.fillMode = .forwards
-        fade.isRemovedOnCompletion = false
-        container.add(fade, forKey: "fade")
-
-        return container
+        return take
     }
 
     /// How far **down** from the frame's middle the drawing is placed, in points.

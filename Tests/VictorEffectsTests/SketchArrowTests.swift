@@ -169,7 +169,7 @@ final class SketchArrowTests: XCTestCase {
         XCTAssertEqual(layer.opacity, SketchArrow.overallOpacity)
         XCTAssertEqual(SketchArrow.overallOpacity, 0.5)
 
-        let shapes = (layer.sublayers ?? []).compactMap { $0 as? CAShapeLayer }
+        let shapes = strokes(layer)
         for pass in SketchArrow.passes {
             XCTAssertTrue(shapes.contains { $0.opacity == pass.alpha })
         }
@@ -179,13 +179,13 @@ final class SketchArrowTests: XCTestCase {
         XCTAssertEqual(fade.toValue as? Float ?? Float(fade.toValue as? Double ?? -1), 0)
     }
 
-    /// Nine strokes: three passes over the ring and both barbs. Every one of
+    /// Nine strokes per take: three passes over the ring and both barbs. Every one of
     /// them unfilled — a `CAShapeLayer` fills with BLACK unless told not to, and
     /// a filled ring is an opaque disc over the desktop.
     func testEveryPassIsAnUnfilledStrokeWithItsOwnPen() throws {
         let layer = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
-        let shapes = (layer.sublayers ?? []).compactMap { $0 as? CAShapeLayer }
-        XCTAssertEqual(shapes.count, SketchArrow.passes.count * 3)
+        let shapes = strokes(layer)
+        XCTAssertEqual(shapes.count, SketchArrow.takeStarts.count * SketchArrow.passes.count * 3)
         for shape in shapes {
             XCTAssertNil(shape.fillColor)
             XCTAssertNotNil(shape.strokeColor)
@@ -198,20 +198,48 @@ final class SketchArrowTests: XCTestCase {
         }
     }
 
-    /// Every stroke is drawn before the hold begins, and the boil never starts
-    /// while a pen is still moving.
+    /// In every take, every stroke is drawn before the hold begins, and the boil
+    /// never starts while a pen is still moving.
     func testAllPensAreDownAndUpInsideTheDrawWindow() throws {
         let layer = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
-        let shapes = (layer.sublayers ?? []).compactMap { $0 as? CAShapeLayer }
-        let t0 = shapes.compactMap { $0.animation(forKey: "draw")?.beginTime }.min() ?? 0
-        for shape in shapes {
-            let draw = try XCTUnwrap(shape.animation(forKey: "draw"))
-            let boil = try XCTUnwrap(shape.animation(forKey: "boil"))
-            XCTAssertLessThanOrEqual(draw.beginTime + draw.duration - t0,
-                                     SketchArrow.drawDuration + 0.001)
-            XCTAssertGreaterThanOrEqual(boil.beginTime - t0,
-                                        draw.beginTime + draw.duration - t0 - 0.001)
+        for take in takes(layer) {
+            let shapes = strokes(take)
+            let t0 = shapes.compactMap { $0.animation(forKey: "draw")?.beginTime }.min() ?? 0
+            for shape in shapes {
+                let draw = try XCTUnwrap(shape.animation(forKey: "draw"))
+                let boil = try XCTUnwrap(shape.animation(forKey: "boil"))
+                XCTAssertLessThanOrEqual(draw.beginTime + draw.duration - t0,
+                                         SketchArrow.drawDuration + 0.001)
+                XCTAssertGreaterThanOrEqual(boil.beginTime - t0,
+                                            draw.beginTime + draw.duration - t0 - 0.001)
+            }
         }
+    }
+
+    /// Drawn twice, once per sung "One more try": each take's first pen lands on
+    /// its onset in the clip, and the first take is gone — faded out completely —
+    /// before the second one's pen comes down.
+    func testTheArrowIsDrawnOncePerOneMoreTry() throws {
+        let layer = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
+        let all = takes(layer)
+        XCTAssertEqual(all.count, 2)
+        XCTAssertEqual(SketchArrow.takeStarts, [0.55, 6.95])
+
+        let penDowns = all.map { take in
+            strokes(take).compactMap { $0.animation(forKey: "draw")?.beginTime }.min() ?? 0
+        }
+        let t0 = penDowns[0] - SketchArrow.takeStarts[0]
+        for (penDown, start) in zip(penDowns, SketchArrow.takeStarts) {
+            XCTAssertEqual(penDown - t0, start, accuracy: 0.001)
+        }
+
+        let firstOut = try XCTUnwrap(all[0].animation(forKey: "fade") as? CABasicAnimation)
+        XCTAssertEqual(firstOut.toValue as? Float ?? Float(firstOut.toValue as? Double ?? -1), 0)
+        XCTAssertFalse(firstOut.isRemovedOnCompletion)
+        XCTAssertGreaterThan(firstOut.beginTime - t0, SketchArrow.takeStarts[0] + SketchArrow.drawDuration)
+        XCTAssertLessThan(firstOut.beginTime + firstOut.duration, penDowns[1])
+        // The last take has no fade of its own: the container's closing fade is it.
+        XCTAssertNil(all[1].animation(forKey: "fade"))
     }
 
     /// The fade lands exactly on the deadline the caller tracks the layer for,
@@ -219,12 +247,13 @@ final class SketchArrowTests: XCTestCase {
     func testTheFadeEndsOnTheTrackedDeadline() throws {
         let layer = try XCTUnwrap(SketchArrow.makeLayer(in: screen, scale: 2))
         let fade = try XCTUnwrap(layer.animation(forKey: "fade"))
-        let shapes = (layer.sublayers ?? []).compactMap { $0 as? CAShapeLayer }
-        let t0 = shapes.compactMap { $0.animation(forKey: "draw")?.beginTime }.min() ?? 0
+        let shapes = strokes(layer)
+        let t0 = (shapes.compactMap { $0.animation(forKey: "draw")?.beginTime }.min() ?? 0)
+            - SketchArrow.takeStarts[0]
 
         XCTAssertEqual(fade.duration, SketchArrow.fadeOut, accuracy: 0.001)
         XCTAssertEqual(fade.beginTime + fade.duration - t0, SketchArrow.totalDuration, accuracy: 0.001)
-        XCTAssertGreaterThan(fade.beginTime - t0, SketchArrow.drawDuration)
+        XCTAssertGreaterThan(fade.beginTime - t0, SketchArrow.takeStarts.last! + SketchArrow.drawDuration)
     }
 
     /// A screen with no area builds nothing rather than a degenerate path.
@@ -246,11 +275,24 @@ final class SketchArrowTests: XCTestCase {
 
     // MARK: - Helper
 
+    /// The drawings hung on the container, one per "One more try".
+    private func takes(_ layer: CALayer) -> [CALayer] {
+        (layer.sublayers ?? []).filter { !($0 is CAShapeLayer) }
+    }
+
+    /// Every stroke under `layer`, whichever take it belongs to.
+    private func strokes(_ layer: CALayer) -> [CAShapeLayer] {
+        (layer.sublayers ?? []).flatMap { sub -> [CAShapeLayer] in
+            if let shape = sub as? CAShapeLayer { return [shape] }
+            return strokes(sub)
+        }
+    }
+
     /// The union of every stroke's path box, inflated by half its own line
     /// width — i.e. the ink actually on the screen.
     private func drawnBox(_ layer: CALayer) -> CGRect {
         var box = CGRect.null
-        for shape in (layer.sublayers ?? []).compactMap({ $0 as? CAShapeLayer }) {
+        for shape in strokes(layer) {
             guard let path = shape.path else { continue }
             box = box.union(path.boundingBox.insetBy(dx: -shape.lineWidth / 2,
                                                      dy: -shape.lineWidth / 2))
