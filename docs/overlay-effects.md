@@ -225,8 +225,9 @@ sound loops until explicitly stopped). When adding a new effect, follow this
 rule from the start.
 - **🐺 Wolf howl** (tile #4 `04_wolf.mp3` → `wolf-howl`, `showWolfHowl`,
   2026-09-30): a wolf on a rock howls at a full moon, `wolf-howl.gif` (500×500,
-  transparent, 151 frames ≈ 25 fps, **6.06 s = the clip**), a square 40% of the
-  screen's height **flush to the bottom-left corner**, played **once** with the
+  transparent, 151 frames ≈ 25 fps, **6.06 s = the clip**), a square 48% of the
+  screen's height (40% × 1.2, 2026-09-30) **on the bottom edge, 4% of the
+  width in from the left**, played **once** with the
   GIF's own per-frame delays and held on its last frame under a 0.4 s fade (the
   howl is over by ~5.6 s). The asset is a 13-frame, 2.6 s looping GIF cut down to
   the **rising half** of its loop — source frames 10 → 12 → 0 → 8, head low to

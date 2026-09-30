@@ -2709,12 +2709,13 @@ class EmojiAnimator {
         let total = delays.reduce(0, +)
         guard let first = images.first, total > 0 else { return }
 
-        // A square 40% of the screen's HEIGHT, flush to the bottom-left corner:
-        // the rock is the bottom of the canvas, so the wolf stands on the
-        // screen's edge. hostLayer is AppKit y-up, so the bottom edge is y = 0.
-        let side = hostLayer.bounds.height * 0.40
+        // A square 48% of the screen's HEIGHT (40% × 1.2), on the bottom edge and
+        // nudged 4% of the width in from the left: the rock is the bottom of the
+        // canvas, so the wolf stands on the screen's edge. hostLayer is AppKit
+        // y-up, so the bottom edge is y = 0.
+        let side = hostLayer.bounds.height * 0.48
         let gifLayer = CALayer()
-        gifLayer.frame = CGRect(x: 0, y: 0, width: side, height: side)
+        gifLayer.frame = CGRect(x: hostLayer.bounds.width * 0.04, y: 0, width: side, height: side)
         gifLayer.contentsGravity = .resizeAspect
         gifLayer.contents = first
         hostLayer.addSublayer(gifLayer)
