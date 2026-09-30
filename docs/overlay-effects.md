@@ -797,12 +797,23 @@ rule from the start.
   - **Holding the left button fires**: 10 rounds/s (an AK's ~600 rpm), each one a bullet
     hole near the crosshair, a drawn muzzle flash (jagged star, re-rolled rotation and size
     every shot, 60 ms) and a recoil kick (back-down 10 × 14 pt, 90 ms). The noise is the
-    tablet clip on the animator's **own `AVAudioPlayer`**, started on the press with no
-    Bluetooth delay and looped over its uninterrupted first 2.35 s (`minigunFireLoopEnd` —
-    the clip has a lull at ~2.4 s and a spin-down tail), faded out in 60 ms on release.
-  - **Precision: half the area.** Rounds land within `minigunSpreadRadius` = 140 / √2 ≈
-    **99 pt** of the crosshair (area goes with r², so half the area is √2 on the radius),
-    density peaking at the centre (r ∝ u). Holes sit below the gun, capped at 250.
+    tablet clip on the gun's **own `AVAudioEngine`** (`AK47FireSound`), wired when the gun
+    comes up and played on the press with no Bluetooth delay, looping its uninterrupted first
+    2.35 s (`fireLoopEnd` — the clip has a lull at ~2.4 s and a spin-down tail).
+  - **Release: the noise stops dead, the echo rings on** (2026-09-30, Victor: *"dacă trag un
+    singur foc, să rămână cumva cu ecou. Să se întrerupă brusc sunetul glonțului"*). The
+    player node feeds two paths: dry to the speaker, and a send through a delay (0.22 s,
+    40 % feedback, 3.5 kHz low-pass) and a large-hall reverb at half level. The release
+    **stops the node** — no fade — so the dry noise ends abruptly while the send keeps
+    ringing for a second or two. The 60 ms fade it replaced turned a single click into a pop
+    with no body. The cut waits for the **round in flight** (`minigunNoiseCutDelay`: until
+    the next round was due, and never under one full round after the press), so a single
+    click is always one whole shot.
+  - **Precision.** Rounds land within `minigunSpreadRadius` = 140 / √2 × 0.8 ≈ **79 pt** of
+    the crosshair: first half the area (2026-09-23 — area goes with r², so √2 on the
+    radius), then 20 % more precise (2026-09-30, taken on the radius). Density peaks at the
+    centre (r ∝ u). Holes are drawn at **0.49** of the art (`minigunBulletHoleScale`: 0.7,
+    then 30 % smaller on 2026-09-30), sit below the gun, capped at 250.
   - **The clicks are taken**, by an effect-owned `CGEventTap` on the main run loop (same
     shape as the bomb's): left down/drag/up and Esc. `minigunMouseDecision` is the rule —
     only a press that *started* while the gun was up is swallowed, down to its release — its
@@ -815,7 +826,7 @@ rule from the start.
     also ends the session `minigunIdleLifetime` (**10 s**) after the last activity (the gun
     coming up, or the trigger's release), with a **90 s** hard cap and a scheduled backstop
     past it. A re-press puts it away, as does stop-all (`stopMinigunSession`, which drops
-    the tick, the crosshair, the hidden cursor, the tap and the noise — everything outside
+    the tick, the crosshair, the hidden cursor, the tap and the noise engine, echo included — everything outside
     the container). The natural end lowers the gun and resorbs the holes over 0.6 s.
   - **The tablet's `/sound/play/22_minigun.mp3` plays nothing** (`EffectsEngine.playSound`
     answers `minigunIdleLifetime` as `durationMs`): the noise belongs to the trigger. The

@@ -289,12 +289,25 @@ final class EmojiAnimatorTests: XCTestCase {
     }
 
     /// Victor, 2026-09-23: half the area the rounds used to cover. Area goes
-    /// with r², so the radius shrinks by √2 (140 → ~99), not by half.
-    func testMinigunSpreadCoversHalfTheOldArea() {
-        let oldArea = CGFloat.pi * 140 * 140
-        let newArea = CGFloat.pi * pow(EmojiAnimator.minigunSpreadRadius, 2)
-        XCTAssertEqual(newArea / oldArea, 0.5, accuracy: 0.001)
-        XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.7, accuracy: 0.001)
+    /// with r², so the radius shrinks by √2 (140 → ~99), not by half. Then
+    /// 2026-09-30: 20 % more precise (radius × 0.8) and holes 30 % smaller.
+    func testMinigunSpreadAndHoleSize() {
+        XCTAssertEqual(EmojiAnimator.minigunSpreadRadius, 140 / 2.squareRoot() * 0.8, accuracy: 0.001)
+        XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.49, accuracy: 0.001)
+    }
+
+    /// A single click still sounds a whole round, and a held burst stops at
+    /// the end of the round in flight, never mid-round.
+    func testMinigunNoiseIsCutAtTheEndOfTheRoundInFlight() {
+        // Clicked and let go before the tick fired anything: one full round.
+        XCTAssertEqual(EmojiAnimator.minigunNoiseCutDelay(now: 10.01, nextShot: 10, pulledAt: 10),
+                       0.09, accuracy: 0.0001)
+        // One round out at 10.0, released at 10.05: cut when the next was due.
+        XCTAssertEqual(EmojiAnimator.minigunNoiseCutDelay(now: 10.05, nextShot: 10.1, pulledAt: 10),
+                       0.05, accuracy: 0.0001)
+        // Long burst: same rule, relative to the round in flight.
+        XCTAssertEqual(EmojiAnimator.minigunNoiseCutDelay(now: 12.33, nextShot: 12.4, pulledAt: 10),
+                       0.07, accuracy: 0.0001)
     }
 
     /// The gun fires only while the button is held, and the clicks are taken

@@ -225,7 +225,9 @@ class EmojiAnimator {
     private var _minigunLastMouseX: CGFloat = 0
     private var _minigunBobPhase: CGFloat = 0
     private var _minigunBobEnergy: CGFloat = 0
-    private var _minigunPlayer: AVAudioPlayer?
+    private var _minigunFireSound: AK47FireSound?
+    private var _minigunPendingCut: DispatchWorkItem?
+    private var _minigunPulledAt: CFTimeInterval = 0
     private var _minigunDrawPlayer: AVAudioPlayer?
 
     // 🪚 Chainsaw cursor: for the length of tile #18 the pointer IS a running
@@ -3861,18 +3863,22 @@ class EmojiAnimator {
     /// How much bigger the minigun aiming reticle is than the 1.5× nuke reticle —
     /// the bullet-spray crosshair reads as a heftier "machine-gun sight".
     private static let minigunReticleScale: CGFloat = 2.5
-    static let minigunBulletHoleScale: CGFloat = 0.7
+    /// 0.49 = 0.7 × 0.7: born at 0.7 of the art, then 30 % smaller again on
+    /// 2026-09-30 (Victor: *"gloanțele … cu 30% mai mici"*).
+    static let minigunBulletHoleScale: CGFloat = 0.7 * 0.7
 
     // MARK: The trigger (2026-09-23: the gun only fires while the button is held)
 
     /// Cyclic rate while the trigger is held: an AK-47's ~600 rounds/min, i.e.
     /// one hole, one flash and one recoil kick every 0.1 s.
     static let minigunShotsPerSecond: Double = 10
-    /// How far from the reticle a round may land. **99 pt, down from 140**:
-    /// Victor asked for half the covered *area*, and area goes with r², so the
-    /// radius shrinks by √2, not by 2. Density still peaks at the centre
+    /// How far from the reticle a round may land. **79 pt, down from 140**:
+    /// first Victor asked for half the covered *area* (2026-09-23), and area
+    /// goes with r², so the radius shrank by √2 (≈ 99 pt); then for 20 % more
+    /// precise (2026-09-30), taken on the radius — the distance a round
+    /// strays from where it was aimed. Density still peaks at the centre
     /// (r ∝ u, not √u).
-    static let minigunSpreadRadius: CGFloat = 140 / 2.squareRoot()
+    static let minigunSpreadRadius: CGFloat = 140 / 2.squareRoot() * 0.8
     /// The gun is put away this long after the last activity — its appearance,
     /// or the trigger's last release. The self-termination rule: an effect
     /// that only ends on a re-press or a stop-all would stay up (and keep
@@ -3880,10 +3886,15 @@ class EmojiAnimator {
     static let minigunIdleLifetime: Double = 10
     /// Hard cap on one session, held trigger or not.
     static let minigunMaxLifetime: Double = 90
-    /// The stretch of `22_minigun.mp3` that is pure, uninterrupted fire: the
-    /// clip has a lull at ~2.4 s and a spin-down tail after ~5 s, so a held
-    /// trigger loops this window instead of the whole file.
-    private static let minigunFireLoopEnd: TimeInterval = 2.35
+
+    /// How long after the release the dry fire noise is cut: never in the
+    /// middle of a round. The round in flight finishes (up to when the next
+    /// one would have gone out), and a click too short to have fired even one
+    /// still sounds a whole round — a single shot is a shot, not a blip.
+    static func minigunNoiseCutDelay(now: CFTimeInterval, nextShot: CFTimeInterval,
+                                     pulledAt: CFTimeInterval) -> TimeInterval {
+        max(0, max(nextShot, pulledAt + 1 / minigunShotsPerSecond) - now)
+    }
 
     /// What a left-button event means while the gun is up. Pure, so the one
     /// rule that matters — **never hand the app underneath half a click** — is
@@ -4063,6 +4074,10 @@ class EmojiAnimator {
             parts.gun.add(raise, forKey: "raise")
         }
         playMinigunDrawSound()
+        // Wired now, played on the trigger: a pull must not wait for an engine.
+        if let url = SoundManager.shared.soundURL(for: "22_minigun.mp3") {
+            _minigunFireSound = AK47FireSound(url: url)
+        }
 
         let now = CACurrentMediaTime()
         _minigunArmedAt = now
@@ -4133,10 +4148,6 @@ class EmojiAnimator {
         CATransaction.commit()
 
         if _minigunFiring {
-            // Keep the noise on the uninterrupted stretch of the clip.
-            if let player = _minigunPlayer, player.currentTime > Self.minigunFireLoopEnd {
-                player.currentTime = 0
-            }
             while _minigunFiring && now >= _minigunNextShot {
                 fireMinigunRound(at: mouse)
                 _minigunNextShot += 1 / Self.minigunShotsPerSecond
@@ -4169,33 +4180,38 @@ class EmojiAnimator {
         // The fire noise takes over: a "lock and load" still talking under
         // the first burst would be two soundtracks at once.
         stopMinigunDrawSound()
-        _minigunNextShot = CACurrentMediaTime()   // the first round goes out now
-        // Its own player, started on the spot: the noise has to begin with the
+        _minigunPulledAt = CACurrentMediaTime()
+        _minigunNextShot = _minigunPulledAt       // the first round goes out now
+        // Its own engine, already running: the noise has to begin with the
         // finger, so no Bluetooth start delay (the keep-alive holds the speaker
         // awake) and no shared-pool "already playing, skip".
-        if let url = SoundManager.shared.soundURL(for: "22_minigun.mp3"),
-           let player = try? AVAudioPlayer(contentsOf: url) {
-            player.volume = 1
-            player.play()
-            _minigunPlayer = player
-        }
+        _minigunPendingCut?.cancel(); _minigunPendingCut = nil
+        _minigunFireSound?.fire()
         overlayInfo("🔫 trigger pulled")
     }
 
     private func releaseMinigunTrigger() {
         guard _minigunFiring else { return }
         _minigunFiring = false
-        _minigunLastActivity = CACurrentMediaTime()
-        stopMinigunNoise()
+        let now = CACurrentMediaTime()
+        _minigunLastActivity = now
+        // Cut dead, not faded — the echo send is what rings on after it.
+        let cut = DispatchWorkItem { [weak self] in
+            self?._minigunPendingCut = nil
+            self?._minigunFireSound?.cut()
+        }
+        _minigunPendingCut = cut
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.minigunNoiseCutDelay(now: now, nextShot: _minigunNextShot,
+                                                         pulledAt: _minigunPulledAt),
+            execute: cut)
         overlayInfo("🔫 trigger released")
     }
 
     private func stopMinigunNoise() {
-        guard let player = _minigunPlayer else { return }
-        _minigunPlayer = nil
-        // A short tail, not a cut: a hard stop mid-waveform clicks.
-        player.setVolume(0, fadeDuration: 0.06)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { player.stop() }
+        _minigunPendingCut?.cancel(); _minigunPendingCut = nil
+        _minigunFireSound?.stop()
+        _minigunFireSound = nil
     }
 
     /// One round: a hole near the crosshair, a flash at the muzzle, a kick.
