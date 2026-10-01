@@ -16,8 +16,8 @@ import CoreGraphics
 ///
 /// Same bargain as `HeartbeatDogFollow` and `CropFlashGeometry`: every decision
 /// here is a function of the overlay bounds, so it lives out where it can be
-/// tested without a screen. `HeartbeatDogFollow` reads `radius(in:)` to know
-/// what the dog has to stand clear of, so the two sizes cannot drift apart.
+/// tested without a screen. The companions read `companionRadius(in:)` — the
+/// lens size they were tuned against — so the lens can grow under them.
 enum HeartbeatBump {
 
     /// How wide the lens reads, as a fraction of the screen **height** — its
@@ -38,7 +38,21 @@ enum HeartbeatBump {
     /// reads the same on the retina, on the projector and on the wide external.
     /// On the built-in (1728 × 1117 pt) it is a 558 pt disc — r ≈ 279, which
     /// lands back near the original tenth of the area, ~12.7 %.
-    static let diameterFraction: CGFloat = 0.6
+    ///
+    /// On 2026-10-01 he asked for **double the radius**, so 0.6 → 1.2: the disc is
+    /// now taller than the screen it beats on, which is fine — the filter is
+    /// identity outside it and the edge is a soft ramp, not a rim. The 🐶/🐱 did
+    /// NOT move with it ("câinele tot acolo ca poziție"): they stand off
+    /// `companionRadius(in:)`, which keeps the old 0.6, and simply ride on top of
+    /// the bigger bulge — their stage is above `imgLayer` and the recapture
+    /// excludes the overlay, so the beat happens under them.
+    static let diameterFraction: CGFloat = 1.2
+
+    /// The lens size the companions were placed against before the 2026-10-01
+    /// doubling, frozen so the dog and the cat keep standing exactly where Victor
+    /// already liked them. Distinct from `diameterFraction` on purpose: the lens
+    /// grew, the company did not move.
+    static let companionDiameterFraction: CGFloat = 0.6
 
     /// Peak `inputScale` of the bump, i.e. how convex the lens gets at the top
     /// of a lub or a dub. 0.5 roughly doubles the middle of the disc — the same
@@ -50,7 +64,11 @@ enum HeartbeatBump {
     /// size bulges by the same factor over twice the distance — bigger, not
     /// punchier. It survived the shrink back to `diameterFraction` on the same
     /// grounds. Leave it where it is when resizing the lens.
-    static let peakScale: CGFloat = 0.5
+    ///
+    /// The one time the amplitude WAS asked for: 2026-10-01, "mărirea cu 30 % mai
+    /// mare", together with the doubled radius. 0.5 × 1.3 = 0.65, still short of
+    /// the ~0.7 smear.
+    static let peakScale: CGFloat = 0.65
 
     /// The residual whole-screen breathe, kept deliberately tiny (the old value
     /// was 1.30). It is what stops the screen from looking frozen between the
@@ -67,6 +85,13 @@ enum HeartbeatBump {
     static func radius(in bounds: CGRect) -> CGFloat {
         guard bounds.width > 0, bounds.height > 0 else { return 0 }
         return bounds.height * diameterFraction / 2
+    }
+
+    /// What the 🐶 and the 🐱 stand clear of — the pre-doubling lens radius, so
+    /// growing the lens never walks them across the screen.
+    static func companionRadius(in bounds: CGRect) -> CGFloat {
+        guard bounds.width > 0, bounds.height > 0 else { return 0 }
+        return bounds.height * companionDiameterFraction / 2
     }
 
     /// The lens centre in layer points, from the unit-square cursor anchor that

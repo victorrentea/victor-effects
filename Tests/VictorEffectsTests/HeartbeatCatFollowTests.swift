@@ -53,10 +53,10 @@ final class HeartbeatCatFollowTests: XCTestCase {
     /// the only way to keep it true is to read the dog's own constants.
     func testTheClearanceIsTheDogsOwnCircle() {
         XCTAssertEqual(gap,
-                       (HeartbeatBump.radius(in: bounds) + HeartbeatDogFollow.clearMargin)
+                       (HeartbeatBump.companionRadius(in: bounds) + HeartbeatDogFollow.clearMargin)
                            * HeartbeatDogFollow.closeness,
                        accuracy: 0.001)
-        XCTAssertLessThan(gap, HeartbeatBump.radius(in: bounds),
+        XCTAssertLessThan(gap, HeartbeatBump.companionRadius(in: bounds),
                           "leaning into the ring, not standing aside from it")
     }
 

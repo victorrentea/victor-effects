@@ -108,7 +108,7 @@ enum HeartbeatCatFollow {
     /// the overlap costs nothing because the outer ring of a `CIBumpDistortion`
     /// barely moves a pixel.
     static func nearGap(in bounds: CGRect) -> CGFloat {
-        (HeartbeatBump.radius(in: bounds) + HeartbeatDogFollow.clearMargin)
+        (HeartbeatBump.companionRadius(in: bounds) + HeartbeatDogFollow.clearMargin)
             * HeartbeatDogFollow.closeness
     }
 

@@ -1276,12 +1276,17 @@ rule from the start.
   to 40% / ~496 pt; on 2026-09-06 he pinned it outright as **half the screen height**;
   on 2026-09-09 he asked for **20% larger — again the size, not the amplitude**, so the
   diameter went 0.5 → 0.6 of the height (the area, which nobody was asked about, grows
-  44%). The height anchor is strictly better and is why the area formula is gone: a share of
+  44%); on **2026-10-01** he asked for **double the radius and 30% more magnification**, so
+  `diameterFraction` 0.6 → **1.2** (r ≈ 670 pt on the Retina — the disc is now taller than
+  the screen) and `peakScale` 0.5 → **0.65**, the first time the amplitude itself moved. The
+  🐶/🐱 were pinned in place by the same request ("câinele tot acolo ca poziție"): they now
+  stand off `companionRadius(in:)`, which keeps the old 0.6, and the bigger bulge simply
+  beats *under* them (their stage sits above `imgLayer` and the recapture excludes the
+  overlay). The height anchor is strictly better and is why the area formula is gone: a share of
   the *area* is a share of W·H, so the same lens grew and shrank with the aspect ratio
   of whatever display it landed on, where a share of the height reads identically on the
-  retina, the projector and the wide external. `HeartbeatDogFollow` reads `radius(in:)` for what the dog must
-  stand clear of, so the two sizes cannot drift apart. `inputScale`
-  is unchanged at 0 → 0.5 → 0 across all three resizings — it is relative to the radius,
+  retina, the projector and the wide external. `inputScale`
+  stayed at 0 → 0.5 → 0 across the first three resizings — it is relative to the radius,
   so a lens of another size bulges by the same factor over that distance, bigger or
   smaller but never punchier — driven by a keyframe animation on the
   `filters.bump.inputScale` key path — which is why the filter is installed with a

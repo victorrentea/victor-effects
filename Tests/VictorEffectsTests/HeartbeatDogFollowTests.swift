@@ -10,7 +10,7 @@ private let bounds = CGRect(x: 0, y: 0, width: W, height: H)
 private let box = CGSize(width: 462, height: 524)
 
 /// The lens the dog has to stay out of, for this overlay: ~435 pt.
-private let lens = HeartbeatBump.radius(in: bounds)
+private let lens = HeartbeatBump.companionRadius(in: bounds)
 
 /// The lens on a screen small enough that the dog cannot simply step aside —
 /// it is the old, area-derived radius, kept as a stress case for the fallbacks

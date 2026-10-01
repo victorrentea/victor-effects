@@ -6773,7 +6773,7 @@ class EmojiAnimator {
                                    until deadline: CFTimeInterval) {
         var onRight = false
         var placed = false
-        let lens = HeartbeatBump.radius(in: bounds)
+        let lens = HeartbeatBump.companionRadius(in: bounds)
 
         let timer = DispatchSource.makeTimerSource(queue: .main)
 
