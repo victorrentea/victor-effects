@@ -37,6 +37,37 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertLessThan(frame.maxY, bounds.height)
     }
 
+    // MARK: - 🐼 Panda in the room (⌃⌥I)
+
+    func testPandaIsTheElephantMirroredIntoTheRightHalf() {
+        let bounds = CGRect(x: 0, y: 0, width: 1920, height: 1200)
+        let aspect: CGFloat = 1.2
+        let panda = EmojiAnimator.pandaFrame(in: bounds, aspect: aspect)
+        let elephant = EmojiAnimator.elephantFrame(in: bounds, aspect: aspect)
+
+        // Never crosses the middle, so the two animals can share the screen.
+        XCTAssertGreaterThanOrEqual(panda.minX, bounds.midX)
+        XCTAssertEqual(bounds.maxX - panda.maxX, elephant.minX, accuracy: 0.01)
+        XCTAssertEqual(panda.minY, elephant.minY, accuracy: 0.01)
+        XCTAssertEqual(panda.size, elephant.size)
+    }
+
+    func testPandaShipsCutOutWithAnAlphaChannel() throws {
+        // Read straight from the app's own Resources rather than a 1 MB copy in
+        // the test bundle: the file under test is the one that ships.
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/VictorEffects/Resources/panda.png")
+        let source = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+
+        XCTAssertNotEqual(image.alphaInfo, .none)
+        XCTAssertNotEqual(image.alphaInfo, .noneSkipFirst)
+        XCTAssertNotEqual(image.alphaInfo, .noneSkipLast)
+        XCTAssertGreaterThan(image.width, 500)
+        XCTAssertGreaterThan(image.height, 500)
+    }
+
     /// The point of the picture is that it has no background of its own — a
     /// white rectangle on the desktop reads as "an image opened", not as an
     /// elephant standing in the room. Guards a future re-export from losing it.

@@ -11448,6 +11448,80 @@ class EmojiAnimator {
         CATransaction.commit()
     }
 
+    // MARK: - 🐼 The panda in the room (⌃⌥I)
+
+    /// The elephant's twin from the other side of the world: same lifetime,
+    /// same size rule, mirrored into the RIGHT half and walking in from the
+    /// right edge. Two animals summoned from opposite edges can share the
+    /// screen without one standing on the other.
+    static let pandaLifetime: Double = elephantLifetime
+
+    /// `elephantFrame` mirrored across the vertical midline, so the panda
+    /// stands on the bottom edge of the right half, one margin off the bezel.
+    static func pandaFrame(in bounds: CGRect, aspect: CGFloat) -> CGRect {
+        let left = elephantFrame(in: bounds, aspect: aspect)
+        return CGRect(x: bounds.maxX - left.maxX + bounds.minX, y: left.minY,
+                      width: left.width, height: left.height)
+    }
+
+    /// 🐼 A panda with a suit collar and a dark red tie walks in from the right
+    /// edge and stands in the right half of the screen — the companion prop to
+    /// ⌘⌃O's elephant. Same lifecycle: the key again walks it back out, and it
+    /// leaves on its own after `pandaLifetime`, because the overlay is
+    /// click-through and nothing on it can be dismissed by clicking.
+    func showPanda() {
+        if activeEffects["panda"] != nil { stopPanda(); return }
+
+        guard let url = Bundle.module.url(forResource: "panda", withExtension: "png"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            overlayError("panda.png is not in the bundle")
+            return
+        }
+
+        let bounds = hostLayer.bounds
+        let frame = Self.pandaFrame(in: bounds, aspect: CGFloat(image.width) / CGFloat(image.height))
+
+        let layer = CALayer()
+        layer.frame = frame
+        layer.contents = image
+        layer.contentsGravity = .resizeAspect
+        layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        hostLayer.addSublayer(layer)
+        activeEffects["panda"] = layer
+
+        // Enters from the right: starts fully past the right bezel.
+        let walkIn = CABasicAnimation(keyPath: "position.x")
+        walkIn.fromValue = layer.position.x + (bounds.maxX - frame.minX)
+        walkIn.toValue = layer.position.x
+        walkIn.duration = 0.55
+        walkIn.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        layer.add(walkIn, forKey: "walk-in")
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.pandaLifetime) { [weak self, weak layer] in
+            guard let self, let layer, self.activeEffects["panda"] === layer else { return }
+            self.stopPanda()
+        }
+    }
+
+    /// Walks it back out to the right. Safe when nothing is showing.
+    func stopPanda() {
+        guard let layer = activeEffects["panda"] else { return }
+        activeEffects.removeValue(forKey: "panda")
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { layer.removeFromSuperlayer() }
+        let walkOut = CABasicAnimation(keyPath: "position.x")
+        walkOut.fromValue = layer.position.x
+        walkOut.toValue = layer.position.x + (hostLayer.bounds.maxX - layer.frame.minX)
+        walkOut.duration = 0.4
+        walkOut.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        walkOut.fillMode = .forwards
+        walkOut.isRemovedOnCompletion = false
+        layer.add(walkOut, forKey: "walk-out")
+        CATransaction.commit()
+    }
+
     // MARK: - 🤖 Claude leans in from the left (⌘⌃Q)
 
     /// One key, two agents: the wave is not an ad for a vendor, it is "the

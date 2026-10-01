@@ -51,6 +51,13 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/effect/elephant"), .effect("elephant"))
     }
 
+    func testRoutePandaTestAndEffectEndpoints() {
+        // 🐼 is the elephant's mirror and a toggle too, so it has a /stop twin.
+        XCTAssertEqual(route("/test/panda"), .effect("panda"))
+        XCTAssertEqual(route("/test/panda/stop"), .effect("panda/stop"))
+        XCTAssertEqual(route("/effect/panda"), .effect("panda"))
+    }
+
     func testWhipRoutesKeepTheirHistoricTestNames() {
         // /test/whip and /test/whip/crack predate this app; the other app
         // proxies those exact paths through, so they must not be renamed to
