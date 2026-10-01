@@ -837,6 +837,12 @@ rule from the start.
     well outside it. Density peaks at the centre (r ∝ u). Holes are drawn at **0.49** of the
     art (`minigunBulletHoleScale`: 0.7, then 30 % smaller on 2026-09-30), sit below the gun,
     capped at 250.
+  - **Every hole asks a question** (2026-10-01, Victor: the room *shoots questions* at the
+    speaker). `minigunQuestionDelay` (0.25 s) after a hole lands, a white "?" (black weight,
+    0.62 of the hole, dark shadow) spins into its centre — one full turn while growing from
+    nothing past its size (1.3×) back to 1×, over 0.45 s — and rests tilted
+    (`minigunQuestionTilt`, −0.22 rad), a head cocked on *"what?"*. It is a sublayer of its
+    hole, so it goes wherever the hole goes (the 250 cap, the fade, stop-all).
   - **The clicks are taken**, by an effect-owned `CGEventTap` on the main run loop (same
     shape as the bomb's): left down/drag/up and Esc. `minigunMouseDecision` is the rule —
     only a press that *started* while the gun was up is swallowed, down to its release — its
@@ -850,7 +856,8 @@ rule from the start.
     coming up, or the trigger's release), with a **90 s** hard cap and a scheduled backstop
     past it. A re-press puts it away, as does stop-all (`stopMinigunSession`, which drops
     the tick, the crosshair, the hidden cursor, the tap and the noise engine, echo included — everything outside
-    the container). The natural end lowers the gun and resorbs the holes over 0.6 s.
+    the container). The natural end lowers the gun and **fades** the holes out over 0.6 s (they shrank to
+    nothing until 2026-10-01 — read as being sucked back in).
   - **The tablet's `/sound/play/22_minigun.mp3` plays nothing** (`EffectsEngine.playSound`
     answers `minigunIdleLifetime` as `durationMs`): the noise belongs to the trigger. The
     press path (`/sound/pressed/…` → `bullet-holes`) still raises the gun.

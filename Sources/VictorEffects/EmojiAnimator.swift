@@ -4362,6 +4362,7 @@ class EmojiAnimator {
         } else {
             container.addSublayer(hole)
         }
+        addMinigunQuestionMark(to: hole)
         _minigunHoles.append(hole)
         // A long burst must not pile up layers without bound.
         if _minigunHoles.count > Self.minigunMaxHoles {
@@ -4393,6 +4394,58 @@ class EmojiAnimator {
         }
     }
     private static let minigunMaxHoles = 250
+
+    /// The "?" in every hole (2026-10-01, Victor: the room *shoots questions*
+    /// at the speaker). It waits `minigunQuestionDelay` after the hole lands,
+    /// then spins in from nothing — a full turn, overshooting its size — and
+    /// settles tilted, like a head cocked on *"what?"*.
+    static let minigunQuestionDelay: CFTimeInterval = 0.25
+    static let minigunQuestionSpin: CFTimeInterval = 0.45
+    /// The resting tilt, radians (negative = leaning right, as a "?" does).
+    static let minigunQuestionTilt: CGFloat = -0.22
+
+    private func addMinigunQuestionMark(to hole: CALayer) {
+        let size = hole.bounds.size
+        let fontSize = (min(size.width, size.height) * 0.62).rounded()
+        let mark = CATextLayer()
+        mark.string = NSAttributedString(string: "?", attributes: [
+            .font: NSFont.systemFont(ofSize: fontSize, weight: .black),
+            .foregroundColor: NSColor.white,
+        ])
+        mark.alignmentMode = .center
+        mark.contentsScale = hole.contentsScale
+        // A CATextLayer draws from its top: a box one line tall, centred on
+        // the hole, puts the glyph in the middle of the black.
+        let lineHeight = (fontSize * 1.2).rounded()
+        mark.bounds = CGRect(x: 0, y: 0, width: size.width, height: lineHeight)
+        mark.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        mark.shadowColor = NSColor.black.cgColor
+        mark.shadowOpacity = 0.9
+        mark.shadowRadius = 2
+        mark.shadowOffset = .zero
+        mark.transform = CATransform3DMakeRotation(Self.minigunQuestionTilt, 0, 0, 1)
+        hole.addSublayer(mark)
+
+        let spin = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+        spin.values = [Self.minigunQuestionTilt - 2 * .pi, Self.minigunQuestionTilt + 0.18,
+                       Self.minigunQuestionTilt]
+        spin.keyTimes = [0, 0.75, 1]
+        let grow = CAKeyframeAnimation(keyPath: "transform.scale")
+        grow.values = [0, 1.3, 1]
+        grow.keyTimes = [0, 0.7, 1]
+        let appear = CABasicAnimation(keyPath: "opacity")
+        appear.fromValue = 0
+        appear.toValue = 1
+        appear.duration = 0.15
+        let group = CAAnimationGroup()
+        group.animations = [spin, grow, appear]
+        group.duration = Self.minigunQuestionSpin
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        // Held at its first frame (nothing, invisible) until the delay is up.
+        group.beginTime = mark.convertTime(CACurrentMediaTime(), from: nil) + Self.minigunQuestionDelay
+        group.fillMode = .backwards
+        mark.add(group, forKey: "what")
+    }
 
     /// Clicks and Escape have to be *taken away* from the app underneath while
     /// the gun is up — same reason, same shape as the bomb's capture: a click
@@ -4486,15 +4539,17 @@ class EmojiAnimator {
             lower.isRemovedOnCompletion = false
             gun.add(lower, forKey: "lower")
         }
+        // Faded, not shrunk (2026-10-01): a hole that shrinks reads as being
+        // sucked back in; one that fades just leaves, "?" and all.
         for hole in container.sublayers ?? [] where hole !== gun {
-            let shrink = CABasicAnimation(keyPath: "transform.scale")
-            shrink.fromValue = 1.0
-            shrink.toValue = 0.0
-            shrink.duration = tail
-            shrink.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            shrink.fillMode = .forwards
-            shrink.isRemovedOnCompletion = false
-            hole.add(shrink, forKey: "resorb")
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 1.0
+            fade.toValue = 0.0
+            fade.duration = tail
+            fade.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            fade.fillMode = .forwards
+            fade.isRemovedOnCompletion = false
+            hole.add(fade, forKey: "fade")
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + tail + 0.05) { [weak container] in
             container?.removeFromSuperlayer()
