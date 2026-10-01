@@ -199,8 +199,25 @@ tone cannot give a crack zero spin-up lag); the keep-alive now uses the same
 shape with **its own player**, so the whip starting or stopping its warm never
 cuts the keep-alive's loop.
 
-Scope is deliberately narrow: only the *active* output, and only speakers that
-actually standby-mute. It is distinct from the wake-up compensation above —
+**The nudge** (2026-10-01). The loop keeps the *amp* awake, but a JBL does not
+count −56 dBFS as audio: its own "~20 min without sound → power off" kept
+firing with the loop running. The log made it plain — the Go 4 dropped 18–19 min
+after every connect, five times on 30 Sep (18:22→18:41, 19:03→19:21,
+19:43→20:01, 20:10→20:28, 20:36→20:54) and twice on 1 Oct (09:36→09:55,
+10:00→10:18). So every 4 min each speaker also gets 2 s of **30 Hz at
+−30 dBFS** (200 ms fades): loud enough for the speaker's silence detector, at a
+frequency a palm-sized box barely moves air at and the ear barely hears.
+
+Scope: **every connected** Bluetooth speaker matching the name, not only the
+default output (also 2026-10-01). Victor carries two JBL boxes as each other's
+spare; the one that was not the default got no audio at all, timed itself out,
+and was already off when the other died. Each speaker gets its own players,
+pointed at it by CoreAudio UID (`AVAudioPlayer.currentDevice`). A device that
+also has an **input** is skipped: that is a headset (HFP mic), e.g. the
+"JBL TUNE500BT" the name would otherwise catch, and 30 Hz in a pair of
+headphones is felt. The selection is `BluetoothKeepAlive.targets`, pinned by
+`BluetoothKeepAliveTargetsTests`. Getting the spare *connected* in the first
+place is the other app's job (`SpeakerReconnect` in victor-macos-addons). It is distinct from the wake-up compensation above —
 that one warms the link immediately before each individual sound, this one stops
 the speaker ever falling into standby *between* sounds.
 

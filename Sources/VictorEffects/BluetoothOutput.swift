@@ -74,6 +74,12 @@ enum BluetoothOutput {
         let id: AudioDeviceID
         let name: String
         let isBluetooth: Bool
+        /// CoreAudio's persistent UID — what `AVAudioPlayer.currentDevice`
+        /// takes to play into this device rather than the default output.
+        let uid: String
+        /// Also a microphone. A Bluetooth *headset* is one CoreAudio device
+        /// with both directions (HFP); an A2DP-only speaker has no input.
+        let hasInput: Bool
     }
 
     /// Every device with at least one output channel, in CoreAudio's order.
@@ -93,16 +99,21 @@ enum BluetoothOutput {
         guard AudioObjectGetPropertyData(sys, &addr, 0, nil, &size, &ids) == noErr else { return [] }
         return ids.compactMap { id in
             guard hasOutputChannels(id) else { return nil }
-            return OutputDevice(id: id, name: deviceName(id), isBluetooth: isBluetooth(id))
+            return OutputDevice(id: id, name: deviceName(id), isBluetooth: isBluetooth(id),
+                                uid: deviceUID(id), hasInput: hasChannels(id, scope: kAudioDevicePropertyScopeInput))
         }
     }
 
     /// Whether `id` exposes any output channel (a Bluetooth headset also
     /// registers an input-only HFP device we must not select as output).
     private static func hasOutputChannels(_ id: AudioDeviceID) -> Bool {
+        hasChannels(id, scope: kAudioDevicePropertyScopeOutput)
+    }
+
+    private static func hasChannels(_ id: AudioDeviceID, scope: AudioObjectPropertyScope) -> Bool {
         var addr = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyStreamConfiguration,
-            mScope: kAudioDevicePropertyScopeOutput,
+            mScope: scope,
             mElement: kAudioObjectPropertyElementMain)
         var size: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(id, &addr, 0, nil, &size) == noErr, size > 0 else { return false }
@@ -111,6 +122,17 @@ enum BluetoothOutput {
         guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, buf) == noErr else { return false }
         let list = UnsafeMutableAudioBufferListPointer(buf.assumingMemoryBound(to: AudioBufferList.self))
         return list.contains { $0.mNumberChannels > 0 }
+    }
+
+    static func deviceUID(_ id: AudioDeviceID) -> String {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceUID,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        var uid: Unmanaged<CFString>?
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &uid) == noErr else { return "" }
+        return (uid?.takeRetainedValue() as String?) ?? ""
     }
 
     private static func isBluetooth(_ id: AudioDeviceID) -> Bool {
@@ -232,11 +254,15 @@ enum BluetoothOutput {
     /// stream/amp alive, yet inaudible in a room. Shared by `playWakeTone` and
     /// `BluetoothKeepAlive`.
     static func makeSilentToneWav(seconds: Double) -> Data {
+        makeToneWav(seconds: seconds, freq: 220.0, amplitude: 0.0015,  // ≈ -56 dBFS
+                    fadeSeconds: 0.01)  // 10ms fade in/out
+    }
+
+    /// Mono 16-bit PCM WAV of one sine, faded in and out over `fadeSeconds`.
+    static func makeToneWav(seconds: Double, freq: Double, amplitude: Double, fadeSeconds: Double) -> Data {
         let sampleRate = 44100
         let frames = max(1, Int(Double(sampleRate) * seconds))
-        let amplitude = 0.0015  // ≈ -56 dBFS
-        let freq = 220.0
-        let fade = min(frames / 2, Int(0.01 * Double(sampleRate)))  // 10ms fade in/out
+        let fade = min(frames / 2, Int(fadeSeconds * Double(sampleRate)))
 
         var samples = [Int16](repeating: 0, count: frames)
         for i in 0..<frames {
