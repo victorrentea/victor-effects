@@ -812,22 +812,31 @@ rule from the start.
     hole near the crosshair, a drawn muzzle flash (jagged star, re-rolled rotation and size
     every shot, 60 ms) and a recoil kick (back-down 10 × 14 pt, 90 ms). The noise is the
     tablet clip on the gun's **own `AVAudioEngine`** (`AK47FireSound`), wired when the gun
-    comes up and played on the press with no Bluetooth delay, looping its uninterrupted first
-    2.35 s (`fireLoopEnd` — the clip has a lull at ~2.4 s and a spin-down tail).
-  - **Release: the noise stops dead, the echo rings on** (2026-09-30, Victor: *"dacă trag un
-    singur foc, să rămână cumva cu ecou. Să se întrerupă brusc sunetul glonțului"*). The
-    player node feeds two paths: dry to the speaker, and a send through a delay (0.22 s,
-    40 % feedback, 3.5 kHz low-pass) and a large-hall reverb at half level. The release
-    **stops the node** — no fade — so the dry noise ends abruptly while the send keeps
-    ringing for a second or two. The 60 ms fade it replaced turned a single click into a pop
-    with no body. The cut waits for the **round in flight** (`minigunNoiseCutDelay`: until
-    the next round was due, and never under one full round after the press), so a single
-    click is always one whole shot.
-  - **Precision.** Rounds land within `minigunSpreadRadius` = 140 / √2 × 0.8 ≈ **79 pt** of
-    the crosshair: first half the area (2026-09-23 — area goes with r², so √2 on the
-    radius), then 20 % more precise (2026-09-30, taken on the radius). Density peaks at the
-    centre (r ∝ u). Holes are drawn at **0.49** of the art (`minigunBulletHoleScale`: 0.7,
-    then 30 % smaller on 2026-09-30), sit below the gun, capped at 250.
+    comes up and played on the press with no Bluetooth delay.
+  - **Every click is one whole round, with its echo** (2026-10-01, Victor: *"zgomotul
+    glonțului unui singur burst n-are ecou cum trebuie; e întrerupt … trebuie să aud mereu
+    un glonț întreg"*). The clip is a minigun's roar with **no gap between rounds**, so the
+    09-30 design — loop from the top, stop the node dead at the end of the round in flight —
+    made a single click 0.1 s of roar chopped off: a blip, and an echo with almost nothing to
+    ring with. A round is now *built* from the roar: 0.1 s at full level (`roundLength`), then
+    an exponential decay (τ = 70 ms, `shotDecay`) to −60 dB over ~0.5 s. Each pull plays it
+    on one of **4 voices nothing cuts**, so quick clicks overlap instead of chopping each
+    other. Held past the first round, the roar **loops on top** (`sustain`: the clip from
+    0.1 s to `fireLoopEnd` 2.35 s — it has a lull at ~2.4 s and a spin-down tail). The
+    release still waits for the **round in flight** (`minigunNoiseCutDelay`), then stops the
+    loop and hands over to a **tail** (the same roar decaying from its first sample), so a
+    burst rings out too instead of stopping like a switch.
+    All dry voices go through one bus to the speaker and to a send through a delay (0.22 s,
+    40 % feedback, 3.5 kHz low-pass) and a large-hall reverb at half level, which is never
+    cut: the room keeps answering for a second or two after the last round.
+  - **Precision: every hole lands whole inside the red ring** (2026-10-01, Victor: *"să cadă
+    toate gloanțele în ținta roșie … nu departe"*). `minigunSpreadRadius(holeSize:)` is the
+    drawn ring's radius (`sniperReticleRingRadius`, 75 pt at the reticle's 2.5×) less half a
+    hole, ≈ **54 pt**. It replaced a fixed 79 pt (140, then half the area on 09-23, then
+    × 0.8 on 09-30): wider than the ring itself, and with a 43 pt hole on top, rounds landed
+    well outside it. Density peaks at the centre (r ∝ u). Holes are drawn at **0.49** of the
+    art (`minigunBulletHoleScale`: 0.7, then 30 % smaller on 2026-09-30), sit below the gun,
+    capped at 250.
   - **The clicks are taken**, by an effect-owned `CGEventTap` on the main run loop (same
     shape as the bomb's): left down/drag/up and Esc. `minigunMouseDecision` is the rule —
     only a press that *started* while the gun was up is swallowed, down to its release — its

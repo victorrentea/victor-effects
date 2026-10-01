@@ -319,12 +319,39 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertLessThan(EmojiAnimator.bombFallingZ, EmojiAnimator.bombBlastZ)
     }
 
-    /// Victor, 2026-09-23: half the area the rounds used to cover. Area goes
-    /// with r², so the radius shrinks by √2 (140 → ~99), not by half. Then
-    /// 2026-09-30: 20 % more precise (radius × 0.8) and holes 30 % smaller.
-    func testMinigunSpreadAndHoleSize() {
-        XCTAssertEqual(EmojiAnimator.minigunSpreadRadius, 140 / 2.squareRoot() * 0.8, accuracy: 0.001)
+    /// Victor, 2026-10-01: every round lands in the red ring. The farthest a
+    /// hole's centre may stray is the ring's radius less half a hole, so even
+    /// the widest miss is a whole hole inside the circle. Holes stay 0.49 of
+    /// the art (30 % smaller on 2026-09-30).
+    func testMinigunRoundsLandInsideTheRedRing() {
+        let ring = EmojiAnimator.sniperReticleRingRadius(scale: EmojiAnimator.minigunReticleScale)
+        XCTAssertEqual(ring, 75, accuracy: 0.001)
+        let hole = CGSize(width: 88 * EmojiAnimator.minigunBulletHoleScale,
+                          height: 84 * EmojiAnimator.minigunBulletHoleScale)
+        let spread = EmojiAnimator.minigunSpreadRadius(holeSize: hole)
+        XCTAssertEqual(spread + hole.width / 2, ring, accuracy: 0.001)
+        XCTAssertGreaterThan(spread, 40)   // still a spray, not one hole
         XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.49, accuracy: 0.001)
+    }
+
+    /// One round is a body at full level, then a decay to −60 dB; the release
+    /// tail decays from its first sample.
+    func testAK47RoundEnvelope() {
+        let body = AK47FireSound.roundLength
+        XCTAssertEqual(AK47FireSound.shotGain(at: 0.05, body: body), 1)
+        XCTAssertEqual(AK47FireSound.shotGain(at: body + AK47FireSound.shotDecay, body: body),
+                       Float(exp(-1.0)), accuracy: 0.0001)
+        XCTAssertLessThan(AK47FireSound.shotGain(at: body + AK47FireSound.shotTailLength, body: body), 0.001)
+        XCTAssertLessThan(AK47FireSound.shotGain(at: 0.01, body: 0), 1)
+    }
+
+    /// The real tablet clip builds its round, tail and loop (a clip too short
+    /// or not float PCM would leave the gun silent, with only a nil to show).
+    func testAK47FireSoundLoadsTheTabletClip() throws {
+        try XCTSkipUnless(EffectsConfig.shared.soundsDirExists, "tablet sounds not on this machine")
+        let url = try XCTUnwrap(SoundManager.shared.soundURL(for: "22_minigun.mp3"))
+        let sound = try XCTUnwrap(AK47FireSound(url: url))
+        sound.stop()
     }
 
     /// A single click still sounds a whole round, and a held burst stops at

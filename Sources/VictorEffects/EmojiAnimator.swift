@@ -3922,6 +3922,12 @@ class EmojiAnimator {
     /// + thick from the first frame (the minigun reticle, which is never grey).
     /// `scale` sizes the whole reticle (nuke 1.5×; the minigun passes a bigger
     /// value) and the stroke widths scale with it so the lines stay proportional.
+    /// Radius of the sniper reticle's ring: half its box, less room for the
+    /// thicker armed stroke.
+    static func sniperReticleRingRadius(scale: CGFloat) -> CGFloat {
+        65 * scale / 2 - bombReticleLineWidthArmed * (scale / 1.5)
+    }
+
     static func makeSniperReticle(scale: CGFloat = 1.5, armed: Bool = false) -> CALayer {
         let canonical: CGFloat = 1.5      // the scale at which the width constants are defined
         let d: CGFloat = 65 * scale       // overall reticle box
@@ -3929,7 +3935,7 @@ class EmojiAnimator {
         let armedW = bombReticleLineWidthArmed * (scale / canonical)
         let lineW = armed ? armedW : idleW
         let c = d / 2
-        let r = c - armedW                // leave room for the thicker armed stroke
+        let r = sniperReticleRingRadius(scale: scale)
         let gap: CGFloat = 7 * scale      // half-length of the empty centre
         let stroke = (armed ? NSColor.systemRed : NSColor.systemGray).cgColor
 
@@ -3970,7 +3976,7 @@ class EmojiAnimator {
 
     /// How much bigger the minigun aiming reticle is than the 1.5× nuke reticle —
     /// the bullet-spray crosshair reads as a heftier "machine-gun sight".
-    private static let minigunReticleScale: CGFloat = 2.5
+    static let minigunReticleScale: CGFloat = 2.5
     /// 0.49 = 0.7 × 0.7: born at 0.7 of the art, then 30 % smaller again on
     /// 2026-09-30 (Victor: *"gloanțele … cu 30% mai mici"*).
     static let minigunBulletHoleScale: CGFloat = 0.7 * 0.7
@@ -3980,13 +3986,17 @@ class EmojiAnimator {
     /// Cyclic rate while the trigger is held: an AK-47's ~600 rounds/min, i.e.
     /// one hole, one flash and one recoil kick every 0.1 s.
     static let minigunShotsPerSecond: Double = 10
-    /// How far from the reticle a round may land. **79 pt, down from 140**:
-    /// first Victor asked for half the covered *area* (2026-09-23), and area
-    /// goes with r², so the radius shrank by √2 (≈ 99 pt); then for 20 % more
-    /// precise (2026-09-30), taken on the radius — the distance a round
-    /// strays from where it was aimed. Density still peaks at the centre
-    /// (r ∝ u, not √u).
-    static let minigunSpreadRadius: CGFloat = 140 / 2.squareRoot() * 0.8
+    /// How far from the reticle's centre a round may land: **every hole whole
+    /// inside the red ring** (2026-10-01, Victor: *"să cadă toate gloanțele în
+    /// ținta roșie … nu departe"*) — the ring's radius less half a hole, ≈ 54
+    /// pt. Read off the drawn ring, not a number of its own: the 79 pt it
+    /// replaced (140 shrunk twice, 2026-09-23 and 09-30) was wider than the
+    /// 75 pt ring, so with a 43 pt hole on top rounds landed well outside it.
+    /// Density still peaks at the centre (r ∝ u, not √u).
+    static func minigunSpreadRadius(holeSize: CGSize) -> CGFloat {
+        max(0, sniperReticleRingRadius(scale: minigunReticleScale)
+               - max(holeSize.width, holeSize.height) / 2)
+    }
     /// The gun is put away this long after the last activity — its appearance,
     /// or the trigger's last release. The self-termination rule: an effect
     /// that only ends on a re-press or a stop-all would stay up (and keep
@@ -4257,6 +4267,9 @@ class EmojiAnimator {
 
         if _minigunFiring {
             while _minigunFiring && now >= _minigunNextShot {
+                // The first round is the pull's own whole shot; still held
+                // for a second one, the roar takes over (`AK47FireSound`).
+                if _minigunNextShot > _minigunPulledAt { _minigunFireSound?.sustain() }
                 fireMinigunRound(at: mouse)
                 _minigunNextShot += 1 / Self.minigunShotsPerSecond
             }
@@ -4303,7 +4316,8 @@ class EmojiAnimator {
         _minigunFiring = false
         let now = CACurrentMediaTime()
         _minigunLastActivity = now
-        // Cut dead, not faded — the echo send is what rings on after it.
+        // At the end of the round in flight a held burst rings out on its
+        // tail; a single round is already ringing out by itself.
         let cut = DispatchWorkItem { [weak self] in
             self?._minigunPendingCut = nil
             self?._minigunFireSound?.cut()
@@ -4331,7 +4345,7 @@ class EmojiAnimator {
         let y: CGFloat
         if let target = Self.minigunShotTarget(forMouse: mouse, in: bounds) {
             let angle = CGFloat.random(in: 0..<(2 * .pi))
-            let r = Self.minigunSpreadRadius * CGFloat.random(in: 0...1)
+            let r = Self.minigunSpreadRadius(holeSize: size) * CGFloat.random(in: 0...1)
             x = min(max(target.x + r * cos(angle) - size.width / 2, 0), bounds.width - size.width)
             y = min(max(target.y + r * sin(angle) - size.height / 2, 0), bounds.height - size.height)
         } else {
