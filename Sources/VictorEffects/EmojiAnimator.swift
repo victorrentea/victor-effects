@@ -11347,7 +11347,7 @@ class EmojiAnimator {
         }
     }
 
-    // MARK: - 🐘 The elephant in the room (⌘⌃O)
+    // MARK: - 🐘 The elephant in the room (⌘⌃I)
 
     /// How long the elephant stays before it walks out on its own.
     static let elephantLifetime: Double = 25
@@ -11466,7 +11466,7 @@ class EmojiAnimator {
 
     /// 🐼 A panda with a suit collar and a dark red tie walks in from the right
     /// edge and stands in the right half of the screen — the companion prop to
-    /// ⌘⌃O's elephant. Same lifecycle: the key again walks it back out, and it
+    /// ⌘⌃I's elephant. Same lifecycle: the key again walks it back out, and it
     /// leaves on its own after `pandaLifetime`, because the overlay is
     /// click-through and nothing on it can be dismissed by clicking.
     func showPanda() {
