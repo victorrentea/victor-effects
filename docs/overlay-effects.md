@@ -1256,6 +1256,18 @@ rule from the start.
   six landings off by the same constant. All seven hang off one `clock0`, stamped in
   `showRainbow` next to the line that starts the sound.
 
+- **📈 Pulse → flatline + 🧠** (tile #15 `15_flatline.mp3` → `pulse` / `pulse/stop`,
+  `showPulse`): dim + green graph paper, then `ecg_line.png` stretched over the screen
+  and uncovered by a mask growing left → right in 5.392 s, timed so the two R spikes
+  land on the clip's two beats. Since 2026-10-01 a **🧠 drives the trace** (Victor: "the
+  green line is the trail the brain leaves"): it rides the mask's edge — x is the edge,
+  y is the line there — so the line appears behind it. `PulseBrain.penPath` was traced
+  off the PNG at the **leading end of each stroke**, not a per-column average: on a QRS
+  stroke one column of the PNG covers ~1000 px of line, so an average would put the brain
+  mid-stroke while the mask has already uncovered its tip. The brain is a sibling of the
+  ECG layer, not a child, or that layer's mask would hide it; it fades and dies with the
+  rest, in both the self-stop and `_stopPulse`.
+
 - **💓 Heartbeat + 🐶 dog / 🐱 cat** (tile #13 `13_heartbeat.mp3`, `showHeartbeat`): the built-in
   Retina is captured and redrawn full-screen, then **bulged under the cursor** in a
   lub-dub keyframe, twice per cycle, with the lens **glued to the live mouse at 20 Hz**

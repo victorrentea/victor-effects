@@ -173,6 +173,7 @@ class EmojiAnimator {
     private var _pulseDimLayer: CALayer?
     private var _pulseGridLayer: CALayer?
     private var _pulseEcgLayer: CALayer?
+    private var _pulseBrainLayer: CALayer?
 
     // Spiral hearts: a pulsing red heart that floats just above the cursor while the effect runs
     private var _heartCursorLayer: CALayer?
@@ -2874,8 +2875,37 @@ class EmojiAnimator {
         reveal.fillMode = .forwards
         reveal.isRemovedOnCompletion = false
 
+        // 🧠 The brain drives the trace: it rides the mask's edge, so the green
+        // line appears behind it as if it were drawing it (`PulseBrain`).
+        let brainSize = PulseBrain.fontSize(in: bounds)
+        let brain = CATextLayer()
+        _pulseBrainLayer = brain
+        brain.string = "🧠"
+        brain.fontSize = brainSize
+        brain.alignmentMode = .center
+        brain.bounds = CGRect(x: 0, y: 0, width: brainSize * 1.2, height: brainSize * 1.2)
+        brain.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        brain.opacity = 0
+        let path = PulseBrain.keyframes(in: bounds)
+        brain.position = path.positions[0]
+        hostLayer.addSublayer(brain)   // a sibling of ecgLayer, not a child: its mask would hide the brain
+
+        let brainIn = CABasicAnimation(keyPath: "opacity")
+        brainIn.fromValue = 0; brainIn.toValue = 1
+        brainIn.duration = 0.5
+        brainIn.fillMode = .forwards; brainIn.isRemovedOnCompletion = false
+        brain.add(brainIn, forKey: "brainIn")
+
+        let ride = CAKeyframeAnimation(keyPath: "position")
+        ride.values = path.positions.map { NSValue(point: $0) }
+        ride.keyTimes = path.keyTimes.map { NSNumber(value: $0) }
+        ride.calculationMode = .linear
+        ride.duration = totalDuration
+        ride.fillMode = .forwards
+        ride.isRemovedOnCompletion = false
+
         CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self, weak dimLayer, weak gridContainer, weak ecgLayer] in
+        CATransaction.setCompletionBlock { [weak self, weak dimLayer, weak gridContainer, weak ecgLayer, weak brain] in
             // Model opacity is still 0 (forward-filled anim keeps presentation at 1).
             // Use explicit CABasicAnimation fromValue:1 so Core Animation sees a real change.
             CATransaction.begin()
@@ -2883,12 +2913,14 @@ class EmojiAnimator {
                 dimLayer?.removeFromSuperlayer()
                 gridContainer?.removeFromSuperlayer()
                 ecgLayer?.removeFromSuperlayer()
+                brain?.removeFromSuperlayer()
                 self?.pulseRunning = false
                 self?._pulseDimLayer = nil
                 self?._pulseGridLayer = nil
                 self?._pulseEcgLayer = nil
+                self?._pulseBrainLayer = nil
             }
-            for layer in [dimLayer, gridContainer, ecgLayer].compactMap({ $0 }) {
+            for layer in [dimLayer, gridContainer, ecgLayer, brain].compactMap({ $0 }) {
                 let fadeOut = CABasicAnimation(keyPath: "opacity")
                 fadeOut.fromValue = 1; fadeOut.toValue = 0
                 fadeOut.duration = 0.5
@@ -2898,6 +2930,7 @@ class EmojiAnimator {
             CATransaction.commit()
         }
         maskLayer.add(reveal, forKey: "reveal")
+        brain.add(ride, forKey: "ride")
         CATransaction.commit()
 
     }
@@ -8534,16 +8567,19 @@ class EmojiAnimator {
         let dim = _pulseDimLayer
         let grid = _pulseGridLayer
         let ecg = _pulseEcgLayer
+        let brain = _pulseBrainLayer
         _pulseDimLayer = nil
         _pulseGridLayer = nil
         _pulseEcgLayer = nil
+        _pulseBrainLayer = nil
         CATransaction.begin()
         CATransaction.setCompletionBlock {
             dim?.removeFromSuperlayer()
             grid?.removeFromSuperlayer()
             ecg?.removeFromSuperlayer()
+            brain?.removeFromSuperlayer()
         }
-        for layer in [dim, grid, ecg].compactMap({ $0 }) {
+        for layer in [dim, grid, ecg, brain].compactMap({ $0 }) {
             let fadeOut = CABasicAnimation(keyPath: "opacity")
             fadeOut.fromValue = 1; fadeOut.toValue = 0
             fadeOut.duration = 0.5
