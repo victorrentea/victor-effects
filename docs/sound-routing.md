@@ -180,38 +180,40 @@ audible "the link works" tap, and firing it immediately lit the border up to
 
 ## Keep-alive (`BluetoothKeepAlive`)
 
-Bluetooth speakers mute their amplifier after a few seconds of silence and then
-clip the start of the next sound. While the current default output is a
-Bluetooth speaker whose name contains `EffectsConfig.bluetoothSpeakerNameMatch`
-(via `BluetoothOutput.speakerNameMatch`; **empty by default, which disables the
-whole thing**), the app keeps a **continuously looping** near-silent tone
-playing (≈ −56 dBFS, a 2 s lap faded at both ends so the loop boundary cannot
-click), so the stream — and the amp — never sees silence. A 30 s timer only
-re-checks the output and restarts a player that died on a route change or a
-sleep/wake.
+A JBL switches itself **off** after ~20 min without audio, even while
+connected. While a Bluetooth speaker whose name contains
+`EffectsConfig.bluetoothSpeakerNameMatch` is connected (via
+`BluetoothOutput.speakerNameMatch`; **empty by default, which disables the
+whole thing**), the app gives it a **nudge every 15 min**: 2 s of **30 Hz at
+−30 dBFS** (200 ms fades) — loud enough for the speaker's silence detector, at
+a frequency a palm-sized box barely moves air at and the ear barely hears.
+Between nudges, **nothing** plays. A 30 s timer re-checks the connected
+speakers and fires the nudges that are due.
 
-**Why continuous** (2026-09-10): the first version played a 0.5 s burst every
-30 s and stopped keeping a JBL Go 4 awake — 29.5 s of every 30 were silence, so
-each burst only arrived to re-wake an already-muted amp with its own first
-moments swallowed, and the clipping came back. The whip already knew this
-(`BluetoothOutput.startContinuousWarm()` exists precisely because a periodic
-tone cannot give a crack zero spin-up lag); the keep-alive now uses the same
-shape with **its own player**, so the whip starting or stopping its warm never
-cuts the keep-alive's loop.
+**Why 15 min.** JBL publishes no auto-off figure for the Go 4 (the manual is
+silent; its other portables are quoted at ~20 min), so the number comes from
+our own log: with only a −56 dBFS tone playing — which the speaker counts as
+silence — the Go 4 dropped 18–19 min after every connect, five times on 30 Sep
+(18:22→18:41, 19:03→19:21, 19:43→20:01, 20:10→20:28, 20:36→20:54) and twice on
+1 Oct (09:36→09:55, 10:00→10:18). 15 min plus at most one 30 s poll stays well
+under 18. And the nudge does count as audio: the two hours on 1 Oct with a
+nudge every 4 min (15:56→17:56) had no drop.
 
-**The nudge** (2026-10-01). The loop keeps the *amp* awake, but a JBL does not
-count −56 dBFS as audio: its own "~20 min without sound → power off" kept
-firing with the loop running. The log made it plain — the Go 4 dropped 18–19 min
-after every connect, five times on 30 Sep (18:22→18:41, 19:03→19:21,
-19:43→20:01, 20:10→20:28, 20:36→20:54) and twice on 1 Oct (09:36→09:55,
-10:00→10:18). So every 4 min each speaker also gets 2 s of **30 Hz at
-−30 dBFS** (200 ms fades): loud enough for the speaker's silence detector, at a
-frequency a palm-sized box barely moves air at and the ear barely hears.
+**No continuous tone, ever (2026-10-01).** From 2026-09-10 to 2026-10-01 the
+keep-alive looped a −56 dBFS 220 Hz tone into the speaker non-stop, so the amp
+would never mute between sounds and clip the start of the next one (the first
+version, a 0.5 s burst every 30 s, had not been enough for that). It was a
+mistake: the amp never idled, so the speaker **hummed audibly** in a quiet room
+— switching the keep-alive off made the hum stop on the spot — and a stream
+that never ends keeps the speaker's battery draining all day. The start-of-sound
+clipping is the job of the per-sound wake-up compensation above; the 🔥 whip
+keeps its own `startContinuousWarm()` loop, but only while it is on screen.
+Do not bring back a loop that runs while nothing is happening.
 
 Scope: **every connected** Bluetooth speaker matching the name, not only the
 default output (also 2026-10-01). Victor carries two JBL boxes as each other's
 spare; the one that was not the default got no audio at all, timed itself out,
-and was already off when the other died. Each speaker gets its own players,
+and was already off when the other died. Each speaker gets its own nudge player,
 pointed at it by CoreAudio UID (`AVAudioPlayer.currentDevice`). A device that
 also has an **input** is skipped: that is a headset (HFP mic), e.g. the
 "JBL TUNE500BT" the name would otherwise catch, and 30 Hz in a pair of
@@ -219,18 +221,18 @@ headphones is felt. The selection is `BluetoothKeepAlive.targets`, pinned by
 `BluetoothKeepAliveTargetsTests`. Getting the spare *connected* in the first
 place is the other app's job (`SpeakerReconnect` in victor-macos-addons). It is distinct from the wake-up compensation above —
 that one warms the link immediately before each individual sound, this one stops
-the speaker ever falling into standby *between* sounds.
+the speaker switching itself off *between* sounds.
 
 **The ✅ / ⚪️ / 🚫 menu row** (2026-09-14). The keep-alive is the one thing in
 this app with a row of its own that nothing routes to, and it earned it twice
-over: the tone is inaudible by design, so a working keep-alive and a broken one
+over: the nudge is near-inaudible by design, so a working keep-alive and a broken one
 looked identical outside the log, and "stop playing into that speaker" has to be
 possible in the middle of a recording or a call without quitting the app. The
-row is a live read at menu-open time — ✅ the tone is playing, ⚪️ armed but the
-default output is not a speaker that needs it, 🚫 switched off (or no
+row is a live read at menu-open time — ✅ a speaker is connected and being nudged, ⚪️ armed but
+no speaker that needs it is connected, 🚫 switched off (or no
 `bluetoothSpeakerNameMatch` configured, which can never become ⚪️: idle promises
-a speaker it would start for). Clicking toggles the switch and takes the tone
-down *now*, not at the next tick. The choice is persisted (`KeepAliveSettings`,
+a speaker it would start for). Clicking toggles the switch and cuts a nudge in
+flight *now*, not at the next tick. The choice is persisted (`KeepAliveSettings`,
 `UserDefaults` key `BluetoothKeepAlive.enabled`, **default on**) because this app
 is restarted several times an hour and the reason to switch it off outlives a
 relaunch; the 30 s poll keeps running while it is off, since that poll is what

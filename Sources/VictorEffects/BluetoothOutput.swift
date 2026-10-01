@@ -252,7 +252,7 @@ enum BluetoothOutput {
     /// Build a mono 16-bit PCM WAV of a very quiet sine burst with 10ms fades
     /// (no click). Amplitude ≈ -56 dBFS: real PCM energy that keeps a Bluetooth
     /// stream/amp alive, yet inaudible in a room. Shared by `playWakeTone` and
-    /// `BluetoothKeepAlive`.
+    /// the whip's `startContinuousWarm`.
     static func makeSilentToneWav(seconds: Double) -> Data {
         makeToneWav(seconds: seconds, freq: 220.0, amplitude: 0.0015,  // ≈ -56 dBFS
                     fadeSeconds: 0.01)  // 10ms fade in/out

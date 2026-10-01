@@ -2,48 +2,42 @@ import AVFoundation
 import CoreAudio
 import Foundation
 
-/// Keeps a Bluetooth speaker from dropping into power-save/standby between
-/// sounds. Many BT speakers mute their amplifier after a few seconds of
-/// silence, which clips the start of the next sound (a problem now that the
-/// Mac renders the tablet-routed soundboard). While the *current default
-/// output device* is one of those speakers we keep a **continuously looping**
-/// near-silent tone (≈ -56 dBFS, inaudible in a room) playing, so the amp
-/// never sees silence at all.
+/// Keeps a Bluetooth speaker from switching itself **off**: a JBL powers down
+/// after ~20 min without audio, connected or not. Every `nudgeEvery` each
+/// connected speaker gets 2 s of 30 Hz — and nothing in between.
 ///
-/// **Why continuous and not a burst every 30s** (2026-09-10): that is what the
-/// first version did, and on the JBL Go 4 it stopped working — the amp mutes
-/// after a few seconds, so 29.5 s out of every 30 were silence and each burst
-/// only arrived to *re-wake* an already-muted amp, its own first moments
-/// swallowed. The clipping it was supposed to remove came back. The whip
-/// already knew this: `BluetoothOutput.startContinuousWarm()` exists precisely
-/// because a periodic tone is not enough to play a crack with no spin-up lag.
-/// The keep-alive now uses the same shape, with its own player so the whip
-/// starting and stopping its warm never cuts ours.
+/// **No continuous tone, ever** (2026-10-01). From 2026-09-10 until today this
+/// class looped a −56 dBFS 220 Hz tone into the speaker non-stop, to keep the
+/// amp from muting between sounds. Two costs nobody had weighed: the speaker's
+/// amp never idled, so it hummed audibly in a quiet room, and a Bluetooth
+/// stream that never stops drains the speaker's battery (and the Mac's radio)
+/// all day. The amp spin-up clipping it was hiding is already covered per
+/// sound by the wake-up compensation (`BluetoothOutput.playWakeTone`); the
+/// whip keeps its own warm loop, but only while the whip is on screen.
 ///
 /// Scope: every *connected* speaker that needs it — the JBL boxes — whether
 /// or not it is the default output (see `targets`, and why since 2026-10-01).
-/// Other Bluetooth outputs (e.g. "Vic Bose" headphones) don't standby-mute, so
-/// pumping a tone into them is pointless. Each speaker gets its own players,
-/// pointed at it by device UID, so nothing plays when no such speaker is
-/// connected, and the wired/built-in output and the "🔊OS Output" loopback
-/// never hear a thing.
+/// Other Bluetooth outputs (e.g. "Vic Bose" headphones) don't auto-off, so
+/// nudging them is pointless. Each nudge is pointed at its speaker by device
+/// UID, so the wired/built-in output and the "🔊OS Output" loopback never hear
+/// a thing.
 ///
 /// It still self-gates on the name; the **menu row** added on 2026-09-14 is a
 /// switch *over* that gate, not a second copy of it. Two things earned it a
-/// row: the tone is by design inaudible, so "is it running?" had no answer
-/// short of the log, and it is the one thing in this app that plays into a
-/// speaker nobody asked to hear from — a recording, a call, or a speaker
-/// someone else is using is exactly when it has to be possible to stop it
-/// without quitting the app. Off is remembered (`KeepAliveSettings`), because
-/// the reason to switch it off outlives a relaunch.
+/// row: the nudge is near-inaudible, so "is it running?" had no answer short
+/// of the log, and it is the one thing in this app that plays into a speaker
+/// nobody asked to hear from — a recording, a call, or a speaker someone else
+/// is using is exactly when it has to be possible to stop it without quitting
+/// the app. Off is remembered (`KeepAliveSettings`), because the reason to
+/// switch it off outlives a relaunch.
 final class BluetoothKeepAlive {
     /// What the menu row shows, and the only three answers there are. The row
     /// itself is a plain checkbox (✓ = switched on, i.e. `running` or `idle`);
     /// the running/idle difference lives in its tooltip.
     enum State {
-        /// The tone is playing: a matching speaker is the default output.
+        /// At least one matching speaker is connected and being nudged.
         case running
-        /// Armed, but the default output is not a speaker that needs it.
+        /// Armed, but no speaker that needs it is connected.
         case idle
         /// Switched off in the menu (or no speaker name configured at all).
         case off
@@ -57,8 +51,8 @@ final class BluetoothKeepAlive {
     /// without a speaker, a player or a run loop.
     ///
     /// `configured` (an empty `bluetoothSpeakerNameMatch`) reads as `off`
-    /// rather than `idle` on purpose: idle promises "the moment a JBL becomes
-    /// the output, this starts", and with no name to match nothing ever will.
+    /// rather than `idle` on purpose: idle promises "the moment a JBL connects,
+    /// this starts", and with no name to match nothing ever will.
     static func state(enabled: Bool, configured: Bool, playing: Bool) -> State {
         guard enabled, configured else { return .off }
         return playing ? .running : .idle
@@ -85,21 +79,21 @@ final class BluetoothKeepAlive {
         }
     }
 
-    /// How often we re-check the device list (and that each loop is still
-    /// running). Not the tone's cadence — the tone never stops.
+    /// How often we re-check the device list and whether a nudge is due.
     private static let interval: TimeInterval = 30
-    /// How often each speaker gets the nudge.
+    /// How often each speaker gets the nudge: a little under the speaker's own
+    /// auto-off. JBL publishes no number for the Go 4 (the manual is silent;
+    /// its other portables are quoted at ~20 min), and our log measured it:
+    /// with only the −56 dBFS loop playing — which the speaker counts as
+    /// silence — the Go 4 dropped 18–19 min after every connect, five times on
+    /// 30 Sep and twice on 1 Oct. 15 min (+ up to one 30 s poll) stays under
+    /// 18 with room to spare. The 2 h from 15:56 to 17:56 on 1 Oct with a
+    /// nudge every 4 min had no drop at all, so the nudge does count as audio.
     ///
-    /// **Why a nudge on top of the loop** (2026-10-01): the −56 dBFS loop keeps
-    /// the *amp* from muting between sounds, but a JBL does not count it as
-    /// audio. Its auto-off — "~20 min without sound" — kept firing with the
-    /// loop running: the log shows the Go 4 dropping 18–19 min after every
-    /// connect, five times in one evening and twice the next morning. The
-    /// nudge is 2 s of 30 Hz at −30 dBFS: loud enough for the speaker's
+    /// The nudge is 2 s of 30 Hz at −30 dBFS: loud enough for the speaker's
     /// silence detector, and a frequency a palm-sized box can barely move air
-    /// at and an ear barely hears. Four minutes leaves four chances inside the
-    /// speaker's window.
-    private static let nudgeEvery: TimeInterval = 4 * 60
+    /// at and an ear barely hears.
+    private static let nudgeEvery: TimeInterval = 15 * 60
     /// Substring (case-insensitive) a Bluetooth output's name must contain for
     /// the keep-alive to run. Computed, not stored: `/config/reload` can change
     /// it, and an empty value switches the keep-alive off entirely.
@@ -108,21 +102,17 @@ final class BluetoothKeepAlive {
     private let queue = DispatchQueue(label: "ro.victorrentea.victor-effects.bt-keepalive", qos: .utility)
     private var pollTimer: DispatchSourceTimer?
 
-    /// Pre-rendered near-silent WAV, looped forever. 2s per lap, faded at both
-    /// ends, so the loop boundary is click-free.
-    private let keepAliveWav: Data = BluetoothOutput.makeSilentToneWav(seconds: 2.0)
     /// The nudge (see `nudgeEvery`). 200 ms fades so 30 Hz starts and stops
     /// without a thump.
     private let nudgeWav: Data = BluetoothOutput.makeToneWav(
         seconds: 2.0, freq: 30, amplitude: 0.0316,  // ≈ -30 dBFS
         fadeSeconds: 0.2)
 
-    /// One per speaker being held awake, keyed by CoreAudio device UID. Each
-    /// player is pointed at its own device (`currentDevice`), not at the
+    /// One per speaker being held awake, keyed by CoreAudio device UID. The
+    /// nudge player is pointed at its own device (`currentDevice`), not at the
     /// default output. Main thread only (AVAudioPlayer is not thread-safe).
     private struct Held {
         let name: String
-        var loop: AVAudioPlayer?
         var nudge: AVAudioPlayer?
         var lastNudge: Date
     }
@@ -140,13 +130,12 @@ final class BluetoothKeepAlive {
     var state: State {
         Self.state(enabled: KeepAliveSettings.isEnabled,
                    configured: !Self.nameMatch.isEmpty,
-                   playing: held.values.contains { $0.loop?.isPlaying == true })
+                   playing: !held.isEmpty)
     }
 
-    /// The menu row's click. Switching **off** takes the tone down now rather
+    /// The menu row's click. Switching **off** cuts a nudge in flight now rather
     /// than at the next tick: the row is reached in the middle of whatever made
-    /// it necessary (a recording started, someone else took the speaker), and a
-    /// switch that keeps playing for another half minute is not a switch.
+    /// it necessary (a recording started, someone else took the speaker).
     func setEnabled(_ on: Bool) {
         KeepAliveSettings.isEnabled = on
         guard on else {
@@ -163,7 +152,7 @@ final class BluetoothKeepAlive {
 
     func start() {
         // No speaker name configured = nothing to keep awake. Bailing here (and
-        // not just never matching) means the poll and the tone never exist on a
+        // not just never matching) means the poll and the nudge never exist on a
         // Mac that did not ask for them.
         guard !Self.nameMatch.isEmpty else {
             overlayInfo("⚪️ BT keep-alive off (bluetoothSpeakerNameMatch is empty)")
@@ -180,7 +169,7 @@ final class BluetoothKeepAlive {
             overlayInfo("🚫 BT keep-alive poll started but the menu switch is off (turn it back on in the ⭐ menu)")
             return
         }
-        overlayInfo("🔵 BT keep-alive started (every connected Bluetooth '\(Self.nameMatch)' speaker: continuous tone + a nudge every \(Int(Self.nudgeEvery / 60)) min, re-checked every \(Int(Self.interval))s)")
+        overlayInfo("🔵 BT keep-alive started (every connected Bluetooth '\(Self.nameMatch)' speaker: a nudge every \(Int(Self.nudgeEvery / 60)) min, re-checked every \(Int(Self.interval))s)")
     }
 
     private func tick() {
@@ -207,14 +196,12 @@ final class BluetoothKeepAlive {
     }
 
     /// Bring `held` in line with `targets`, on the main thread: drop speakers
-    /// that left, (re)start a loop that is not playing — the route changed
-    /// under it, the Mac slept — and nudge the ones that are due.
+    /// that left and nudge the ones that are due.
     private func sync(_ targets: [(uid: String, name: String)]) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             let wanted = Set(targets.map(\.uid))
             for uid in held.keys where !wanted.contains(uid) {
-                held[uid]?.loop?.stop()
                 held[uid]?.nudge?.stop()
                 held[uid] = nil
             }
@@ -222,13 +209,9 @@ final class BluetoothKeepAlive {
             for (uid, name) in targets {
                 // A speaker that just connected was just switched on, so its
                 // own timer has just started: no nudge owed yet.
-                var h = held[uid] ?? Held(name: name, loop: nil, nudge: nil, lastNudge: now)
-                if h.loop?.isPlaying != true {
-                    h.loop?.stop()
-                    h.loop = play(keepAliveWav, on: uid, loops: true, what: "keep-alive loop for '\(name)'")
-                }
+                var h = held[uid] ?? Held(name: name, nudge: nil, lastNudge: now)
                 if now.timeIntervalSince(h.lastNudge) >= Self.nudgeEvery {
-                    h.nudge = play(nudgeWav, on: uid, loops: false, what: "nudge for '\(name)'")
+                    h.nudge = play(nudgeWav, on: uid, what: "nudge for '\(name)'")
                     h.lastNudge = now
                 }
                 held[uid] = h
@@ -236,11 +219,10 @@ final class BluetoothKeepAlive {
         }
     }
 
-    private func play(_ wav: Data, on uid: String, loops: Bool, what: String) -> AVAudioPlayer? {
+    private func play(_ wav: Data, on uid: String, what: String) -> AVAudioPlayer? {
         do {
             let p = try AVAudioPlayer(data: wav)
             p.currentDevice = uid
-            p.numberOfLoops = loops ? -1 : 0
             p.volume = 1.0  // amplitude is baked into the samples
             p.prepareToPlay()
             p.play()
