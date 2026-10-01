@@ -4397,12 +4397,10 @@ class EmojiAnimator {
 
     /// The "?" in every hole (2026-10-01, Victor: the room *shoots questions*
     /// at the speaker). It waits `minigunQuestionDelay` after the hole lands,
-    /// then spins in from nothing — a full turn, overshooting its size — and
-    /// settles tilted, like a head cocked on *"what?"*.
+    /// then spins in from nothing — a full turn, overshooting its size and
+    /// its angle — and settles **upright** (a resting tilt read as crooked).
     static let minigunQuestionDelay: CFTimeInterval = 0.25
     static let minigunQuestionSpin: CFTimeInterval = 0.45
-    /// The resting tilt, radians (negative = leaning right, as a "?" does).
-    static let minigunQuestionTilt: CGFloat = -0.22
 
     private func addMinigunQuestionMark(to hole: CALayer) {
         let size = hole.bounds.size
@@ -4423,12 +4421,10 @@ class EmojiAnimator {
         mark.shadowOpacity = 0.9
         mark.shadowRadius = 2
         mark.shadowOffset = .zero
-        mark.transform = CATransform3DMakeRotation(Self.minigunQuestionTilt, 0, 0, 1)
         hole.addSublayer(mark)
 
         let spin = CAKeyframeAnimation(keyPath: "transform.rotation.z")
-        spin.values = [Self.minigunQuestionTilt - 2 * .pi, Self.minigunQuestionTilt + 0.18,
-                       Self.minigunQuestionTilt]
+        spin.values = [-2 * CGFloat.pi, 0.18, 0]
         spin.keyTimes = [0, 0.75, 1]
         let grow = CAKeyframeAnimation(keyPath: "transform.scale")
         grow.values = [0, 1.3, 1]

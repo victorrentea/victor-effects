@@ -840,8 +840,9 @@ rule from the start.
   - **Every hole asks a question** (2026-10-01, Victor: the room *shoots questions* at the
     speaker). `minigunQuestionDelay` (0.25 s) after a hole lands, a white "?" (black weight,
     0.62 of the hole, dark shadow) spins into its centre — one full turn while growing from
-    nothing past its size (1.3×) back to 1×, over 0.45 s — and rests tilted
-    (`minigunQuestionTilt`, −0.22 rad), a head cocked on *"what?"*. It is a sublayer of its
+    nothing past its size (1.3×) back to 1×, over 0.45 s — overshoots its angle a
+    little and **rests perfectly upright** (a resting tilt of −0.22 rad, tried first, read as
+    crooked). It is a sublayer of its
     hole, so it goes wherever the hole goes (the 250 cap, the fade, stop-all).
   - **The clicks are taken**, by an effect-owned `CGEventTap` on the main run loop (same
     shape as the bomb's): left down/drag/up and Esc. `minigunMouseDecision` is the rule —
