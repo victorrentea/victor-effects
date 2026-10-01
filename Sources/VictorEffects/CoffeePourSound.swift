@@ -20,8 +20,13 @@ import Foundation
 /// to −18 LUFS, their last second cross-faded into their first so the loop has
 /// no seam:
 /// - `espresso_pour.mp3` (12.5 s): the steady pump stretch of "Espresso machine.ogg".
-/// - `coffee_pour.mp3` (5.6 s): the steady stream of "Boiling water being poured
-///   into a mug for tea.ogg" (3.0–9.6 s), its natural fade-out ramped flat first.
+/// - `coffee_pour.mp3` (3.35 s): only the thin, gurgling stream of "Boiling
+///   water being poured into a mug for tea.ogg" (5.7–9.55 s), its natural
+///   fade-out ramped flat (+2.7 dB/s) first. NOT from 3.0 s as it was cut
+///   first (Victor, 2026-10-01: the second cup "sounds dubious", clean only
+///   from the third): those 2.5 s are the boomy splash into an EMPTY mug,
+///   10 dB more energy under 300 Hz — and the second cup, the clip's first
+///   pour, was exactly where they played, the third resuming past them.
 ///
 /// They start at once — no Bluetooth start delay: a sound that trails the pot
 /// by half a second reads as a different event.
@@ -31,8 +36,9 @@ final class CoffeePourSound {
         case pour = "coffee_pour"
     }
 
-    /// Loud enough to recognise, soft enough to talk over.
-    static let volume: Float = 0.22
+    /// Loud enough to recognise, soft enough to talk over. The plain pour a
+    /// touch under the machine (Victor, 2026-10-01: "un pic mai încet").
+    static func volume(_ clip: Clip) -> Float { clip == .pour ? 0.15 : 0.22 }
     static let fadeIn: TimeInterval = 0.25
     static let fadeOut: TimeInterval = 0.4
 
@@ -83,7 +89,7 @@ final class CoffeePourSound {
             p.volume = 0
             p.play()
         }
-        p.setVolume(Self.volume, fadeDuration: Self.fadeIn)
+        p.setVolume(Self.volume(clip), fadeDuration: Self.fadeIn)
     }
 
     private func fade(out gen: Int) {

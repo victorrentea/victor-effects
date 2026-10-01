@@ -2047,10 +2047,17 @@ flood of coffee cups"*. The rules:
    loop has no seam. **Once the break timer is open the machine stays off**
    (2026-09-30 — Victor: "the coffee pot is already full, I'm just pouring into
    a new cup"): each further pour plays `Resources/coffee_pour.mp3` instead —
-   hot water into a mug, 5.6 s mono, 44 KB, the steady stream (3.0–9.6 s) of
-   Commons' public-domain "Boiling water being poured into a mug for tea.ogg",
-   its natural fade-out ramped flat (+1.9 dB/s) before the same cross-fade and
-   −18 LUFS. The choice is `CoffeePourSound.potIsFull`, read only when a pour
+   hot water into a mug, 3.35 s mono, 27 KB, only the thin gurgling stream
+   (5.7–9.55 s) of Commons' public-domain "Boiling water being poured into a
+   mug for tea.ogg", its natural fade-out ramped flat (+2.7 dB/s) before the
+   same cross-fade and −18 LUFS, played at **0.15**, a touch under the machine
+   (2026-10-01 — Victor: "un pic mai încet"). It was first cut from 3.0 s, and
+   the second cup sounded "dubious", clean only from the third: 3.0–5.5 s is
+   the boomy splash into an *empty* mug (~10 dB more energy under 300 Hz), the
+   second cup is the clip's first pour so it played exactly that stretch, and
+   the third resumed past it. Measure a candidate in 0.25 s windows (RMS,
+   spectral centroid, share under 300 Hz) before bundling it — a loop must
+   sound the same everywhere, seam included. The choice is `CoffeePourSound.potIsFull`, read only when a pour
    *starts*. The timer is the addons app's, so every ☕ arrival asks it
    (`BreakTimerProbe`, async `GET <addonsBaseURL>/test/break/state` →
    `showing`) long before the pot can reach the cup — the pour never waits on
