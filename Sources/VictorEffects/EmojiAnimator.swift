@@ -2896,6 +2896,25 @@ class EmojiAnimator {
         brainIn.fillMode = .forwards; brainIn.isRemovedOnCompletion = false
         brain.add(brainIn, forKey: "brainIn")
 
+        // ☠️ Once the line goes flat, a skull fades in beside the brain. A
+        // sublayer, so it rides along and fades/dies with the brain for free.
+        let skull = CATextLayer()
+        skull.string = "☠️"
+        skull.fontSize = brainSize
+        skull.alignmentMode = .center
+        skull.bounds = brain.bounds
+        skull.contentsScale = brain.contentsScale
+        skull.position = CGPoint(x: brain.bounds.midX + brain.bounds.width * 0.9, y: brain.bounds.midY)
+        skull.opacity = 0
+        brain.addSublayer(skull)
+        let skullIn = CABasicAnimation(keyPath: "opacity")
+        skullIn.fromValue = 0; skullIn.toValue = 1
+        skullIn.beginTime = skull.convertTime(CACurrentMediaTime(), from: nil)
+            + PulseBrain.skullAppearsAt(totalDuration: totalDuration)
+        skullIn.duration = PulseBrain.skullFadeIn
+        skullIn.fillMode = .forwards; skullIn.isRemovedOnCompletion = false
+        skull.add(skullIn, forKey: "skullIn")
+
         let ride = CAKeyframeAnimation(keyPath: "position")
         ride.values = path.positions.map { NSValue(point: $0) }
         ride.keyTimes = path.keyTimes.map { NSNumber(value: $0) }

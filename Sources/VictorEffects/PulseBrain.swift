@@ -43,6 +43,22 @@ enum PulseBrain {
         max(24, bounds.height * sizeRatio)
     }
 
+    /// Where the line goes flat for good: the last bump of the second beat ends
+    /// on the path's second-to-last point, and from there it is one straight
+    /// segment to the right edge.
+    static var flatlineStartX: CGFloat { penPath[penPath.count - 2].x }
+
+    /// ☠️ fades in next to the brain this long after the line goes flat — long
+    /// enough to read the flat line as "no more beats", not as a pause.
+    static let skullDelay: Double = 0.3
+    static let skullFadeIn: Double = 0.4
+
+    /// Seconds from the reveal's start to the skull's fade-in, for a reveal of
+    /// `totalDuration` (linear, so the flatline starts at `flatlineStartX` of it).
+    static func skullAppearsAt(totalDuration: Double) -> Double {
+        Double(flatlineStartX) * totalDuration + skullDelay
+    }
+
     /// Keyframes for a linear `position` animation that spans the whole reveal.
     /// The mask's edge is at `t · width` (linear timing), so a point's key time
     /// is just its x. The overlay layer is bottom-origin, the PNG top-origin,

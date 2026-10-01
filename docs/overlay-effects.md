@@ -1267,6 +1267,9 @@ rule from the start.
   mid-stroke while the mask has already uncovered its tip. The brain is a sibling of the
   ECG layer, not a child, or that layer's mask would hide it; it fades and dies with the
   rest, in both the self-stop and `_stopPulse`.
+  **☠️ When the line goes flat** (`PulseBrain.flatlineStartX`, ≈ 3.03 s in), a skull
+  fades in beside the brain `skullDelay` = 0.3 s later. It is a sublayer of the brain, so
+  it rides the flatline with it and needs no cleanup of its own.
 
 - **💓 Heartbeat + 🐶 dog / 🐱 cat** (tile #13 `13_heartbeat.mp3`, `showHeartbeat`): the built-in
   Retina is captured and redrawn full-screen, then **bulged under the cursor** in a
