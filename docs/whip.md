@@ -64,7 +64,7 @@ Each crack plays one of `whip_A..E.mp3` at random, **seeked to its measured
 snap onset** (`crackOnset`: B at 0.13 s, D at 0.155 s, E at 0.06 s). Without the
 seek, two of the five samples bury the snap behind 140–170 ms of wind-up swish
 and the crack you hear trails the one you see, at random. Volume rides the
-soundboard's own level at `crackVolumeFactor` (0.8) — at full level the crack
+soundboard's own level at `crackVolumeFactor` (0.64) — at full level the crack
 genuinely startles a room, which is not the joke.
 
 Cracks are **not** Bluetooth-compensated (`bluetoothCompensated: false`): the

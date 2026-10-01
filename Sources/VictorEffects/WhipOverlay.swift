@@ -70,10 +70,11 @@ final class WhipController {
     ]
 
     /// The crack rides the **tablet's** volume wedge like every soundboard
-    /// sound — one knob for everything the room hears — but at 80% of it: at
+    /// sound — one knob for everything the room hears — but at 64% of it: at
     /// the wedge's full level the crack is loud enough to genuinely startle the
-    /// audience, which is not the joke we're going for.
-    private static let crackVolumeFactor: Float = 0.8
+    /// audience, which is not the joke we're going for. (Was 80%; still too
+    /// loud in the room, cut by another fifth on 1 Oct 2026.)
+    private static let crackVolumeFactor: Float = 0.64
 
     /// Play a random crack sample, seeked to its snap onset and with no BT delay
     /// (the overlay keeps the A2DP link warm), so the crack lands as tightly as
