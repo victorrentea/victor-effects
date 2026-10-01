@@ -24,7 +24,7 @@ final class CoffeePourMonitor {
         // while a menu is open, which the default mode would freeze.
         let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             guard let self, let animator = self.animator else { return }
-            let paid = animator.tickCoffeePour(cursorGlobalPoint: NSEvent.mouseLocation)
+            let paid = animator.tickCoffeePour(cursorGlobalPoint: VisibleCursor.location)
             guard !paid.isEmpty else { return }
             effectsInfo("☕ x\(paid.count) paid out → \(paid.count) coffee-popped event(s)")
             for point in paid { EventWebhook.coffeePopped(at: point) }

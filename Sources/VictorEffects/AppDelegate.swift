@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine = EffectsEngine(overlayPanel: overlayPanel)
         engine.startWatchdog()
 
+        // ⌥⇧ zoom (victor-macos-addons) moves the cursor the room sees away from
+        // the real pointer; effects drawn at the cursor follow the visible one.
+        VisibleCursor.start()
+
         router = EffectsRouter(engine: engine)
         // The tap IS the feature now: the checkbox that used to have to agree
         // with it is gone, so `panelMonitor` means exactly "the right-⌘ hold is

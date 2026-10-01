@@ -118,7 +118,7 @@ final class WhipController {
         p.contentView = v
 
         let sim = WhipPhysics(width: Double(screenFrame.width), height: Double(screenFrame.height))
-        let mouse = viewPoint(forGlobal: NSEvent.mouseLocation)
+        let mouse = viewPoint(forGlobal: VisibleCursor.location)
         sim.spawn(mouseX: Double(mouse.x), mouseY: Double(mouse.y), now: nowMs())
         v.points = sim.points
 
@@ -174,7 +174,7 @@ final class WhipController {
     /// Build the fake mouse sweep: from the cursor, out toward the side with
     /// more space and back, following `flickProfile`.
     private func startScriptedFlick() {
-        let start = viewPoint(forGlobal: NSEvent.mouseLocation)
+        let start = viewPoint(forGlobal: VisibleCursor.location)
         let w = Double(screenFrame.width)
         let spaceRight = w - Double(start.x)
         let spaceLeft = Double(start.x)
@@ -199,7 +199,7 @@ final class WhipController {
         let now = nowMs()
         // A scripted flick (forceCrack) drives the handle for a few frames to
         // imitate a fast mouse sweep; otherwise follow the real cursor.
-        let m = flickQueue.isEmpty ? viewPoint(forGlobal: NSEvent.mouseLocation) : flickQueue.removeFirst()
+        let m = flickQueue.isEmpty ? viewPoint(forGlobal: VisibleCursor.location) : flickQueue.removeFirst()
         physics.setMouse(Double(m.x), Double(m.y))
         let didCrack = physics.update(now: now)
         // Announce the natural crack — but not during a scripted flick, whose
@@ -243,7 +243,7 @@ final class WhipController {
     // MARK: - Geometry
 
     private func screenUnderMouse() -> NSScreen {
-        let loc = NSEvent.mouseLocation
+        let loc = VisibleCursor.location
         return NSScreen.screens.first { $0.frame.contains(loc) }
             ?? NSScreen.main
             ?? NSScreen.screens.first!

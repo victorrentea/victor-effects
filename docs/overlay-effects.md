@@ -147,6 +147,26 @@ Three things worth knowing before touching it:
   last one — the follower must never be what keeps an effect alive, nor what
   has to be told an effect ended (the self-termination rule).
 
+**The other zoom: ⌥⇧+scroll (`ShareZoom` in victor-macos-addons, 2026-10-01).**
+That one is a magnifier done *in a window* so a Zoom share carries it, and it needs
+none of the above: our overlay sits at the maximum window level, above its window,
+so every effect is drawn unmagnified over the zoomed picture — already what an
+effect looks like unzoomed — and `SLSGetZoomParametersForDisplay` keeps reporting
+1× through it, so `ScreenZoom` stays out of the way. Screenshot effects photograph
+the zoomed picture (only our own panel is excluded), which is what is on the glass.
+The one thing it breaks is **the cursor**: that zoom pans only when the pointer
+pushes an edge, hides the real cursor and draws a magnified one where the pointer's
+point appears on the glass, so anything drawn at `NSEvent.mouseLocation` was left
+beside the cursor the room sees. **`VisibleCursor.location`** answers the visible
+one — the drawn cursor's position as the addons app posts it in a distributed
+notification (`ro.victorrentea.share-zoom.cursor`, global Cocoa points, ~30 Hz while
+it moves, 0.5 s keep-alive, empty when the zoom ends; ignored after 1.5 s of
+silence so a crashed addons app cannot pin the effects to a dead point) — and the
+real pointer otherwise. It replaces `NSEvent.mouseLocation` in every effect drawn at
+the cursor: the 💓 heartbeat, the 🔍 glass, the cat/dog follow, the minigun holes,
+the coffee pour, the 🔥 whip. Hover and hit-testing in our own windows (thumbnail
+panel, peek mascot) keep the real pointer — that question really is about it.
+
 The **borders** were first: the **🚨 alarm / danger vignette** (`showVignette` — the
 radial gradient carries the frame, the container only carries the opacity
 animation, so there is one frame to re-pin) and the **green `EdgeFlash`**. The

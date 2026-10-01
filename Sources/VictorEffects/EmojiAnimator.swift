@@ -6213,7 +6213,7 @@ class EmojiAnimator {
         // the first beat). It is NOT frozen, though: scheduleHeartbeatPulses
         // re-centres it on the live mouse position before every lub-dub, so the
         // heart "beats" wherever the cursor currently rests.
-        let mouseGlobal = NSEvent.mouseLocation
+        let mouseGlobal = VisibleCursor.location
         let panelOriginGlobal = hostLayer.bounds.origin  // contentView bounds: (0,0)
         // Convert global mouse to layer-local coords. The overlay panel's
         // window frame defines the global origin of the layer. Find it via
@@ -6486,7 +6486,7 @@ class EmojiAnimator {
                       self.activeEffects["heartbeat"] === effect else { return }
                 // Re-centre the LENS on the current mouse before this beat. The
                 // bump is back at 0 here, so moving its centre is invisible.
-                let anchor = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+                let anchor = Self.layerAnchor(forGlobalMouse: VisibleCursor.location,
                                               panelOrigin: self.hostLayer.bounds.origin,
                                               hostLayer: self.hostLayer)
                 let center = HeartbeatBump.center(forAnchor: anchor, bounds: bounds)
@@ -6598,7 +6598,7 @@ class EmojiAnimator {
             //    magnifier easing in behind the hand reads as lag, not as weight.
             //    Safe to do mid-swell — `inputCenter` and the animated
             //    `inputScale` are different key paths on the same filter.
-            let anchor = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+            let anchor = Self.layerAnchor(forGlobalMouse: VisibleCursor.location,
                                           panelOrigin: self.hostLayer.bounds.origin,
                                           hostLayer: self.hostLayer)
             let center = HeartbeatBump.center(forAnchor: anchor, bounds: bounds)
@@ -6783,7 +6783,7 @@ class EmojiAnimator {
             guard let self = self, let dog = dog, let effect = effect,
                   self.activeEffects["heartbeat"] === effect,
                   CACurrentMediaTime() < deadline else { return false }
-            let rel = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+            let rel = Self.layerAnchor(forGlobalMouse: VisibleCursor.location,
                                        panelOrigin: self.hostLayer.bounds.origin,
                                        hostLayer: self.hostLayer)
             let cursor = Self.heartbeatStagedCursor(
@@ -6874,7 +6874,7 @@ class EmojiAnimator {
             guard let self = self, let cat = cat, let effect = effect,
                   self.activeEffects["heartbeat"] === effect,
                   CACurrentMediaTime() < deadline else { return false }
-            let rel = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+            let rel = Self.layerAnchor(forGlobalMouse: VisibleCursor.location,
                                        panelOrigin: self.hostLayer.bounds.origin,
                                        hostLayer: self.hostLayer)
             let cursor = Self.heartbeatStagedCursor(
@@ -7192,7 +7192,7 @@ class EmojiAnimator {
 
     /// The pointer, in the overlay's own points.
     private static func magnifierFocus(bounds: CGRect, hostLayer: CALayer) -> CGPoint {
-        let anchor = layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+        let anchor = layerAnchor(forGlobalMouse: VisibleCursor.location,
                                  panelOrigin: hostLayer.bounds.origin,
                                  hostLayer: hostLayer)
         return CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height)
@@ -8399,7 +8399,7 @@ class EmojiAnimator {
     /// clamped to the built-in screen (reuses the heartbeat anchor mapping).
     private func mousePointInHostLayer() -> CGPoint {
         let bounds = hostLayer.bounds
-        let anchor = Self.layerAnchor(forGlobalMouse: NSEvent.mouseLocation,
+        let anchor = Self.layerAnchor(forGlobalMouse: VisibleCursor.location,
                                       panelOrigin: hostLayer.bounds.origin,
                                       hostLayer: hostLayer)
         return CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height)
@@ -8609,7 +8609,7 @@ class EmojiAnimator {
 
     /// Current mouse location converted into hostLayer (overlay panel) coordinates.
     private func mouseInHostLayer() -> CGPoint {
-        let global = NSEvent.mouseLocation
+        let global = VisibleCursor.location
         let origin = (hostLayer.delegate as? NSView)?.window?.frame.origin ?? .zero
         return CGPoint(x: global.x - origin.x, y: global.y - origin.y)
     }
