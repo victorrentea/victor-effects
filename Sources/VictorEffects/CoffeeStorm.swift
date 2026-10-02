@@ -5,9 +5,9 @@ import Foundation
 /// `threshold` arrivals inside the last `window` seconds. Pure value type, so
 /// the decision can be tested with fake clocks and no screen.
 ///
-/// What a salvo changes is not how the cups fly — every cup rides the same
-/// chimney — but what the pot does to one it touches: below the threshold it
-/// fills the cup, past it the cup **explodes** (`EmojiAnimator.coffeeStorm`).
+/// Since 2026-10-02 a salvo arms nothing — only a won break does
+/// (`CoffeeVictory`) — and the gauge only says how hard a victory burst goes
+/// (`intensity`).
 ///
 /// Once tripped the state **lingers** for `linger` seconds past the last
 /// arrival that kept the rate up, and its `intensity` decays over that tail
@@ -77,14 +77,12 @@ struct CoffeeStormGauge {
 /// is small, unless there's a flood of coffee cups". Pure, so the thresholds
 /// are tested rather than eyeballed.
 ///
-/// Two floods count, because a room can drown the screen two ways:
-/// - **a salvo** — the `CoffeeStormGauge` is armed (more than 3 ☕ in a
-///   second). The gesture itself changes then (touch commits, the cup shakes
-///   and bursts), and the burst is the big one it always was: `stormViolence`
-///   by the gauge's intensity, fragments thrown across the screen, 22×22.
-/// - **a crowd** — no salvo, but cups arrived steadily enough to stack up on
-///   screen. Each still fills and pops; the pop grows from the quiet dissolve
-///   at `quietCups` or fewer to twice as hard at `floodCups` or more.
+/// - **a won break** (`armed`, `CoffeeVictory`): the cup shook and bursts
+///   big — `stormViolence` by the gauge's intensity, fragments thrown across
+///   the screen, 22×22.
+/// - **a crowd** — cups stacked up on screen. Each still fills and pops; the
+///   pop grows from the quiet dissolve at `quietCups` or fewer to twice as
+///   hard at `floodCups` or more.
 ///
 /// One cup, or a few, is a small local pop: `pixelDissolve` at violence 1 —
 /// the fragments travel about half the cup's width and fade where they are.
@@ -116,4 +114,31 @@ enum CoffeeBurst {
         let crowd = CGFloat(cupsOnScreen - quietCups) / CGFloat(floodCups - quietCups)
         return Size(violence: lerp(calmViolence, crowd), grid: calmGrid)
     }
+}
+
+/// 🎆 The break the ☕ won: on from the moment the addons app reports that a
+/// −1 took the UNTIL BREAK watch to zero, and kept on by every ☕ that still
+/// arrives — each one owes the room its big burst — until `linger` seconds
+/// pass with none. A deadline, never a flag: nothing has to remember to clear
+/// it. Pure, so it is tested with fake clocks.
+///
+/// Off, a filled cup is a vote (pops small, pays −1). On, it is a celebration
+/// (shakes, bursts big, fireworks, pays nothing).
+struct CoffeeVictory {
+    /// How long the celebration outlives the win, or the last ☕ after it.
+    var linger: TimeInterval = 10
+    private(set) var until: TimeInterval = -.infinity
+
+    mutating func won(at now: TimeInterval) {
+        until = max(until, now + linger)
+    }
+
+    /// A ☕ arriving while the celebration is on stretches it; one arriving
+    /// after it ended is a fresh vote and changes nothing.
+    mutating func arrival(at now: TimeInterval) {
+        guard isOn(at: now) else { return }
+        until = max(until, now + linger)
+    }
+
+    func isOn(at now: TimeInterval) -> Bool { now <= until }
 }

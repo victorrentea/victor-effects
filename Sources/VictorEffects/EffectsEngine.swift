@@ -294,11 +294,14 @@ final class EffectsEngine {
                 for _ in 0..<3 { animator.spawnEmoji(emoji) }
             }
         case "coffee/storm":
-            // A salvo past the more-than-3-per-second threshold: the cups rise
-            // like any other, but explosions are ARMED — touch one with the
-            // pot and it grows, shakes and bursts. Disarms on its own once the
-            // screen is empty (or 10 s after the salvo).
+            // A salvo of ~8 ☕: the cups rise like any other, and each one the
+            // pot fills is still a vote (−1) — a flood no longer arms anything.
             animator.spawnCoffeeStormForTest()
+        case "coffee/won":
+            // Addons: a ☕ −1 just took the UNTIL BREAK watch to zero. Yee-haw,
+            // and the cups the pot fills from now on burst big with fireworks
+            // (and pay nothing) until 10 s pass without a ☕.
+            animator.coffeeBreakWon()
         case "coffee/pop":
             // Skip the salvo and the pot entirely: burst a ☕ mid-screen and fire
             // the same event a real payoff fires, so the whole chain can be

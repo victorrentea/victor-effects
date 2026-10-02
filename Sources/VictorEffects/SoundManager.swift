@@ -244,7 +244,10 @@ class SoundManager {
     /// audio AND its visual by the compensation itself; letting this method add
     /// the delay a second time would push the beeps 2×btComp late and desync
     /// them from the sweep again.
-    func play(_ filename: String, volume: Float = 1.0, bluetoothCompensated: Bool = true) {
+    ///
+    /// `rate` above 1 plays the clip faster (pitch goes up with it) — the ☕
+    /// victory's fireworks, hurried a little.
+    func play(_ filename: String, volume: Float = 1.0, bluetoothCompensated: Bool = true, rate: Float = 1.0) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
@@ -261,6 +264,10 @@ class SoundManager {
             do {
                 let player = try AVAudioPlayer(contentsOf: url)
                 player.volume = max(0.0, min(1.0, volume))
+                if rate != 1.0 {
+                    player.enableRate = true
+                    player.rate = rate
+                }
                 player.prepareToPlay()
                 self.players[filename] = player
                 if bluetoothCompensated {

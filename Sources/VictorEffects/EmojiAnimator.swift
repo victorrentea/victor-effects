@@ -56,8 +56,6 @@ class EmojiAnimator {
         /// The pot is on it: its flight is stripped and it hangs where it was
         /// caught until the pot leaves.
         var frozen = false
-        /// A burst elsewhere cleared it: it is fading out and owns its teardown.
-        var leaving = false
         /// The coffee inside, painted at `fill` (`CoffeeLevelLayer`): the cup
         /// rises empty and the pot fills it. Nil for a glyph with no coffee.
         var level: CoffeeLevelLayer?
@@ -129,25 +127,23 @@ class EmojiAnimator {
     private static let coffeeDropSpeed: CGFloat = 90
     private static let coffeeDropGravity: CGFloat = 1400
 
-    // ☕💥 Escalation. `CoffeeStormGauge` counts arrivals in `spawnEmoji`: MORE
-    // than 3 inside one second (a salvo from the room) ARMS explosions, and
-    // from then on a cup the pot has FILLED (the same 2 s hold as a calm
-    // one) does not pop — it grows and shakes
-    // for `coffeeExplodeSeconds` and bursts where it is, throwing its pixels
-    // across the screen (`CoffeeBurst`: the big burst belongs to a flood; a
-    // calm cup pops small). The flight never changes: a salvo's cup rises
-    // exactly like a lone one.
+    // ☕💥 The big explosions belong to a break the room has WON (Victor,
+    // 2026-10-02): until the ☕ watch is at zero every cup is a vote — it fills,
+    // pops small and pays its −1, however many arrive at once. Only once the
+    // −1s have driven the watch to zero (addons says so: `/effect/coffee/won`
+    // → `coffeeBreakWon`) does a filled cup grow and shake for
+    // `coffeeExplodeSeconds` and burst across the screen with fireworks behind
+    // it — and pay nothing, since there is no watch left to pull closer.
     //
-    // How the mode ENDS (the spec left it open; this is the decision): the
-    // gauge keeps it armed for `coffeeEscalationLinger` seconds past the last
-    // second that was over the threshold — a room taps in salvos, and a mode
-    // that switched off between two salvos would explode one cup and fill the
-    // next — AND it ends early the moment no cup is left on screen
-    // (`tickCoffeePour` resets the gauge), so a straggler arriving after the
-    // salvo has been dealt with is offered, not detonated. Both are a deadline
-    // or a fact on screen, never a flag someone has to remember to clear;
-    // `stop-all` resets it at once.
+    // It used to be a salvo (more than 3 ☕ in a second) that armed them, and
+    // that fired the yee-haw and the big bursts on the very first pop of a
+    // flood — the room cheering a break nobody had given — and its first
+    // burst swept the cups still rising, so a flood of six paid two minutes.
+    //
+    // `CoffeeStormGauge` still counts arrivals, but only to size the bursts
+    // (`CoffeeBurst`'s intensity). `stop-all` resets both.
     private var coffeeStorm = EmojiAnimator.freshCoffeeGauge()
+    private var coffeeVictory = CoffeeVictory()
     private static let coffeeEscalationLinger: TimeInterval = 10
     private static func freshCoffeeGauge() -> CoffeeStormGauge {
         var g = CoffeeStormGauge()
@@ -157,14 +153,13 @@ class EmojiAnimator {
     private static let coffeeExplodeSeconds: Double = 1.3
     /// How big the glyph gets before it bursts (on top of its fill scale).
     private static let coffeeExplodeGrowScale: CGFloat = 3.0
-    /// How long the ☕ left on screen take to fade once a burst has paid out.
-    private static let coffeeClearSeconds: Double = 0.4
-    /// 🤠 A salvo's burst is cheered with tile #33's yee-haw. One cheer per
-    /// salvo: the cups the pot caught together burst within ~1.3 s of each
-    /// other, so anything inside the sound's length (2.7 s) stays quiet.
-    private static let salvoCheerSound = "33_yee_har.mp3"
-    private static let salvoCheerCooldown: CFTimeInterval = 3.0
-    private var lastSalvoCheer: CFTimeInterval = -.infinity
+    /// 🤠 The ☕ watch hit zero under the coffees' −1s: tile #33's yee-haw, once.
+    private static let victoryCheerSound = "33_yee_har.mp3"
+    /// 🎆 What a victory burst sounds like: the fireworks tile's bangs, a bit
+    /// faster than the tile plays them. One clip at a time — a burst while it
+    /// is still banging adds nothing, so a cluster does not stack into noise.
+    private static let victoryBangSound = "89_fireworks.mp3"
+    private static let victoryBangRate: Float = 1.3
 
     // Every reaction emoji spawns at the same height, bottom-left; ☕ rides the
     // chimney flight (`spawnCoffeeCup`), everything else the plain rise.
@@ -338,9 +333,11 @@ class EmojiAnimator {
         // counts is configuration — the one piece of the gesture a host might
         // want to re-key (`chargeEmoji`).
         if EffectsConfig.shared.chargeEmoji.contains(emoji) {
-            // Every arrival feeds the gauge that ARMS explosions (more than 3 in
-            // a second). The flight is the same either way.
-            coffeeStorm.record(at: CACurrentMediaTime())
+            // Every arrival feeds the gauge that sizes the bursts, and keeps a
+            // won break's explosions going. The flight is the same either way.
+            let now = CACurrentMediaTime()
+            coffeeStorm.record(at: now)
+            coffeeVictory.arrival(at: now)
             refreshCoffeePotIsFull()
             spawnCoffeeCup(glyph: layer, halo: halo)
             return
@@ -464,8 +461,7 @@ class EmojiAnimator {
             guard let self, let cup else { return }
             // Mid-explosion at the top: the burst owns the teardown. Frozen:
             // the flight was stripped under the pot, not finished.
-            // Leaving: a burst cleared the screen and its fade removes it.
-            if cup.exploding || cup.frozen || cup.leaving { return }
+            if cup.exploding || cup.frozen { return }
             cup.carrier.removeFromSuperlayer()
             self.coffeeCups.removeAll { $0 === cup }
         }
@@ -475,9 +471,9 @@ class EmojiAnimator {
     }
 
     /// Test hook (`/test/coffee/storm`): a salvo of ☕ at ~8 per second for
-    /// `seconds` — more than 3 in a second, so it ARMS the explosions — without
-    /// a room tapping the tablet. The cups rise exactly like lone ones; touch
-    /// one with the pot to see it grow, shake and burst.
+    /// `seconds`, without a room tapping the tablet. The cups rise exactly like
+    /// lone ones and each one the pot fills is still a vote; only after
+    /// `/test/coffee/won` do they grow, shake and burst.
     func spawnCoffeeStormForTest(seconds: Double = 1.0) {
         let emoji = EffectsConfig.shared.chargeEmoji.first ?? "☕"
         let perSecond = 8
@@ -568,7 +564,8 @@ class EmojiAnimator {
         var payoffs = coffeePayoffs.map(global)
         coffeePayoffs.removeAll()
 
-        // Escalation ends early once the screen is empty — see `coffeeStorm`.
+        // A flood's size is forgotten once the screen is empty, so the next
+        // one starts its escalation from scratch.
         if coffeeCups.isEmpty, coffeeStorm.isStorm(at: now) {
             coffeeStorm = Self.freshCoffeeGauge()
         }
@@ -577,7 +574,7 @@ class EmojiAnimator {
         // the screen's bottom-left, so shift the global point by the screen origin.
         let p = CGPoint(x: globalPoint.x - frame.origin.x, y: globalPoint.y - frame.origin.y)
         let pad = Self.coffeeHitSlop
-        let armed = coffeeStorm.isStorm(at: now)
+        let armed = coffeeVictory.isOn(at: now)
         var touching = false
         // The cup the pot bends toward: the touched one nearest the spout.
         var aim: CoffeeCup?
@@ -613,13 +610,13 @@ class EmojiAnimator {
             cup.poured += dt
             setCoffeeFill(cup)
             if cup.fill >= 1, armed {
-                // A salvo's cup needed the same full hold; only then does it
-                // commit to the shake-and-burst.
+                // The break is won: the same full hold, then the
+                // shake-and-burst.
                 beginCoffeeExplosion(cup)
             } else if cup.fill >= 1 {
                 // Big enough: it pops and is gone. The payoff is queued by
                 // the burst and handed over on the next tick — after it.
-                burstCoffee(cup, salvo: false)
+                burstCoffee(cup, victory: false)
                 if aim === cup { aim = nil }
             }
         }
@@ -742,7 +739,7 @@ class EmojiAnimator {
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self, weak cup] in
             guard let self, let cup else { return }
-            self.burstCoffee(cup, salvo: true)
+            self.burstCoffee(cup, victory: true)
         }
         cup.glyph.add(grow, forKey: "explode-grow")
         cup.glyph.add(shake, forKey: "explode-shake")
@@ -752,14 +749,17 @@ class EmojiAnimator {
     /// The burst: the cup goes away in the same frame and its own rendered
     /// pixels take its place as a cloud of tiles (`pixelDissolve`), right where
     /// it was caught. How hard is `CoffeeBurst`'s call — a small local pop,
-    /// unless the screen is flooded. Queues the point as a payoff: the timer /
-    /// −1 is announced by the explosion, not by the touch.
+    /// unless the screen is flooded or the break is already won.
     ///
-    /// Only a SALVO's burst clears the other cups (`clearCoffeesAfterBurst`):
-    /// that rule is there to stop a flood turning into twenty −1s. A calm
-    /// cup is one person's vote, and the next cup is somebody else's.
-    /// `salvo`: it was armed when the pot touched it (shook, then burst).
-    private func burstCoffee(_ cup: CoffeeCup, salvo: Bool) {
+    /// A vote (`victory: false`) queues its point as a payoff: the timer / −1
+    /// is announced by the explosion, not by the touch. Every caught cup pays
+    /// its own — nothing is swept, a cloud of six is six minutes.
+    ///
+    /// A victory burst (`victory: true`: it shook, then burst, after the watch
+    /// hit zero) is the celebration — fireworks behind it, and no payoff: the
+    /// watch it would pull closer is the one the room just emptied, and a pop
+    /// arriving after it closed would start a fresh UNTIL BREAK.
+    private func burstCoffee(_ cup: CoffeeCup, victory: Bool) {
         let pres = cup.carrier.presentation() ?? cup.carrier
         let center = pres.position
         let carrierScale = max(0.1, pres.transform.m11)
@@ -769,7 +769,7 @@ class EmojiAnimator {
         let side = Self.emojiSize * carrierScale * glyphScale
 
         let now = CACurrentMediaTime()
-        let size = CoffeeBurst.size(armed: salvo,
+        let size = CoffeeBurst.size(armed: victory,
                                     intensity: coffeeStorm.intensity(at: now),
                                     cupsOnScreen: coffeeCups.count)
         cup.exploding = true
@@ -778,57 +778,27 @@ class EmojiAnimator {
         coffeeCups.removeAll { $0 === cup }
 
         pixelDissolve(at: center, side: side, violence: size.violence, grid: size.grid)
+        if victory {
+            bangVictory()
+            return
+        }
         coffeePayoffs.append(center)
         // This pop opens the break timer (or pulls it closer): from here on the
         // pot is full, and the next cup is poured, not brewed.
         _lastCoffeePayout = CACurrentMediaTime()
         coffeePourSound.potIsFull = true
-        if salvo {
-            cheerSalvo(at: now)
-            clearCoffeesAfterBurst()
-        }
     }
 
-    private func cheerSalvo(at now: CFTimeInterval) {
-        guard now - lastSalvoCheer >= Self.salvoCheerCooldown else { return }
-        lastSalvoCheer = now
-        SoundManager.shared.play(Self.salvoCheerSound)
+    /// 🤠 The addons app saw a ☕ −1 land on the UNTIL BREAK watch and take it
+    /// to zero (`/effect/coffee/won`): cheer once, and from now on the cups the
+    /// pot fills shake and burst big instead of voting (`CoffeeVictory`).
+    func coffeeBreakWon() {
+        coffeeVictory.won(at: CACurrentMediaTime())
+        SoundManager.shared.play(Self.victoryCheerSound)
     }
 
-    /// A salvo's burst paid out its −1, so the ☕ still rising have done their
-    /// job: they fade out together instead of drifting on as targets for the
-    /// next pour. Cups the pot has already CAUGHT are left alone — exploding,
-    /// frozen under the pot, or holding any pour: each still owes its own burst
-    /// and its own −1. Sweeping those too was the "I stopped a cloud of seven
-    /// and lost minutes" bug (2026-09-28): the first cup of a compact cloud to
-    /// fill burst, and the ones still filling beside it faded out unpaid.
-    /// With the screen empty, `tickCoffeePour` disarms the salvo, so the next
-    /// ☕ arrives calm.
-    private func clearCoffeesAfterBurst() {
-        func caught(_ cup: CoffeeCup) -> Bool { cup.exploding || cup.frozen || cup.poured > 0 }
-        let leaving = coffeeCups.filter { !caught($0) }
-        guard !leaving.isEmpty else { return }
-        coffeeCups.removeAll { !caught($0) }
-        for cup in leaving {
-            cup.leaving = true
-            let carrier = cup.carrier
-            let opacity = carrier.presentation()?.opacity ?? carrier.opacity
-            let pres = carrier.presentation() ?? carrier
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            CATransaction.setCompletionBlock { carrier.removeFromSuperlayer() }
-            // Pin it where it IS: stripping the flight would snap it back to spawn.
-            carrier.position = pres.position
-            carrier.transform = pres.transform
-            carrier.removeAllAnimations()
-            carrier.opacity = 0
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = opacity
-            fade.toValue = 0
-            fade.duration = Self.coffeeClearSeconds
-            carrier.add(fade, forKey: "clear")
-            CATransaction.commit()
-        }
+    private func bangVictory() {
+        SoundManager.shared.play(Self.victoryBangSound, rate: Self.victoryBangRate)
     }
 
     /// Put the pot on the cursor (creating it — and hiding the real pointer —
@@ -1156,25 +1126,26 @@ class EmojiAnimator {
 
     /// Test hook (`/test/coffee/pop`): pop a ☕ at the given point right now,
     /// exactly as a real payoff would go off at this moment — a full cup's
-    /// small pop, sized by `CoffeeBurst` for the cups on screen, or a salvo's
-    /// burst (clearing the others) while a salvo is armed — returning where it
-    /// went off: the whole chain (pixel dissolve → timer zoom-in / −1 token)
-    /// without a hand on the pot. Nil if there is no built-in screen to draw on.
+    /// small pop, sized by `CoffeeBurst` for the cups on screen, returning
+    /// where it went off: the whole chain (pixel dissolve → timer zoom-in / −1
+    /// token) without a hand on the pot. After a won break it is the big burst
+    /// with its fireworks instead, and returns nil — a victory pays nothing.
+    /// Nil too if there is no built-in screen to draw on.
     @discardableResult
     func popCoffeeForTest(atGlobal globalPoint: CGPoint? = nil) -> CGPoint? {
         guard let screen = Self.builtInScreenFrame() else { return nil }
         let p = globalPoint.map { CGPoint(x: $0.x - screen.origin.x, y: $0.y - screen.origin.y) }
             ?? CGPoint(x: screen.width * 0.3, y: screen.height * 0.45)
         let now = CACurrentMediaTime()
-        let salvo = coffeeStorm.isStorm(at: now)
-        let size = CoffeeBurst.size(armed: salvo, intensity: coffeeStorm.intensity(at: now),
+        let victory = coffeeVictory.isOn(at: now)
+        let size = CoffeeBurst.size(armed: victory, intensity: coffeeStorm.intensity(at: now),
                                     cupsOnScreen: coffeeCups.count + 1)
         let side = Self.emojiSize * Self.emojiRiseScale * Self.coffeeFillGrowScale
-            * (salvo ? Self.coffeeExplodeGrowScale : 1)
+            * (victory ? Self.coffeeExplodeGrowScale : 1)
         pixelDissolve(at: p, side: side, violence: size.violence, grid: size.grid)
-        if salvo {
-            cheerSalvo(at: now)
-            clearCoffeesAfterBurst()
+        if victory {
+            bangVictory()
+            return nil
         }
         return CGPoint(x: p.x + screen.origin.x, y: p.y + screen.origin.y)
     }
@@ -12179,6 +12150,7 @@ class EmojiAnimator {
         coffeeCups.removeAll()
         coffeePayoffs.removeAll()
         coffeeStorm = Self.freshCoffeeGauge()
+        coffeeVictory = CoffeeVictory()
         hidePot()
         for (_, layer) in activeEffects {
             layer.removeAllAnimations()

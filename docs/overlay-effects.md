@@ -2108,59 +2108,48 @@ flood of coffee cups"*. The rules:
    pop**: one `coffee-popped` webhook (below), queued by the burst and sent on
    the next tick — so the timer / −1 always comes *after* the explosion, never
    at the touch.
-3. **Escalation = explosions, unlocked by a salvo.** `CoffeeStormGauge` (pure,
-   tested) counts arrivals in `spawnEmoji`: **more than 3 inside one second**
-   ARMS the mode. From then on a cup the pot has **filled** (the same 2 s hold,
-   drained the same way if let go — since 2026-09-28; before, a mere touch
-   committed an armed cup, which is exactly the accident nobody could undo)
-   does not pop — the glyph **grows to 3× (on top of its fill) while shaking harder and harder for 1.3 s,
-   then bursts** (`beginCoffeeExplosion` → `burstCoffee`): `pixelDissolve` at
-   violence 3.0–4.5 (denser salvo → harder) on the 22×22 grid, fragments thrown
-   across the screen. Each burst is also a payoff (the trainer touched it).
-   **How big a pop is** (`CoffeeBurst.size`, pure + tested): the salvo's
-   burst above is the big one; a calm cup's pop is `pixelDissolve` at
-   violence **1** on the 12×12 grid — the quiet dissolve, fragments travelling
-   about half the cup's width — for **3 cups on screen or fewer**
-   (`quietCups`), growing linearly to violence **2** at **10 or more**
-   (`floodCups`): a crowd that built up without ever being a salvo is a flood
-   too.
-   **How the mode ends** — the spec left it open, this is the decision, also in
-   the code comment on `coffeeStorm`: the gauge keeps it armed for **10 s** past
-   the last second that was over the threshold (a room taps in salvos; a mode
-   that switched off between two salvos would explode one cup and fill the next),
-   **and** it ends early the moment **no cup is left on screen**, so a straggler
-   arriving after the salvo has been dealt with is offered, not detonated. Both
-   are a deadline or a fact on screen, never a flag to remember to clear;
-   `stop-all` resets it at once.
+3. **Escalation = explosions, unlocked by a WON break** (2026-10-02). Until the
+   ☕ watch is at zero every cup is a vote: it fills, pops and pays its −1,
+   however many arrive at once. The addons app is the one that sees the watch,
+   so when a landing −1 takes **UNTIL BREAK** to zero it fires
+   `GET /effect/coffee/won` (`coffeeBreakWon`): 🤠 tile #33's yee-haw
+   (`33_yee_har.mp3`) plays **once**, and `CoffeeVictory` (pure, tested) turns
+   on. From then on a cup the pot has **filled** (the same 2 s hold, drained
+   the same way if let go) does not pop — the glyph **grows to 3× (on top of
+   its fill) while shaking harder and harder for 1.3 s, then bursts**
+   (`beginCoffeeExplosion` → `burstCoffee`): `pixelDissolve` at violence
+   3.0–4.5 on the 22×22 grid, fragments thrown across the screen, with the
+   fireworks tile's bangs behind it (`89_fireworks.mp3` at **1.3×** speed, one
+   clip at a time so a cluster does not stack into noise). A victory burst
+   **pays nothing**: the watch it would pull closer is the one just emptied,
+   and a pop arriving after it closed would open a fresh UNTIL BREAK.
+   **How it ends**: 10 s after the win, stretched by every ☕ that arrives while
+   it is on, so a room still sending cups keeps getting fireworks; a ☕ after
+   that is a vote again. A deadline, never a flag; `stop-all` resets it.
+   **How big a pop is** (`CoffeeBurst.size`, pure + tested): the victory burst
+   above is the big one, its violence scaled by `CoffeeStormGauge`'s intensity
+   (more than 3 ☕ a second, and how long the flood has gone on — the gauge
+   only sizes bursts now, it arms nothing). A vote's pop is `pixelDissolve` at
+   violence **1** on the 12×12 grid — the quiet dissolve — for **3 cups on
+   screen or fewer** (`quietCups`), growing linearly to violence **2** at
+   **10 or more** (`floodCups`).
+   **Why not a salvo any more.** Until 2026-10-02 more than 3 ☕ in a second
+   armed the big bursts and the yee-haw played on the first one — the room
+   cheering a break Victor had not given, with the watch still at 9 minutes.
+   And that first burst swept every cup still rising (`clearCoffeesAfterBurst`,
+   deleted): Victor caught six cups and saw two −1s fly. Now nothing is swept;
+   six cups caught are six minutes.
 4. **Contact freezes, whatever follows.** A cup is two layers (`CoffeeCup`).
    The **carrier** rides the chimney (position, the 1→1.3 growth, the fade);
    the **glyph** inside it is the only thing the pour and the explosion touch
    (fill scale, shake, blow-up). The pot's one effect on the carrier is to
-   freeze it — for an armed cup too since 2026-09-24 (it used to explode on
+   freeze it — for a victory cup too since 2026-09-24 (it used to explode on
    its path): it shakes and bursts **right where it was caught**. Freezing
    also strips the `"fade"` animation, so a cup caught near the top stays
    visible until it bursts.
-5. **A salvo's burst clears the screen** (2026-09-25). Once an armed cup has
-   burst and paid its −1, every other ☕ still rising fades out together in 0.4 s
-   (`clearCoffeesAfterBurst`, `coffeeClearSeconds`) instead of drifting on as
-   targets. Cups the pot has already **caught** are left alone — shaking toward
-   their own burst, frozen under the pot, or holding any pour — each still owes
-   its own −1. Until 2026-09-28 only the shaking ones were spared, so a compact
-   cloud caught at once paid out only the few that reached full within the
-   first cup's 1.3 s shake; the rest faded out unpaid under the pot ("I stopped
-   a cloud of coffees and lost minutes"). Once the caught cups have burst the
-   screen is empty, so the gauge disarms on the next tick (point 3) and the next
-   ☕ arrives calm. A **calm** pop does not
-   clear: the rule exists to stop a flood turning into twenty −1s, and a calm
-   cup is one person's vote — the next cup is somebody else's.
-6. **A salvo's burst is cheered** (2026-10-02): 🤠 tile #33's yee-haw
-   (`33_yee_har.mp3`, 2.7 s) plays on the burst, **once per salvo** —
-   the cups caught together burst within ~1.3 s of each other, so any burst
-   inside `salvoCheerCooldown` (3 s) of the last cheer stays quiet. A calm pop
-   is silent, as before.
 
 Which emoji counts is configuration, not a literal: `chargeEmoji` (default
-`["☕"]`). A stop-all clears the cups, disarms the mode and takes the pot off
+`["☕"]`). A stop-all clears the cups, ends a victory and takes the pot off
 the cursor — the pot lives outside `activeEffects` and hides the real pointer,
 so leaving it behind would strand the desktop with a teapot for a cursor.
 
