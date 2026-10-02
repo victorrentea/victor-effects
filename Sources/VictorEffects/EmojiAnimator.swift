@@ -784,12 +784,15 @@ class EmojiAnimator {
         _lastCoffeePayout = CACurrentMediaTime()
         coffeePourSound.potIsFull = true
         if salvo {
-            if now - lastSalvoCheer >= Self.salvoCheerCooldown {
-                lastSalvoCheer = now
-                SoundManager.shared.play(Self.salvoCheerSound)
-            }
+            cheerSalvo(at: now)
             clearCoffeesAfterBurst()
         }
+    }
+
+    private func cheerSalvo(at now: CFTimeInterval) {
+        guard now - lastSalvoCheer >= Self.salvoCheerCooldown else { return }
+        lastSalvoCheer = now
+        SoundManager.shared.play(Self.salvoCheerSound)
     }
 
     /// A salvo's burst paid out its −1, so the ☕ still rising have done their
@@ -1169,7 +1172,10 @@ class EmojiAnimator {
         let side = Self.emojiSize * Self.emojiRiseScale * Self.coffeeFillGrowScale
             * (salvo ? Self.coffeeExplodeGrowScale : 1)
         pixelDissolve(at: p, side: side, violence: size.violence, grid: size.grid)
-        if salvo { clearCoffeesAfterBurst() }
+        if salvo {
+            cheerSalvo(at: now)
+            clearCoffeesAfterBurst()
+        }
         return CGPoint(x: p.x + screen.origin.x, y: p.y + screen.origin.y)
     }
 
