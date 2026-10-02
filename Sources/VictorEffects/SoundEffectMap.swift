@@ -79,7 +79,6 @@ enum SoundEffectMap {
         "49_wrong.mp3":          "wrong-x",
         "50_gong.mp3":           "gong",
         "26_drum.mp3":           "drum-roll",
-        "44_laugh_emoji.mp3":    "laugh",
         "40_joker.mp3":          "blood-drip",
         // Tile 46 IS the Christmas tile — Michael Bublé's "It's Beginning to Look
         // a Lot Like Christmas", snow already falling in the artwork. The desktop
