@@ -2153,6 +2153,11 @@ flood of coffee cups"*. The rules:
    ☕ arrives calm. A **calm** pop does not
    clear: the rule exists to stop a flood turning into twenty −1s, and a calm
    cup is one person's vote — the next cup is somebody else's.
+6. **A salvo's burst is cheered** (2026-10-02): 🤠 tile #33's yee-haw
+   (`33_yee_har.mp3`, 2.7 s) plays on the burst, **once per salvo** —
+   the cups caught together burst within ~1.3 s of each other, so any burst
+   inside `salvoCheerCooldown` (3 s) of the last cheer stays quiet. A calm pop
+   is silent, as before.
 
 Which emoji counts is configuration, not a literal: `chargeEmoji` (default
 `["☕"]`). A stop-all clears the cups, disarms the mode and takes the pot off

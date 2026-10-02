@@ -159,6 +159,12 @@ class EmojiAnimator {
     private static let coffeeExplodeGrowScale: CGFloat = 3.0
     /// How long the ☕ left on screen take to fade once a burst has paid out.
     private static let coffeeClearSeconds: Double = 0.4
+    /// 🤠 A salvo's burst is cheered with tile #33's yee-haw. One cheer per
+    /// salvo: the cups the pot caught together burst within ~1.3 s of each
+    /// other, so anything inside the sound's length (2.7 s) stays quiet.
+    private static let salvoCheerSound = "33_yee_har.mp3"
+    private static let salvoCheerCooldown: CFTimeInterval = 3.0
+    private var lastSalvoCheer: CFTimeInterval = -.infinity
 
     // Every reaction emoji spawns at the same height, bottom-left; ☕ rides the
     // chimney flight (`spawnCoffeeCup`), everything else the plain rise.
@@ -777,7 +783,13 @@ class EmojiAnimator {
         // pot is full, and the next cup is poured, not brewed.
         _lastCoffeePayout = CACurrentMediaTime()
         coffeePourSound.potIsFull = true
-        if salvo { clearCoffeesAfterBurst() }
+        if salvo {
+            if now - lastSalvoCheer >= Self.salvoCheerCooldown {
+                lastSalvoCheer = now
+                SoundManager.shared.play(Self.salvoCheerSound)
+            }
+            clearCoffeesAfterBurst()
+        }
     }
 
     /// A salvo's burst paid out its −1, so the ☕ still rising have done their
