@@ -9922,7 +9922,7 @@ class EmojiAnimator {
     // after its sound (which starts one HTTP call earlier in the tablet-routed
     // path). Force-decoding into bitmap-backed CGImages up front makes the
     // animation start in sync with the sound, at the cost of ~100MB resident.
-    private static var brotherCache: (frames: [CGImage], duration: Double, modDate: Date?)?
+    private static var brotherCache: (frames: [CGImage], delays: [Double], modDate: Date?)?
     private static let brotherDecodeQueue = DispatchQueue(label: "brother-gif-decode", qos: .userInitiated)
 
     static func warmBrotherCache() {
@@ -9931,20 +9931,23 @@ class EmojiAnimator {
 
     private static var brotherGifURL: URL? { EffectsConfig.shared.assetURL("brother_full.gif") }
 
-    /// One loop of the source clip (youtube.com/watch?v=qua9rU7D9AE): 340
-    /// frames at 30 fps, and its audio repeats every 11.325 s. The GIF's own
-    /// 60/70 ms delays add up to 11.6 s, so played at face value it fell
-    /// ~0.25 s behind the sound by the last "yeww". The phase is the
-    /// `animationLeadMs` of 67_sfx_109.mp3: the sfx starts 0.49 s into the loop.
-    static let brotherLoopSeconds = 340.0 / 30.0
+    /// The GIF's per-frame delays ARE the timeline: each frame sits at its
+    /// measured time in the source clip (the green-screen re-upload
+    /// youtube.com/watch?v=hiSSmQcnuSM it was cut from, every ~2nd frame of
+    /// 30 fps, with a few dropped/doubled — so a uniform rate drifts up to
+    /// ±50 ms). The delays were rewritten to those times, so playback must
+    /// honour them frame by frame (keyTimes), not spread frames evenly.
+    /// The phase is the `animationLeadMs` of 67_sfx_109.mp3 (= the audio of
+    /// the original youtube.com/watch?v=koY4S1BbR5w): frame 0 is 0.32 s
+    /// before the sfx's first sample.
 
     /// Decode every GIF frame into a bitmap-backed CGImage (cached by file mod
     /// date, so a re-downloaded GIF is picked up). Must run on brotherDecodeQueue.
-    private static func decodedBrotherFrames() -> (frames: [CGImage], duration: Double)? {
+    private static func decodedBrotherFrames() -> (frames: [CGImage], delays: [Double])? {
         guard let gifURL = brotherGifURL else { return nil }
         let modDate = (try? FileManager.default.attributesOfItem(atPath: gifURL.path)[.modificationDate]) as? Date
         if let cache = brotherCache, cache.modDate == modDate {
-            return (cache.frames, cache.duration)
+            return (cache.frames, cache.delays)
         }
 
         guard let source = CGImageSourceCreateWithURL(gifURL as CFURL, nil) else { return nil }
@@ -9952,7 +9955,7 @@ class EmojiAnimator {
         guard count > 0 else { return nil }
 
         var frames: [CGImage] = []
-        var totalDuration: Double = 0
+        var delays: [Double] = []
         for i in 0..<count {
             guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
             // Draw into a context to force the otherwise-lazy bitmap decode now.
@@ -9967,13 +9970,16 @@ class EmojiAnimator {
             }
             let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [String: Any]
             let gif = props?[kCGImagePropertyGIFDictionary as String] as? [String: Any]
-            let delay = gif?[kCGImagePropertyGIFDelayTime as String] as? Double ?? 0.05
-            totalDuration += delay
+            // Unclamped: ImageIO bumps short delays in the clamped value, and
+            // this GIF has 30-40 ms frames where the source dropped one.
+            let delay = gif?[kCGImagePropertyGIFUnclampedDelayTime as String] as? Double
+                ?? gif?[kCGImagePropertyGIFDelayTime as String] as? Double ?? 0.05
+            delays.append(delay > 0 ? delay : 0.05)
         }
         guard !frames.isEmpty else { return nil }
 
-        brotherCache = (frames, totalDuration, modDate)
-        return (frames, totalDuration)
+        brotherCache = (frames, delays, modDate)
+        return (frames, delays)
     }
 
     func showBrother(playSound: Bool = true) {
@@ -9987,12 +9993,12 @@ class EmojiAnimator {
                 return
             }
             DispatchQueue.main.async {
-                self?.startBrother(images: decoded.frames, totalDuration: decoded.duration, playSound: playSound)
+                self?.startBrother(images: decoded.frames, delays: decoded.delays, playSound: playSound)
             }
         }
     }
 
-    private func startBrother(images: [CGImage], totalDuration: Double, playSound: Bool) {
+    private func startBrother(images: [CGImage], delays: [Double], playSound: Bool) {
         guard activeEffects["brother"] == nil else { return }  // double-trigger guard across the async hop
 
         let bounds = hostLayer.bounds
@@ -10007,9 +10013,19 @@ class EmojiAnimator {
         hostLayer.addSublayer(gifLayer)
         activeEffects["brother"] = gifLayer
 
+        // Discrete keyframes at each frame's own start time; .discrete wants
+        // one more keyTime than values (the loop end).
+        let totalDuration = delays.reduce(0, +)
+        var starts: [NSNumber] = []
+        var t = 0.0
+        for d in delays { starts.append(NSNumber(value: t / totalDuration)); t += d }
+        starts.append(1)
+
         let anim = CAKeyframeAnimation(keyPath: "contents")
         anim.values = images
-        anim.duration = Self.brotherLoopSeconds
+        anim.keyTimes = starts
+        anim.calculationMode = .discrete
+        anim.duration = totalDuration
         anim.repeatCount = .infinity
 
         CATransaction.begin()
