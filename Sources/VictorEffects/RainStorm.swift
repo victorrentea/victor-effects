@@ -39,6 +39,11 @@ enum RainStorm {
     /// Measured 18.90 s. Only used when `soundsDir` has no copy to ask.
     static let fallbackDuration: Double = 18.9
 
+    /// The clip plays at this fraction of the tablet's volume (Victor,
+    /// 2026-10-03: the rain was too loud next to the other tiles). A gain in
+    /// code rather than a re-encoded mp3: the asset lives in the tablet's repo.
+    static let soundGain: Float = 0.5
+
     /// Where the thunder rolls sit inside the clip, in seconds — measured off
     /// the file with a 50 ms RMS envelope, keeping the four loudest and
     /// dropping two that sat inside another's tail.
@@ -66,12 +71,13 @@ enum RainStorm {
 
     /// The desktop dims to this, over [darkenSeconds]. Not black: what is being
     /// darkened is a live demo, and the room still has to be able to read it —
-    /// the same trade `TvStatic.defaultAlpha` makes.
+    /// the same trade `TvStatic.defaultAlpha` makes. Was 0.62 until
+    /// 2026-10-03 — too heavy for the room (Victor: "mai moderată").
     ///
     /// The ramp has to be **over before the first roll of thunder** — a screen
     /// still visibly darkening when the lightning goes off reads as the flash
     /// dimming the desktop, which is backwards. `RainStormTests` holds it there.
-    static let darkenOpacity: Float = 0.62
+    static let darkenOpacity: Float = 0.45
     static let darkenSeconds: Double = 2.4
 
     /// Rain does not start until there is something for it to fall out of: the

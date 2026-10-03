@@ -70,6 +70,11 @@ class SoundManager {
     /// volume is never touched.
     private var tabletVolume: Float = 1.0
 
+    /// Per-clip trim on top of `tabletVolume`, for a tile whose file is
+    /// mastered louder than the rest. Kept through a live volume change.
+    static let fileGain: [String: Float] = [RainStorm.soundName: RainStorm.soundGain]
+    private var tabletFileGain: Float = 1.0
+
     /// Fade `player` to silence over `seconds`, then stop it and let it go.
     /// Retains it for the duration — the caller has already dropped its own
     /// reference (see `fadingOut`). A zero/negative fade stops it immediately,
@@ -400,7 +405,8 @@ class SoundManager {
         }
         do {
             let player = try AVAudioPlayer(contentsOf: url)
-            player.volume = tabletVolume
+            tabletFileGain = Self.fileGain[filename] ?? 1.0
+            player.volume = tabletVolume * tabletFileGain
             player.prepareToPlay()
             if startAt > 0 { player.currentTime = min(startAt, player.duration) }
             tabletPlayer = player
@@ -453,7 +459,8 @@ class SoundManager {
         }
         do {
             let player = try AVAudioPlayer(contentsOf: url)
-            player.volume = tabletVolume
+            tabletFileGain = Self.fileGain[filename] ?? 1.0
+            player.volume = tabletVolume * tabletFileGain
             player.prepareToPlay()
             tabletPlayer = player
             let lead = Self.pairedEffectStartDelays[filename] ?? 0
@@ -504,7 +511,7 @@ class SoundManager {
         }
         do {
             let player = try AVAudioPlayer(contentsOf: url)
-            player.volume = tabletVolume
+            player.volume = tabletVolume * (Self.fileGain[filename] ?? 1.0)
             player.prepareToPlay()
             overlappingPlayers.append(player)
             player.play()
@@ -527,7 +534,7 @@ class SoundManager {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.tabletVolume = max(0.0, min(1.0, volume))
-            self.tabletPlayer?.volume = self.tabletVolume
+            self.tabletPlayer?.volume = self.tabletVolume * self.tabletFileGain
             self.playOverlapping("click.wav", volume: self.tabletVolume)
         }
     }
