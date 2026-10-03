@@ -52,6 +52,12 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertEqual(panda.size, elephant.size)
     }
 
+    func testElephantAndPandaLeaveOnTheSameBeatAsTheClaudeMascot() {
+        // Both animals walk out on their own exactly when ⌘⌃Q's mascot slides out.
+        XCTAssertEqual(EmojiAnimator.elephantLifetime, EmojiAnimator.claudePeekLifetime)
+        XCTAssertEqual(EmojiAnimator.pandaLifetime, EmojiAnimator.claudePeekLifetime)
+    }
+
     func testPandaShipsCutOutWithAnAlphaChannel() throws {
         // Read straight from the app's own Resources rather than a 1 MB copy in
         // the test bundle: the file under test is the one that ships.

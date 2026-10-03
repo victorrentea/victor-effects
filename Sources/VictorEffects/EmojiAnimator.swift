@@ -11458,8 +11458,10 @@ class EmojiAnimator {
 
     // MARK: - 🐘 The elephant in the room (⌘⌃I)
 
-    /// How long the elephant stays before it walks out on its own.
-    static let elephantLifetime: Double = 25
+    /// How long the elephant stays before it walks out on its own: exactly as
+    /// long as ⌘⌃Q's mascot, so the animals leave on the same beat the greeting
+    /// does (was 25 s until 2026-10-03 — long enough to be forgotten on screen).
+    static let elephantLifetime: Double = claudePeekLifetime
 
     /// Where the elephant stands: the LEFT HALF of the screen, on the bottom
     /// edge, as large as that half allows.
@@ -11655,8 +11657,8 @@ class EmojiAnimator {
 
     /// How long the icon stays before it slides back out on its own.
     ///
-    /// Short: this is a greeting, not a prop. The elephant is a picture that a
-    /// sentence is built around and stays 25 s; this one only has to be seen.
+    /// Short: this is a greeting, not a prop. The elephant and the panda
+    /// borrow this same number, so all three leave on one beat.
     static let claudePeekLifetime: Double = 5
 
     /// Where it leans in: the **top LEFT**, at **41%** of the screen height,
