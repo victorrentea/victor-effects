@@ -119,6 +119,97 @@ enum PeekMascotStore {
 /// does not take focus off whatever Victor was typing in — the same requirement
 /// the Break timer's panel has, and the reason the cursor is set imperatively
 /// from a tracking area rather than only through `resetCursorRects`.
+/// 🎅 Clawd wears a Santa hat on every other entrance (2026-10-04): *"alternativ
+/// când intră pe ecran (o dată cu, o dată fără)"*.
+///
+/// **The hat is Victor's picture, not a drawing.** Five hats were drawn first —
+/// blocky, tilted, Codex's — and all of them *"arată rău"*; the one that stuck
+/// is a 46×41 pixel-art hat he supplied, sampled back to its own grid and
+/// blown up ×5 with nearest-neighbour so its pixels stay as square as Clawd's.
+///
+/// **Big, and slumped over the right hand.** At least a third of the head's
+/// width was the floor (*"măcar o treime"*), then *"mai mare"* than 48%, with
+/// *"moțul căciulii să vină peste mânuța dreaptă"* — so it is 230 px over a
+/// 376 px head (61%), the pompom on the top edge of the right hand, then
+/// nudged right by 10% of its own width so the brim clears the right eye.
+///
+/// **Only Clawd wears it.** Copilot has no head corner to put it on, and an
+/// entrance as Copilot does not use up a turn of the alternation.
+enum PeekSantaHat {
+    static let resource = "santa-hat"
+
+    /// Where the hat's top-left corner lands, in `claude-icon.png` pixels with
+    /// y DOWN (the way an image editor counts): 64 px above the head, so the
+    /// picture grows upwards and never pushes the body down.
+    static let origin = CGPoint(x: 264, y: -64)
+
+    /// The union of the body and the hat, in the same y-down icon pixels.
+    static func canvas(icon: CGSize, hat: CGSize) -> CGRect {
+        CGRect(origin: .zero, size: icon)
+            .union(CGRect(origin: origin, size: hat))
+    }
+
+    /// Where the hatted picture goes so the **body inside it lands exactly
+    /// where the bare one would** — same scale, same left edge, same feet. Sized
+    /// off its own taller height instead, Clawd would shrink by a sixth the
+    /// moment he put a hat on. `plainFrame` is the bare icon's
+    /// `claudePeekFrame`; `pad` is the rim both pictures wear. y-up, like the
+    /// host layer.
+    static func frame(plainFrame: CGRect, icon: CGSize, hat: CGSize, pad: CGFloat) -> CGRect {
+        let c = canvas(icon: icon, hat: hat)
+        let s = plainFrame.height / (icon.height + 2 * pad)
+        return CGRect(
+            x: plainFrame.minX + c.minX * s,
+            y: plainFrame.minY - (c.maxY - icon.height) * s,
+            width: (c.width + 2 * pad) * s,
+            height: (c.height + 2 * pad) * s)
+    }
+
+    /// Bare icon + hat, flattened into one picture so the white rim goes round
+    /// the pair as one silhouette — a hat outlined on its own would draw a white
+    /// seam across Clawd's forehead.
+    static func composite(icon: CGImage, hat: CGImage) -> CGImage? {
+        let iconSize = CGSize(width: icon.width, height: icon.height)
+        let hatSize = CGSize(width: hat.width, height: hat.height)
+        let c = canvas(icon: iconSize, hat: hatSize)
+        guard let ctx = CGContext(
+            data: nil, width: Int(c.width), height: Int(c.height),
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        // CGContext is y-up: a y-down top `t` becomes a bottom of height - t - h.
+        func draw(_ image: CGImage, at topLeft: CGPoint, _ size: CGSize) {
+            ctx.draw(image, in: CGRect(
+                x: topLeft.x - c.minX,
+                y: c.height - (topLeft.y - c.minY) - size.height,
+                width: size.width, height: size.height))
+        }
+        ctx.interpolationQuality = .none
+        draw(icon, at: .zero, iconSize)
+        draw(hat, at: origin, hatSize)
+        return ctx.makeImage()
+    }
+
+    /// Whether this entrance wears the hat, given what was stored after the
+    /// last one. Nothing stored means yes: the first entrance after the hat
+    /// shipped is the one that shows it exists.
+    static func wears(stored: Bool?) -> Bool { stored ?? true }
+}
+
+/// The alternation, kept in `UserDefaults` so a restart — several an hour —
+/// does not reset it to "hat" every time and turn "every other" into "always".
+enum PeekSantaHatStore {
+    private static let kWearsNext = "ClaudePeek.santa.wearsNext"
+
+    /// This entrance's answer, flipping the stored one for the next.
+    static func takeTurn() -> Bool {
+        let d = UserDefaults.standard
+        let wears = PeekSantaHat.wears(stored: d.object(forKey: kWearsNext) as? Bool)
+        d.set(!wears, forKey: kWearsNext)
+        return wears
+    }
+}
+
 final class PeekHitPanel: NSPanel {
     private final class HitView: NSView {
         var onClick: (() -> Void)?
@@ -232,8 +323,12 @@ enum PeekMascotOutline {
     /// The mascot with a white rim around it, padded by the rim on all four
     /// sides so the stroke has somewhere to live. Nil only if a bitmap context
     /// cannot be made, in which case the caller shows the bare cut-out.
-    static func outlined(_ image: CGImage) -> CGImage? {
-        let pad = ringWidth(forHeight: image.height)
+    ///
+    /// `pad` overrides the rim: the hatted Clawd is taller than the bare one,
+    /// and a rim measured off *its* height would come out thicker around the
+    /// very same body.
+    static func outlined(_ image: CGImage, pad: Int? = nil) -> CGImage? {
+        let pad = pad ?? ringWidth(forHeight: image.height)
         let size = CGSize(width: image.width, height: image.height)
         guard let silhouette = whiteSilhouette(image),
               let ctx = context(width: image.width + 2 * pad, height: image.height + 2 * pad)

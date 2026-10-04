@@ -11778,13 +11778,15 @@ class EmojiAnimator {
         if activeEffects["claude-peek"] != nil { stopClaudePeek(); return }
 
         let mascot = PeekMascotStore.current()
-        guard let image = Self.peekImage(mascot) else {
+        // 🎅 every other Clawd entrance (`PeekSantaHat`); Copilot's entrances
+        // do not take a turn.
+        peekWearsHat = mascot == .claude && PeekSantaHatStore.takeTurn()
+        let hat = peekWearsHat
+        guard let image = Self.peekImage(mascot, hat: hat),
+              let frame = Self.peekFrame(mascot, hat: hat, in: hostLayer.bounds) else {
             overlayError("\(mascot.rawValue).png is not in the bundle")
             return
         }
-
-        let bounds = hostLayer.bounds
-        let frame = Self.claudePeekFrame(in: bounds, aspect: CGFloat(image.width) / CGFloat(image.height))
 
         let layer = CALayer()
         layer.frame = frame
@@ -11823,20 +11825,50 @@ class EmojiAnimator {
     /// Already-stroked mascots, kept because the rim is built once per PNG and
     /// this key is pressed many times a day; the images are a few hundred KB
     /// each and the app is restarted several times an hour anyway.
-    private static var peekImageCache: [PeekMascot: CGImage] = [:]
+    private static var peekImageCache: [String: CGImage] = [:]
+
+    /// Whether the entrance on screen wears the 🎅 hat. Decided once per
+    /// entrance; a click that swaps to Copilot and back finds it still on.
+    private var peekWearsHat = false
 
     /// Load a mascot's cut-out PNG out of the bundle, wearing its white rim
     /// (`PeekMascotOutline` — why a cut-out alone is not enough on a dark
     /// screen). If the rim cannot be built the bare cut-out still shows: a
     /// mascot that is hard to see beats no mascot at all.
-    private static func peekImage(_ mascot: PeekMascot) -> CGImage? {
-        if let cached = peekImageCache[mascot] { return cached }
-        guard let url = Bundle.module.url(forResource: mascot.rawValue, withExtension: "png"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        let stroked = PeekMascotOutline.outlined(image) ?? image
-        peekImageCache[mascot] = stroked
+    private static func peekImage(_ mascot: PeekMascot, hat: Bool = false) -> CGImage? {
+        let key = mascot.rawValue + (hat ? "+santa" : "")
+        if let cached = peekImageCache[key] { return cached }
+        guard let image = bundledPNG(mascot.rawValue) else { return nil }
+        var stroked = PeekMascotOutline.outlined(image) ?? image
+        if hat, let hatImage = bundledPNG(PeekSantaHat.resource),
+           let both = PeekSantaHat.composite(icon: image, hat: hatImage) {
+            // The bare icon's rim, not one measured off the taller picture.
+            let pad = PeekMascotOutline.ringWidth(forHeight: image.height)
+            stroked = PeekMascotOutline.outlined(both, pad: pad) ?? both
+        }
+        peekImageCache[key] = stroked
         return stroked
+    }
+
+    static func bundledPNG(_ name: String) -> CGImage? {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "png"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
+
+    /// The landed frame. Always measured off the BARE icon, so a hat only adds
+    /// picture above and beside Clawd and never shrinks him
+    /// (`PeekSantaHat.frame`). If the hat PNG is missing he simply goes bare.
+    private static func peekFrame(_ mascot: PeekMascot, hat: Bool, in bounds: CGRect) -> CGRect? {
+        guard let plain = peekImage(mascot) else { return nil }
+        let frame = claudePeekFrame(in: bounds, aspect: CGFloat(plain.width) / CGFloat(plain.height))
+        guard hat, let icon = bundledPNG(mascot.rawValue),
+              let hatImage = bundledPNG(PeekSantaHat.resource) else { return frame }
+        return PeekSantaHat.frame(
+            plainFrame: frame,
+            icon: CGSize(width: icon.width, height: icon.height),
+            hat: CGSize(width: hatImage.width, height: hatImage.height),
+            pad: CGFloat(PeekMascotOutline.ringWidth(forHeight: icon.height)))
     }
 
     /// Arm the self-termination, guarded by BOTH layer identity and generation:
@@ -12049,7 +12081,9 @@ class EmojiAnimator {
     private func flipPeekMascot() {
         guard let layer = activeEffects["claude-peek"] else { return }
         let mascot = PeekMascotStore.flip()
-        guard let image = Self.peekImage(mascot) else {
+        let hat = mascot == .claude && peekWearsHat
+        guard let image = Self.peekImage(mascot, hat: hat),
+              let frame = Self.peekFrame(mascot, hat: hat, in: hostLayer.bounds) else {
             overlayError("\(mascot.rawValue).png is not in the bundle")
             return
         }
@@ -12058,7 +12092,16 @@ class EmojiAnimator {
         fade.type = .fade
         fade.duration = 0.22
         layer.add(fade, forKey: "costume-change")
+        // The hatted Clawd is a taller picture than Copilot: the frame changes
+        // with the costume, in one step — an implicit 0.25 s resize would read
+        // as the robot inflating.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.frame = frame
         layer.contents = image
+        CATransaction.commit()
+        let screenOrigin = EdgeFlash.builtInScreen?.frame.origin ?? .zero
+        peekHitPanel?.setFrame(frame.offsetBy(dx: screenOrigin.x, dy: screenOrigin.y), display: false)
 
         let wiggle = CAKeyframeAnimation(keyPath: "transform.rotation.z")
         wiggle.values = [0, -0.12, 0.10, -0.065, 0.04, 0]
