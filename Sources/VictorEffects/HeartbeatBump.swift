@@ -68,7 +68,10 @@ enum HeartbeatBump {
     /// The one time the amplitude WAS asked for: 2026-10-01, "mărirea cu 30 % mai
     /// mare", together with the doubled radius. 0.5 × 1.3 = 0.65, still short of
     /// the ~0.7 smear.
-    static let peakScale: CGFloat = 0.65
+    ///
+    /// 2026-10-05, the amplitude alone again: "la două treimi anvergura bătăii"
+    /// — two thirds of the beat, 0.65 × 2/3 ≈ 0.43. The lens size stayed put.
+    static let peakScale: CGFloat = 0.65 * 2 / 3
 
     /// The residual whole-screen breathe, kept deliberately tiny (the old value
     /// was 1.30). It is what stops the screen from looking frozen between the

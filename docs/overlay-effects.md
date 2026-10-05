@@ -1293,7 +1293,8 @@ rule from the start.
   diameter went 0.5 → 0.6 of the height (the area, which nobody was asked about, grows
   44%); on **2026-10-01** he asked for **double the radius and 30% more magnification**, so
   `diameterFraction` 0.6 → **1.2** (r ≈ 670 pt on the Retina — the disc is now taller than
-  the screen) and `peakScale` 0.5 → **0.65**, the first time the amplitude itself moved. The
+  the screen) and `peakScale` 0.5 → **0.65**, the first time the amplitude itself moved (on **2026-10-05** it was cut to
+  **two thirds** of that, 0.65 → ≈ **0.43**, lens size untouched). The
   🐶/🐱 were pinned in place by the same request ("câinele tot acolo ca poziție"): they now
   stand off `companionRadius(in:)`, which keeps the old 0.6, and the bigger bulge simply
   beats *under* them (their stage sits above `imgLayer` and the recapture excludes the

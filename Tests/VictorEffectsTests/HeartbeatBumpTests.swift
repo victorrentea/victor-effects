@@ -47,8 +47,9 @@ final class HeartbeatBumpTests: XCTestCase {
 
     // The amplitude survived every resize until 2026-10-01, when it was asked
     // for in its own right: 30 % more, 0.5 → 0.65 — still under the ~0.7 smear.
-    func testAmplitudeIsThirtyPercentOverTheOldHalf() {
-        XCTAssertEqual(HeartbeatBump.peakScale, 0.5 * 1.3, accuracy: 0.0001)
+    // On 2026-10-05 it was cut to two thirds of that: 0.65 → ≈ 0.43.
+    func testAmplitudeIsTwoThirdsOfTheThirtyPercentBump() {
+        XCTAssertEqual(HeartbeatBump.peakScale, 0.5 * 1.3 * 2 / 3, accuracy: 0.0001)
         XCTAssertLessThan(HeartbeatBump.peakScale, 0.7)
     }
 
