@@ -41,10 +41,15 @@ enum SirenLamp {
     static let boxRight: CGFloat = 0.45
     static let boxHeight: CGFloat = 0.295
 
-    /// Twice the size that fits that box (Victor, same evening: "2x larger").
-    /// It grows about the box's centre line, so it still sits over the spot
-    /// that was drawn, just bigger.
-    static let growth: CGFloat = 2
+    /// 1.7× the size that fits that box: Victor asked for 2× ("2x larger"),
+    /// saw it, and took 15 % back ("-15% mărime"). It grows about the box's
+    /// centre line, so it still sits over the spot that was drawn.
+    static let growth: CGFloat = 1.7
+
+    /// Then a nudge left, as a fraction of the screen width (Victor: "puțin mai
+    /// la stânga"). The glow on the left may run off the glass; the lamp itself
+    /// stays well inside.
+    static let nudgeLeft: CGFloat = 0.05
 
     /// How much of the image is glow BELOW the base: the opaque grey base ends
     /// on row 222 of the 301-row asset, and the 78 rows under it are light
@@ -54,7 +59,7 @@ enum SirenLamp {
     static let belowBaseFraction: CGFloat = 78.0 / 301.0
 
     /// The lamp's frame inside `bounds` (bottom-origin): aspect-fit into the
-    /// box, grown by `growth`, centred across the box, its BASE on the bottom
+    /// box, grown by `growth`, centred across the box then nudged left, its BASE on the bottom
     /// edge (the frame starts below the screen by `belowBaseFraction`).
     static func frame(imageSize: CGSize, in bounds: CGRect) -> CGRect {
         let box = CGRect(x: bounds.minX + bounds.width * boxLeft,
@@ -64,7 +69,7 @@ enum SirenLamp {
         guard imageSize.width > 0, imageSize.height > 0 else { return box }
         let scale = min(box.width / imageSize.width, box.height / imageSize.height) * growth
         let size = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
-        return CGRect(x: box.midX - size.width / 2,
+        return CGRect(x: box.midX - bounds.width * nudgeLeft - size.width / 2,
                       y: box.minY - size.height * belowBaseFraction,
                       width: size.width, height: size.height)
     }

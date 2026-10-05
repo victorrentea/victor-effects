@@ -18,17 +18,20 @@ final class SirenLampTests: XCTestCase {
         XCTAssertLessThan(f.minY, 0)
     }
 
-    func testTwiceTheSizeThatFitsTheBoxVictorDrew() {
+    func testGrownBeyondTheSizeThatFitsTheBoxVictorDrew() {
         let f = SirenLamp.frame(imageSize: lampSize, in: bounds)
         // On the retina the box is wider than the lamp's aspect: height binds.
-        XCTAssertEqual(f.height, H * SirenLamp.boxHeight * 2, accuracy: 0.5)
+        XCTAssertEqual(f.height, H * SirenLamp.boxHeight * SirenLamp.growth, accuracy: 0.5)
         XCTAssertEqual(f.width / f.height, lampSize.width / lampSize.height, accuracy: 0.001)
     }
 
-    func testItGrowsAboutTheBoxsCentreAndStaysOnScreenSideways() {
+    func testItSitsALittleLeftOfTheBoxsCentreWithTheBaseStillOnScreen() {
         let f = SirenLamp.frame(imageSize: lampSize, in: bounds)
-        XCTAssertEqual(f.midX, W * (SirenLamp.boxLeft + SirenLamp.boxRight) / 2, accuracy: 0.5)
-        XCTAssertGreaterThanOrEqual(f.minX, 0)
+        let boxMid = W * (SirenLamp.boxLeft + SirenLamp.boxRight) / 2
+        XCTAssertEqual(f.midX, boxMid - W * SirenLamp.nudgeLeft, accuracy: 0.5)
+        // The grey base starts at column 135 of 424: it must stay on the glass
+        // even if the glow to its left does not.
+        XCTAssertGreaterThan(f.minX + f.width * 135 / 424, 0)
     }
 
     func testOneTurnPerWail_eightWailsFillTheSirenClip() {

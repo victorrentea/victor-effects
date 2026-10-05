@@ -261,8 +261,10 @@ siren's, not the GIF's**: one full turn per wail, `period` 0.647 s, because
 delays are ignored. `phase` puts the flash frame (beam at the room) on the loud
 first 0.4 s of each burst. The box — 13.9 %–45 % of the width, bottom 29.5 % —
 is the one Victor drew on the screen; the very corner is the 🔔 fire alarm's
-(#65). The lamp is then drawn at **twice** the size that fits it, grown about
-the box's centre, with its grey **base on the bottom edge**: the bottom 78 of the
+(#65). The lamp is then drawn at **1.7×** the size that fits it (2× asked for, then
+15 % taken back on seeing it), grown about
+the box's centre and then nudged 5 % of the width to the left (`nudgeLeft`;
+the glow may run off the left edge, the base does not), with its grey **base on the bottom edge**: the bottom 78 of the
 asset's 301 rows are glow spilling under the base, so the frame starts that far
 below the screen (`belowBaseFraction`) instead of leaving the lamp floating. It is staged through `ZoomFollower` and parked in `activeEffects` under
 `siren-lamp`, so a stop-all removes it and the 🛑 lights while it spins, but its
