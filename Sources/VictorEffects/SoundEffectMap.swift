@@ -30,6 +30,11 @@ enum SoundEffectMap {
         "08_scream_man.mp3":     "fear",
         "22_minigun.mp3":        "bullet-holes",
         "65_school_bell.mp3":    "fire-alarm",
+        // Tile 63 (📯 air horn): the rotating red beacon standing on the
+        // bottom edge for the length of the clip. Tried on the siren (#2)
+        // first; Victor kept #2 as the plain red vignette and moved the lamp
+        // here. Self-terminating, so no onStop entry.
+        "63_air_horn.mp3":       "siren-lamp",
         "10_red_phone.mp3":      "phone-ring",
         "19_fail.mp3":           "fail",
         // 20_fail2.mp3 is NOT here any more. It is still #19's second take

@@ -246,32 +246,6 @@ deliberate exception is the siren's alarm overlay (an unbounded toggle — its
 sound loops until explicitly stopped). When adding a new effect, follow this
 rule from the start.
 
-**🚨 The siren's lamp (2026-10-05).** While the alarm overlay is on, a rotating
-red beacon stands in the bottom-left corner (`SirenLamp.swift`) — and **only
-the beacon**: the red vignette around the screen is gone from the siren (Victor:
-*"fără periferia pe margine roșie, doar sirena să se vadă"*); it comes back only
-as the fallback when the asset is missing, so a siren press never draws nothing. The asset is `siren_lamp.png` in `assetsDir` — a 4-frame
-animated PNG made from a downloaded ceiling-beacon GIF: flipped so the base
-stands on the floor, black turned into alpha by un-premultiplying (the glow
-fades into the desktop instead of sitting in a black box), the grey base given
-its own opaque mask (un-premultiplied it went glassy and showed the desktop
-through). No file ⇒ one log line and the old vignette instead. **Its tempo is the
-siren's, not the GIF's**: one full turn per wail, `period` 0.647 s, because
-`02_siren.mp3` is 5.17 s of exactly eight identical bursts; the file's own frame
-delays are ignored. `phase` puts the flash frame (beam at the room) on the loud
-first 0.4 s of each burst. The box — 13.9 %–45 % of the width, bottom 29.5 % —
-is the one Victor drew on the screen; the very corner is the 🔔 fire alarm's
-(#65). The lamp is then drawn at **1.7×** the size that fits it (2× asked for, then
-15 % taken back on seeing it), grown about
-the box's centre and then nudged 5 % of the width to the left (`nudgeLeft`;
-the glow may run off the left edge, the base does not), with its grey **base on the bottom edge**: the bottom 78 of the
-asset's 301 rows are glow spilling under the base, so the frame starts that far
-below the screen (`belowBaseFraction`) instead of leaving the lamp floating. It is staged through `ZoomFollower` and parked in `activeEffects` under
-`siren-lamp`, so a stop-all removes it and the 🛑 lights while it spins, but its
-only owner is the alarm toggle: `startAlarmOverlay` restarts it (phase back in
-step with a sound that also just restarted), `stopAlarmOverlay` ends it. (The
-fallback vignette keeps its older 0.68 s pulse.)
-
 **The log answers "why is X still on screen"** (2026-10-05, after a 🌑 Death
 Star was found parked mid-workshop and nothing in `/tmp/victor-effects.log`
 could say whether it was 8 s or 8 min old). Three lines per effect, none per
@@ -284,6 +258,29 @@ running. An effect whose `off` never comes is one that outlived its moment;
 an `on` after a `🛑` or a `⏸️` is one that got in through a door the gate
 missed. Overlays that live outside `activeEffects` (the 🕳️ iris, the 🪚
 chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
+- **🚨 Siren lamp** (tile #63 `63_air_horn.mp3` → `siren-lamp`,
+  `showSirenLamp` + `SirenLamp.swift`, 2026-10-05): a rotating red beacon
+  standing on the bottom edge, left of centre, for the length of the clip
+  (`trackEffect` at the mp3's real length, 0.3 s fade). Built for the siren (#2)
+  first — Victor tried it there, then kept #2 as the plain red vignette and
+  moved the lamp here. The asset is `siren_lamp.png` in `assetsDir` (a
+  downloaded GIF, so not in this repo; missing ⇒ one log line, the horn plays
+  alone) — a 4-frame animated PNG made from a ceiling beacon: flipped so the
+  base stands on the floor, black turned into alpha by un-premultiplying (the
+  glow fades into the desktop instead of sitting in a black box), the grey base
+  given its own opaque mask (un-premultiplied it went glassy and showed the
+  desktop through). **The tempo is a siren's, not the GIF's**: one turn per
+  0.647 s (`period`), measured on `02_siren.mp3` — 5.17 s of exactly eight
+  identical bursts — and kept, since the air horn has no beat of its own; the
+  file's frame delays are ignored. The box — 13.9 %–45 % of the width, bottom
+  29.5 % — is the one Victor drew on the screen (the very corner is the 🔔 fire
+  alarm's, #65); the lamp is drawn at **1.7×** what fits it (2× asked for, then
+  15 % taken back on seeing it), nudged 5 % of the width left (`nudgeLeft`; the
+  glow may run off the left edge, the base does not), with its grey **base on
+  the bottom edge**: the bottom 78 of the asset's 301 rows are glow spilling
+  under the base, so the frame starts that far below the screen
+  (`belowBaseFraction`) instead of leaving the lamp floating. Staged through
+  `ZoomFollower`.
 - **🐺 Wolf howl** (tile #4 `04_wolf.mp3` → `wolf-howl`, `showWolfHowl`,
   2026-09-30): a wolf on a rock howls at a full moon, `wolf-howl.gif` (500×500,
   transparent, 151 frames ≈ 25 fps, **6.06 s = the clip**), a square 48% of the

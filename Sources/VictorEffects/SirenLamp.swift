@@ -1,39 +1,39 @@
 import AppKit
 import QuartzCore
 
-/// 🚨 The rotating red lamp that stands in the bottom-left corner while the
-/// siren tile (`02_siren.mp3`) is on. It is the whole alarm overlay: the red
-/// vignette around the screen is drawn only when this asset is missing.
+/// 🚨 The rotating red lamp that stands on the bottom edge, left of centre,
+/// for the length of tile 63's air horn (`63_air_horn.mp3`). It was built for
+/// the siren (#2) first; Victor kept #2 as the plain red vignette and moved the
+/// lamp here (2026-10-05).
 ///
 /// The asset is a 4-frame animated PNG with real alpha: a ceiling beacon GIF
 /// flipped upside down so its base sits on the floor, its black background
 /// turned into transparency (the glow fades into the desktop instead of a black
 /// box), the grey base kept opaque. It came off Pinterest, so it is NOT in this
 /// public repo — it lives in `EffectsConfig.assetsDir` like `scared_cat.gif`,
-/// and without it the alarm falls back to the red vignette.
-///
-/// It has no lifetime of its own: it is a layer of the alarm overlay, which is
-/// the one deliberate unbounded toggle (`docs/overlay-effects.md`, lifecycle
-/// rule) — it goes when `/alarm/stop`, a stop-all, or the next `/alarm/start`
-/// takes the overlay down.
+/// and without it the press logs one line and the horn plays alone.
 enum SirenLamp {
 
     static let assetName = "siren_lamp.png"
 
+    static let soundName = "63_air_horn.mp3"
+
+    /// The clip's measured length, for when the mp3 cannot be read: the lamp
+    /// lives exactly as long as the horn (`trackEffect`, the lifecycle rule).
+    static let fallbackDuration: Double = 6.19
+
     /// One full turn of the lamp (all four frames, one flash toward the room)
-    /// per wail of the siren. Measured on `02_siren.mp3`: 5.17 s holding eight
-    /// identical bursts, i.e. 0.647 s each — the loudness envelope repeats so
-    /// cleanly that the autocorrelation peaks at 0.87 on that lag.
+    /// per 0.647 s. Tuned on `02_siren.mp3` when the lamp lived there: 5.17 s
+    /// holding eight identical bursts. The air horn has no beat of its own to
+    /// follow, so the lamp keeps the tempo of a real siren.
     static let period: Double = 0.647
 
-    /// Where in its cycle the lamp starts, so the flash frame (the last one,
-    /// beam pointing at the room) lands on the LOUD part of each burst rather
-    /// than on the silence between two: every burst is loud for its first
-    /// ~0.4 s, peaking ~0.15 s in, and the flash frame spans 0.485–0.647 of the
-    /// cycle. Starting 0.415 s in puts the flash at 0.07–0.23 s of each wail.
+    /// Where in its cycle the lamp starts: 0.415 s in puts the flash frame (the
+    /// last one, beam pointing at the room) at 0.07–0.23 s of each turn — on
+    /// the loud part of a siren burst, from when it lived on #2.
     static let phase: Double = 0.415
 
-    /// The box Victor drew on the screen for it (2026-10-05), as fractions of
+    /// The box Victor drew on the screen for it (2026-10-05, for the siren), as fractions of
     /// the overlay: from 13.9 % to 45 % of the width, the bottom 29.5 % of the
     /// height. Not flush with the left edge — the 🔔 fire alarm (#65) owns that
     /// corner.
@@ -90,12 +90,12 @@ enum SirenLamp {
     }
 
     /// The spinning lamp, ready to add — or `nil` when the asset is not in
-    /// `assetsDir`, in which case the alarm stays a vignette only. The frame
+    /// `assetsDir`, in which case the horn plays alone. The frame
     /// timing ignores the file's own delays on purpose: the tempo belongs to
     /// the siren, not to whoever exported the GIF.
     static func makeLayer(bounds: CGRect) -> CALayer? {
         guard let frames = decodedFrames(), let first = frames.first else {
-            overlayInfo("🚨 \(assetName) not in assetsDir — alarm without the lamp")
+            overlayInfo("🚨 \(assetName) not in assetsDir — the air horn plays without the lamp")
             return nil
         }
         let layer = CALayer()

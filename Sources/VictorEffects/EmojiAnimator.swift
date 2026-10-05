@@ -1279,24 +1279,6 @@ class EmojiAnimator {
 
     func startAlarmOverlay() {
         stopAlarmOverlay()
-        // 🚨 The lamp in the bottom-left corner. Staged like the storm, so a
-        // zoomed screen shows it in the corner of the GLASS at its unzoomed
-        // size. Lives in activeEffects so a stop-all takes it down and the
-        // menu-bar icon reads 🛑 while it spins; its only owner is this toggle.
-        let bounds = hostLayer.bounds
-        if let lamp = SirenLamp.makeLayer(bounds: bounds) {
-            let stage = CALayer()
-            stage.frame = bounds
-            stage.addSublayer(lamp)
-            hostLayer.addSublayer(stage)
-            ZoomFollower.shared.stage(stage, full: bounds)
-            activeEffects["siren-lamp"] = stage
-            // The lamp alone — no red border around the screen (Victor,
-            // 2026-10-05: "doar sirena să se vadă").
-            return
-        }
-        // No lamp asset: the red vignette is the fallback, so a siren press
-        // never draws nothing.
         showVignette(key: "danger", color: .systemRed, duration: 2.72, pulses: 4)
         // Fire 200ms before cycle ends so layers overlap and avoid flicker at the seam
         // 4 pulses × 0.68s = 2.72s matches siren.mp3 cycle tempo
@@ -1309,8 +1291,45 @@ class EmojiAnimator {
         alarmOverlayTimer?.invalidate()
         alarmOverlayTimer = nil
         _ = cancelIfRunning("danger")
-        if let stage = activeEffects["siren-lamp"] { ZoomFollower.shared.untrack(stage) }
-        _ = cancelIfRunning("siren-lamp")
+    }
+
+    // MARK: - 🚨 Siren lamp (tile 63, the air horn)
+
+    /// The rotating red beacon standing on the bottom edge, for the length of
+    /// the air-horn clip. A re-press while it spins takes it down (toggle, like
+    /// the other corner effects). Self-terminating: `trackEffect` at the clip's
+    /// real length, faded over the last 0.3 s.
+    func showSirenLamp(playSound: Bool = true) {
+        let sound = playSound ? SirenLamp.soundName : nil
+        if cancelIfRunning("siren-lamp", sound: sound) { return }
+        let bounds = hostLayer.bounds
+        guard let lamp = SirenLamp.makeLayer(bounds: bounds) else { return }
+
+        var duration = SirenLamp.fallbackDuration
+        if let url = SoundManager.shared.soundURL(for: SirenLamp.soundName) {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+        }
+
+        // Staged like the storm, so a zoomed screen shows it on the bottom edge
+        // of the GLASS at its unzoomed size.
+        let stage = CALayer()
+        stage.frame = bounds
+        stage.addSublayer(lamp)
+        hostLayer.addSublayer(stage)
+        ZoomFollower.shared.stage(stage, full: bounds)
+
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.fromValue = 1.0
+        fadeOut.toValue = 0.0
+        fadeOut.beginTime = CACurrentMediaTime() + max(0, duration - 0.3)
+        fadeOut.duration = 0.3
+        fadeOut.fillMode = .forwards
+        fadeOut.isRemovedOnCompletion = false
+        stage.add(fadeOut, forKey: "sirenLampFade")
+
+        if let sound = sound { SoundManager.shared.play(sound) }
+        trackEffect("siren-lamp", layer: stage, duration: duration, sound: sound)
     }
 
     // MARK: - Screen crash (screenshot shatters into broken glass shards)

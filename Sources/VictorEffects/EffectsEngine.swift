@@ -258,6 +258,7 @@ final class EffectsEngine {
         case "sonar":         animator.showSonar(playSound: true)
         case "sepia":         animator.showSepia(playSound: false)
         case "fire-alarm":    animator.showFireAlarm(playSound: false)
+        case "siren-lamp":    animator.showSirenLamp(playSound: false)
         case "bullet-holes":  animator.showBulletHoles()
         case "phone-ring":    animator.showPhoneRing(playSound: false)
         case "fbi-knock":     animator.showFbiKnock(playSound: false)

@@ -35,8 +35,8 @@ final class SirenLampTests: XCTestCase {
     }
 
     func testOneTurnPerWail_eightWailsFillTheSirenClip() {
-        // 02_siren.mp3 is 5.17 s and holds eight bursts; the tablet loops it,
-        // so a lamp at any other tempo slides out of step within a few seconds.
+        // Tuned on 02_siren.mp3 (5.17 s, eight bursts) and kept on #63: the
+        // air horn has no beat, so the lamp spins at a real siren's tempo.
         XCTAssertEqual(SirenLamp.period * 8, 5.175, accuracy: 0.01)
     }
 
