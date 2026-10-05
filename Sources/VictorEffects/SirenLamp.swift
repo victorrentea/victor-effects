@@ -2,15 +2,15 @@ import AppKit
 import QuartzCore
 
 /// 🚨 The rotating red lamp that stands in the bottom-left corner while the
-/// siren tile (`02_siren.mp3`) is on, on top of the red vignette the alarm
-/// overlay already pulses.
+/// siren tile (`02_siren.mp3`) is on. It is the whole alarm overlay: the red
+/// vignette around the screen is drawn only when this asset is missing.
 ///
 /// The asset is a 4-frame animated PNG with real alpha: a ceiling beacon GIF
 /// flipped upside down so its base sits on the floor, its black background
 /// turned into transparency (the glow fades into the desktop instead of a black
 /// box), the grey base kept opaque. It came off Pinterest, so it is NOT in this
 /// public repo — it lives in `EffectsConfig.assetsDir` like `scared_cat.gif`,
-/// and without it the alarm is just the vignette, as before.
+/// and without it the alarm falls back to the red vignette.
 ///
 /// It has no lifetime of its own: it is a layer of the alarm overlay, which is
 /// the one deliberate unbounded toggle (`docs/overlay-effects.md`, lifecycle

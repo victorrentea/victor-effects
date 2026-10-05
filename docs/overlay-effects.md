@@ -247,13 +247,15 @@ sound loops until explicitly stopped). When adding a new effect, follow this
 rule from the start.
 
 **🚨 The siren's lamp (2026-10-05).** While the alarm overlay is on, a rotating
-red beacon stands in the bottom-left corner on top of the vignette
-(`SirenLamp.swift`). The asset is `siren_lamp.png` in `assetsDir` — a 4-frame
+red beacon stands in the bottom-left corner (`SirenLamp.swift`) — and **only
+the beacon**: the red vignette around the screen is gone from the siren (Victor:
+*"fără periferia pe margine roșie, doar sirena să se vadă"*); it comes back only
+as the fallback when the asset is missing, so a siren press never draws nothing. The asset is `siren_lamp.png` in `assetsDir` — a 4-frame
 animated PNG made from a downloaded ceiling-beacon GIF: flipped so the base
 stands on the floor, black turned into alpha by un-premultiplying (the glow
 fades into the desktop instead of sitting in a black box), the grey base given
 its own opaque mask (un-premultiplied it went glassy and showed the desktop
-through). No file ⇒ one log line and the vignette alone. **Its tempo is the
+through). No file ⇒ one log line and the old vignette instead. **Its tempo is the
 siren's, not the GIF's**: one full turn per wail, `period` 0.647 s, because
 `02_siren.mp3` is 5.17 s of exactly eight identical bursts; the file's own frame
 delays are ignored. `phase` puts the flash frame (beam at the room) on the loud
@@ -263,8 +265,7 @@ is the one Victor drew on the screen; the very corner is the 🔔 fire alarm's
 `siren-lamp`, so a stop-all removes it and the 🛑 lights while it spins, but its
 only owner is the alarm toggle: `startAlarmOverlay` restarts it (phase back in
 step with a sound that also just restarted), `stopAlarmOverlay` ends it. (The
-vignette's pulses still use the older 0.68 s and restart every 2.52 s, so they
-are only roughly in step with the sound; the lamp is the part that keeps time.)
+fallback vignette keeps its older 0.68 s pulse.)
 
 **The log answers "why is X still on screen"** (2026-10-05, after a 🌑 Death
 Star was found parked mid-workshop and nothing in `/tmp/victor-effects.log`

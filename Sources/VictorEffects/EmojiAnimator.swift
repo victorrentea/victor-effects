@@ -1291,7 +1291,12 @@ class EmojiAnimator {
             hostLayer.addSublayer(stage)
             ZoomFollower.shared.stage(stage, full: bounds)
             activeEffects["siren-lamp"] = stage
+            // The lamp alone — no red border around the screen (Victor,
+            // 2026-10-05: "doar sirena să se vadă").
+            return
         }
+        // No lamp asset: the red vignette is the fallback, so a siren press
+        // never draws nothing.
         showVignette(key: "danger", color: .systemRed, duration: 2.72, pulses: 4)
         // Fire 200ms before cycle ends so layers overlap and avoid flicker at the seam
         // 4 pulses × 0.68s = 2.72s matches siren.mp3 cycle tempo
