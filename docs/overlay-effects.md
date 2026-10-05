@@ -97,7 +97,7 @@ The two mechanics worth knowing before editing `MenuBar`:
 Everything is drawn as `CALayer`s on `OverlayPanel`'s `hostLayer` — one
 click-through, all-spaces panel covering `Screens.overlayScreen()` (the
 built-in display by default, see `EffectsConfig.overlayScreen`). Bitmaps and
-gif frames come from `Bundle.module`; the seven large/licensed ones come from
+gif frames come from `Bundle.module`; the eight large/licensed ones come from
 `EffectsConfig.assetsDir` via `assetURL(_:)` and the effect quietly does
 nothing when they are absent. Audio comes from `EffectsConfig.soundsDir`
 (`docs/sound-routing.md`) — **no soundboard mp3 is in this repo**.
@@ -245,6 +245,26 @@ so an old run's timer can never kill a newer run of the same effect. The one
 deliberate exception is the siren's alarm overlay (an unbounded toggle — its
 sound loops until explicitly stopped). When adding a new effect, follow this
 rule from the start.
+
+**🚨 The siren's lamp (2026-10-05).** While the alarm overlay is on, a rotating
+red beacon stands in the bottom-left corner on top of the vignette
+(`SirenLamp.swift`). The asset is `siren_lamp.png` in `assetsDir` — a 4-frame
+animated PNG made from a downloaded ceiling-beacon GIF: flipped so the base
+stands on the floor, black turned into alpha by un-premultiplying (the glow
+fades into the desktop instead of sitting in a black box), the grey base given
+its own opaque mask (un-premultiplied it went glassy and showed the desktop
+through). No file ⇒ one log line and the vignette alone. **Its tempo is the
+siren's, not the GIF's**: one full turn per wail, `period` 0.647 s, because
+`02_siren.mp3` is 5.17 s of exactly eight identical bursts; the file's own frame
+delays are ignored. `phase` puts the flash frame (beam at the room) on the loud
+first 0.4 s of each burst. The box — 13.9 %–45 % of the width, bottom 29.5 % —
+is the one Victor drew on the screen; the very corner is the 🔔 fire alarm's
+(#65). It is staged through `ZoomFollower` and parked in `activeEffects` under
+`siren-lamp`, so a stop-all removes it and the 🛑 lights while it spins, but its
+only owner is the alarm toggle: `startAlarmOverlay` restarts it (phase back in
+step with a sound that also just restarted), `stopAlarmOverlay` ends it. (The
+vignette's pulses still use the older 0.68 s and restart every 2.52 s, so they
+are only roughly in step with the sound; the lamp is the part that keeps time.)
 
 **The log answers "why is X still on screen"** (2026-10-05, after a 🌑 Death
 Star was found parked mid-workshop and nothing in `/tmp/victor-effects.log`

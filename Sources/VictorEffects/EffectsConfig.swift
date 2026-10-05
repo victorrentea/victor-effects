@@ -156,7 +156,7 @@ final class EffectsConfig {
 
     /// An optional extra asset: `assetsDir/<name>` when the user dropped one
     /// there, else the copy bundled with the app. Returns nil when neither
-    /// exists — every caller is expected to degrade quietly, because these six
+    /// exists — every caller is expected to degrade quietly, because these
     /// files are deliberately not in the repo.
     func assetURL(_ name: String) -> URL? {
         let external = assetsDir.appendingPathComponent(name)

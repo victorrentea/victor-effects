@@ -1279,6 +1279,19 @@ class EmojiAnimator {
 
     func startAlarmOverlay() {
         stopAlarmOverlay()
+        // 🚨 The lamp in the bottom-left corner. Staged like the storm, so a
+        // zoomed screen shows it in the corner of the GLASS at its unzoomed
+        // size. Lives in activeEffects so a stop-all takes it down and the
+        // menu-bar icon reads 🛑 while it spins; its only owner is this toggle.
+        let bounds = hostLayer.bounds
+        if let lamp = SirenLamp.makeLayer(bounds: bounds) {
+            let stage = CALayer()
+            stage.frame = bounds
+            stage.addSublayer(lamp)
+            hostLayer.addSublayer(stage)
+            ZoomFollower.shared.stage(stage, full: bounds)
+            activeEffects["siren-lamp"] = stage
+        }
         showVignette(key: "danger", color: .systemRed, duration: 2.72, pulses: 4)
         // Fire 200ms before cycle ends so layers overlap and avoid flicker at the seam
         // 4 pulses × 0.68s = 2.72s matches siren.mp3 cycle tempo
@@ -1291,6 +1304,8 @@ class EmojiAnimator {
         alarmOverlayTimer?.invalidate()
         alarmOverlayTimer = nil
         _ = cancelIfRunning("danger")
+        if let stage = activeEffects["siren-lamp"] { ZoomFollower.shared.untrack(stage) }
+        _ = cancelIfRunning("siren-lamp")
     }
 
     // MARK: - Screen crash (screenshot shatters into broken glass shards)

@@ -87,7 +87,7 @@ Env overrides: `VICTOR_EFFECTS_PORT`, `VICTOR_EFFECTS_SOUNDS_DIR`,
 itself).
 `GET /config/reload` re-reads the file without restarting.
 
-Four effects (`love-hands`, `brother`, `gangnam`, `fail`) look for extra images
+Some effects (`love-hands`, `brother`, `gangnam`, `fail`, the 🚨 siren's lamp, …) look for extra images
 in `assetsDir` and quietly do nothing when they are absent — they are large or
 licensed files, so they are not committed here.
 
