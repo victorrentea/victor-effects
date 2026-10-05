@@ -12,27 +12,23 @@ private let lampSize = CGSize(width: 424, height: 301)
 
 final class SirenLampTests: XCTestCase {
 
-    func testTheLampStandsOnTheBottomEdge() {
-        XCTAssertEqual(SirenLamp.frame(imageSize: lampSize, in: bounds).minY, 0)
+    func testTheBaseSitsOnTheBottomEdge_theSpillBelowItIsOffScreen() {
+        let f = SirenLamp.frame(imageSize: lampSize, in: bounds)
+        XCTAssertEqual(f.minY + f.height * SirenLamp.belowBaseFraction, 0, accuracy: 0.001)
+        XCTAssertLessThan(f.minY, 0)
     }
 
-    func testTheLampStaysInsideTheBoxVictorDrew() {
+    func testTwiceTheSizeThatFitsTheBoxVictorDrew() {
         let f = SirenLamp.frame(imageSize: lampSize, in: bounds)
-        XCTAssertGreaterThanOrEqual(f.minX, W * SirenLamp.boxLeft - 0.5)
-        XCTAssertLessThanOrEqual(f.maxX, W * SirenLamp.boxRight + 0.5)
-        XCTAssertLessThanOrEqual(f.maxY, H * SirenLamp.boxHeight + 0.5)
-    }
-
-    func testAspectFitKeepsTheLampsShapeAndFillsOneSideOfTheBox() {
-        let f = SirenLamp.frame(imageSize: lampSize, in: bounds)
-        XCTAssertEqual(f.width / f.height, lampSize.width / lampSize.height, accuracy: 0.001)
         // On the retina the box is wider than the lamp's aspect: height binds.
-        XCTAssertEqual(f.height, H * SirenLamp.boxHeight, accuracy: 0.5)
+        XCTAssertEqual(f.height, H * SirenLamp.boxHeight * 2, accuracy: 0.5)
+        XCTAssertEqual(f.width / f.height, lampSize.width / lampSize.height, accuracy: 0.001)
     }
 
-    func testTheLampIsCentredAcrossItsBox() {
+    func testItGrowsAboutTheBoxsCentreAndStaysOnScreenSideways() {
         let f = SirenLamp.frame(imageSize: lampSize, in: bounds)
         XCTAssertEqual(f.midX, W * (SirenLamp.boxLeft + SirenLamp.boxRight) / 2, accuracy: 0.5)
+        XCTAssertGreaterThanOrEqual(f.minX, 0)
     }
 
     func testOneTurnPerWail_eightWailsFillTheSirenClip() {

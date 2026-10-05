@@ -41,17 +41,32 @@ enum SirenLamp {
     static let boxRight: CGFloat = 0.45
     static let boxHeight: CGFloat = 0.295
 
+    /// Twice the size that fits that box (Victor, same evening: "2x larger").
+    /// It grows about the box's centre line, so it still sits over the spot
+    /// that was drawn, just bigger.
+    static let growth: CGFloat = 2
+
+    /// How much of the image is glow BELOW the base: the opaque grey base ends
+    /// on row 222 of the 301-row asset, and the 78 rows under it are light
+    /// spilling onto the floor. The frame is pushed down by that much so the
+    /// base itself sits on the bottom edge of the screen and the spill goes
+    /// off the glass, instead of the lamp hovering a quarter of its height up.
+    static let belowBaseFraction: CGFloat = 78.0 / 301.0
+
     /// The lamp's frame inside `bounds` (bottom-origin): aspect-fit into the
-    /// box, centred across it, standing on the bottom edge.
+    /// box, grown by `growth`, centred across the box, its BASE on the bottom
+    /// edge (the frame starts below the screen by `belowBaseFraction`).
     static func frame(imageSize: CGSize, in bounds: CGRect) -> CGRect {
         let box = CGRect(x: bounds.minX + bounds.width * boxLeft,
                          y: bounds.minY,
                          width: bounds.width * (boxRight - boxLeft),
                          height: bounds.height * boxHeight)
         guard imageSize.width > 0, imageSize.height > 0 else { return box }
-        let scale = min(box.width / imageSize.width, box.height / imageSize.height)
+        let scale = min(box.width / imageSize.width, box.height / imageSize.height) * growth
         let size = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
-        return CGRect(x: box.midX - size.width / 2, y: box.minY, width: size.width, height: size.height)
+        return CGRect(x: box.midX - size.width / 2,
+                      y: box.minY - size.height * belowBaseFraction,
+                      width: size.width, height: size.height)
     }
 
     private static var cache: (frames: [CGImage], modDate: Date?)?
