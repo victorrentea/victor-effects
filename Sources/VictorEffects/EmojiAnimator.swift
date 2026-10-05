@@ -29,8 +29,19 @@ class EmojiAnimator {
         (0.9528,0.0871), (0.9685,0.0368), (0.9843,0.0190), (1.0000,-0.0000)
     ]
 
-    // Track active toggleable effects (danger, sepia, zorro) so clicking again cancels them
-    private var activeEffects: [String: CALayer] = [:]
+    // Track active toggleable effects (danger, sepia, zorro) so clicking again cancels them.
+    // Every change of the KEY set is logged here, once, rather than at the ~60
+    // places that add or remove: an effect that ends by its own timer announces
+    // it nowhere else, and "why is X still on screen" has to be answerable from
+    // the log alone. Replacing a key's layer (a re-press that restarts, the
+    // siren's vignette re-armed every 2.5 s) changes no key and logs nothing.
+    private var activeEffects: [String: CALayer] = [:] {
+        didSet {
+            let was = Set(oldValue.keys), now = Set(activeEffects.keys)
+            for key in now.subtracting(was).sorted() { overlayInfo("▶️ \(key) on") }
+            for key in was.subtracting(now).sorted() { overlayInfo("⏹ \(key) off") }
+        }
+    }
 
     // ☕ Every coffee on screen. A cup is TWO layers: the CARRIER rides the
     // chimney flight (position, the slow growth, the fade near the top) and the
@@ -10255,8 +10266,12 @@ class EmojiAnimator {
         gifLayer.add(anim, forKey: "gongFrames")
         CATransaction.commit()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + startDelay + totalDuration) { [weak self] in
-            _ = self?.cancelIfRunning("gong", sound: nil)
+        // Identity-guarded like every other self-stop: a press, a re-press
+        // (off) and a third press inside one gong's length left the FIRST
+        // timer to kill the third run mid-strike.
+        DispatchQueue.main.asyncAfter(deadline: .now() + startDelay + totalDuration) { [weak self, weak gifLayer] in
+            guard let self, let gifLayer, self.activeEffects["gong"] === gifLayer else { return }
+            _ = self.cancelIfRunning("gong", sound: nil)
         }
 
         if playSound { SoundManager.shared.play("50_gong.mp3") }
@@ -10335,8 +10350,10 @@ class EmojiAnimator {
         fade.isRemovedOnCompletion = false
         container.add(fade, forKey: "fade")
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + fadeStart + fadeDuration) { [weak self] in
-            _ = self?.cancelIfRunning("wrong-x", sound: nil)
+        // Identity-guarded, for the gong's reason.
+        DispatchQueue.main.asyncAfter(deadline: .now() + fadeStart + fadeDuration) { [weak self, weak container] in
+            guard let self, let container, self.activeEffects["wrong-x"] === container else { return }
+            _ = self.cancelIfRunning("wrong-x", sound: nil)
         }
 
         if playSound { SoundManager.shared.play("49_wrong.mp3") }

@@ -88,9 +88,11 @@ The two mechanics worth knowing before editing `MenuBar`:
   progress bar, the whip — and the same state `GET /state` publishes. The icon
   promises a click will clear the screen, so watching a wider set than stop-all
   can clear would make it lie. (The overlays kept outside `activeEffects` on
-  purpose — the 🕳️ iris, the 🪚 chainsaw cursor, the spiral hearts — therefore do
-  not raise it, and neither do untracked spawns like rising emoji or confetti,
-  which are gone before a hand reaches the menu bar.)
+  purpose — the 🕳️ iris, the ECG pulse's 5.4 s, the spiral hearts' beating
+  cursor — therefore do not raise it, and neither do untracked spawns like
+  rising emoji or confetti, which are gone before a hand reaches the menu bar.
+  The 🪚 chainsaw is the one outsider asked for by name, since it only ends on
+  Escape.)
 
 Everything is drawn as `CALayer`s on `OverlayPanel`'s `hostLayer` — one
 click-through, all-spaces panel covering `Screens.overlayScreen()` (the
@@ -243,6 +245,19 @@ so an old run's timer can never kill a newer run of the same effect. The one
 deliberate exception is the siren's alarm overlay (an unbounded toggle — its
 sound loops until explicitly stopped). When adding a new effect, follow this
 rule from the start.
+
+**The log answers "why is X still on screen"** (2026-10-05, after a 🌑 Death
+Star was found parked mid-workshop and nothing in `/tmp/victor-effects.log`
+could say whether it was 8 s or 8 min old). Three lines per effect, none per
+frame: `▶️ effect '<name>'` (with ` in 800 ms (BT)` when it is queued behind
+Bluetooth compensation) as `runEffect` accepts it, `▶️ <key> on` / `⏹ <key>
+off` as the key enters and leaves `activeEffects` — written by the dictionary's
+`didSet`, so a timer that ends an effect with nobody listening still leaves a
+line — and `🛑 stop-all — clearing [...]` whenever a stop finds something
+running. An effect whose `off` never comes is one that outlived its moment;
+an `on` after a `🛑` or a `⏸️` is one that got in through a door the gate
+missed. Overlays that live outside `activeEffects` (the 🕳️ iris, the 🪚
+chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 - **🐺 Wolf howl** (tile #4 `04_wolf.mp3` → `wolf-howl`, `showWolfHowl`,
   2026-09-30): a wolf on a rock howls at a full moon, `wolf-howl.gif` (500×500,
   transparent, 151 frames ≈ 25 fps, **6.06 s = the clip**), a square 48% of the
@@ -2197,10 +2212,22 @@ optimisation that ends it sooner, and `maxSeconds` (60) caps what any caller may
 ask for. A second suspend **extends but never shortens**, so two overlapping
 crops cannot have the first one's resume cut the second one short.
 
-`suspend`, `suspend/<n>`, `resume` and `stop-all` are the four words that are
-always heard — a hold that could not be lifted or extended is the exact trap the
-deadline exists to avoid, and "clear the screen" can never be what a cleared
-screen refuses. Everything else is dropped with a log line naming it.
+`suspend`, `suspend/<n>`, `resume`, `stop-all` — and since 2026-10-05 every
+`<effect>/stop` (`EffectsEngine.isStopWord`) — are the words that are always
+heard: a hold that could not be lifted or extended is the exact trap the
+deadline exists to avoid, "clear the screen" can never be what a cleared screen
+refuses, and a stop never draws, so the only thing eating one could achieve is
+to leave something up. Everything else is dropped with a log line naming it.
+
+The hold is on what is **drawn**, never on what is heard, and it covers every
+door, not just `/effect/*` (2026-10-05): `/alarm/start` and
+`/effect/progress-bar/<n>` are dropped; the seven inside-the-clip visuals that
+start from `/sound/play` (`SoundEffectMap.playPathVisuals`, checked once at the
+top of `EffectsEngine.playSound`: sonar, money, heartbeat, FBI, dark door,
+Beethoven, the minions) step aside and their clip plays down the plain routed
+path; and a visual already
+queued behind Bluetooth compensation when the suspend lands is outvoted
+(`docs/sound-routing.md`, *Bluetooth wake-up compensation*).
 
 Victor Addons proxies `/effect/*` verbatim, so the caller talks to **55123** like
 every other client and never needs to know this app's port.

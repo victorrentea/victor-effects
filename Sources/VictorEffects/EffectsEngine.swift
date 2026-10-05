@@ -9,6 +9,19 @@ import Foundation
 /// `focus-playlist`, which are training-session features and stayed with the
 /// session; and the coffee *payoff*, which now leaves as a webhook (see
 /// `CoffeePourMonitor`).
+/// A visual queued behind Bluetooth compensation (`EffectsEngine.runEffect`)
+/// is not cancelled by a `stopAll()` that lands in the gap — it is *outvoted*,
+/// the way `SoundboardPress` outvotes its completion timers: the fire notes
+/// the generation when it is queued and draws nothing if a stop has moved it
+/// since. Pure, so the race tests without a clock or a screen.
+struct DeferredFires {
+    private(set) var generation = 0
+    /// Every `stopAll()` — the 🛑, the next tile's pre-press stop, a re-tap,
+    /// a suspend.
+    mutating func stopped() { generation += 1 }
+    func stillWanted(_ queuedAt: Int) -> Bool { queuedAt == generation }
+}
+
 final class EffectsEngine {
     let overlayPanel: OverlayPanel
     let animator: EmojiAnimator
@@ -110,6 +123,17 @@ final class EffectsEngine {
 
     var isSuspended: Bool { suspension.isSuspended(at: Date().timeIntervalSince1970) }
 
+    /// The names that never draw: `stop-all` and every `<effect>/stop`. The
+    /// ⏸️ gate always lets them through (a hold that refused one could only
+    /// leave something up that the caller is trying to take down) and the
+    /// Bluetooth compensation never delays them.
+    static func isStopWord(_ name: String) -> Bool {
+        name == "stop-all" || name.hasSuffix("/stop")
+    }
+
+    /// Fires queued behind Bluetooth compensation, outvoted by a later stop.
+    private var deferredFires = DeferredFires()
+
     /// Clear the screen and keep it clear for `seconds` — see `EffectsSuspension`
     /// for why this is a deadline and not a flag. Returns the seconds granted.
     @discardableResult
@@ -129,6 +153,7 @@ final class EffectsEngine {
     }
 
     func startProgressBar(seconds: Int, rider: String?) {
+        if isSuspended { effectsInfo("⏸️ suspended — dropping progress-bar/\(seconds)"); return }
         overlayPanel.refreshScreenFrame()
         progressBar.start(seconds: TimeInterval(seconds), rider: rider)
     }
@@ -136,6 +161,7 @@ final class EffectsEngine {
     func cancelProgressBar() { progressBar.cancel() }
 
     func startAlarm() {
+        if isSuspended { effectsInfo("⏸️ suspended — dropping alarm"); return }
         overlayPanel.refreshScreenFrame()
         animator.startAlarmOverlay()
     }
@@ -163,10 +189,8 @@ final class EffectsEngine {
         case "resume":
             resumeEffects()
             return
-        case "stop-all":
-            break
         default:
-            if isSuspended {
+            if isSuspended, !Self.isStopWord(name) {
                 effectsInfo("⏸️ suspended — dropping effect '\(name)'")
                 return
             }
@@ -184,11 +208,26 @@ final class EffectsEngine {
         let comp = name == "green-flash"
             ? SoundTimingConfig.shared.currentBluetoothCompensation
             : SoundManager.consumePendingVisualCompensation(for: name)
-        let fire: () -> Void = { [weak self] in self?.fireEffect(name) }
-        if comp > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + comp, execute: fire)
-        } else {
-            fire()
+        // One line per fire, with the delay: the self-termination rule means
+        // most effects end with nobody announcing it, so "why is X still on
+        // screen" is answered by this line plus the ▶️/⏹ lines the animator
+        // writes as `activeEffects` changes — not by a stop that may never come.
+        let delay = comp > 0 ? String(format: " in %.0f ms (BT)", comp * 1000) : ""
+        effectsInfo("\(Self.isStopWord(name) ? "⏹" : "▶️") effect '\(name)'\(delay)")
+        guard comp > 0 else { fireEffect(name); return }
+        // The gap is ~0.8 s and the room keeps pressing: a stop-all (the next
+        // tile's pre-press stop, a re-tap, the 🛑, a suspend) that lands inside
+        // it has already cleared the screen, and a visual that then appears is
+        // one nobody asked for — its paired `/stop` is spent. Not cancelled,
+        // outvoted: see `DeferredFires`.
+        let queuedAt = deferredFires.generation
+        DispatchQueue.main.asyncAfter(deadline: .now() + comp) { [weak self] in
+            guard let self else { return }
+            guard self.deferredFires.stillWanted(queuedAt) else {
+                effectsInfo("⏹ dropping deferred effect '\(name)' — a stop-all landed while it waited")
+                return
+            }
+            self.fireEffect(name)
         }
     }
 
@@ -367,6 +406,10 @@ final class EffectsEngine {
     }
 
     func stopAll() {
+        deferredFires.stopped()
+        // Only when there is something to clear: the tablet fires one of these
+        // before every press, and the ▶️ line already records the press.
+        if isAnythingRunning { effectsInfo("🛑 stop-all — clearing \(animator.activeEffectNames)") }
         SoundManager.shared.stopTabletSound()
         playing = nil
         animator.stopAllActiveEffects()
@@ -422,6 +465,18 @@ final class EffectsEngine {
         func remember(_ ms: Int) -> String {
             playing = (name, ms, Date())
             return "{\"ok\":true,\"durationMs\":\(ms)}"
+        }
+
+        // ⏸️ The hold is on what is DRAWN, not on what is heard: while a crop is
+        // being framed the inside-the-clip visuals below step aside and the clip
+        // plays down the plain routed path. This is the one door the `runEffect`
+        // gate never sees, because these start from this call rather than from
+        // a `/sound/pressed` — and `playPathVisuals` is the list of exactly
+        // those, kept honest by `SoundEffectMapDriftTests`.
+        if isSuspended, let visual = SoundEffectMap.playPathVisuals[name] {
+            effectsInfo("⏸️ suspended — \(name) plays without its '\(visual)'")
+            guard let duration = SoundManager.shared.playTabletSound(name, volume: volume) else { return nil }
+            return remember(Int(duration * 1000))
         }
 
         // The radar sound drives the full 🛰️ sonar effect (animation + its own

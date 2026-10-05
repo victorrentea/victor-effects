@@ -126,7 +126,7 @@ class SoundManager {
         guard pendingVisualCompensation > 0,
               let at = pendingVisualCompensationAt,
               Date().timeIntervalSince(at) < 1.5 else { return 0 }
-        if name == "stop-all" || name.hasSuffix("/stop")
+        if EffectsEngine.isStopWord(name)
             || name == "green-flash" || name.hasPrefix("progress-bar/") {
             return 0
         }

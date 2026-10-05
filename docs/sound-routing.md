@@ -178,6 +178,18 @@ directly rather than consuming a pending one: it is the visual half of an
 audible "the link works" tap, and firing it immediately lit the border up to
 1.2 s before the beep reached the speaker, which reads as two separate events.
 
+**The delay is a gap the room keeps pressing into.** `runEffect` checks the
+⏸️ hold when the request *arrives*, but the visual draws ~0.8 s later — and a
+`stop-all` (the next tile's pre-press stop, a re-tap, the 🛑) or a suspend (a
+crop) that lands inside that gap has already cleared the screen. Until
+2026-10-05 the queued visual then appeared anyway, over the next tile's effect
+or in the middle of the crop, with its paired `/stop` already spent. It is now
+**outvoted, not cancelled** (`DeferredFires`, the `SoundboardPress.generation`
+pattern): the fire takes a ticket when queued and `stopAll()` moves the
+generation, so a stale ticket draws nothing and logs `⏸️ dropping deferred
+effect`. The next tile's own visual is queued *after* its stop-all, so it keeps
+its ticket.
+
 ## Keep-alive (`BluetoothKeepAlive`)
 
 A JBL switches itself **off** after ~20 min without audio, even while
