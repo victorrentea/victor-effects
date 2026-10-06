@@ -287,7 +287,9 @@ final class EffectsEngine {
         case "wasnt-me":      animator.showWasntMe(playSound: false)
         case "chainsaw":      animator.showChainsawCursor()
         case "chainsaw/stop": animator.stopChainsawCursor()
-        case "fire":          animator.showFireCursor(playSound: false)
+        // Owns its audio since 2026-10-06: the crackle starts on the first
+        // fire struck, not on the press, so the routed play stays silent.
+        case "fire":          animator.showFireCursor(playSound: true)
         case "fire/stop":     animator.stopFireCursor()
         // Like the sonar: the door's cue lives INSIDE the clip, so the effect
         // owns its own audio rather than trusting a separate routed play to land
@@ -404,6 +406,7 @@ final class EffectsEngine {
             || progressBar.isRunning
             || whipIsShowing
             || animator.isChainsawRunning
+            || animator.isFireRunning
     }
 
     func stopAll() {
@@ -569,6 +572,16 @@ final class EffectsEngine {
         // outlives it.
         if name == "18_chainsaw.mp3" {
             return remember(Int(EmojiAnimator.chainsawTileLitDuration * 1000))
+        }
+        // Tile #11 (🔥 fire): SILENT on the press since 2026-10-06. The crackle
+        // starts with the first fire he strikes (`EmojiAnimator.plantFireAtCursor`),
+        // so the routed play only leaves its volume for that moment. The tile
+        // stays lit for the clip's length; its completion stop maps to nothing
+        // (no `onStop` entry, the chainsaw's reason) — it would arrive a clip's
+        // length after the PRESS and cut a crackle that began at the first click.
+        if name == "11_fire.mp3" {
+            EmojiAnimator.firePressVolume = volume
+            return remember(Int(EmojiAnimator.fireFallbackDuration * 1000))
         }
         // Tile #69 (👻 wazzup ghost): the mask starts sliding in immediately
         // (`showWazzup`, fired by the client's separate `/sound/pressed`

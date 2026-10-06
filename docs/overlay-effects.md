@@ -1015,6 +1015,18 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `stopAllActiveEffects`, hide armed through `armBackgroundCursorHiding()` and balanced by
   `_fireHidCursor`). It replaced the tile's old "Lady in Red" clip (tile art and asset
   renamed; the original mp3 is in `backup.zip`).
+  - **The crackle waits for the first fire** (2026-10-06, Victor: *"the sound of fire
+    burning should only start playing after I set the first fire by clicking"*). The press
+    is **silent**: `playSound` answers `11_fire.mp3` by parking its volume in
+    `EmojiAnimator.firePressVolume` and reporting the clip's length so the tile stays lit,
+    and the first `plantFireAtCursor` of the run starts the clip down the routed tablet
+    player (so Escape, stop-all and the 🛑 lamp reach it as before). The run's
+    self-stop is armed twice: at the press as a cap on a ball nobody clicks, then
+    **re-armed at the clip's length on the first strike** — the sound is what ends it.
+    For the same reason `11_fire.mp3` left `onStop`: the tablet's completion stop is
+    timed from the press and would cut a crackle that began at the click. The lamp asks
+    `animator.isFireRunning` by name, since before that click nothing is audible.
+    `/effect/fire` and `/test/fire` now play the crackle too, on the first click.
   - **Art for the fires he lights**: `Resources/fire-frames.png`, an **8×5 sprite sheet** of
     40 cells, keyed out of a black-background gif with **alpha = luminance × 2** (clamped).
     The ×2 is not a brightness trick: straight luminance-as-alpha leaves the orange edges and

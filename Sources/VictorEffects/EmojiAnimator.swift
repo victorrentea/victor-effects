@@ -10784,8 +10784,15 @@ class EmojiAnimator {
     /// 36 s sound, and fire at 15 fps reads as a strobing loop within seconds.
     private static let fireFPS: Double = 30
 
-    /// Fallback length if `11_fire.mp3` can't be measured (its real one).
-    private static let fireFallbackDuration: Double = 35.88
+    /// Fallback length if `11_fire.mp3` can't be measured (its real one). Also
+    /// how long the tile stays lit, and how long an unlit run waits for its
+    /// first click before it gives up — the clip no longer starts on the press.
+    static let fireFallbackDuration: Double = 35.88
+
+    /// The volume the press's routed `/sound/play` carried. That request plays
+    /// nothing any more (the crackle waits for the first fire, 2026-10-06), so
+    /// it parks its volume here for `plantFireAtCursor` to start the clip at.
+    static var firePressVolume: Float?
 
     /// Wheel-resize envelope. One notch is a multiply, not an add, so the step
     /// feels the same size at a candle and at a bonfire.
@@ -10988,6 +10995,13 @@ class EmojiAnimator {
     private var _firePlanted: [CALayer] = []      // fires struck by clicking, oldest first; the LAST is the wheel's
     private var _fireLastPlantPoint: CGPoint?     // where the last one was struck; the drag measures from here
     private var _fireballShrinkToken = 0          // every plant bumps it; a stale grow-back bails
+    private var _fireSoundPending = false         // the crackle waits for the first fire struck
+    private var _fireSoundDuration: Double = 0    // the clip's length, re-armed as the run's life on that strike
+
+    /// For the 🛑 lamp: before the first click there is no sound playing and the
+    /// ball is in no `activeEffects`, so without this a run waiting for its
+    /// first fire would read as "nothing running" — the chainsaw's reason.
+    var isFireRunning: Bool { _firePointerLayer != nil || !_firePlanted.isEmpty }
 
     /// How far the fireball has to travel before a drag plants the next fire.
     /// Small enough that a sweep reads as a continuous line of flame, large
@@ -11044,6 +11058,8 @@ class EmojiAnimator {
             let d = AVURLAsset(url: soundURL).duration
             if d.isNumeric { duration = CMTimeGetSeconds(d) }
         }
+        _fireSoundDuration = duration
+        _fireSoundPending = playSound
 
         // The size the NEXT fire is struck at: the one the last one was left at,
         // clamped in case that run happened on a wider screen (a projector
@@ -11123,16 +11139,26 @@ class EmojiAnimator {
 
         startFireInputCapture()
 
-        if playSound { SoundManager.shared.play("11_fire.mp3") }
+        // **The crackle waits for the first fire** (2026-10-06, Victor: *"the
+        // sound of fire burning should only start playing after I set the first
+        // fire by clicking, not from the beginning"*). A burning sound over a
+        // screen with nothing burning on it is the sound arriving before its
+        // cause; the first click is the moment there IS a fire, so that is when
+        // `plantFireAtCursor` starts the clip. Until then this is only the cap
+        // on an unlit run — a ball nobody clicks still goes out by itself.
+        scheduleFireSelfStop(after: duration)
+    }
 
-        // The sound's length is the authoritative teardown, never the tablet's
-        // /sound/stopped (which a flaky venue network eats — and here that would
-        // leave the desktop with no visible cursor at all). Escape is the second
-        // way out; both funnel through stopFireCursor. Generation-guarded so an
-        // old run's timer can't kill a newer run.
+    /// The run's own end. The sound's length is the authoritative teardown,
+    /// never the tablet's /sound/stopped (which a flaky venue network eats — and
+    /// here that would leave the desktop with no visible cursor at all). Escape
+    /// is the second way out; both funnel through stopFireCursor. Generation-
+    /// guarded so an old run's timer — or this run's own pre-click cap, once the
+    /// first strike re-arms it at the clip's length — can't kill a newer one.
+    private func scheduleFireSelfStop(after seconds: Double) {
         _fireGeneration += 1
         let generation = _fireGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
             guard let self, self._fireGeneration == generation else { return }
             self.stopFireCursor()
         }
@@ -11145,6 +11171,7 @@ class EmojiAnimator {
     func stopFireCursor(fade: Double = 0.25) {
         _fireTimer?.invalidate(); _fireTimer = nil
         _fireGeneration += 1      // any pending self-stop is now stale
+        _fireSoundPending = false
         stopFireInputCapture()
 
         let restoreCursor = { [weak self] in
@@ -11334,6 +11361,16 @@ class EmojiAnimator {
         _firePlanted.append(copy)
         _fireLastPlantPoint = point
         shrinkFireballWhileTheFireTakes()
+
+        // The first fire struck starts the crackle (see `showFireCursor`), down
+        // the routed tablet player so Escape, stop-all and the 🛑 lamp all reach
+        // it exactly as they did when the press started it. The run's life
+        // restarts here at the clip's length: it is the sound that ends it.
+        if _fireSoundPending {
+            _fireSoundPending = false
+            let played = SoundManager.shared.playTabletSound("11_fire.mp3", volume: Self.firePressVolume)
+            scheduleFireSelfStop(after: played ?? _fireSoundDuration)
+        }
 
         while _firePlanted.count > Self.fireMaxPlanted {
             let oldest = _firePlanted.removeFirst()

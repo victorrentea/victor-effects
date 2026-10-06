@@ -68,8 +68,9 @@ enum SoundEffectMap {
         // the pointer becomes a flame for the length of the clip. Two things are
         // its own: Escape puts it out early (the clip is 36 s, far too long to
         // sit through if it lands at the wrong moment), and the scroll wheel
-        // resizes it while it burns. onStop is still mapped: the tablet's stop is
-        // the polite exit, the clip's length is the guaranteed one.
+        // resizes it while it burns. NOT in onStop since 2026-10-06: the clip
+        // starts on the first click now, so the tablet's completion stop (timed
+        // from the press) would cut it short; the clip's length is the end.
         "11_fire.mp3":           "fire",
         // Tile 6 (©️ the Pink Panther theme): the tile's own artwork is
         // Inspector Clouseau stooped over a magnifying glass, so the desktop
@@ -186,7 +187,6 @@ enum SoundEffectMap {
         "59_game_over.mp3":      "game-over/stop",
         "46_michael_buble.mp3":  "snow/stop",
         "20_storm.mp3":          "storm/stop",
-        "11_fire.mp3":           "fire/stop",
     ]
 
     /// Sounds whose desktop visual is driven from the routed `/sound/play` path
