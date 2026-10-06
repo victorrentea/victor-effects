@@ -175,6 +175,8 @@ class EmojiAnimator {
     // Every reaction emoji spawns at the same height, bottom-left; ☕ rides the
     // chimney flight (`spawnCoffeeCup`), everything else the plain rise.
     private static let emojiSize: CGFloat = 91
+    /// Reactions other than ☕ rise at 75% of `emojiSize` (6 Oct 2026, a conference room).
+    private static let reactionScale: CGFloat = 0.75
     private static let emojiSpawnY: CGFloat = 80
     private static let emojiRiseHeight: CGFloat = 540
     private static let emojiRiseScale: CGFloat = 1.3
@@ -353,6 +355,12 @@ class EmojiAnimator {
             spawnCoffeeCup(glyph: layer, halo: halo)
             return
         }
+
+        // Plain reactions float smaller than the ☕ cup, whose fill geometry
+        // is tuned to the full 91/78 box (`CoffeeSurface`).
+        let small = size * Self.reactionScale
+        layer.fontSize = fontSize * Self.reactionScale
+        layer.frame = CGRect(x: spawnX - small / 2, y: spawnY, width: small, height: small)
 
         if let color = halo {
             layer.shadowColor = color.cgColor
