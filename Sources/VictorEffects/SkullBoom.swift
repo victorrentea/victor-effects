@@ -2,8 +2,9 @@ import AppKit
 import CoreImage
 import QuartzCore
 
-/// 💀 Skull boom (tile #39) — the TikTok/Shorts "skull edit": a 💀 slams onto a
-/// frozen desktop and trembles, then the cranium BLOWS OFF — a mushroom cloud
+/// 💀 Skull boom (tile #39) — the TikTok/Shorts "skull edit": the desktop
+/// freezes and trembles with the bass, then on the drop a skull's cranium
+/// BLOWS OFF — a mushroom cloud
 /// and bone shards burst out of the crack, the jaw drops — on a white blow-out
 /// with a punch-in zoom, zoom blur, a hard shake, a giant ghost of the skull
 /// flying outward and white light rays fanning from it. The screen then stays
@@ -25,21 +26,23 @@ import QuartzCore
 /// The art is not in the repo (third-party emoji art, and the repo is public):
 /// `assetsDir/skull-boom/{whole,base,jaw,blast}.png` are the exploded skull cut
 /// into layers on one shared 421 px canvas, `shard1…3.png` the loose bone
-/// pieces. The intact 💀 is the system emoji, drawn at runtime.
+/// pieces.
 enum SkullBoom {
 
     // MARK: - Timing (seconds from the clock)
 
-    /// The drop: white blow-out, the cranium goes. Where the clip's hit is.
+    /// The drop: white blow-out, the cranium goes. Before it, only the frozen
+    /// desktop trembling with the bass — the intact 💀 that used to slam in
+    /// here went on 2026-10-08 with the build-up it played over.
     static let boomAt: Double = 0.32
     /// Where the drop sits in `39_skull_boom.mp3`. The Shorts' music is
     /// "Sonne (Best part) (Slowed to perfection)" (youtube.com/watch?v=2aSHYRN3AVU,
-    /// found by Shazam + cross-correlation); the clip is cut from it the way
-    /// the edit uses it: her last line before the drop clean (31.15–34.20 s),
-    /// the break muffled under a 450 Hz low-pass (34.20–35.44 s), then the
-    /// drop, whose high-band onset is at 35.44 s. **Re-cutting the clip means
-    /// re-measuring this.**
-    static let dropInClip: Double = 4.29
+    /// found by Shazam + cross-correlation). The clip starts 0.5 s before the
+    /// drop (34.94 s, bass only under a 450 Hz low-pass) and runs 3 s past it;
+    /// the drop's high-band onset is at 35.44 s. Her sung line before it was
+    /// cut on Victor's ask: from the bass drop only. **Re-cutting the clip
+    /// means re-measuring this.**
+    static let dropInClip: Double = 0.5
     /// How long after the audio's first sample the visual's clock starts, so
     /// that `boomAt` lands on the drop.
     static var visualLead: Double { dropInClip - boomAt }
@@ -57,10 +60,6 @@ enum SkullBoom {
     static let crack = CGPoint(x: 225, y: 163)
     /// The heart of the explosion: the rays and the ghost come from here.
     static let burst = CGPoint(x: 225, y: 230)
-    /// Where the intact 💀's face sits, so it is replaced in place.
-    static let faceCentre = CGPoint(x: 225, y: 255)
-    /// The skull's face is this wide on the canvas; the 💀 is sized to it.
-    static let faceWidth: CGFloat = 272
     /// The skull is this share of the screen's height.
     static let heightShare: CGFloat = 0.48
     /// The preview frame these pixel constants (shake, …) were tuned on.
@@ -85,27 +84,37 @@ enum SkullBoom {
         }
     }
 
-    /// Everything derived from the capture and the art that costs real time —
-    /// built off the main thread, before the audio starts.
+    /// What does not depend on the screen: the art and everything derived
+    /// from it. Built once (`warm`) — the drop is only 0.5 s into the clip, and
+    /// the capture alone has to fit in that.
+    struct Statics {
+        let art: Art, ghost: CGImage?, glow: CGImage?, rays: CGImage?, puff: CGImage?
+    }
+
+    /// Everything a press needs, the capture-dependent part made per press.
     struct Prepared {
         let shot: CGImage, grey: CGImage?, blurred: CGImage?
-        let art: Art, ghost: CGImage?, glow: CGImage?
-        let rays: CGImage?, puff: CGImage?, intact: CGImage?
+        let statics: Statics
+        var art: Art { statics.art }
     }
 
     private static let ci = CIContext(options: [.cacheIntermediates: false])
+    private static let cacheLock = NSLock()
+    private static var cache: (dir: URL, statics: Statics)?
 
-    static func prepare(shot: CGImage, art: Art) -> Prepared {
-        let input = CIImage(cgImage: shot)
-        let grey = input.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
-        // The zoom blur only shows for ~0.3 s under a white blow-out: half
-        // resolution is plenty, and it is the expensive one.
-        let half = input.transformed(by: CGAffineTransform(scaleX: 0.5, y: 0.5))
-        let blur = half.clampedToExtent().applyingFilter("CIZoomBlur", parameters: [
-            kCIInputCenterKey: CIVector(x: half.extent.midX, y: half.extent.midY),
-            kCIInputAmountKey: half.extent.width * 0.09,
-        ]).cropped(to: half.extent)
+    /// The statics for the art in `dir`, built on first use and kept. Nil when
+    /// the art is missing. Thread-safe; call it off the main thread to warm.
+    @discardableResult
+    static func statics(for dir: URL) -> Statics? {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        if let c = cache, c.dir == dir { return c.statics }
+        guard let art = Art.load(from: dir) else { return nil }
+        let built = makeStatics(art)
+        cache = (dir, built)
+        return built
+    }
 
+    private static func makeStatics(_ art: Art) -> Statics {
         let wholeCI = CIImage(cgImage: art.whole)
         let ghost = wholeCI.clampedToExtent().applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 4])
             .cropped(to: wholeCI.extent)
@@ -117,14 +126,27 @@ enum SkullBoom {
         ]).applyingFilter("CISourceInCompositing", parameters: [kCIInputBackgroundImageKey: wholeCI])
         let glowExtent = wholeCI.extent.insetBy(dx: -pad, dy: -pad)
         let glow = silhouette.applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 18]).cropped(to: glowExtent)
+        return Statics(art: art,
+                       ghost: ci.createCGImage(ghost, from: wholeCI.extent),
+                       glow: ci.createCGImage(glow, from: glowExtent),
+                       rays: makeRays(), puff: makePuff())
+    }
+
+    static func prepare(shot: CGImage, statics: Statics) -> Prepared {
+        let input = CIImage(cgImage: shot)
+        let grey = input.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
+        // The zoom blur only shows for ~0.3 s under a white blow-out: half
+        // resolution is plenty, and it is the expensive one.
+        let half = input.transformed(by: CGAffineTransform(scaleX: 0.5, y: 0.5))
+        let blur = half.clampedToExtent().applyingFilter("CIZoomBlur", parameters: [
+            kCIInputCenterKey: CIVector(x: half.extent.midX, y: half.extent.midY),
+            kCIInputAmountKey: half.extent.width * 0.09,
+        ]).cropped(to: half.extent)
 
         return Prepared(shot: shot,
                         grey: ci.createCGImage(grey, from: input.extent),
                         blurred: ci.createCGImage(blur, from: half.extent),
-                        art: art,
-                        ghost: ci.createCGImage(ghost, from: wholeCI.extent),
-                        glow: ci.createCGImage(glow, from: glowExtent),
-                        rays: makeRays(), puff: makePuff(), intact: makeIntactSkull())
+                        statics: statics)
     }
 
     // MARK: - Curves (functions of t, seconds from the clock)
@@ -133,12 +155,11 @@ enum SkullBoom {
     static func smoothstep(_ x: Double) -> Double { let x = clamp(x); return x * x * (3 - 2 * x) }
     static func easeOutBack(_ x: Double, _ s: Double = 2.2) -> Double { let x = x - 1; return x * x * ((s + 1) * x + s) + 1 }
 
-    /// Screen shake in reference pixels (y DOWN) and degrees: a build-up while
-    /// the 💀 trembles, the big kick on the boom, a faint tremor while it hangs.
+    /// Screen shake in reference pixels (y DOWN) and degrees: a tremor growing
+    /// with the bass, the big kick on the boom, a faint tremor while it hangs.
     static func shake(_ t: Double) -> (dx: Double, dy: Double, rot: Double) {
-        var amp = 14 * exp(-t / 0.08)
-        if t < boomAt { amp = max(amp, 4 + 6 * t / boomAt) }
-        else { amp = max(amp, 70 * exp(-(t - boomAt) / 0.2), 2.5 * clamp((exitAt - t) / 0.8)) }
+        let amp = t < boomAt ? 4 + 6 * t / boomAt
+                             : max(70 * exp(-(t - boomAt) / 0.2), 2.5 * clamp((exitAt - t) / 0.8))
         let ph = t * 57
         return (amp * sin(ph * 1.7 + 1.3) * cos(ph * 0.9), amp * sin(ph * 2.3), amp * 0.05 * sin(ph * 1.1))
     }
@@ -168,10 +189,10 @@ enum SkullBoom {
         return u < 0 ? 0 : 0.7 * (1 - smoothstep((u - 0.4) / 2.6))
     }
 
-    /// The flat white: a small flash on the slam, the full blow-out on the boom.
+    /// The flat white: the full blow-out on the boom.
     static func whiteFlash(_ t: Double) -> Double {
         let u = t - boomAt
-        if u < 0 { return 0.55 * exp(-t / 0.06) }
+        if u < 0 { return 0 }
         if u < 0.05 { return 1 }
         return exp(-(u - 0.05) / 0.1)
     }
@@ -272,7 +293,7 @@ enum SkullBoom {
         container.addSublayer(milkLayer)
         animate(milkLayer, "opacity", times.map { NSNumber(value: milk($0)) }, key: "skullBoomMilk")
 
-        if let puff = p.puff { addSmoke(to: container, puff: puff, bounds: bounds, burst: burstPt, clock0: clock0) }
+        if let puff = p.statics.puff { addSmoke(to: container, puff: puff, bounds: bounds, burst: burstPt, clock0: clock0) }
 
         let flash = CALayer()
         flash.frame = bounds
@@ -281,7 +302,7 @@ enum SkullBoom {
         animate(flash, "opacity", times.map { NSNumber(value: whiteFlash($0)) }, key: "skullBoomFlash")
 
         // --- the rays: white wedges fanning out of the burst, turning slowly ---
-        if let rays = p.rays {
+        if let rays = p.statics.rays {
             let r = 1.3 * max(W, H)
             let l = CALayer()
             l.bounds = CGRect(x: 0, y: 0, width: 2 * r, height: 2 * r)
@@ -299,7 +320,7 @@ enum SkullBoom {
         }
 
         // --- the ghost: a blurred copy of the skull that blows outward ---
-        if let ghost = p.ghost {
+        if let ghost = p.statics.ghost {
             let l = CALayer()
             l.bounds = CGRect(origin: .zero, size: skullRect.size)
             l.position = CGPoint(x: skullRect.midX, y: skullRect.midY)
@@ -317,7 +338,7 @@ enum SkullBoom {
         }
 
         // --- the white-hot core where the head bursts ---
-        if let puff = p.puff {
+        if let puff = p.statics.puff {
             let l = CALayer()
             l.bounds = CGRect(x: 0, y: 0, width: 240 * px, height: 240 * px)
             l.position = CGPoint(x: burstPt.x, y: burstPt.y + 40 * px)
@@ -331,27 +352,6 @@ enum SkullBoom {
                 let u = t - boomAt
                 return NSNumber(value: u < 0 ? 0 : 1 - smoothstep(u / 0.35))
             }, key: "skullBoomCoreFade")
-        }
-
-        // --- the intact 💀: slams in, trembles and swells until the boom ---
-        if let intact = p.intact {
-            let w = faceWidth * k
-            let h = w * CGFloat(intact.height) / CGFloat(intact.width)
-            let l = CALayer()
-            l.bounds = CGRect(x: 0, y: 0, width: w, height: h)
-            let centre = onScreen(faceCentre)
-            l.position = centre
-            l.contents = intact
-            l.contentsScale = scale
-            container.addSublayer(l)
-            animate(l, "transform", times.map { t -> NSValue in
-                var s = t < 0.1 ? 2.0 - easeOutBack(clamp(t / 0.1)) : 1.0
-                s *= 1 + 0.12 * pow(clamp((t - 0.1) / (boomAt - 0.1)), 2)
-                let sh = shake(t)
-                let m = CATransform3DMakeTranslation(CGFloat(sh.dx * px * 0.5), CGFloat(-sh.dy * px * 0.5), 0)
-                return NSValue(caTransform3D: CATransform3DScale(m, CGFloat(s), CGFloat(s), 1))
-            }, key: "skullBoomIntact")
-            animate(l, "opacity", times.map { NSNumber(value: $0 < boomAt ? 1 : 0) }, key: "skullBoomIntactSwap")
         }
 
         // --- the exploded skull: one rig scaled about the burst ---
@@ -370,7 +370,7 @@ enum SkullBoom {
         }, key: "skullBoomRig")
         animate(rig, "opacity", times.map { NSNumber(value: $0 < boomAt ? 0 : exit($0).alpha) }, key: "skullBoomRigFade")
 
-        if let glow = p.glow {
+        if let glow = p.statics.glow {
             let pad = 40 * k
             let l = CALayer()
             l.frame = rig.bounds.insetBy(dx: -pad, dy: -pad)
@@ -572,36 +572,5 @@ enum SkullBoom {
         ctx.drawRadialGradient(gradient, startCenter: c, startRadius: 0, endCenter: c,
                                endRadius: CGFloat(size) / 2, options: [])
         return ctx.makeImage()
-    }
-
-    /// The system 💀, cropped to its glyph.
-    static func makeIntactSkull(size: CGFloat = 512) -> CGImage? {
-        let image = NSImage(size: NSSize(width: size, height: size))
-        image.lockFocus()
-        let s = NSAttributedString(string: "💀", attributes: [.font: NSFont(name: "Apple Color Emoji", size: size * 0.8)
-                                                                 ?? NSFont.systemFont(ofSize: size * 0.8)])
-        let b = s.size()
-        s.draw(at: NSPoint(x: (size - b.width) / 2, y: (size - b.height) / 2))
-        image.unlockFocus()
-        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        return trimmed(cg) ?? cg
-    }
-
-    /// The image cut to its non-transparent pixels.
-    private static func trimmed(_ img: CGImage) -> CGImage? {
-        let w = img.width, h = img.height
-        guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                  space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
-              let data = ctx.data else { return nil }
-        ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
-        let px = data.bindMemory(to: UInt8.self, capacity: w * h * 4)
-        var minX = w, minY = h, maxX = -1, maxY = -1
-        for y in 0..<h { for x in 0..<w where px[(y * w + x) * 4 + 3] > 8 {
-            minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
-        } }
-        guard maxX >= minX, maxY >= minY else { return nil }
-        // Bitmap rows run top-down in memory, which is CGImage's own order.
-        return img.cropping(to: CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1))
     }
 }

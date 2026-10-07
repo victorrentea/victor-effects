@@ -1758,29 +1758,34 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   reads the clip's real length and fades out on its last 0.3 s.
 
 - **💀 Skull boom** (tile #39 `39_skull_boom.mp3` → `skull-boom`, `showSkullBoom`,
-  built by `SkullBoom`, 2026-10-08): the TikTok/Shorts "skull edit". The desktop
-  freezes, a 💀 slams on and trembles; 0.32 s later — on the phonk drop, which
-  sits **4.29 s into the clip** — the cranium blows
-  off (cloud and shards grow out of the crack, the jaw drops, bone pieces fly) on
-  a white blow-out with a 1.32× punch-in, zoom blur, a 70 px shake, a giant
-  blurred ghost of the skull flying outward and white light rays fanning from it.
-  The screen then stays milky and drained of colour while ~40 smoke puffs clear
-  **in patches, edges first and the middle last**, the camera creeping in a
-  further 7 %; the skull floats with a pulsing glow, swells once and shrinks away
-  3.7 s after it appeared. Play-path, the FBI knock's reason: the visual owns the
-  audio. Unlike the knock, the audio starts on the press and the visual's clock
-  is stamped `SkullBoom.visualLead` (3.97 s, + Bluetooth compensation) after it
-  — the capture and the Core Image prep (~0.7 s) run inside that build-up, so
-  the press is not late; if they ever overrun it the log says by how much.
+  built by `SkullBoom`, 2026-10-08): the TikTok/Shorts "skull edit". The clip
+  opens on 0.5 s of muffled bass; the desktop freezes and trembles with it, and
+  **on the drop (0.5 s into the clip)** a skull's cranium blows off (cloud and
+  shards grow out of the crack, the jaw drops, bone pieces fly) on a white
+  blow-out with a 1.32× punch-in, zoom blur, a 70 px shake, a giant blurred ghost
+  of the skull flying outward and white light rays fanning from it. The screen
+  then stays milky and drained of colour while ~40 smoke puffs clear **in
+  patches, edges first and the middle last**, the camera creeping in a further
+  7 %; the skull floats with a pulsing glow, swells once and shrinks away, and
+  the camera glides back to exactly 1× over the last 0.8 s before the capture
+  fades off the live desktop (a snap from ~1.1× to 1× was the first version's
+  ending). An intact 💀 that slammed in and trembled before the boom went the
+  same day, with the sung build-up it played over: Victor wanted the tile to
+  start at the bass drop.
+  Play-path, the FBI knock's reason: the visual owns the audio. The audio starts
+  on the press and the visual's clock is stamped `SkullBoom.visualLead` (0.18 s,
+  + Bluetooth compensation) after it. That only works because a press pays for
+  the capture and two filters alone (measured: ~60 ms warm, ~225 ms on the first
+  press of a run); the art and everything derived from it are built once
+  (`SkullBoom.statics`, warmed at launch). A late start costs the first frames of
+  the tremor, never the boom — the animations hang off absolute times.
   The clip is the Shorts' own music, found by Shazam and cross-correlation:
-  "Sonne (Best part) (Slowed to perfection)" (a slowed Rammstein edit), cut the
-  way the edits use it — her last sung line before the drop, clean; the break
-  before the drop muffled under a 450 Hz low-pass; the drop. The cut points
-  are in the `SkullBoom.dropInClip` comment. Every curve is a function of time sampled at 60 Hz into keyframes — the
-  same functions the signed-off preview was rendered from. The art is not in the
-  repo: `assetsDir/skull-boom/{whole,base,jaw,blast}.png` (the exploded skull cut
-  into layers on one 421 px canvas) and `shard1…3.png`; without them the tile
-  plays its sound and logs. `/effect/skull-boom` runs it silently.
+  "Sonne (Best part) (Slowed to perfection)" (a slowed Rammstein edit); cut
+  points in the `SkullBoom.dropInClip` comment. Every curve is a function of
+  time sampled at 60 Hz into keyframes. The art is not in the repo:
+  `assetsDir/skull-boom/{whole,base,jaw,blast}.png` (the exploded skull cut into
+  layers on one 421 px canvas) and `shard1…3.png`; without them the tile plays
+  its sound and logs. `/effect/skull-boom` runs it silently.
 - **🚪 Dark door** (tile #25 `25_dark_door.mp3` → `dark-door`, `showDarkDoor`): the built-in
   Retina is captured and then **punched IN on each of the seven knocks**, each punch holding
   its new level until the next one takes it further — 1.09× compounding seven times to

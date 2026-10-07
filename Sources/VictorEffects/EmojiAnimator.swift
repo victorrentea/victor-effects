@@ -290,6 +290,9 @@ class EmojiAnimator {
     init(hostLayer: CALayer) {
         self.hostLayer = hostLayer
         Self.warmBrotherCache()
+        // The skull boom's drop is 0.5 s into its clip: build its art once now
+        // so a press only pays for the screen capture.
+        DispatchQueue.global(qos: .utility).async { SkullBoom.statics(for: Self.skullBoomArtDir) }
     }
 
     /// Cancel a running toggleable effect. Returns true if it was running (and got cancelled).
@@ -8872,21 +8875,22 @@ class EmojiAnimator {
     /// on; the tracked layer lives this much longer than the effect to cover it.
     private static let skullBoomCaptureAllowance: Double = 0.6
     static let skullBoomSound = "39_skull_boom.mp3"
+    static var skullBoomArtDir: URL { EffectsConfig.shared.assetsDir.appendingPathComponent("skull-boom") }
 
     /// The drop sits `SkullBoom.dropInClip` INTO the clip, so — the FBI knock's
     /// reason — the visual owns the audio and hangs off the audio's clock. Unlike
     /// the knock, the audio does not wait for the capture: the clip opens on
-    /// her sung line and the muffled break, ~4 s before the 💀 is due, and the capture and the
-    /// Core Image prep (~0.7 s) run inside that wait, so the press sounds at
-    /// once. Silent (`/effect/skull-boom`), the visual starts when it is ready.
+    /// 0.5 s of muffled bass before the drop, and the capture plus the two
+    /// per-press filters run inside that wait (everything else is built once,
+    /// `SkullBoom.statics`, warmed at launch), so the press sounds at once. Silent (`/effect/skull-boom`), the visual starts when it is ready.
     /// Returns the on-screen length (0 = nothing started).
     func showSkullBoom(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
         _ = cancelIfRunning("skull-boom", sound: playSound ? Self.skullBoomSound : nil)
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return 0 }
 
-        let dir = EffectsConfig.shared.assetsDir.appendingPathComponent("skull-boom")
-        guard let art = SkullBoom.Art.load(from: dir) else {
+        let dir = Self.skullBoomArtDir
+        guard let statics = SkullBoom.statics(for: dir) else {
             // Third-party art, so not in the repo: without it the tile still
             // sounds, it just draws nothing.
             overlayError("skull-boom: {whole,base,jaw,blast}.png not in \(dir.path)")
@@ -8922,7 +8926,7 @@ class EmojiAnimator {
                 DispatchQueue.main.async { overlayError("skull-boom: screen capture failed") }
                 return
             }
-            let prepared = SkullBoom.prepare(shot: shot, art: art)
+            let prepared = SkullBoom.prepare(shot: shot, statics: statics)
             DispatchQueue.main.async {
                 guard let self, self.activeEffects["skull-boom"] === holder else { return }
                 let now = CACurrentMediaTime()
