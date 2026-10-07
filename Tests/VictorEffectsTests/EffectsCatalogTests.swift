@@ -41,7 +41,7 @@ final class EffectsCatalogTests: XCTestCase {
         "31_tarzan.mp3":         "iris",
         "34_phoenix.mp3":        "phoenix",
         "37_rainbow.mp3":        "rainbow",
-        "39_skull_boom.mp3":     "skull-boom",     // 💀 in-clip cue, the drop 1.235 s in
+        "39_skull_boom.mp3":     "skull-boom",     // 💀 in-clip cue, the drop 4.29 s in
         "40_joker.mp3":          "blood-drip",
         "41_love_hearts.mp3":    "love-hands",
         "42_saxophone.mp3":      "spiral-hearts",

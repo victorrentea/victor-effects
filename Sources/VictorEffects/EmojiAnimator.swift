@@ -8876,7 +8876,7 @@ class EmojiAnimator {
     /// The drop sits `SkullBoom.dropInClip` INTO the clip, so — the FBI knock's
     /// reason — the visual owns the audio and hangs off the audio's clock. Unlike
     /// the knock, the audio does not wait for the capture: the clip opens on
-    /// ~0.9 s of muffled build-up before the 💀 is due, and the capture and the
+    /// her sung line and the muffled break, ~4 s before the 💀 is due, and the capture and the
     /// Core Image prep (~0.7 s) run inside that wait, so the press sounds at
     /// once. Silent (`/effect/skull-boom`), the visual starts when it is ready.
     /// Returns the on-screen length (0 = nothing started).

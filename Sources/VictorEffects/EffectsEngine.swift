@@ -526,7 +526,7 @@ final class EffectsEngine {
             return remember(Int(duration * 1000))
         }
         // Tile #39 (💀 skull boom): the cranium blows off on the phonk drop,
-        // 1.235 s into the clip — the visual owns the audio, the FBI knock's way.
+        // 4.29 s into the clip — the visual owns the audio, the FBI knock's way.
         if name == "39_skull_boom.mp3" {
             let duration = animator.showSkullBoom(playSound: true, volume: volume)
             guard duration > 0 else { return nil }

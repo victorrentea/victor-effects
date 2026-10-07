@@ -32,12 +32,14 @@ enum SkullBoom {
 
     /// The drop: white blow-out, the cranium goes. Where the clip's hit is.
     static let boomAt: Double = 0.32
-    /// Where the phonk drop sits in `39_skull_boom.mp3`: the clip is cut
-    /// from youtube.com/shorts/VAmn5thrxN8 between the voice that stops at
-    /// 51.825 s and the one that comes back at 54.92 s, and the hit (the
-    /// high-band onset) is at 53.06 s. **Re-cutting the clip means
+    /// Where the drop sits in `39_skull_boom.mp3`. The Shorts' music is
+    /// "Sonne (Best part) (Slowed to perfection)" (youtube.com/watch?v=2aSHYRN3AVU,
+    /// found by Shazam + cross-correlation); the clip is cut from it the way
+    /// the edit uses it: her last line before the drop clean (31.15–34.20 s),
+    /// the break muffled under a 450 Hz low-pass (34.20–35.44 s), then the
+    /// drop, whose high-band onset is at 35.44 s. **Re-cutting the clip means
     /// re-measuring this.**
-    static let dropInClip: Double = 1.235
+    static let dropInClip: Double = 4.29
     /// How long after the audio's first sample the visual's clock starts, so
     /// that `boomAt` lands on the drop.
     static var visualLead: Double { dropInClip - boomAt }
