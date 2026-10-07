@@ -312,6 +312,7 @@ final class EffectsEngine {
         // 📺 The tail of game-over, addressable on its own so the closing can be
         // rehearsed without sitting through the picture and the clip first.
         case "crt-shutdown":  animator.showCrtShutdown()
+        case "skull-boom":    _ = animator.showSkullBoom(playSound: false)
         case "minion":        animator.showMinion()
         case "wolf-howl":     animator.showWolfHowl()
         case "elephant":      animator.showElephant()
@@ -448,7 +449,7 @@ final class EffectsEngine {
 
     /// `GET /sound/play/<file>`. Returns the JSON body, or nil for 404.
     ///
-    /// Seven tiles are not plain playback: their visual has to start from the
+    /// Eight tiles are not plain playback: their visual has to start from the
     /// same call as their audio because the cue lives at a fixed offset INSIDE
     /// the clip, and a separately-clocked visual slides off it.
     func playSound(_ name: String, volumePct: Int?) -> String? {
@@ -521,6 +522,13 @@ final class EffectsEngine {
         // capture when the audio starts, and therefore owns it.
         if name == "25_dark_door.mp3" {
             let duration = animator.showDarkDoor(playSound: true, volume: volume)
+            guard duration > 0 else { return nil }
+            return remember(Int(duration * 1000))
+        }
+        // Tile #39 (💀 skull boom): the cranium blows off on the phonk drop,
+        // 0.32 s into the clip — the visual owns the audio, the FBI knock's way.
+        if name == "39_skull_boom.mp3" {
+            let duration = animator.showSkullBoom(playSound: true, volume: volume)
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }

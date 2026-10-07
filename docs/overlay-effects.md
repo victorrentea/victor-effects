@@ -189,7 +189,7 @@ ecranul"*):
   magnification blows the effect back up to exactly how it looks unzoomed. The
   frame and the crop come from **one** snapshot, so a pan between two reads
   cannot hand the layer one slice and the picture another. Used by
-  **❌ fail (#19)**, **🚪 dark door (#25)**, **🎼 Beethoven (#51)**, **🚔 FBI knock
+  **❌ fail (#19)**, **💀 skull boom (#39)**, **🚪 dark door (#25)**, **🎼 Beethoven (#51)**, **🚔 FBI knock
   (#64)**, **☎️ phone ring (#10)** and **💥 broken glass (#90)**, and by the
   **🔍 Pink Panther magnifier (#6)** for its *size* only: the lens is two
   thirds of the slice's height, since two thirds of the display at 2× was a
@@ -1757,6 +1757,23 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   1.95 s clip, so the desktop sat frozen under a silent screenshot for 1.35 s. It now
   reads the clip's real length and fades out on its last 0.3 s.
 
+- **💀 Skull boom** (tile #39 `39_skull_boom.mp3` → `skull-boom`, `showSkullBoom`,
+  built by `SkullBoom`, 2026-10-08): the TikTok/Shorts "skull edit". The desktop
+  freezes, a 💀 slams on and trembles; **0.32 s in** — the phonk drop of the clip,
+  which is cut out of a Short so its hit lands exactly there — the cranium blows
+  off (cloud and shards grow out of the crack, the jaw drops, bone pieces fly) on
+  a white blow-out with a 1.32× punch-in, zoom blur, a 70 px shake, a giant
+  blurred ghost of the skull flying outward and white light rays fanning from it.
+  The screen then stays milky and drained of colour while ~40 smoke puffs clear
+  **in patches, edges first and the middle last**, the camera creeping in a
+  further 7 %; the skull floats with a pulsing glow, swells once and shrinks away
+  at 3.7 s. Play-path, the FBI knock's reason: the visual owns the audio and both
+  hang off one clock stamped once the (fast) capture and the Core Image prep are
+  done. Every curve is a function of time sampled at 60 Hz into keyframes — the
+  same functions the signed-off preview was rendered from. The art is not in the
+  repo: `assetsDir/skull-boom/{whole,base,jaw,blast}.png` (the exploded skull cut
+  into layers on one 421 px canvas) and `shard1…3.png`; without them the tile
+  plays its sound and logs. `/effect/skull-boom` runs it silently.
 - **🚪 Dark door** (tile #25 `25_dark_door.mp3` → `dark-door`, `showDarkDoor`): the built-in
   Retina is captured and then **punched IN on each of the seven knocks**, each punch holding
   its new level until the next one takes it further — 1.09× compounding seven times to
