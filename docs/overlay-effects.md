@@ -1759,17 +1759,20 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 
 - **💀 Skull boom** (tile #39 `39_skull_boom.mp3` → `skull-boom`, `showSkullBoom`,
   built by `SkullBoom`, 2026-10-08): the TikTok/Shorts "skull edit". The desktop
-  freezes, a 💀 slams on and trembles; **0.32 s in** — the phonk drop of the clip,
-  which is cut out of a Short so its hit lands exactly there — the cranium blows
+  freezes, a 💀 slams on and trembles; 0.32 s later — on the phonk drop, which
+  sits **1.235 s into the clip** (cut from a Short between two lines of speech:
+  ~1.2 s of muffled build-up, the hit, the drop) — the cranium blows
   off (cloud and shards grow out of the crack, the jaw drops, bone pieces fly) on
   a white blow-out with a 1.32× punch-in, zoom blur, a 70 px shake, a giant
   blurred ghost of the skull flying outward and white light rays fanning from it.
   The screen then stays milky and drained of colour while ~40 smoke puffs clear
   **in patches, edges first and the middle last**, the camera creeping in a
   further 7 %; the skull floats with a pulsing glow, swells once and shrinks away
-  at 3.7 s. Play-path, the FBI knock's reason: the visual owns the audio and both
-  hang off one clock stamped once the (fast) capture and the Core Image prep are
-  done. Every curve is a function of time sampled at 60 Hz into keyframes — the
+  3.7 s after it appeared. Play-path, the FBI knock's reason: the visual owns the
+  audio. Unlike the knock, the audio starts on the press and the visual's clock
+  is stamped `SkullBoom.visualLead` (0.915 s, + Bluetooth compensation) after it
+  — the capture and the Core Image prep (~0.7 s) run inside that build-up, so
+  the press is not late; if they ever overrun it the log says by how much. Every curve is a function of time sampled at 60 Hz into keyframes — the
   same functions the signed-off preview was rendered from. The art is not in the
   repo: `assetsDir/skull-boom/{whole,base,jaw,blast}.png` (the exploded skull cut
   into layers on one 421 px canvas) and `shard1…3.png`; without them the tile

@@ -212,7 +212,7 @@ enum SoundEffectMap {
         "64_fbi.mp3":         "fbi-knock",   // 🚪 lurch on each bang, the first 22 ms in
         "25_dark_door.mp3":   "dark-door",   // 🚪 punch-in on each of seven knocks
         "51_beethoven.mp3":   "beethoven",   // 🎼 six hits 0.11 s apart
-        "39_skull_boom.mp3":  "skull-boom",  // 💀 cranium blows off on the drop, 0.32 s in
+        "39_skull_boom.mp3":  "skull-boom",  // 💀 cranium blows off on the drop, 1.235 s in
     ]
 
     /// Every sound that makes something happen ON THE DESKTOP when its tile is

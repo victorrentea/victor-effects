@@ -12,8 +12,8 @@ import QuartzCore
 /// a pulsing glow until it swells once and shrinks away.
 ///
 /// The beat is INSIDE the clip — the phonk drop of `39_skull_boom.mp3` lands
-/// `boomAt` (0.32 s) in — so, like the FBI knock, the visual owns the audio and
-/// starts both from one clock (`EmojiAnimator.showSkullBoom`).
+/// `dropInClip` in — so, like the FBI knock, the visual owns the audio and
+/// hangs off its clock, `visualLead` behind it (`EmojiAnimator.showSkullBoom`).
 ///
 /// This is a **pure builder**, the `CrtShutdown` way: `makeLayer` returns one
 /// container with every animation already attached on that clock (`fillMode`
@@ -32,7 +32,16 @@ enum SkullBoom {
 
     /// The drop: white blow-out, the cranium goes. Where the clip's hit is.
     static let boomAt: Double = 0.32
-    /// The whole effect, exit included. The clip is cut to the same length.
+    /// Where the phonk drop sits in `39_skull_boom.mp3`: the clip is cut
+    /// from youtube.com/shorts/VAmn5thrxN8 between the voice that stops at
+    /// 51.825 s and the one that comes back at 54.92 s, and the hit (the
+    /// high-band onset) is at 53.06 s. **Re-cutting the clip means
+    /// re-measuring this.**
+    static let dropInClip: Double = 1.235
+    /// How long after the audio's first sample the visual's clock starts, so
+    /// that `boomAt` lands on the drop.
+    static var visualLead: Double { dropInClip - boomAt }
+    /// The whole effect, exit included, from the visual's clock.
     static let totalDuration: Double = 3.7
     /// The skull's exit (a last swell, then it shrinks into the middle).
     static var exitAt: Double { totalDuration - 0.45 }
@@ -132,10 +141,23 @@ enum SkullBoom {
         return (amp * sin(ph * 1.7 + 1.3) * cos(ph * 0.9), amp * sin(ph * 2.3), amp * 0.05 * sin(ph * 1.1))
     }
 
-    /// The desktop's zoom: a 1.32× punch on the boom, then a slow creep in.
+    /// How long the camera takes to glide back to the real desktop at the end.
+    static let settleDuration: Double = 0.8
+
+    /// 0 for most of the effect, rising to 1 over the last `settleDuration`:
+    /// how far the camera has come back to the live desktop's framing.
+    static func settled(_ t: Double) -> Double {
+        smoothstep((t - (totalDuration - settleDuration)) / settleDuration)
+    }
+
+    /// The desktop's zoom: a 1.32× punch on the boom, then a slow creep in —
+    /// and at the end a gentle glide back to exactly 1×, so the layer leaves
+    /// over a picture that matches the real desktop instead of snapping from
+    /// ~1.1× to 1× (Victor, 2026-10-08: "must come back to normal zoom gently").
     static func cameraZoom(_ t: Double) -> Double {
         let u = t - boomAt
-        return u < 0 ? 1 : 1 + 0.32 * exp(-u / 0.16) + 0.07 * smoothstep(u / 3.0)
+        let z = u < 0 ? 1 : 1 + 0.32 * exp(-u / 0.16) + 0.07 * smoothstep(u / 3.0)
+        return 1 + (z - 1) * (1 - settled(t))
     }
 
     /// How much of the colour is gone (opacity of the grey copy over the colour one).
@@ -229,7 +251,8 @@ enum SkullBoom {
         }
 
         animate(camera, "transform", times.map { t -> NSValue in
-            let s = shake(t), z = CGFloat(cameraZoom(t)) * 1.04   // 4% spare so small shakes stay black-free
+            // 4% spare so small shakes stay black-free — given back with the zoom.
+            let s = shake(t), z = CGFloat(cameraZoom(t) * (1 + 0.04 * (1 - settled(t))))
             var m = CATransform3DMakeTranslation(CGFloat(s.dx * px), CGFloat(-s.dy * px), 0)
             m = CATransform3DRotate(m, CGFloat(s.rot * .pi / 180), 0, 0, 1)
             return NSValue(caTransform3D: CATransform3DScale(m, z, z, 1))
@@ -386,6 +409,16 @@ enum SkullBoom {
         if !p.art.shards.isEmpty {
             addDebris(to: container, shards: p.art.shards, from: onScreen(crack), k: k, px: px, clock0: clock0)
         }
+        // The capture is by now framed exactly like the live desktop; fading it
+        // off hides whatever changed on screen while the effect ran.
+        let handBack = CABasicAnimation(keyPath: "opacity")
+        handBack.fromValue = 1.0
+        handBack.toValue = 0.0
+        handBack.beginTime = clock0 + totalDuration - 0.2
+        handBack.duration = 0.2
+        handBack.fillMode = .both
+        handBack.isRemovedOnCompletion = false
+        container.add(handBack, forKey: "skullBoomHandBack")
         return container
     }
 

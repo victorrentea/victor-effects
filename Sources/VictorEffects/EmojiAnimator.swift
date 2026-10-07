@@ -8868,15 +8868,18 @@ class EmojiAnimator {
 
     // MARK: - 💀 Skull boom (tile #39) — the cranium blows off on the drop
 
-    /// The capture and the image processing before the audio may start; the
-    /// tracked layer lives this much longer than the clip to cover it.
+    /// The capture and the image processing the visual may still be waiting
+    /// on; the tracked layer lives this much longer than the effect to cover it.
     private static let skullBoomCaptureAllowance: Double = 0.6
     static let skullBoomSound = "39_skull_boom.mp3"
 
-    /// The FBI knock's shape, for the FBI knock's reason: the drop is
-    /// `SkullBoom.boomAt` INTO the clip, so the visual owns the audio and both
-    /// hang off one clock stamped the instant the capture is ready. Returns the
-    /// on-screen length (0 = nothing started).
+    /// The drop sits `SkullBoom.dropInClip` INTO the clip, so — the FBI knock's
+    /// reason — the visual owns the audio and hangs off the audio's clock. Unlike
+    /// the knock, the audio does not wait for the capture: the clip opens on
+    /// ~0.9 s of muffled build-up before the 💀 is due, and the capture and the
+    /// Core Image prep (~0.7 s) run inside that wait, so the press sounds at
+    /// once. Silent (`/effect/skull-boom`), the visual starts when it is ready.
+    /// Returns the on-screen length (0 = nothing started).
     func showSkullBoom(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
         _ = cancelIfRunning("skull-boom", sound: playSound ? Self.skullBoomSound : nil)
         let bounds = hostLayer.bounds
@@ -8890,7 +8893,18 @@ class EmojiAnimator {
             if playSound, let d = SoundManager.shared.playTabletSound(Self.skullBoomSound, volume: volume) { return d }
             return 0
         }
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+
+        // Sound first, then the clock — nothing slow between them. On Bluetooth
+        // `playTabletSound` prepends `btComp` of warm-up silence, so the audio
+        // really starts that much later and the visual shifts with it.
+        var clock0: CFTimeInterval? = nil
+        var lead: Double = 0
+        if playSound {
+            let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
+            _ = SoundManager.shared.playTabletSound(Self.skullBoomSound, volume: volume)
+            lead = btComp + SkullBoom.visualLead
+            clock0 = CACurrentMediaTime() + lead
+        }
 
         // Tracked before the capture goes out, so a second tap is debounced and
         // a stop-all reaches it while the capture is still running.
@@ -8899,12 +8913,11 @@ class EmojiAnimator {
         holder.frame = slice.rect
         hostLayer.addSublayer(holder)
         trackEffect("skull-boom", layer: holder,
-                    duration: btComp + SkullBoom.totalDuration + Self.skullBoomCaptureAllowance,
+                    duration: lead + SkullBoom.totalDuration + Self.skullBoomCaptureAllowance,
                     sound: playSound ? Self.skullBoomSound : nil)
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            // The fast capture first: every ms spent here delays the sound.
             guard let shot = slice.crop(Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay()) else {
                 DispatchQueue.main.async { overlayError("skull-boom: screen capture failed") }
                 return
@@ -8912,15 +8925,17 @@ class EmojiAnimator {
             let prepared = SkullBoom.prepare(shot: shot, art: art)
             DispatchQueue.main.async {
                 guard let self, self.activeEffects["skull-boom"] === holder else { return }
-                // Sound first, then the clock — nothing slow between them.
-                if playSound { _ = SoundManager.shared.playTabletSound(Self.skullBoomSound, volume: volume) }
-                let clock0 = CACurrentMediaTime() + btComp
-                if let layer = SkullBoom.makeLayer(in: slice.local, scale: scale, prepared: prepared, clock0: clock0) {
+                let now = CACurrentMediaTime()
+                if let due = clock0, due < now {
+                    effectsInfo("💀 skull-boom prep ran \(Int((now - due) * 1000)) ms past the 💀's cue")
+                }
+                if let layer = SkullBoom.makeLayer(in: slice.local, scale: scale, prepared: prepared,
+                                                   clock0: clock0 ?? now) {
                     holder.addSublayer(layer)
                 }
             }
         }
-        return btComp + SkullBoom.totalDuration
+        return lead + SkullBoom.totalDuration
     }
 
     // MARK: - 🚪 Dark door (tile #25) — the desktop is punched IN on every knock
