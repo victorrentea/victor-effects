@@ -38,7 +38,8 @@ enum SkullBoom {
     /// Where the drop sits in `39_skull_boom.mp3`. The Shorts' music is
     /// "Sonne (Best part) (Slowed to perfection)" (youtube.com/watch?v=2aSHYRN3AVU,
     /// found by Shazam + cross-correlation). The clip starts 0.5 s before the
-    /// drop (34.94 s, bass only under a 450 Hz low-pass) and runs 3 s past it;
+    /// drop (34.94 s, bass only under a 450 Hz low-pass) and runs 5 s past it,
+    /// the last 0.8 s a fade;
     /// the drop's high-band onset is at 35.44 s. Her sung line before it was
     /// cut on Victor's ask: from the bass drop only. **Re-cutting the clip
     /// means re-measuring this.**
@@ -46,10 +47,15 @@ enum SkullBoom {
     /// How long after the audio's first sample the visual's clock starts, so
     /// that `boomAt` lands on the drop.
     static var visualLead: Double { dropInClip - boomAt }
-    /// The whole effect, exit included, from the visual's clock.
-    static let totalDuration: Double = 3.7
-    /// The skull's exit (a last swell, then it shrinks into the middle).
-    static var exitAt: Double { totalDuration - 0.45 }
+    /// The whole effect, exit included, from the visual's clock. Ends ~0.2 s
+    /// before the 5.5 s clip does, so the skull is gone while the drop still
+    /// plays (Victor, 2026-10-08: "a bit too short", "fade out slowly at the
+    /// end while the song still plays").
+    static let totalDuration: Double = 5.1
+    /// How long the skull takes to fade away at the end.
+    static let fadeDuration: Double = 1.4
+    /// The skull's exit: a slow fade, drifting a little bigger as it goes.
+    static var exitAt: Double { totalDuration - fadeDuration }
     /// Keyframe sampling rate. 60 Hz is what the preview was signed off at.
     static let fps: Double = 60
 
@@ -206,12 +212,11 @@ enum SkullBoom {
     /// The smoke's rising "clear" threshold: a puff whose density is below it is gone.
     static func smokeThreshold(_ u: Double) -> Double { -0.25 + 1.3 * smoothstep((u - 0.15) / 2.8) }
 
-    /// The skull's exit: (scale factor, opacity).
+    /// The skull's exit: (scale factor, opacity) — a slow fade while it drifts
+    /// 6 % bigger. Replaced a 0.45 s swell-and-shrink that read as abrupt.
     static func exit(_ t: Double) -> (scale: Double, alpha: Double) {
-        let e = clamp((t - exitAt) / (totalDuration - exitAt))
-        guard e > 0 else { return (1, 1) }
-        let swell = 1 + 0.12 * sin(Double.pi * min(e, 0.35) / 0.35 * 0.5)
-        return (max(swell * (1 - smoothstep((e - 0.3) / 0.7)), 0.001), 1 - smoothstep((e - 0.45) / 0.55))
+        let e = clamp((t - exitAt) / fadeDuration)
+        return (1 + 0.06 * smoothstep(e), 1 - smoothstep(e))
     }
 
     // MARK: - The layer

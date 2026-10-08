@@ -8903,9 +8903,10 @@ class EmojiAnimator {
         // really starts that much later and the visual shifts with it.
         var clock0: CFTimeInterval? = nil
         var lead: Double = 0
+        var clipLength: Double = 0
         if playSound {
             let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
-            _ = SoundManager.shared.playTabletSound(Self.skullBoomSound, volume: volume)
+            clipLength = SoundManager.shared.playTabletSound(Self.skullBoomSound, volume: volume) ?? 0
             lead = btComp + SkullBoom.visualLead
             clock0 = CACurrentMediaTime() + lead
         }
@@ -8917,7 +8918,7 @@ class EmojiAnimator {
         holder.frame = slice.rect
         hostLayer.addSublayer(holder)
         trackEffect("skull-boom", layer: holder,
-                    duration: lead + SkullBoom.totalDuration + Self.skullBoomCaptureAllowance,
+                    duration: max(lead + SkullBoom.totalDuration, clipLength) + Self.skullBoomCaptureAllowance,
                     sound: playSound ? Self.skullBoomSound : nil)
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
 
@@ -8939,7 +8940,9 @@ class EmojiAnimator {
                 }
             }
         }
-        return lead + SkullBoom.totalDuration
+        // The clip outlasts the skull on purpose (it fades while the drop
+        // plays): the tile stays lit for whichever is longer.
+        return max(lead + SkullBoom.totalDuration, clipLength)
     }
 
     // MARK: - 🚪 Dark door (tile #25) — the desktop is punched IN on every knock

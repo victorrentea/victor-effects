@@ -1766,7 +1766,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   of the skull flying outward and white light rays fanning from it. The screen
   then stays milky and drained of colour while ~40 smoke puffs clear **in
   patches, edges first and the middle last**, the camera creeping in a further
-  7 %; the skull floats with a pulsing glow, swells once and shrinks away, and
+  7 %; the skull floats with a pulsing glow and then fades slowly (1.4 s) while
+  the drop keeps playing — the clip is 5.5 s, the visual ends ~0.2 s before it — and
   the camera glides back to exactly 1× over the last 0.8 s before the capture
   fades off the live desktop (a snap from ~1.1× to 1× was the first version's
   ending). An intact 💀 that slammed in and trembled before the boom went the
