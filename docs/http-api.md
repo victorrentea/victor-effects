@@ -38,7 +38,7 @@ press cannot drift apart.
 | `GET /sound/play/<file>?vol=N` | `{"ok":true,"durationMs":N}` | **404** `{"ok":false,"reason":"unknown-sound"}`. Seven files take a paired-visual path, and a few are **alternating pairs** — one press, two clips in turn (#19/#20), with the duration of the file actually played. Both in `docs/sound-routing.md` |
 | `GET /sound/volume/<pct>` | `ok` | player level, not system volume |
 | `GET /sound/stop` | `ok` | fades over `interruptFade` |
-| `GET /sound/pressed/<file>` | `ok`, or `no-effect` | `SoundEffectMap.pressEffect` → `runEffect` |
+| `GET /sound/pressed/<file>` | `ok`, or `no-effect` | `SoundEffectMap.pressEffect` → `runEffect`; also counts the press and shows its caption (`docs/overlay-effects.md`, **💬 Every press is captioned**) |
 | `GET /usage` | `{"counts":{"<asset>":n,…},"hash":"…"}` | The press count behind each of the tablet's green dots. **This Mac is the only counter**: every `/sound/pressed/` (tablet) and every in-process panel press lands in `UsageCounts`, so the dots finally include the presses made on the Mac itself. The body carries the hash it was computed from — a client adopting the table records THAT, not the one from a `/ping` its own press may have crossed |
 | `GET /usage/import?counts=<asset>:<n>,…` | the merged table | One-shot seed of a client's history (the years the tablet counted alone). **Max-merged**, so a retry or a second tablet cannot inflate anything |
 | `GET /usage/reset` | the empty table | Wipes the counts — what the tablet's "Reset usage stats" now calls, since clearing only its own copy would be undone by the next ping |

@@ -102,6 +102,32 @@ gif frames come from `Bundle.module`; the eight large/licensed ones come from
 nothing when they are absent. Audio comes from `EffectsConfig.soundsDir`
 (`docs/sound-routing.md`) — **no soundboard mp3 is in this repo**.
 
+### 💬 Every press is captioned
+
+Each soundboard press puts a subtitle at the bottom of the overlay screen, for
+whoever in the room (or on the call) cannot hear the joke: `♪ Hello, is it me
+you're looking for? ♪` for a song, `[wolf howling]` for a noise.
+`SoundCaptions` holds the text, `CaptionOverlay` draws it.
+
+- **On the press, not the play.** `EffectsRouter` calls
+  `engine.showCaption(for:)` from `/sound/pressed/<file>` and `/alarm/start` —
+  where the tablet's presses and the panel's meet — so a sound the tablet plays
+  on its own speaker is captioned too. `/sound/play` is not hooked: it would
+  miss the tablet's local plays and caption every panel press twice.
+- **50 % opacity**, pill and text together: readable, but the slide under it
+  stays visible. 30 pt semibold white on a black pill, centred, 8 % of the
+  visible height above the bottom edge (clear of the progress bar), wrapped at
+  80 % of the width, placed in the zoomed slice when ⌥-scroll is on.
+- **Lives as long as the clip, 2.5 s minimum, 6 s maximum** — long enough to
+  read a blip, short enough that a 37 s theme does not park a line over the
+  slides. It ends itself; `stopAll` (the pre-press stop, the 🛑, a suspend)
+  only hides it early, and a newer press replaces it.
+- **Lyrics came from the clips**, by a Whisper pass over `soundsDir`, not from
+  memory of the song — a caption that disagrees with the audio is worse than
+  none. A tile with no line yet gets its filename (`92_door_open.mp3` →
+  `[door open]`); `SoundCaptionsTests` fails while any tile in `tiles.json`
+  relies on that fallback. `80_badumtss.mp3` (silent placeholder) gets none.
+
 ### 🔍 When the screen is zoomed, the edges move
 
 macOS screen zoom (⌥-scroll, Accessibility › Zoom) magnifies the

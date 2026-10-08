@@ -284,6 +284,9 @@ final class EffectsRouter {
             // This is also the one place both surfaces meet — the tablet's HTTP
             // press and the panel's in-process dispatch land here alike.
             UsageCounts.record(file)
+            // Captioned for the same reason it is counted: every press, visual
+            // or not, and wherever the audio ends up playing.
+            engine.showCaption(for: file)
             guard let effect = SoundEffectMap.pressEffect(for: file) else { return .ok("no-effect") }
             engine.runEffect(effect)
             return .ok()
@@ -308,6 +311,7 @@ final class EffectsRouter {
             // /sound/pressed, so without this line it would be the one tile
             // whose dots never move.
             UsageCounts.record(SoundboardPress.sirenAsset)
+            engine.showCaption(for: SoundboardPress.sirenAsset)
             engine.startAlarm()
             return .ok()
 

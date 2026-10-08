@@ -170,6 +170,16 @@ final class EffectsEngine {
 
     func stopAlarm() { animator.stopAlarmOverlay() }
 
+    /// The subtitle under a press (`SoundCaptions`). Called from the press
+    /// routes, so it captions the tablet's local plays as well as this Mac's.
+    func showCaption(for asset: String) {
+        guard let text = SoundCaptions.caption(for: asset) else { return }
+        if isSuspended { effectsInfo("⏸️ suspended — dropping caption for \(asset)"); return }
+        guard let screen = Screens.overlayScreen() else { return }
+        let seconds = SoundCaptions.lifetime(clipSeconds: SoundManager.shared.soundDuration(asset))
+        CaptionOverlay.show(text, seconds: seconds, on: screen)
+    }
+
     /// Run one effect by its route name, with the Bluetooth visual delay that
     /// keeps it in sync with a sound that was just routed here.
     func runEffect(_ name: String) {
@@ -398,7 +408,8 @@ final class EffectsEngine {
     ///
     /// What it does NOT see is the handful of overlays kept outside
     /// `activeEffects` on purpose (the 🕳️ iris, the spiral hearts…) and the
-    /// short spawns that were never tracked at all (rising emoji, confetti).
+    /// short spawns that were never tracked at all (rising emoji, confetti, the
+    /// press caption — `stopAll` hides it, but it lives 6 s at most).
     /// The 🪚 chainsaw is the exception, asked for by name since it stopped
     /// ending on its own (2026-09-23): a saw that runs until Escape is exactly
     /// what someone reaches for the 🛑 to kill. The first group is a real gap of at most one
@@ -424,6 +435,7 @@ final class EffectsEngine {
         // The whip is an overlay like any other: "silence everything" takes it
         // down too.
         whipController?.hide()
+        CaptionOverlay.hide()
     }
 
     // MARK: - Whip
