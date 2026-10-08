@@ -1852,7 +1852,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   black, keyed to transparency by luminance (black → transparent, flames opaque,
   glow and sparks in between, below 7 % = compression noise = transparent) and
   shipped as **HEVC with alpha** (`hevc_videotoolbox -alpha_quality`), played by
-  an `AVPlayerLayer` over the whole display on the zoom stage — 240 frames as
+  an `AVPlayerLayer` fitted to the display and **sitting on its bottom edge** (a
+  centred 16:9 fit on the 16:10 display left a band under it and the bird rose
+  out of a line above the bottom of the screen) on the zoom stage — 240 frames as
   images would have been hundreds of MB. **Colour premultiplied**: straight
   colour came out pale with light halos round every spark. The sound is the
   video's own (wing beats, fire), normalised to -14 LUFS, through `playClip` at

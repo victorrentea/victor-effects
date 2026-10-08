@@ -5763,7 +5763,16 @@ class EmojiAnimator {
         player.isMuted = true                 // the sound goes through SoundManager
         player.actionAtItemEnd = .pause
         let video = AVPlayerLayer(player: player)
-        video.frame = bounds
+        // Fitted to the display but sitting ON ITS BOTTOM EDGE, not centred: the
+        // video is 16:9 and the display 16:10, so a centred fit left a ~6 %
+        // band under it and the bird rose out of a line above the bottom of the
+        // screen (Victor, 2026-10-08). Bottom-aligned, it rises from the edge;
+        // the spare band goes to the top, where the picture is only sparks.
+        let natural = AVURLAsset(url: url).tracks(withMediaType: .video).first
+            .map { $0.naturalSize.applying($0.preferredTransform) } ?? CGSize(width: 16, height: 9)
+        let vw = abs(natural.width), vh = abs(natural.height)
+        let fit = min(bounds.width / vw, bounds.height / vh)
+        video.frame = CGRect(x: (bounds.width - vw * fit) / 2, y: 0, width: vw * fit, height: vh * fit)
         video.videoGravity = .resizeAspect
         video.pixelBufferAttributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         video.backgroundColor = NSColor.clear.cgColor
