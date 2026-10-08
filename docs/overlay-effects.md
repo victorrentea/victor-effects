@@ -1763,7 +1763,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 
 - **💀 Skull boom** (tile #39 `39_skull_boom.mp3` → `skull-boom`, `showSkullBoom`,
   built by `SkullBoom`, 2026-10-08): the TikTok/Shorts "skull edit". The clip
-  opens on 0.5 s of muffled bass; the desktop freezes and trembles with it, and
+  opens on 0.5 s of muffled bass; the desktop trembles with it, and
   **on the drop (0.5 s into the clip)** a skull's cranium blows off (cloud and
   shards grow out of the crack, the jaw drops, bone pieces fly) on a white
   blow-out with a 1.32× punch-in, zoom blur, a 70 px shake, a giant blurred ghost
@@ -1779,6 +1779,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   ending). An intact 💀 that slammed in and trembled before the boom went the
   same day, with the sung build-up it played over: Victor wanted the tile to
   start at the bass drop.
+  **The desktop behind stays live**: re-photographed every 0.25 s (chained, the
+  display minus our own overlay — the heartbeat's `captureScreenExcludingOverlay`),
+  colour and grey copies swapped without an implicit fade; only the zoom-blurred
+  copy keeps the first capture (it shows ~0.3 s, under the white). **The tremor
+  never stops** while the skull is up (7 reference px after the boom's kick) and
+  dies only with it, over the final fade; the black backdrop fades out with the
+  camera's glide home so the last of it cannot flick a black edge.
   Play-path, the FBI knock's reason: the visual owns the audio. The audio starts
   on the press and the visual's clock is stamped `SkullBoom.visualLead` (0.18 s,
   + Bluetooth compensation) after it. That only works because a press pays for

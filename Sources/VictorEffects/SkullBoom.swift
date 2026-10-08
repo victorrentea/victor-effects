@@ -143,6 +143,31 @@ enum SkullBoom {
                        rays: makeRays(), puff: makePuff())
     }
 
+    private static let shotLayerName = "skullBoomShot"
+    private static let greyLayerName = "skullBoomGrey"
+
+    /// The grey copy of a capture, for the drained-colour layer.
+    static func grey(of shot: CGImage) -> CGImage? {
+        let input = CIImage(cgImage: shot)
+        let g = input.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
+        return ci.createCGImage(g, from: input.extent)
+    }
+
+    /// Puts a fresh capture of the desktop behind the effect (`makeLayer`'s
+    /// container): the screen keeps living under the skull instead of being one
+    /// frozen photo. Swapped without an implicit fade — a cross-dissolve at
+    /// every refresh would smear. The zoom-blurred copy keeps the first capture:
+    /// it only shows for ~0.3 s under the white blow-out.
+    static func updateDesktop(in container: CALayer, shot: CGImage, grey: CGImage?) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for layer in container.sublayers?.flatMap({ $0.sublayers ?? [] }) ?? [] {
+            if layer.name == shotLayerName { layer.contents = shot }
+            if layer.name == greyLayerName, let grey { layer.contents = grey }
+        }
+        CATransaction.commit()
+    }
+
     static func prepare(shot: CGImage, statics: Statics) -> Prepared {
         let input = CIImage(cgImage: shot)
         let grey = input.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
@@ -166,11 +191,18 @@ enum SkullBoom {
     static func smoothstep(_ x: Double) -> Double { let x = clamp(x); return x * x * (3 - 2 * x) }
     static func easeOutBack(_ x: Double, _ s: Double = 2.2) -> Double { let x = x - 1; return x * x * ((s + 1) * x + s) + 1 }
 
+    /// The tremor that never stops while the skull is up, in reference pixels.
+    /// It only dies with the skull, over the final fade (Victor, 2026-10-08:
+    /// "the shaking must not stop until the very end, fading out a bit shaky").
+    static let tremor: Double = 7
+
     /// Screen shake in reference pixels (y DOWN) and degrees: a tremor growing
-    /// with the bass, the big kick on the boom, a faint tremor while it hangs.
+    /// with the bass, the big kick on the boom, then a steady tremor that only
+    /// fades out together with the skull.
     static func shake(_ t: Double) -> (dx: Double, dy: Double, rot: Double) {
+        let tail = tremor * (1 - smoothstep((t - exitAt) / fadeDuration))
         let amp = t < boomAt ? 4 + 6 * t / boomAt
-                             : max(70 * exp(-(t - boomAt) / 0.2), 2.5 * clamp((exitAt - t) / 0.8))
+                             : max(70 * exp(-(t - boomAt) / 0.2), tail)
         let ph = t * 57
         return (amp * sin(ph * 1.7 + 1.3) * cos(ph * 0.9), amp * sin(ph * 2.3), amp * 0.05 * sin(ph * 1.1))
     }
@@ -261,6 +293,17 @@ enum SkullBoom {
         backdrop.frame = bounds
         backdrop.backgroundColor = NSColor.black.cgColor
         container.addSublayer(backdrop)
+        // …but not while the camera glides home: the last of the tremor would
+        // flick a black sliver at the edge, where the live desktop behind is
+        // exactly the picture that belongs there.
+        let backdropOut = CABasicAnimation(keyPath: "opacity")
+        backdropOut.fromValue = 1.0
+        backdropOut.toValue = 0.0
+        backdropOut.beginTime = clock0 + totalDuration - settleDuration
+        backdropOut.duration = settleDuration
+        backdropOut.fillMode = .both
+        backdropOut.isRemovedOnCompletion = false
+        backdrop.add(backdropOut, forKey: "skullBoomBackdropOut")
 
         // --- the desktop: colour, grey and zoom-blurred copies on one camera ---
         let camera = CALayer()
@@ -275,8 +318,9 @@ enum SkullBoom {
             camera.addSublayer(l)
             return l
         }
-        _ = shotLayer(p.shot)
+        shotLayer(p.shot).name = shotLayerName
         let grey = shotLayer(p.grey)
+        grey.name = greyLayerName
         let blurred = shotLayer(p.blurred)
 
         let n = Int(totalDuration * fps) + 1

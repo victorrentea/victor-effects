@@ -8945,12 +8945,43 @@ class EmojiAnimator {
                 if let layer = SkullBoom.makeLayer(in: slice.local, scale: scale, prepared: prepared,
                                                    clock0: clock0 ?? now) {
                     holder.addSublayer(layer)
+                    self.refreshSkullBoomDesktop(holder: holder, container: layer, slice: slice)
                 }
             }
         }
         // The clip outlasts the skull on purpose (it fades while the drop
         // plays): the tile stays lit for whichever is longer.
         return max(lead + SkullBoom.totalDuration, clipLength)
+    }
+
+    /// How often the desktop behind the skull is re-photographed.
+    private static let skullBoomRefreshInterval: Double = 0.25
+
+    /// Keeps the desktop behind the skull LIVE (Victor, 2026-10-08: "not one
+    /// photo moved around"): a fresh capture of the display minus our own
+    /// overlay, `skullBoomRefreshInterval` after the last one landed — chained,
+    /// so a slow capture never stacks a second one behind it — for as long as
+    /// this run is the active one. A refresh that cannot exclude the overlay
+    /// answers nil and the last picture simply stays.
+    private func refreshSkullBoomDesktop(holder: CALayer, container: CALayer, slice: ZoomSlice) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.skullBoomRefreshInterval) { [weak self] in
+            guard let self, self.activeEffects["skull-boom"] === holder else { return }
+            Self.captureScreenExcludingOverlay { image in
+                guard self.activeEffects["skull-boom"] === holder else { return }
+                guard let shot = slice.crop(image) else {
+                    self.refreshSkullBoomDesktop(holder: holder, container: container, slice: slice)
+                    return
+                }
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let grey = SkullBoom.grey(of: shot)
+                    DispatchQueue.main.async {
+                        guard self.activeEffects["skull-boom"] === holder else { return }
+                        SkullBoom.updateDesktop(in: container, shot: shot, grey: grey)
+                        self.refreshSkullBoomDesktop(holder: holder, container: container, slice: slice)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - 🚪 Dark door (tile #25) — the desktop is punched IN on every knock
