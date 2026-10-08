@@ -38,8 +38,9 @@ enum SkullBoom {
     /// Where the drop sits in `39_skull_boom.mp3`. The Shorts' music is
     /// "Sonne (Best part) (Slowed to perfection)" (youtube.com/watch?v=2aSHYRN3AVU,
     /// found by Shazam + cross-correlation). The clip starts 0.5 s before the
-    /// drop (34.94 s, bass only under a 450 Hz low-pass) and runs 7 s past it,
-    /// the last 0.8 s a fade;
+    /// drop (34.94 s, bass only under a 450 Hz low-pass) and ends just before
+    /// the male voice comes in (38.72 s; cut at 38.70 with a 0.14 s fade) —
+    /// Victor wanted it short again after a 7.5 s try;
     /// the drop's high-band onset is at 35.44 s. Her sung line before it was
     /// cut on Victor's ask: from the bass drop only. **Re-cutting the clip
     /// means re-measuring this.**
@@ -47,13 +48,13 @@ enum SkullBoom {
     /// How long after the audio's first sample the visual's clock starts, so
     /// that `boomAt` lands on the drop.
     static var visualLead: Double { dropInClip - boomAt }
-    /// The whole effect, exit included, from the visual's clock. Ends ~0.2 s
-    /// before the 7.5 s clip does, so the skull is gone while the drop still
-    /// plays (Victor, 2026-10-08: "a bit too short", "fade out slowly at the
-    /// end while the song still plays", then "two more seconds").
-    static let totalDuration: Double = 7.1
+    /// The whole effect, exit included, from the visual's clock. Ends just
+    /// before the 3.76 s clip does (+0.18 s lead), so the skull is gone while
+    /// the drop still plays. It went 3.7 → 5.1 → 7.1 s and back on 2026-10-08,
+    /// when Victor asked for the clip to stop before the male voice.
+    static let totalDuration: Double = 3.5
     /// How long the skull takes to fade away at the end.
-    static let fadeDuration: Double = 2.0
+    static let fadeDuration: Double = 1.2
     /// After the boom the skull stays fully opaque this long, then settles
     /// (over `settleToDim`) at `dimOpacity` for the rest of its life.
     static let opaqueFor: Double = 1.0

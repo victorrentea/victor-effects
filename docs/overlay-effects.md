@@ -1816,8 +1816,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   patches, edges first and the middle last**, the camera creeping in a further
   7 %; the skull floats with a pulsing glow — fully opaque for 1 s after the
   boom, then settling at 70 % opacity so the desktop shows through — and fades
-  out slowly (2 s) while the drop keeps playing (the clip is 7.5 s, the visual
-  ends ~0.2 s before it), and
+  out (1.2 s) while the drop keeps playing (the clip is 3.76 s and stops just
+  before the male voice comes in; the visual, 3.5 s from a 0.18 s lead, ends
+  with it), and
   the camera glides back to exactly 1× over the last 0.8 s before the capture
   fades off the live desktop (a snap from ~1.1× to 1× was the first version's
   ending). An intact 💀 that slammed in and trembled before the boom went the
