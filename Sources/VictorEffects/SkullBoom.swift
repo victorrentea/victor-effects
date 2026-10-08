@@ -213,8 +213,11 @@ enum SkullBoom {
         return (kick * sin(ph * 1.7 + 1.3) * cos(ph * 0.9) + sway, kick * sin(ph * 2.3), kick * 0.05 * sin(ph * 1.1))
     }
 
-    /// How long the camera takes to glide back to the real desktop at the end.
-    static let settleDuration: Double = 0.8
+    /// How long the camera takes to glide back to the real desktop at the end
+    /// — three times the first 0.8 s (Victor, 2026-10-08: the return to normal
+    /// zoom should be slower and gentler, not an abrupt exit), so it unwinds
+    /// together with the tremor's fade.
+    static let settleDuration: Double = 2.4
 
     /// 0 for most of the effect, rising to 1 over the last `settleDuration`:
     /// how far the camera has come back to the live desktop's framing.

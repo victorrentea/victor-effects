@@ -1819,7 +1819,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   out slowly (2 s) while the drop keeps playing (the clip is 7.5 s, the visual
   ends ~0.2 s before it; a 3.76 s cut that stopped before the male voice and a
   voice-removed version were tried and dropped), and
-  the camera glides back to exactly 1× over the last 0.8 s before the capture
+  the camera glides back to exactly 1× over the last 2.4 s (0.8 s at first:
+  too abrupt), unwinding with the tremor's fade, before the capture
   fades off the live desktop (a snap from ~1.1× to 1× was the first version's
   ending). An intact 💀 that slammed in and trembled before the boom went the
   same day, with the sung build-up it played over: Victor wanted the tile to
