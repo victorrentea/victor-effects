@@ -1783,8 +1783,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   display minus our own overlay — the heartbeat's `captureScreenExcludingOverlay`),
   colour and grey copies swapped without an implicit fade; only the zoom-blurred
   copy keeps the first capture (it shows ~0.3 s, under the white). **The tremor
-  never stops** while the skull is up (7 reference px after the boom's kick) and
-  dies only with it, over the final fade; the black backdrop fades out with the
+  never stops** while the skull is up — 2.5 reference px, 4 Hz, **side to side
+  only**, so the text underneath stays readable (a 7 px all-directions version was
+  too violent) — and dies only with it, over the final fade; the black backdrop fades out with the
   camera's glide home so the last of it cannot flick a black edge.
   Play-path, the FBI knock's reason: the visual owns the audio. The audio starts
   on the press and the visual's clock is stamped `SkullBoom.visualLead` (0.18 s,

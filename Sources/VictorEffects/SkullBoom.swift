@@ -191,20 +191,24 @@ enum SkullBoom {
     static func smoothstep(_ x: Double) -> Double { let x = clamp(x); return x * x * (3 - 2 * x) }
     static func easeOutBack(_ x: Double, _ s: Double = 2.2) -> Double { let x = x - 1; return x * x * ((s + 1) * x + s) + 1 }
 
-    /// The tremor that never stops while the skull is up, in reference pixels.
-    /// It only dies with the skull, over the final fade (Victor, 2026-10-08:
-    /// "the shaking must not stop until the very end, fading out a bit shaky").
-    static let tremor: Double = 7
+    /// The tremor that never stops while the skull is up, in reference pixels:
+    /// small, slow and side to side only, so the text under it stays readable,
+    /// and it dies only with the skull, over the final fade (Victor, 2026-10-08:
+    /// "don't stop it, keep it going to the end — but gently, left-right, so it
+    /// can still be read"; a 7 px all-directions version was too violent).
+    static let tremor: Double = 2.5
+    /// Side-to-side sways per second of that tremor.
+    static let tremorHz: Double = 4
 
-    /// Screen shake in reference pixels (y DOWN) and degrees: a tremor growing
-    /// with the bass, the big kick on the boom, then a steady tremor that only
-    /// fades out together with the skull.
+    /// Screen shake in reference pixels (y DOWN) and degrees: a shake growing
+    /// with the bass, the big kick on the boom, and under both the gentle
+    /// side-to-side tremor that lasts until the skull is gone.
     static func shake(_ t: Double) -> (dx: Double, dy: Double, rot: Double) {
-        let tail = tremor * (1 - smoothstep((t - exitAt) / fadeDuration))
-        let amp = t < boomAt ? 4 + 6 * t / boomAt
-                             : max(70 * exp(-(t - boomAt) / 0.2), tail)
+        let kick = t < boomAt ? 4 + 6 * t / boomAt : 70 * exp(-(t - boomAt) / 0.2)
         let ph = t * 57
-        return (amp * sin(ph * 1.7 + 1.3) * cos(ph * 0.9), amp * sin(ph * 2.3), amp * 0.05 * sin(ph * 1.1))
+        let sway = t < boomAt ? 0 : tremor * (1 - smoothstep((t - exitAt) / fadeDuration))
+            * sin(2 * .pi * tremorHz * t)
+        return (kick * sin(ph * 1.7 + 1.3) * cos(ph * 0.9) + sway, kick * sin(ph * 2.3), kick * 0.05 * sin(ph * 1.1))
     }
 
     /// How long the camera takes to glide back to the real desktop at the end.
