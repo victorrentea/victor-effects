@@ -287,6 +287,43 @@ class EmojiAnimator {
     // restart) the iris, it must survive stop-all and toggle itself here.
     private var _irisLayer: CAGradientLayer?
 
+    /// 🔍 The zoom stage: a plain layer the size of the display, kept by
+    /// `ZoomFollower.stage` on whatever slice ⌥-scroll has blown up, live. Every
+    /// effect that FLOATS — laid out on the whole display, not tied to the
+    /// pointer nor to the desktop's own pixels — adds its layers here instead of
+    /// to `hostLayer`, so a zoom in, out or pan mid-effect re-fits it to the
+    /// glass (Victor, 2026-10-08: the effects stayed where they had started).
+    /// Its bounds are the display's, so their layout code never learns about
+    /// the zoom. NOT for: anything drawn at the pointer (its coordinates are the
+    /// display's), anything glued to the desktop (bullet holes, the heartbeat's
+    /// photo), screenshot effects (staged on their own slice, `laidOutFor:`).
+    private let _stage = CALayer()
+    private var _stageFull: CGRect = .null
+    var stageLayer: CALayer {
+        // Re-added on every use, which moves it to the top: an effect started
+        // now draws over the ones already running, as it did before the stage.
+        hostLayer.addSublayer(_stage)
+        if _stageFull != hostLayer.bounds {
+            _stageFull = hostLayer.bounds
+            ZoomFollower.shared.stage(_stage, full: hostLayer.bounds)
+        }
+        return _stage
+    }
+
+    /// A holder over `slice.rect` for a SCREENSHOT effect laid out in
+    /// `slice.local` (its picture is that slice's crop, so it cannot go on the
+    /// whole-display stage). Staged live onto whatever slice is on the glass,
+    /// scaled so it still fills it after ⌥-scroll in, out or a pan; it leaves on
+    /// its own once the effect's layers have left it.
+    private func sliceHolder(_ slice: ZoomSlice) -> CALayer {
+        let holder = CALayer()
+        holder.frame = slice.rect
+        hostLayer.addSublayer(holder)
+        ZoomFollower.shared.stage(holder, full: hostLayer.bounds, laidOutFor: slice.rect,
+                                  disposeWhenEmptied: true)
+        return holder
+    }
+
     init(hostLayer: CALayer) {
         self.hostLayer = hostLayer
         Self.warmBrotherCache()
@@ -372,7 +409,7 @@ class EmojiAnimator {
             layer.shadowOffset = .zero
             layer.masksToBounds = false
         }
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
 
         // Randomize duration: 2.5–4 seconds (matches browser host.js)
         let duration = Double.random(in: 2.5...4.0)
@@ -1374,8 +1411,8 @@ class EmojiAnimator {
         // its own zero-origin coordinates, exactly as it was over the display.
         let bounds = slice.local
         let container = CALayer()
-        container.frame = slice.rect
-        hostLayer.addSublayer(container)
+        container.frame = slice.local
+        sliceHolder(slice).addSublayer(container)
 
         // Black background revealed as shards fall
         let blackBg = CALayer()
@@ -1701,7 +1738,7 @@ class EmojiAnimator {
 
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
 
         // 85% screen width, centered, maintain aspect ratio
         let imgW = bounds.width * 0.70
@@ -1775,7 +1812,7 @@ class EmojiAnimator {
         guard activeEffects["fireworks"] == nil else { return }
         let container = CALayer()
         container.frame = hostLayer.bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
         trackEffect("fireworks", layer: container, duration: 8.0, sound: playSound ? "89_fireworks.mp3" : nil)
 
         let bounds = hostLayer.bounds
@@ -2081,7 +2118,7 @@ class EmojiAnimator {
 
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
 
         // Warm sepia wash — visible yellowed center
         let sepiaLayer = CALayer()
@@ -2215,7 +2252,7 @@ class EmojiAnimator {
                 layer.backgroundColor = color.cgColor
                 layer.cornerRadius = Bool.random() ? w / 2 : 1 // round or rectangular
                 layer.contentsScale = scale
-                self.hostLayer.addSublayer(layer)
+                self.stageLayer.addSublayer(layer)
 
                 let duration = Double.random(in: 2.5...4.5)
 
@@ -2292,7 +2329,7 @@ class EmojiAnimator {
                 layer.backgroundColor = color.cgColor
                 layer.cornerRadius = Bool.random() ? w / 2 : 1
                 layer.contentsScale = scale
-                self.hostLayer.addSublayer(layer)
+                self.stageLayer.addSublayer(layer)
 
                 // Launch up-and-to-the-left: angle 118°…172° from the +x axis
                 // (90° = straight up, 180° = straight left).
@@ -2374,7 +2411,7 @@ class EmojiAnimator {
                 layer.alignmentMode = .center
                 layer.frame = CGRect(x: startX - size / 2, y: startY, width: size, height: size)
                 layer.contentsScale = scale
-                self.hostLayer.addSublayer(layer)
+                self.stageLayer.addSublayer(layer)
 
                 let duration = Double.random(in: 2.4...3.6)
                 // Rise clear off the top edge, swaying left↔right like fluttering cash.
@@ -2485,7 +2522,7 @@ class EmojiAnimator {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.locations = locs(0.0)
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         CATransaction.commit()
         _irisLayer = layer
 
@@ -2586,7 +2623,7 @@ class EmojiAnimator {
                                 width: layerW, height: layerH)
         gifLayer.contentsGravity = .resizeAspect
         gifLayer.contents = first
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         // Loop the clap for the whole duration.
         let anim = CAKeyframeAnimation(keyPath: "contents")
@@ -2685,7 +2722,7 @@ class EmojiAnimator {
         gifLayer.contentsGravity = .resizeAspect
         gifLayer.contents = first
         gifLayer.opacity = 0
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         // Loop the crowd for the whole duration. `repeatCount` stays infinite even
         // though the effect is one loop long: the fade-out overlaps the tail, and a
@@ -2769,7 +2806,7 @@ class EmojiAnimator {
         gifLayer.frame = CGRect(x: hostLayer.bounds.width * 0.04, y: 0, width: side, height: side)
         gifLayer.contentsGravity = .resizeAspect
         gifLayer.contents = first
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         // One pass, each frame for its own delay, holding the last frame under
         // the fade-out instead of snapping back to the first.
@@ -2827,7 +2864,7 @@ class EmojiAnimator {
         dimLayer.frame = bounds
         dimLayer.backgroundColor = NSColor(white: 0, alpha: 0.50).cgColor
         dimLayer.opacity = 0
-        hostLayer.addSublayer(dimLayer)
+        stageLayer.addSublayer(dimLayer)
 
         // Fade in overlay
         let dimIn = CABasicAnimation(keyPath: "opacity")
@@ -2843,7 +2880,7 @@ class EmojiAnimator {
         _pulseGridLayer = gridContainer
         gridContainer.frame = bounds
         gridContainer.opacity = 0
-        hostLayer.addSublayer(gridContainer)
+        stageLayer.addSublayer(gridContainer)
 
         let minorSpacing: CGFloat = 20
         let majorEvery: Int = 5
@@ -2898,7 +2935,7 @@ class EmojiAnimator {
         ecgLayer.contentsGravity = .resize   // stretch to fill frame completely
         ecgLayer.frame = bounds
         ecgLayer.opacity = 0
-        hostLayer.addSublayer(ecgLayer)
+        stageLayer.addSublayer(ecgLayer)
 
         // Fade in image
         let ecgFadeIn = CABasicAnimation(keyPath: "opacity")
@@ -2938,7 +2975,7 @@ class EmojiAnimator {
         brain.opacity = 0
         let path = PulseBrain.keyframes(in: bounds)
         brain.position = path.positions[0]
-        hostLayer.addSublayer(brain)   // a sibling of ecgLayer, not a child: its mask would hide the brain
+        stageLayer.addSublayer(brain)   // a sibling of ecgLayer, not a child: its mask would hide the brain
 
         let brainIn = CABasicAnimation(keyPath: "opacity")
         brainIn.fromValue = 0; brainIn.toValue = 1
@@ -5309,7 +5346,7 @@ class EmojiAnimator {
 
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
         // Outlives the sound by exactly the CRT close: the tube shuts OVER the
         // game-over screen as it is — static still boiling, picture still there —
         // and only once the black has met in the middle is there nothing left to
@@ -5371,7 +5408,7 @@ class EmojiAnimator {
         _ = cancelIfRunning("crt-shutdown")
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         guard let layer = CrtShutdown.makeLayer(in: hostLayer.bounds, scale: scale) else { return }
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         trackEffect("crt-shutdown", layer: layer, duration: CrtShutdown.totalDuration)
     }
 
@@ -5381,7 +5418,10 @@ class EmojiAnimator {
         guard activeEffects["fail"] == nil else { return }
         // The zoomed slice, not the display: a stamp in the middle of the
         // display is off the glass as soon as Victor zooms into a corner.
-        let bounds = ZoomSlice.current(in: hostLayer.bounds).rect
+        // Laid out on the whole display and put on the zoom stage, which keeps
+        // it centred on whatever slice is on the glass — live, not frozen at
+        // the press like the `ZoomSlice` it used before.
+        let bounds = hostLayer.bounds
         let duration: Double = 4.2
 
         // Licensed stock art, so it is not in the repo: drop it into assetsDir
@@ -5400,7 +5440,7 @@ class EmojiAnimator {
                                 width: imgW, height: imgH)
         imgLayer.contents = img
         imgLayer.contentsGravity = .resizeAspect
-        hostLayer.addSublayer(imgLayer)
+        stageLayer.addSublayer(imgLayer)
         trackEffect("fail", layer: imgLayer, duration: duration, sound: playSound ? "19_fail.mp3" : nil)
         if playSound { SoundManager.shared.play("19_fail.mp3") }
 
@@ -5476,7 +5516,7 @@ class EmojiAnimator {
         layer.frame = endBox  // model value is the RESTING frame; the animation below only presents the entrance
         layer.contents = img
         layer.contentsGravity = .resizeAspect
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         overlayInfo(String(format: "👅 wazzup: sliding into bottom-left, %.0f×%.0f, %.2fs slide + %.2fs stillness, then %.2fs scream",
                            endBox.width, endBox.height, Self.wazzupSlideDuration, Self.wazzupStillness, clipDuration))
 
@@ -5591,7 +5631,7 @@ class EmojiAnimator {
         gifLayer.frame = CGRect(x: 0, y: bounds.height - layerH, width: layerW, height: layerH)
         gifLayer.contentsGravity = .resize
         if let first = images.first { gifLayer.contents = first }
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         // ~1.5x slower than the source loop ("slow it down a bit"), repeating.
         let anim = CAKeyframeAnimation(keyPath: "contents")
@@ -5733,7 +5773,7 @@ class EmojiAnimator {
         layer.position = CGPoint(x: centerX, y: stopCenterY)   // model = settle point
         layer.contentsGravity = .resize   // fill both axes → real horizontal stretch
         layer.contents = images.first
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
 
         // Loop the 28 source frames (~0.05s each → ~1.4s/cycle) — one full wing
         // beat per cycle. Discrete so frames switch crisply (no cross-fade).
@@ -5918,7 +5958,7 @@ class EmojiAnimator {
         // Everything lives under one container so the end fade-out is a single op.
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
 
         // 1) Black backdrop — fades 0 → 0.45 opacity over 1s (darker outside the
         //    circle; inside is darker still under the 70% disc).
@@ -7422,8 +7462,12 @@ class EmojiAnimator {
             if type == .scrollWheel {
                 // Cmd+scroll is left alone: EventTapManager turns it into
                 // terminal font zoom, and eating that for 38 s would look like
-                // the shortcut had broken.
-                if event.flags.contains(.maskCommand) { return Unmanaged.passUnretained(event) }
+                // the shortcut had broken. ⌥+scroll likewise: it is macOS screen
+                // zoom, which the effects now follow — swallowing it made the
+                // zoom stop working whenever the glass was up.
+                if event.flags.contains(.maskCommand) || event.flags.contains(.maskAlternate) {
+                    return Unmanaged.passUnretained(event)
+                }
                 animator.handleMagnifierScroll(event)
                 return nil   // consume — don't scroll the app below while zooming
             }
@@ -7528,7 +7572,7 @@ class EmojiAnimator {
         // not the hands).
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
         activeEffects["love-hands"] = container
 
         // 0.8, and on the two hand layers rather than on `container`: the heart
@@ -7792,7 +7836,7 @@ class EmojiAnimator {
         layer.bounds = CGRect(x: 0, y: 0, width: imgW, height: imgH)
         layer.contentsGravity = .resizeAspect
         layer.position = endPos        // model value matches the post-anim state
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         activeEffects["star-wars"] = layer
 
         // Sound is 10.08s; the slide finishes well inside it (see above).
@@ -8068,7 +8112,7 @@ class EmojiAnimator {
         // One container so a stop can fade the whole snowfall out together.
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
         activeEffects["snow"] = container
 
         // EVERY flake enters from above the top edge — none is ever dropped in
@@ -8703,7 +8747,7 @@ class EmojiAnimator {
         gifLayer.frame = CGRect(x: x, y: y, width: size, height: size)
         gifLayer.contentsGravity = .resizeAspect
         if let first = images.first { gifLayer.contents = first }
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         let anim = CAKeyframeAnimation(keyPath: "contents")
         anim.values = images
@@ -8797,8 +8841,8 @@ class EmojiAnimator {
         // (`ZoomSlice`): the effect's motion then happens on the glass.
         let slice = ZoomSlice.current(in: bounds)
         let imgLayer = CALayer()
-        imgLayer.frame = slice.rect
-        hostLayer.addSublayer(imgLayer)
+        imgLayer.frame = slice.local
+        sliceHolder(slice).addSublayer(imgLayer)
         trackEffect("fbi-knock", layer: imgLayer,
                     duration: btComp + clipLength + Self.fbiCaptureAllowance,
                     sound: playSound ? "64_fbi.mp3" : nil)
@@ -8925,6 +8969,9 @@ class EmojiAnimator {
         let holder = CALayer()
         holder.frame = slice.rect
         hostLayer.addSublayer(holder)
+        // Laid out for this slice, then kept on whatever slice is on the glass:
+        // a ⌥-scroll mid-effect re-fits it instead of leaving it behind.
+        ZoomFollower.shared.stage(holder, full: bounds, laidOutFor: slice.rect)
         trackEffect("skull-boom", layer: holder,
                     duration: max(lead + SkullBoom.totalDuration, clipLength) + Self.skullBoomCaptureAllowance,
                     sound: playSound ? Self.skullBoomSound : nil)
@@ -8945,7 +8992,7 @@ class EmojiAnimator {
                 if let layer = SkullBoom.makeLayer(in: slice.local, scale: scale, prepared: prepared,
                                                    clock0: clock0 ?? now) {
                     holder.addSublayer(layer)
-                    self.refreshSkullBoomDesktop(holder: holder, container: layer, slice: slice)
+                    self.refreshSkullBoomDesktop(holder: holder, container: layer, bounds: bounds)
                 }
             }
         }
@@ -8963,13 +9010,17 @@ class EmojiAnimator {
     /// so a slow capture never stacks a second one behind it — for as long as
     /// this run is the active one. A refresh that cannot exclude the overlay
     /// answers nil and the last picture simply stays.
-    private func refreshSkullBoomDesktop(holder: CALayer, container: CALayer, slice: ZoomSlice) {
+    ///
+    /// Each refresh crops to the slice on the glass NOW, not the one the effect
+    /// started on: the holder is staged onto the current slice, so the picture
+    /// has to come from the same one or it would no longer line up.
+    private func refreshSkullBoomDesktop(holder: CALayer, container: CALayer, bounds: CGRect) {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.skullBoomRefreshInterval) { [weak self] in
             guard let self, self.activeEffects["skull-boom"] === holder else { return }
             Self.captureScreenExcludingOverlay { image in
                 guard self.activeEffects["skull-boom"] === holder else { return }
-                guard let shot = slice.crop(image) else {
-                    self.refreshSkullBoomDesktop(holder: holder, container: container, slice: slice)
+                guard let shot = ZoomSlice.current(in: bounds).crop(image) else {
+                    self.refreshSkullBoomDesktop(holder: holder, container: container, bounds: bounds)
                     return
                 }
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -8977,7 +9028,7 @@ class EmojiAnimator {
                     DispatchQueue.main.async {
                         guard self.activeEffects["skull-boom"] === holder else { return }
                         SkullBoom.updateDesktop(in: container, shot: shot, grey: grey)
-                        self.refreshSkullBoomDesktop(holder: holder, container: container, slice: slice)
+                        self.refreshSkullBoomDesktop(holder: holder, container: container, bounds: bounds)
                     }
                 }
             }
@@ -9056,8 +9107,8 @@ class EmojiAnimator {
         // (`ZoomSlice`): the effect's motion then happens on the glass.
         let slice = ZoomSlice.current(in: bounds)
         let imgLayer = CALayer()
-        imgLayer.frame = slice.rect
-        hostLayer.addSublayer(imgLayer)
+        imgLayer.frame = slice.local
+        sliceHolder(slice).addSublayer(imgLayer)
         trackEffect("dark-door", layer: imgLayer,
                     duration: btComp + clipLength + Self.darkDoorCaptureAllowance,
                     sound: playSound ? "25_dark_door.mp3" : nil)
@@ -9224,8 +9275,8 @@ class EmojiAnimator {
         // (`ZoomSlice`): the effect's motion then happens on the glass.
         let slice = ZoomSlice.current(in: bounds)
         let imgLayer = CALayer()
-        imgLayer.frame = slice.rect
-        hostLayer.addSublayer(imgLayer)
+        imgLayer.frame = slice.local
+        sliceHolder(slice).addSublayer(imgLayer)
         trackEffect("beethoven", layer: imgLayer,
                     duration: btComp + clipLength + Self.fbiCaptureAllowance,
                     sound: playSound ? "51_beethoven.mp3" : nil)
@@ -9327,19 +9378,21 @@ class EmojiAnimator {
             let screenshot = slice.crop(Self.captureBuiltInDisplay())
             DispatchQueue.main.async {
                 guard let self, let screenshot else { return }
-                self.renderPhoneRing(screenshot: screenshot, bounds: slice.rect, totalDuration: totalDuration, playSound: playSound)
+                self.renderPhoneRing(screenshot: screenshot, bounds: slice.local, into: self.sliceHolder(slice),
+                                     totalDuration: totalDuration, playSound: playSound)
             }
         }
     }
 
-    private func renderPhoneRing(screenshot: CGImage, bounds: CGRect, totalDuration: Double, playSound: Bool) {
+    private func renderPhoneRing(screenshot: CGImage, bounds: CGRect, into parent: CALayer,
+                                 totalDuration: Double, playSound: Bool) {
         if playSound { SoundManager.shared.play("10_red_phone.mp3") }
 
         let imgLayer = CALayer()
         imgLayer.frame = bounds
         imgLayer.contents = screenshot
         imgLayer.contentsGravity = .resizeAspectFill
-        hostLayer.addSublayer(imgLayer)
+        parent.addSublayer(imgLayer)
 
         // Shake: rapid random offsets ±20px horizontal, ±7px vertical
         let shake = CAKeyframeAnimation(keyPath: "position")
@@ -9431,7 +9484,7 @@ class EmojiAnimator {
         // (5.6% of frame height) plus 10px so the hooves sit right on the
         // bottom.
         gifLayer.position = CGPoint(x: startX, y: height / 2 - height * 0.056 - 10)
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         let gallop = CAKeyframeAnimation(keyPath: "contents")
         gallop.values = images
@@ -9593,7 +9646,7 @@ class EmojiAnimator {
         gifLayer.position = CGPoint(x: quarter.width / 2, y: quarter.height / 2)
         gifLayer.contents = first
         gifLayer.contentsGravity = .resizeAspect
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
 
         let wag = CAKeyframeAnimation(keyPath: "contents")
         wag.values = images
@@ -9697,7 +9750,7 @@ class EmojiAnimator {
         layer.contentsGravity = .resizeAspect
         layer.contents = closed              // model value: door shut, all through the ticking
         layer.opacity = Self.microwaveOpacity
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
 
         let fadeIn = CABasicAnimation(keyPath: "opacity")
         fadeIn.fromValue = 0.0
@@ -9816,7 +9869,7 @@ class EmojiAnimator {
         frameLayer.contentsGravity = .resizeAspect
         frameLayer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         frameLayer.opacity = 0              // invisible through the 24 s lead-in
-        hostLayer.addSublayer(frameLayer)
+        stageLayer.addSublayer(frameLayer)
         trackEffect("universal-minions", layer: frameLayer,
                     duration: btComp + Self.universalMinionsCue - skip + animDuration + 0.35)
 
@@ -9888,7 +9941,7 @@ class EmojiAnimator {
         let bounds = hostLayer.bounds
         let container = CALayer()
         container.frame = bounds
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
         activeEffects["rainbow"] = container
 
         // Semicircle anchored at the bottom, same size as before, but with the
@@ -10186,7 +10239,7 @@ class EmojiAnimator {
         gifLayer.frame = CGRect(x: x, y: y, width: size, height: size)
         gifLayer.contentsGravity = .resizeAspect
         if let first = images.first { gifLayer.contents = first }
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
         activeEffects["brother"] = gifLayer
 
         // Discrete keyframes at each frame's own start time; .discrete wants
@@ -10274,7 +10327,7 @@ class EmojiAnimator {
         gifLayer.frame = CGRect(x: x, y: y, width: size, height: size)
         gifLayer.contentsGravity = .resizeAspect
         if let first = images.first { gifLayer.contents = first }
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
         activeEffects["gangnam"] = gifLayer
 
         let anim = CAKeyframeAnimation(keyPath: "contents")
@@ -10407,7 +10460,7 @@ class EmojiAnimator {
         if let first = images.first { gifLayer.contents = first }
         gifLayer.opacity = 0   // hidden during the start delay
         gifLayer.actions = ["opacity": NSNull()]
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
         activeEffects["gong"] = gifLayer
 
         let reveal = CABasicAnimation(keyPath: "opacity")
@@ -10459,7 +10512,7 @@ class EmojiAnimator {
         let container = CALayer()
         container.frame = bounds
         container.actions = ["opacity": NSNull()]   // no implicit opacity animation racing the fade
-        hostLayer.addSublayer(container)
+        stageLayer.addSublayer(container)
         activeEffects["wrong-x"] = container
 
         let drawEach: TimeInterval = 0.25          // 2× faster strike (was 0.5 per stroke)
@@ -10555,7 +10608,7 @@ class EmojiAnimator {
         gifLayer.contentsGravity = .resizeAspect
         gifLayer.opacity = 0.5
         if let first = images.first { gifLayer.contents = first }
-        hostLayer.addSublayer(gifLayer)
+        stageLayer.addSublayer(gifLayer)
         activeEffects["drum-roll"] = gifLayer
 
         let n = images.count
@@ -10675,7 +10728,7 @@ class EmojiAnimator {
             layer.frame = CGRect(x: startX - emojiSize / 2, y: centerY - emojiSize / 2,
                                  width: emojiSize, height: emojiSize)
             layer.contentsScale = scale
-            hostLayer.addSublayer(layer)
+            stageLayer.addSublayer(layer)
 
             let distance = endX - startX
             // Negate: y-up CALayer positive rotation = CCW; rolling right = CW = negative
@@ -11616,8 +11669,11 @@ class EmojiAnimator {
             if type == .scrollWheel {
                 // Cmd+scroll is left alone: EventTapManager turns it into
                 // terminal font zoom, and silently eating that for 36 s would
-                // look like the zoom shortcut had broken.
-                if event.flags.contains(.maskCommand) { return Unmanaged.passUnretained(event) }
+                // look like the zoom shortcut had broken. ⌥+scroll too: it is
+                // macOS screen zoom, which must keep working while a fire burns.
+                if event.flags.contains(.maskCommand) || event.flags.contains(.maskAlternate) {
+                    return Unmanaged.passUnretained(event)
+                }
                 // **Nothing struck yet, nothing to size** (2026-09-19): the wheel
                 // owns the last fire on the ground, so before the first click it
                 // has no target and eating the scroll would freeze his slides for
@@ -11756,7 +11812,7 @@ class EmojiAnimator {
         layer.contents = image
         layer.contentsGravity = .resizeAspect
         layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         activeEffects["elephant"] = layer
 
         // Walks in rather than fading in on the spot: the whole gag is that
@@ -11833,7 +11889,7 @@ class EmojiAnimator {
         layer.contents = image
         layer.contentsGravity = .resizeAspect
         layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         activeEffects["panda"] = layer
 
         // Enters from the right: starts fully past the right bezel.
@@ -12370,7 +12426,7 @@ class EmojiAnimator {
         let screen = Screens.overlayScreen()
         let menuBar = screen.map { max(0, $0.frame.maxY - $0.visibleFrame.maxY) } ?? 0
         guard let layer = SketchArrow.makeLayer(in: hostLayer.bounds, topInset: menuBar, scale: scale) else { return }
-        hostLayer.addSublayer(layer)
+        stageLayer.addSublayer(layer)
         trackEffect("sketch-arrow", layer: layer, duration: SketchArrow.totalDuration)
     }
 

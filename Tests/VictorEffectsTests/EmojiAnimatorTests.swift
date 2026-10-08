@@ -493,7 +493,8 @@ final class EmojiAnimatorTests: XCTestCase {
         let host = CALayer()
         let animator = EmojiAnimator(hostLayer: host)
         animator.spawnEmoji("❤️", glow: "#36e264")
-        guard let layer = host.sublayers?.last else { XCTFail("no emoji layer added"); return }
+        // Reactions float, so they rise on the zoom stage, not on the host.
+        guard let layer = animator.stageLayer.sublayers?.last else { XCTFail("no emoji layer added"); return }
         XCTAssertGreaterThan(layer.shadowOpacity, 0, "glow should set a visible shadow")
         XCTAssertEqual(layer.shadowColor, EmojiAnimator.nsColor(fromHex: "#36e264")?.cgColor)
     }

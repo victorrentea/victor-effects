@@ -179,7 +179,8 @@ Since 2026-09-23 the rest of the effects that were landing off the glass use
 one of two more tools (Victor: *"efecte … doar pe zona în care e zumat
 ecranul"*):
 
-- **`ZoomSlice` — frozen once, for effects drawn once.** `ZoomSlice.current(in:)`
+- **`ZoomSlice` — frozen once, for effects drawn once** (now only the starting
+  point: see "followed LIVE" below). `ZoomSlice.current(in:)`
   snapshots the viewport; the effect lays its layer over `slice.rect` and, if
   it shows a screenshot, shows `slice.crop(capture)`. The capture is the
   *unzoomed* framebuffer, so a full-screen screenshot lined up fine before —
@@ -209,8 +210,51 @@ ecranul"*):
   the slice instead, re-read on every follow tick so ⌥-scroll mid-beat keeps the
   bulge the same fraction of the glass as unzoomed.
 
-Not done yet: the 🪚 chainsaw (a cut mask over the pointer's path); it works
-under the pointer, which is always on the glass.
+**Since 2026-10-08 the zoom is followed LIVE, by (almost) everything** (Victor:
+⌥-scroll out mid-effect left the 💀 where it had started; "in principle all the
+effects, with small exceptions, should re-fit the new screen"). An adversarial
+audit of every `fireEffect` name and play-path visual found ~35 effects laid out
+on the whole display with no zoom handling at all, plus the frozen `ZoomSlice`
+ones. Two tools now cover them:
+
+- **`EmojiAnimator.stageLayer` — one permanent zoom stage for everything that
+  FLOATS.** A plain layer the size of the display, kept by `ZoomFollower.stage`
+  on the live slice. Effects that used to `hostLayer.addSublayer(...)` their
+  container now add it there; their layout code, built on `hostLayer.bounds`,
+  never learns about the zoom (the stage has the same bounds). Re-added to the
+  top of `hostLayer` on every use, so a new effect still draws over older ones.
+  On it: zorro, fireworks, sepia, confetti (both), money, iris, applause, minion,
+  wolf, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
+  Star Wars, snow, fire alarm, cavalry, wasn't-me, microwave, universal minions,
+  rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda,
+  game over and its CRT, sketch arrow, the reaction emojis (not ☕), the ❌ fail
+  stamp (no longer a frozen `ZoomSlice`), and the **progress bar**
+  (`ProgressBarOverlay(host:)` asks for the stage at every use).
+- **`ZoomFollower.stage(_:full:laidOutFor:disposeWhenEmptied:)` — for screenshot
+  effects**, whose picture is the slice's crop and so cannot sit on the
+  whole-display stage. Laid out on the slice that was on the glass at the press,
+  then scaled by current-slice ÷ that-slice and centred on the current one — on
+  the glass it looks identical at any zoom (`stageGeometry`, unit-tested). They
+  sit in a holder (`EmojiAnimator.sliceHolder`) because the knocks and the shake
+  animate the picture's own transform/position; the holder removes itself once
+  its effect has left it, so nothing keeps the 30 Hz timer running. Used by FBI,
+  dark door, Beethoven, broken glass, phone ring — and by the 💀 skull boom, whose
+  live refresh also re-crops to the slice on the glass at each capture.
+- **The green `EdgeFlash` follows too** (its own 30 Hz timer, bands redrawn): the
+  link-confirmation call lasts 4.5 s, not the "over in a second" assumed before.
+- **⌥+scroll is no longer swallowed** by the magnifier's and the fire's wheel
+  taps (⌘ already passed through) — they were stopping the zoom itself.
+
+**Deliberate exceptions:** everything drawn AT THE POINTER (fear, chainsaw, fire,
+magnifier lens, aimed bombs, spiral hearts, whip, ☕ pot and cups — the pointer
+is always on the glass, and their coordinates are the display's, which a stage
+would scramble) and everything GLUED TO THE DESKTOP (bullet holes, planted fires,
+saw cuts, the heartbeat's photo — the zoom magnifies them with the desktop,
+which is right). Known gaps, low value for the risk: the minigun's gun on the
+display's bottom edge, the claude-peek click panel (an NSPanel in display
+coordinates), the explosion's un-aimed bomb at the display centre, the
+magnifier lens size read once, the heartbeat's 2 % breathe about the display
+centre.
 
 
 

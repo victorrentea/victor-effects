@@ -24,7 +24,12 @@ import Cocoa
 /// manually-populated, layer-backed host view does not composite (the bar never
 /// appeared); a CALayer in the same tree renders reliably.
 final class ProgressBarOverlay {
-    private let hostLayer: CALayer
+    /// Asked at every use rather than held: it is the animator's zoom stage
+    /// (`EmojiAnimator.stageLayer`), whose size follows the display, so a bar
+    /// that runs for minutes stays on the bottom edge of the GLASS while
+    /// ⌥-scroll zooms in and out under it.
+    private let host: () -> CALayer
+    private var hostLayer: CALayer { host() }
     private var bar: CALayer?
     private var fadeWork: DispatchWorkItem?
 
@@ -59,8 +64,8 @@ final class ProgressBarOverlay {
     // competing headlines.
     private static let riderFontSize: CGFloat = 72
 
-    init(hostLayer: CALayer) {
-        self.hostLayer = hostLayer
+    init(host: @escaping () -> CALayer) {
+        self.host = host
     }
 
     /// Start (or restart) the bar, filling left→right over `seconds`.

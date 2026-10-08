@@ -27,9 +27,10 @@ enum EdgeFlash {
                       color: NSColor = .systemYellow) {
         // The same slice the alarm's vignette respects: with macOS screen zoom
         // on, a border around the whole display is magnified off the glass, so
-        // the flash hugs the edges of what is actually being looked at. Unlike
-        // the vignette it does not follow a pan — it is an acknowledgement that
-        // is over in a second, not an effect you talk over.
+        // the flash hugs the edges of what is actually being looked at — and
+        // keeps hugging them through a zoom or pan (since 2026-10-08, below):
+        // the link-confirmation call lasts 4.5 s, not the "over in a second"
+        // the first version assumed.
         let frame = ScreenZoom.visibleRect(in: screen.frame, of: screen)
         let panel = NSPanel(
             contentRect: frame,
@@ -66,9 +67,24 @@ enum EdgeFlash {
         fade.isRemovedOnCompletion = false
         view.layer?.add(fade, forKey: "fade")
 
+        // Follows ⌥-scroll while it is up (it is called for 4.5 s, long enough
+        // to zoom out under it): re-pinned to the visible slice at 30 Hz, its
+        // bands redrawn for the new size. Ends with the flash, below.
+        let follow = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { _ in
+            let target = ScreenZoom.visibleRect(in: screen.frame, of: screen)
+            guard target != panel.frame else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            panel.setFrame(target, display: false)
+            view.frame = NSRect(origin: .zero, size: target.size)
+            view.layer?.sublayers = edgeGradients(size: target.size, thickness: thickness, color: color)
+            CATransaction.commit()
+        }
+
         // The flash takes itself down. Nothing outside this process is allowed
         // to be the reason a panel disappears (see the self-termination rule).
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            follow.invalidate()
             panel.orderOut(nil)
             activePanels.removeAll { $0 === panel }
         }

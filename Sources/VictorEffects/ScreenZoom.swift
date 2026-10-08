@@ -127,6 +127,15 @@ final class ZoomFollower {
         let full: CGRect
         /// Shrink the whole layer into the slice instead of resizing it.
         let stage: Bool
+        /// For a staged layer: the rect its children were laid out for (the
+        /// whole display, or the slice that was on the glass when it started).
+        var design: CGRect? = nil
+        /// A holder that exists only to carry one effect: it removes itself
+        /// once it has had children and they are all gone — so the effect's own
+        /// teardown (trackEffect, stop-all) ends the holder too, and nothing
+        /// keeps this 30 Hz timer running for an empty layer.
+        var disposeWhenEmptied = false
+        var hadChildren = false
     }
 
     /// 30 Hz. The viewport moves with the pointer, so anything slower reads as
@@ -151,20 +160,36 @@ final class ZoomFollower {
     /// in exactly the place it is unzoomed — just on the glass. The children
     /// never learn about the zoom. `full` must have its origin at zero in the
     /// superlayer, which the overlay's `bounds` has.
-    func stage(_ layer: CALayer, full: CGRect) {
+    ///
+    /// `laidOutFor` is for an effect laid out over the SLICE that was on the
+    /// glass when it started (a screenshot effect, cropped to that slice — see
+    /// `ZoomSlice`): the layer keeps that size and is scaled by
+    /// current-slice / that-slice and centred on the current slice, so a ⌥-scroll
+    /// mid-effect, in or out, leaves it filling the glass exactly as it did
+    /// (Victor, 2026-10-08: zooming out left the 💀 where it had started). Nil
+    /// means the children are laid out over the whole of `full`.
+    func stage(_ layer: CALayer, full: CGRect, laidOutFor design: CGRect? = nil,
+               disposeWhenEmptied: Bool = false) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        Self.applyStage(layer, full: full, screen: Screens.overlayScreen())
+        Self.applyStage(layer, full: full, design: design, screen: Screens.overlayScreen())
         CATransaction.commit()
-        follow(Entry(layer: layer, full: full, stage: true))
+        follow(Entry(layer: layer, full: full, stage: true, design: design,
+                     disposeWhenEmptied: disposeWhenEmptied))
     }
 
-    private static func applyStage(_ layer: CALayer, full: CGRect, screen: NSScreen?) {
-        let visible = ScreenZoom.visibleRect(in: full, of: screen)
-        let scale = full.width > 0 ? visible.width / full.width : 1
-        layer.bounds = CGRect(origin: .zero, size: full.size)
-        layer.position = CGPoint(x: visible.midX, y: visible.midY)
-        layer.transform = scale == 1 ? CATransform3DIdentity : CATransform3DMakeScale(scale, scale, 1)
+    private static func applyStage(_ layer: CALayer, full: CGRect, design: CGRect?, screen: NSScreen?) {
+        let g = stageGeometry(visible: ScreenZoom.visibleRect(in: full, of: screen), laidOut: design ?? full)
+        layer.bounds = g.bounds
+        layer.position = g.position
+        layer.transform = abs(g.scale - 1) < 0.0005 ? CATransform3DIdentity : CATransform3DMakeScale(g.scale, g.scale, 1)
+    }
+
+    /// Pure half of the staging, for the tests: a layer laid out over `laidOut`
+    /// keeps that size and is scaled and centred to cover `visible`.
+    static func stageGeometry(visible: CGRect, laidOut: CGRect) -> (bounds: CGRect, position: CGPoint, scale: CGFloat) {
+        let scale = laidOut.width > 0 ? visible.width / laidOut.width : 1
+        return (CGRect(origin: .zero, size: laidOut.size), CGPoint(x: visible.midX, y: visible.midY), scale)
     }
 
     private func follow(_ entry: Entry) {
@@ -184,6 +209,12 @@ final class ZoomFollower {
 
     private func tick() {
         let screen = Screens.overlayScreen()
+        for i in entries.indices where entries[i].disposeWhenEmptied {
+            guard let layer = entries[i].layer else { continue }
+            let empty = layer.sublayers?.isEmpty ?? true
+            if !empty { entries[i].hadChildren = true }
+            else if entries[i].hadChildren { layer.removeFromSuperlayer() }
+        }
         entries.removeAll { $0.layer == nil || $0.layer?.superlayer == nil }
         for entry in entries {
             guard let layer = entry.layer else { continue }
@@ -192,7 +223,7 @@ final class ZoomFollower {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             if entry.stage {
-                Self.applyStage(layer, full: entry.full, screen: screen)
+                Self.applyStage(layer, full: entry.full, design: entry.design, screen: screen)
             } else {
                 let target = ScreenZoom.visibleRect(in: entry.full, of: screen)
                 if layer.frame != target { layer.frame = target }

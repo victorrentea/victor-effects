@@ -122,4 +122,38 @@ final class ScreenZoomTests: XCTestCase {
         XCTAssertTrue(slice.crop(image) === image)
         XCTAssertEqual(slice.local, CGRect(origin: .zero, size: display.size))
     }
+
+    // MARK: - Staging an effect laid out for one slice onto another
+
+    /// Started zoomed in 2× on the left half-ish, then zoomed OUT to 1×: the
+    /// effect must grow to cover the whole display, centred on it.
+    func testAnEffectLaidOutForASliceGrowsToTheWholeDisplayOnZoomOut() {
+        let display = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+        let slice = CGRect(x: 100, y: 200, width: 864, height: 558.5)
+        let g = ZoomFollower.stageGeometry(visible: display, laidOut: slice)
+        XCTAssertEqual(g.bounds.size, slice.size, "children keep the size they were laid out for")
+        XCTAssertEqual(g.scale, 2, accuracy: 1e-9)
+        XCTAssertEqual(g.position, CGPoint(x: display.midX, y: display.midY))
+    }
+
+    /// Zoomed further in (2× → 4×) and panned: half the size, centred on the
+    /// new slice — which the 4× magnification blows back up to the same glass.
+    func testAnEffectLaidOutForASliceFollowsAZoomInAndPan() {
+        let slice2x = CGRect(x: 100, y: 200, width: 864, height: 558.5)
+        let slice4x = CGRect(x: 900, y: 50, width: 432, height: 279.25)
+        let g = ZoomFollower.stageGeometry(visible: slice4x, laidOut: slice2x)
+        XCTAssertEqual(g.scale, 0.5, accuracy: 1e-9)
+        XCTAssertEqual(g.position, CGPoint(x: slice4x.midX, y: slice4x.midY))
+        // On the glass: laid-out width × scale × magnification(4×) = the display width.
+        XCTAssertEqual(g.bounds.width * g.scale * 4, 1728, accuracy: 1e-6)
+    }
+
+    /// No zoom change: the identity — staging must not move an effect that
+    /// started where it still is.
+    func testStagingOntoTheSameSliceIsTheIdentity() {
+        let slice = CGRect(x: 100, y: 200, width: 864, height: 558.5)
+        let g = ZoomFollower.stageGeometry(visible: slice, laidOut: slice)
+        XCTAssertEqual(g.scale, 1, accuracy: 1e-9)
+        XCTAssertEqual(g.position, CGPoint(x: slice.midX, y: slice.midY))
+    }
 }

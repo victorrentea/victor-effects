@@ -51,7 +51,9 @@ final class EffectsEngine {
         // The bar is a CALayer on the same host layer as the effects: a plain
         // subview on this manually-populated layer-backed view does not
         // composite.
-        progressBar = ProgressBarOverlay(hostLayer: hostLayer)
+        // On the animator's zoom stage, so it follows ⌥-scroll like the effects.
+        let animator = self.animator
+        progressBar = ProgressBarOverlay(host: { animator.stageLayer })
     }
 
     // MARK: - Lifecycle
