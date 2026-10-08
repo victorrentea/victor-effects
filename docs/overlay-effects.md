@@ -1851,6 +1851,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `showPhoenix`, since 2026-10-08): a 10 s video of a fire phoenix flapping on
   black, keyed to transparency by luminance (black → transparent, flames opaque,
   glow and sparks in between, below 7 % = compression noise = transparent) and
+  **the bird itself fully opaque** (Victor: "full opaque, not semi transparent" —
+  its flames closed over the dark lines between feathers, eroded back so the rim
+  keeps the soft alpha; `tools/phoenix-matte.py`), and
   shipped as **HEVC with alpha** (`hevc_videotoolbox -alpha_quality`), played by
   an `AVPlayerLayer` fitted to the display and **sitting on its bottom edge** (a
   centred 16:9 fit on the 16:10 display left a band under it and the bird rose
