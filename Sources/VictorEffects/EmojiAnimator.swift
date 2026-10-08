@@ -5716,11 +5716,81 @@ class EmojiAnimator {
     /// branch used to answer a token 1ms (the tablet's `34_phoenix.mp3` is a silent
     /// placeholder — nothing to time), which cleared the playing state instantly
     /// and turned every re-tap into a restart instead of a stop.
-    static let phoenixDuration: Double =
+    static let phoenixDuration: Double = {
+        if let url = EffectsConfig.shared.assetURL(phoenixVideoName) {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric, CMTimeGetSeconds(d) > 0 { return CMTimeGetSeconds(d) }
+        }
+        return phoenixLegacyDuration
+    }()
+
+    private static let phoenixLegacyDuration: Double =
         Double(phoenixFrameCount) * phoenixFrameDt * Double(phoenixBeats)
         + phoenixHoldAtTop + phoenixFadeOutDur
 
+    // MARK: 🔥 Phoenix rising — the video (2026-10-08)
+
+    /// The phoenix since 2026-10-08: a 10 s video of a fire phoenix flapping on
+    /// black (Gemini-generated, Victor's), keyed to transparency by luminance —
+    /// black transparent, flames opaque, glow and sparks in between — and shipped
+    /// as HEVC with alpha, which `AVPlayerLayer` composites over the desktop.
+    /// **The colour must be PREMULTIPLIED** (for fire on black: the original
+    /// pixel, capped by its alpha): the layer composites it as premultiplied, and
+    /// straight colour came out pale, with light halos round every spark. 240 frames at 1280×720 as
+    /// images would have been hundreds of MB; the video streams. Played over the
+    /// whole display on the zoom stage, with the video's own audio (wing beats,
+    /// fire), normalised to -14 LUFS, at the board's volume. Not in the repo
+    /// (`assetsDir`); without it the old animated phoenix runs instead.
+    static let phoenixVideoName = "phoenix-rising.mov"
+    static let phoenixVideoSound = "phoenix-rising.mp3"
+    private static let phoenixVideoFade: Double = 0.35
+    private static let phoenixVideoFadeOut: Double = 1.0
+
     func showPhoenix() {
+        guard let url = EffectsConfig.shared.assetURL(Self.phoenixVideoName) else {
+            showPhoenixLegacy(); return
+        }
+        // Re-press cancels: picture and sound together.
+        if cancelIfRunning("phoenix") {
+            SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
+            return
+        }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let life = Self.phoenixDuration
+
+        let player = AVPlayer(url: url)
+        player.isMuted = true                 // the sound goes through SoundManager
+        player.actionAtItemEnd = .pause
+        let video = AVPlayerLayer(player: player)
+        video.frame = bounds
+        video.videoGravity = .resizeAspect
+        video.pixelBufferAttributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        video.backgroundColor = NSColor.clear.cgColor
+        video.isOpaque = false
+
+        let container = CALayer()
+        container.frame = bounds
+        container.addSublayer(video)
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = [0, 1, 1, 0]
+        fade.keyTimes = [0, NSNumber(value: Self.phoenixVideoFade / life),
+                         NSNumber(value: (life - Self.phoenixVideoFadeOut) / life), 1]
+        fade.duration = life
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        container.add(fade, forKey: "phoenixVideoFade")
+        stageLayer.addSublayer(container)
+
+        player.play()
+        SoundManager.shared.playClip(Self.phoenixVideoSound, seconds: life, fade: Self.phoenixVideoFadeOut,
+                                     volume: SoundManager.shared.currentTabletVolume)
+        trackEffect("phoenix", layer: container, duration: life)
+    }
+
+    /// The phoenix until 2026-10-08, kept as the fallback for a machine without
+    /// the video: the APNG sprite rising from the bottom with the bundled cry.
+    func showPhoenixLegacy() {
         // Re-press cancels: tear down the visual AND silence the cry. The sound
         // rides playClip's overlapping player (not the `players` dict cancelIfRunning
         // touches), so stop it explicitly here.
@@ -12508,5 +12578,6 @@ class EmojiAnimator {
         // (it's a restartable, stacking clip).
         SoundManager.shared.stopAllPlayers()
         SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
+        SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
     }
 }

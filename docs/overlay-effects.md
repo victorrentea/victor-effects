@@ -1847,6 +1847,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `assetsDir/skull-boom/{whole,base,jaw,blast}.png` (the exploded skull cut into
   layers on one 421 px canvas) and `shard1…3.png`; without them the tile plays
   its sound and logs. `/effect/skull-boom` runs it silently.
+- **🔥 Phoenix** (tile #34 `34_phoenix.mp3`, a silent placeholder → `phoenix`,
+  `showPhoenix`, since 2026-10-08): a 10 s video of a fire phoenix flapping on
+  black, keyed to transparency by luminance (black → transparent, flames opaque,
+  glow and sparks in between, below 7 % = compression noise = transparent) and
+  shipped as **HEVC with alpha** (`hevc_videotoolbox -alpha_quality`), played by
+  an `AVPlayerLayer` over the whole display on the zoom stage — 240 frames as
+  images would have been hundreds of MB. **Colour premultiplied**: straight
+  colour came out pale with light halos round every spark. The sound is the
+  video's own (wing beats, fire), normalised to -14 LUFS, through `playClip` at
+  the board's volume; 0.35 s fade in, 1 s fade out, the tile lit for the
+  video's length (`phoenixDuration`). Assets in `assetsDir`
+  (`phoenix-rising.mov`, `phoenix-rising.mp3`); without them the old APNG
+  phoenix rising with the bundled cry runs instead (`showPhoenixLegacy`).
 - **🚪 Dark door** (tile #25 `25_dark_door.mp3` → `dark-door`, `showDarkDoor`): the built-in
   Retina is captured and then **punched IN on each of the seven knocks**, each punch holding
   its new level until the next one takes it further — 1.09× compounding seven times to
