@@ -1621,7 +1621,11 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 - **🔍 Magnifier** (tile #6 `06_copyright_cartoon.mp3` → `magnifier`,
   `showMagnifier`, geometry and artwork in `MagnifierGlass.swift`): the tile is the
   **Pink Panther** theme and its artwork is Inspector Clouseau stooped over a
-  magnifying glass, so the desktop gets the glass. It rides the pointer for the
+  magnifying glass, so the desktop gets the glass. **The real pointer is hidden
+  while the glass is up** (2026-10-08 — the lens IS the pointer; the arrow sitting
+  in the middle of it was noise): hidden when the wheel/click capture arms,
+  released when it disarms, which every exit goes through, with the heartbeat's
+  release-once box so a double stop cannot cancel another effect's hide. It rides the pointer for the
   length of the clip (~37.8 s, measured off the mp3; `magnifierFallbackDuration`
   when the audio is not on this machine) and magnifies **only what is inside its
   lens** — everything outside the rim is the untouched desktop, not a less-zoomed

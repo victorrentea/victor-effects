@@ -176,7 +176,9 @@ final class SoundEffectMapDriftTests: XCTestCase {
               let tiles = obj["tiles"] as? [[String: Any]] else {
             throw XCTSkip("no tiles.json under soundsDir (\(tilesJSON.path)) — tablet assets not on this machine")
         }
-        let assets = Set(tiles.compactMap { $0["asset"] as? String })
+        // Layer B (`"under"`) tiles are tiles too: a starred asset may live there.
+        let layerB = tiles.compactMap { $0["under"] as? [String: Any] }
+        let assets = Set((tiles + layerB).compactMap { $0["asset"] as? String })
         XCTAssertGreaterThan(assets.count, 50, "tiles.json parsed but looks empty")
 
         for asset in EffectsCatalog.assets {
@@ -187,9 +189,11 @@ final class SoundEffectMapDriftTests: XCTestCase {
         // catalogue claims must actually come back carrying its `effect`.
         let enriched = try XCTUnwrap(TilesManifest.enrich(data))
         let out = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(enriched.utf8)) as? [String: Any])
-        let stamped = (out["tiles"] as? [[String: Any]] ?? []).reduce(into: [String: String]()) { acc, tile in
-            if let a = tile["asset"] as? String, let e = tile["effect"] as? String { acc[a] = e }
-        }
+        let outTiles = out["tiles"] as? [[String: Any]] ?? []
+        let stamped = (outTiles + outTiles.compactMap { $0["under"] as? [String: Any] })
+            .reduce(into: [String: String]()) { acc, tile in
+                if let a = tile["asset"] as? String, let e = tile["effect"] as? String { acc[a] = e }
+            }
         XCTAssertEqual(Set(stamped.keys), Set(EffectsCatalog.assets),
                        "GET /tiles stamps a different set than EffectsCatalog names")
     }

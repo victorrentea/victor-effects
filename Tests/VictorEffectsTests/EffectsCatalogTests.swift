@@ -164,6 +164,20 @@ final class EffectsCatalogTests: XCTestCase {
         XCTAssertEqual(tiles[3]["copyright"] as? Bool, true)
     }
 
+    /// The tile under a tile (the tablet's layer B) is starred by the same
+    /// catalogue: a desktop effect moved down a layer keeps its ⭐.
+    func testTheTileUnderATileIsEnrichedToo() throws {
+        let manifest = #"{"columns":13,"tiles":[{"n":38,"asset":"38_imagine.mp3","under":{"asset":"03_explosion.mp3","image":"x.jpg","copyright":true}},{"n":1,"asset":"01_baby.mp3","under":{"asset":"01_baby.mp3","effect":"stale"}}]}"#
+        let enriched = try XCTUnwrap(TilesManifest.enrich(Data(manifest.utf8)))
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(enriched.utf8)) as? [String: Any])
+        let tiles = try XCTUnwrap(obj["tiles"] as? [[String: Any]])
+        let under0 = try XCTUnwrap(tiles[0]["under"] as? [String: Any])
+        XCTAssertEqual(under0["effect"] as? String, "explosion")
+        XCTAssertEqual(under0["copyright"] as? Bool, true, "the rest of the under tile survives")
+        XCTAssertNil(tiles[0]["effect"], "the tile on top keeps its own answer")
+        XCTAssertNil((tiles[1]["under"] as? [String: Any])?["effect"], "a stale under effect is dropped")
+    }
+
     /// A key this build has never heard of must come out the other side: the
     /// manifest is written in the tablet's repo, and a Mac that silently dropped
     /// its newest field would be the exact drift this whole change removes.

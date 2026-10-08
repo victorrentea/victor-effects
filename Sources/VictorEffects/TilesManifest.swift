@@ -130,17 +130,21 @@ enum TilesManifest {
     /// have opinions about a file it does not own.
     static func enrich(_ data: Data) -> String? {
         guard var obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
-        if let tiles = obj["tiles"] as? [[String: Any]] {
-            obj["tiles"] = tiles.map { tile -> [String: Any] in
-                var tile = tile
-                if let asset = tile["asset"] as? String,
-                   let effect = EffectsCatalog.effectName(forAsset: asset) {
-                    tile["effect"] = effect
-                } else {
-                    tile.removeValue(forKey: "effect")
-                }
-                return tile
+        // A tile may carry the one under it (`"under"`: the tablet's layer B,
+        // reached by holding a finger down) — that one gets its ⭐ the same way.
+        func stamped(_ tile: [String: Any]) -> [String: Any] {
+            var tile = tile
+            if let asset = tile["asset"] as? String,
+               let effect = EffectsCatalog.effectName(forAsset: asset) {
+                tile["effect"] = effect
+            } else {
+                tile.removeValue(forKey: "effect")
             }
+            if let under = tile["under"] as? [String: Any] { tile["under"] = stamped(under) }
+            return tile
+        }
+        if let tiles = obj["tiles"] as? [[String: Any]] {
+            obj["tiles"] = tiles.map(stamped)
         }
         obj["effectsHash"] = EffectsCatalog.effectsHash
         guard let out = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]) else { return nil }

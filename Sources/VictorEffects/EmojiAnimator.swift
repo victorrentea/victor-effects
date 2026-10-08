@@ -7134,6 +7134,11 @@ class EmojiAnimator {
     private var _magnifierInputTap: CFMachPort?
     private var _magnifierInputTapSource: CFRunLoopSource?
     private var _magnifierScrollAccum: CGFloat = 0     // trackpad pixels → notches
+    /// The real pointer is hidden while the glass is up — the lens is the
+    /// pointer (Victor, 2026-10-08: "only the lens, no mouse"). Tied to the
+    /// input capture, whose stop every exit already goes through; the box is
+    /// the heartbeat's, so a double stop cannot cancel another effect's hide.
+    private var _magnifierCursorHide: HeartbeatCursorHide?
     /// Read from the tap's own thread, so it is a flag and not a dictionary
     /// lookup: `activeEffects` is only ever mutated on main.
     fileprivate var _magnifierIsLive = false
@@ -7377,6 +7382,7 @@ class EmojiAnimator {
     /// only observe; a tap can consume.
     private func startMagnifierInputCapture() {
         stopMagnifierInputCapture()
+        _magnifierCursorHide = HeartbeatCursorHide()
 
         let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
             | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
@@ -7438,6 +7444,8 @@ class EmojiAnimator {
         // Cleared FIRST: it is what the tap's own thread reads, and it has to be
         // false for every event still on its way in while the port is torn down.
         _magnifierIsLive = false
+        _magnifierCursorHide?.release()
+        _magnifierCursorHide = nil
         if let tap = _magnifierInputTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
         if let src = _magnifierInputTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
         _magnifierInputTap = nil
