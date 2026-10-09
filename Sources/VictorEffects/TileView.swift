@@ -52,8 +52,8 @@ final class TileImageCache {
     }
 }
 
-/// One tile: the picture, its `#NN`, an optional word across it, the ↻ badge,
-/// and a red border while its sound plays.
+/// One tile: the picture, its `#NN`, an optional word across it, the layer-B
+/// peek in its bottom-left corner, and a red border while its sound plays.
 ///
 /// Built out of `CALayer`s rather than `draw(_:)` because the playing border
 /// pulses and the press scales — both of which are one animation on a layer and
@@ -67,11 +67,21 @@ final class TileView: NSView {
     private let borderLayer = CALayer()
     private let numberLayer = CATextLayer()
     private var labelLayer: CATextLayer?
-    private var badgeLayer: CATextLayer?
     private var starLayer: CATextLayer?
+    /// Layer B, drawn the tablet's way (`TileImageView.drawPeek`): the under
+    /// tile's picture in a folded-back corner, a soft shadow and a white crease
+    /// along the fold. Sublayers of `imageLayer`, so its rounded corner clips
+    /// them exactly as it clips the picture.
+    private var peekImageLayer: CALayer?
+    private var peekShadowLayer: CAShapeLayer?
+    private var peekCreaseLayer: CAShapeLayer?
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
     private var isPressed = false
+    /// The pointer is on the folded corner — a click there presses the tile
+    /// under this one.
+    private var isCornerHovered = false
+    private var pressedCorner = false
 
     /// Set by the grid, which is the only thing that knows whether this cell has
     /// a neighbour on a given side or the rim of the board — see
@@ -152,6 +162,32 @@ final class TileView: NSView {
     /// screen it opens on, and the two boards have to look like one board.
     static let starSizeRatio: CGFloat = 0.22
     static let starMarginRatio: CGFloat = 0.05
+
+    /// **Layer B's corner, as fractions of the tile — the tablet's own numbers**
+    /// (`TileImageView.drawPeek`: `side = width * 2f / 3f`, shadow stroke
+    /// `width * 0.035f` offset by `width * 0.012f`, crease stroke
+    /// `width * 0.012f`). The fold is the diagonal of the bottom-left 2/3 × 2/3
+    /// square; everything below it is the tile underneath.
+    /// `LayerBParityTests` reads the Kotlin and fails the build if the two drift.
+    static let peekSideRatio: CGFloat = 2.0 / 3.0
+    static let peekShadowRatio: CGFloat = 0.035
+    static let peekCreaseRatio: CGFloat = 0.012
+    /// The tablet's `Color.argb(150, 0, 0, 0)`.
+    static let peekShadowAlpha: CGFloat = 150.0 / 255.0
+
+    /// True when `point` (tile coordinates, origin bottom-left, as AppKit has
+    /// it) lies on the folded corner: inside the triangle under the fold, edge
+    /// included. Pure, so the hit area is a test and not a hope.
+    static func isInPeek(_ point: NSPoint, side: CGFloat) -> Bool {
+        point.x >= 0 && point.y >= 0 && point.x + point.y <= side * peekSideRatio
+    }
+
+    /// What a click at `point` presses: the tile under this one when it lands on
+    /// the fold, this one everywhere else (and everywhere, on a tile with no B).
+    static func target(of tile: Tile, at point: NSPoint, side: CGFloat) -> Tile {
+        if let under = tile.under, isInPeek(point, side: side) { return under }
+        return tile
+    }
 
     var isPlaying = false {
         didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
@@ -282,16 +318,28 @@ final class TileView: NSView {
             labelLayer = l
         }
 
-        if tile.restartable {
-            // The ↻ badge, bottom-left — the only free corner on the tablet, and
-            // kept there so the two grids look like the same grid.
-            let badge = CATextLayer()
-            badge.string = "↻"
-            badge.foregroundColor = NSColor.white.cgColor
-            badge.alignmentMode = .center
-            badge.backgroundColor = NSColor(white: 0, alpha: 0.65).cgColor
-            layer?.addSublayer(badge)
-            badgeLayer = badge
+        if tile.under != nil {
+            // Bottom-left, where the ↻ restart badge was until 2026-10-08: the
+            // tablet gave that corner to layer B (one restartable tile did not
+            // earn a corner on all 91), and this board follows it.
+            let peek = CALayer()
+            peek.contentsGravity = .resizeAspectFill
+            peek.masksToBounds = true
+            peek.mask = CAShapeLayer()
+            let shadow = CAShapeLayer()
+            shadow.strokeColor = NSColor(white: 0, alpha: Self.peekShadowAlpha).cgColor
+            shadow.fillColor = nil
+            shadow.lineCap = .butt
+            let crease = CAShapeLayer()
+            crease.strokeColor = NSColor.white.cgColor
+            crease.fillColor = nil
+            crease.lineCap = .butt
+            imageLayer.addSublayer(peek)
+            imageLayer.addSublayer(shadow)
+            imageLayer.addSublayer(crease)
+            peekImageLayer = peek
+            peekShadowLayer = shadow
+            peekCreaseLayer = crease
         }
 
         if hasDesktopEffect {
@@ -300,8 +348,8 @@ final class TileView: NSView {
             // sprite in a different metric), amber `#FFC400` so it is the only
             // non-white/green mark on a tile, a black shadow so it survives a
             // bright thumbnail, and right-aligned against a 5 % margin. The
-            // corner is the last free one — `#NN` top-left, ↻ bottom-left, the
-            // usage dots bottom-right.
+            // corner is the last free one — `#NN` top-left, the layer-B peek
+            // bottom-left, the usage dots bottom-right.
             let star = CATextLayer()
             star.string = "★"
             star.foregroundColor = NSColor(srgbRed: 1, green: 0.769, blue: 0, alpha: 1).cgColor
@@ -365,12 +413,30 @@ final class TileView: NSView {
             l.frame = NSRect(x: 0, y: bounds.midY - size * 0.7, width: bounds.width, height: size * 1.4)
             l.contentsScale = window?.backingScaleFactor ?? 2
         }
-        if let badge = badgeLayer {
-            let r = side * 0.22
-            badge.frame = NSRect(x: side * 0.05, y: side * 0.05, width: r, height: r)
-            badge.cornerRadius = r / 2
-            badge.fontSize = r * 0.55
-            badge.contentsScale = window?.backingScaleFactor ?? 2
+        if let peek = peekImageLayer, let shadow = peekShadowLayer, let crease = peekCreaseLayer {
+            // The tablet's geometry with y flipped: AppKit's origin is the
+            // bottom-left, which is exactly the folded corner.
+            let s = side * Self.peekSideRatio
+            let off = side * Self.peekCreaseRatio
+            peek.frame = NSRect(x: 0, y: 0, width: s, height: s)
+            let triangle = CGMutablePath()
+            triangle.move(to: CGPoint(x: 0, y: s))
+            triangle.addLine(to: CGPoint(x: s, y: 0))
+            triangle.addLine(to: .zero)
+            triangle.closeSubpath()
+            (peek.mask as? CAShapeLayer)?.path = triangle
+            shadow.frame = bounds
+            let shadowLine = CGMutablePath()
+            shadowLine.move(to: CGPoint(x: 0, y: s + off))
+            shadowLine.addLine(to: CGPoint(x: s + off, y: 0))
+            shadow.path = shadowLine
+            shadow.lineWidth = side * Self.peekShadowRatio
+            crease.frame = bounds
+            let fold = CGMutablePath()
+            fold.move(to: CGPoint(x: 0, y: s))
+            fold.addLine(to: CGPoint(x: s, y: 0))
+            crease.path = fold
+            updateCrease()
         }
         if let star = starLayer {
             // Right edge at the tablet's `width - margin`, top at its `margin`.
@@ -395,6 +461,19 @@ final class TileView: NSView {
                 CATransaction.setDisableActions(true)
                 self.imageLayer.contents = image
                 CATransaction.commit()
+            }
+        }
+        if let peek = peekImageLayer, let under = tile.under {
+            if let hit = TileImageCache.shared.cached(under.image) {
+                peek.contents = hit
+            } else {
+                TileImageCache.shared.load(under.image, maxPixel: side * Self.peekSideRatio) { [weak peek] image in
+                    guard let peek, let image else { return }
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
+                    peek.contents = image
+                    CATransaction.commit()
+                }
             }
         }
     }
@@ -439,7 +518,33 @@ final class TileView: NSView {
     func setHovered(_ on: Bool) {
         guard on != isHovered else { return }
         isHovered = on
+        if !on { isCornerHovered = false; updateCrease() }
         updateHighlight()
+    }
+
+    /// The grid's hover, with the pointer's position: on top of the gutter, the
+    /// fold lights up green while the pointer is on the corner, so the hand sees
+    /// which of the two tiles a click will press before it clicks.
+    func setHovered(at local: NSPoint?) {
+        setHovered(local != nil)
+        let corner = local.map { tile.under != nil && Self.isInPeek($0, side: bounds.width) } ?? false
+        guard corner != isCornerHovered else { return }
+        isCornerHovered = corner
+        updateCrease()
+    }
+
+    /// The fold's mark: white at rest, green under the pointer, red while the
+    /// corner is being pressed — the gutter's own two colours, on the crease.
+    private func updateCrease() {
+        guard let crease = peekCreaseLayer else { return }
+        let side = bounds.width
+        let lit = pressedCorner || isCornerHovered
+        let color: NSColor = pressedCorner ? Self.pressColor : (isCornerHovered ? Self.hoverColor : .white)
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.hoverFade)
+        crease.strokeColor = color.cgColor
+        crease.lineWidth = side * Self.peekCreaseRatio * (lit ? 3 : 1)
+        CATransaction.commit()
     }
 
     /// One place decides the mark, because two states claim it: hovering paints
@@ -470,14 +575,22 @@ final class TileView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         isPressed = true
+        let local = convert(event.locationInWindow, from: nil)
+        pressedCorner = tile.under != nil && Self.isInPeek(local, side: bounds.width)
         updateHighlight()
+        updateCrease()
     }
 
+    /// The corner presses layer B, the rest of the tile layer A — decided where
+    /// the button comes UP, like the press itself.
     override func mouseUp(with event: NSEvent) {
         isPressed = false
+        pressedCorner = false
         updateHighlight()
-        guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
-        onPress?(tile)
+        updateCrease()
+        let local = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(local) else { return }
+        onPress?(Self.target(of: tile, at: local, side: bounds.width))
     }
 
     private func updatePlayingBorder() {

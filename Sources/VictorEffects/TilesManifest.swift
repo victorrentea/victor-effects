@@ -22,8 +22,20 @@ struct Tile: Codable, Equatable {
     /// Third-party audio the tablet can hide in its "©" mode. Carried here only
     /// so the manifest stays the single description of a tile.
     let copyright: Bool
+    /// Layer B: the tile UNDER this one (`"under"` in `tiles.json`). On the
+    /// tablet it is reached by holding a finger; on the panel it is the
+    /// folded-back corner, clicked. It shares this tile's `n` — `81b` is "the
+    /// one under #81". Stored as an array only because a struct cannot hold an
+    /// optional of itself; there is never more than one.
+    private let underStorage: [Tile]
+    var under: Tile? { underStorage.first }
 
-    enum CodingKeys: String, CodingKey { case n, asset, image, label, restartable, copyright }
+    enum CodingKeys: String, CodingKey { case n, asset, image, label, restartable, copyright, under }
+
+    /// The under row carries no `n` of its own; it borrows its host's.
+    private struct UnderRow: Decodable {
+        let asset: String?, image: String?, label: String?, copyright: Bool?
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -33,12 +45,30 @@ struct Tile: Codable, Equatable {
         label = try? c.decode(String.self, forKey: .label)
         restartable = (try? c.decode(Bool.self, forKey: .restartable)) ?? false
         copyright = (try? c.decode(Bool.self, forKey: .copyright)) ?? false
+        if let row = try? c.decode(UnderRow.self, forKey: .under),
+           let a = row.asset, !a.isEmpty, let i = row.image, !i.isEmpty {
+            underStorage = [Tile(n: n, asset: a, image: i, label: row.label, copyright: row.copyright ?? false)]
+        } else {
+            underStorage = []
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(n, forKey: .n)
+        try c.encode(asset, forKey: .asset)
+        try c.encode(image, forKey: .image)
+        try c.encodeIfPresent(label, forKey: .label)
+        if restartable { try c.encode(restartable, forKey: .restartable) }
+        if copyright { try c.encode(copyright, forKey: .copyright) }
+        if let under { try c.encode(under, forKey: .under) }
     }
 
     init(n: Int, asset: String, image: String, label: String? = nil,
-         restartable: Bool = false, copyright: Bool = false) {
+         restartable: Bool = false, copyright: Bool = false, under: Tile? = nil) {
         self.n = n; self.asset = asset; self.image = image
         self.label = label; self.restartable = restartable; self.copyright = copyright
+        self.underStorage = under.map { [$0] } ?? []
     }
 }
 

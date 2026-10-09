@@ -264,7 +264,9 @@ on a layer, versus a redraw loop in a drawing method:
 - the picture, aspect-fill, corners clipped;
 - `#NN` top-left;
 - the optional `label` centred across it;
-- a `↻` badge when the tile is `restartable`;
+- **layer B in the bottom-left corner** — see *Layer B: the folded corner* below
+  (the `↻` restart badge had that corner until 2026-10-08 and went, as on the
+  tablet);
 - **⭐ top-right when the tile also animates the desktop** — the tablet's badge,
   reproduced: the solid `★` glyph (not the emoji, which arrives as a colour
   sprite with its own metrics), amber `#FFC400` so it is the only non-white,
@@ -373,6 +375,34 @@ looked in.
 The red border **follows the sound, not the click** (`setPlaying(asset:)`): a
 tile whose clip ended on its own has to stop pulsing without anyone pressing
 anything.
+
+## Layer B: the folded corner (2026-10-09)
+
+A tile with an `"under"` row in `tiles.json` (the tablet's layer B — `81b` under
+#81) draws the under tile's picture **folded back into its bottom-left corner**,
+exactly as the tablet does: the bottom-left 2/3 × 2/3 square, clipped to the
+triangle below its diagonal, a soft black shadow and a white crease along the
+fold. **Clicking inside that triangle plays the tile underneath; clicking
+anywhere else on the tile plays the tile itself.** No key, no hold: the tablet
+needs a held finger because a finger has no hover, a mouse does.
+
+- The hit area is `TileView.isInPeek` (pure, `LayerBTests`) — the same triangle
+  that is drawn, edge included. Decided on mouse-**up**, like every press here.
+- Hovering the corner lights the **crease** green (3× thicker), pressing it red —
+  the gutter's two colours, on the fold — so the hand sees which of the two tiles
+  a click will press before it clicks. The gutter still lights as for any hover.
+- A playing B sound pulses its **host's** red border: the panel has no other place
+  that draws B. Re-clicking the corner stops it, as a re-tap does on the tablet.
+- `/press/81b` (and `/test/thumbnail-panel/press/81b`) presses it without a click.
+- The right ⌘ / right ⇧ gestures are untouched: ⌘ held = soundboard, ⇧ added =
+  videos.
+- **Anti-drift.** What is under what can't drift: both boards read the same
+  `tiles.json`. The *drawing* could, so the fold's numbers are constants on
+  `TileView` (`peekSideRatio`, `peekShadowRatio`, `peekCreaseRatio`) and two tests
+  pin them to the tablet's `drawPeek`: `LayerBTests.testTheFoldIsTheTabletsFold`
+  here (reads the Kotlin) and `LayerBPeekParityTest` in victor-vibe-board (reads
+  this Swift). Change the corner on one side and the other's build goes red. Both
+  skip when the sibling checkout is missing.
 
 ## 🎬 The video page
 

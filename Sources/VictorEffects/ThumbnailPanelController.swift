@@ -424,6 +424,15 @@ final class ThumbnailPanelController {
         return press.press(tile)
     }
 
+    /// `GET /press/<n>b` — the tile under #n (layer B), exactly what clicking
+    /// its folded corner does.
+    func pressUnderTile(number: Int) -> String {
+        guard let under = TilesManifest.tile(number: number)?.under else {
+            return "{\"ok\":false,\"n\":\"\(number)b\",\"reason\":\"unknown-tile\"}"
+        }
+        return press.press(under)
+    }
+
     /// `GET /test/thumbnail-panel/hover` — the live state of the hover mark on
     /// whichever page is up. The panel must be showing: the mark is a layer, and
     /// a layer on a window that is ordered out is not a thing anybody can check.
@@ -445,6 +454,9 @@ final class ThumbnailPanelController {
         router.onPanelHide = { [weak self] in self?.hide() }
         router.onPanelPress = { [weak self] n, page in
             self?.pressTile(number: n, page: page) ?? "{\"ok\":false,\"reason\":\"no-panel\"}"
+        }
+        router.onPanelPressUnder = { [weak self] n in
+            self?.pressUnderTile(number: n) ?? "{\"ok\":false,\"reason\":\"no-panel\"}"
         }
         router.onPanelHover = { [weak self] point in
             self?.hoverProbe(at: point) ?? "{\"ok\":false,\"reason\":\"no-panel\"}"

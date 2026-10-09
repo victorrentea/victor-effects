@@ -67,6 +67,9 @@ final class EffectsRouter {
         case panelShow(PanelPage)
         case panelHide
         case panelPress(Int, PanelPage)
+        /// `/press/81b` — the tile UNDER #81 (layer B), what clicking its folded
+        /// corner on the panel does.
+        case panelPressUnder(Int)
     /// `/test/thumbnail-panel/hover` — what the hover mark actually is right
     /// now, optionally after resolving it at an explicit point.
     case panelHover(NSPoint?)
@@ -209,7 +212,9 @@ final class EffectsRouter {
             if let ms = Int(pathOnly.dropFirst("/bt-compensation/".count)) { return .btCompensationSet(ms) }
         }
         if pathOnly.hasPrefix("/test/thumbnail-panel/press/") {
-            if let n = Int(pathOnly.dropFirst("/test/thumbnail-panel/press/".count)) {
+            let arg = pathOnly.dropFirst("/test/thumbnail-panel/press/".count)
+            if arg.hasSuffix("b"), let n = Int(arg.dropLast()) { return .panelPressUnder(n) }
+            if let n = Int(arg) {
                 return .panelPress(n, page(q("page")))
             }
         }
@@ -218,7 +223,9 @@ final class EffectsRouter {
         // training daemon's secret FX link presses tiles with no panel in
         // sight. Same case, so there is one handler and nothing to drift.
         if pathOnly.hasPrefix("/press/") {
-            if let n = Int(pathOnly.dropFirst("/press/".count)) {
+            let arg = pathOnly.dropFirst("/press/".count)
+            if arg.hasSuffix("b"), let n = Int(arg.dropLast()) { return .panelPressUnder(n) }
+            if let n = Int(arg) {
                 return .panelPress(n, .effects)
             }
         }
@@ -238,6 +245,7 @@ final class EffectsRouter {
     var onPanelShow: ((PanelPage) -> String)?
     var onPanelHide: (() -> Void)?
     var onPanelPress: ((Int, PanelPage) -> String)?
+    var onPanelPressUnder: ((Int) -> String)?
     var onPanelHover: ((NSPoint?) -> String)?
     var panelMonitorActive: () -> Bool = { false }
     var panelVisible: () -> Bool = { false }
@@ -357,6 +365,10 @@ final class EffectsRouter {
         case .panelPress(let n, let page):
             guard let press = onPanelPress else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
             return .json(press(n, page))
+
+        case .panelPressUnder(let n):
+            guard let press = onPanelPressUnder else { return .json("{\"ok\":false,\"reason\":\"no-panel\"}", status: 503) }
+            return .json(press(n))
 
         case .panelCursor:
             return .json(PanelCursor.diagnosticJSON())

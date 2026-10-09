@@ -95,10 +95,12 @@ final class ThumbnailGridView: NSView {
     }
 
     /// Red border follows the sound, not the click: a tile whose sound ended on
-    /// its own has to stop pulsing without anyone pressing anything.
+    /// its own has to stop pulsing without anyone pressing anything. A layer-B
+    /// sound lights its host — the only place the panel draws it.
     func setPlaying(asset: String?) {
         for view in tileViews {
-            view.isPlaying = view.tile.asset == asset
+            view.isPlaying = asset != nil
+                && (view.tile.asset == asset || view.tile.under?.asset == asset)
         }
     }
 
@@ -163,7 +165,10 @@ final class ThumbnailGridView: NSView {
     /// under wherever the pointer already was and nothing ever lit up.
     func hover(at point: NSPoint?) {
         for view in tileViews {
-            view.setHovered(point.map { view.frame.contains($0) } ?? false)
+            // The point goes down in the tile's own coordinates, so the tile can
+            // tell its folded corner (layer B) from the rest of it.
+            let local = point.flatMap { view.frame.contains($0) ? view.convert($0, from: self) : nil }
+            view.setHovered(at: local)
         }
     }
 

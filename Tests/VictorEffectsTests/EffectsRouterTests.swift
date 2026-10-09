@@ -206,6 +206,13 @@ final class EffectsRouterTests: XCTestCase {
                        .panelPress(69, .effects))
     }
 
+    func testTheBSuffixPressesTheTileUnderneath() {
+        // Layer B is addressed the way its files are named: 81b is under #81.
+        XCTAssertEqual(EffectsRouter.route(forPath: "/press/81b"), .panelPressUnder(81))
+        XCTAssertEqual(EffectsRouter.route(forPath: "/test/thumbnail-panel/press/46b"), .panelPressUnder(46))
+        XCTAssertEqual(EffectsRouter.route(forPath: "/press/b"), .unknown)
+    }
+
     func testPressAliasRejectsANonNumber() {
         XCTAssertEqual(EffectsRouter.route(forPath: "/press/wazzup"), .unknown)
     }
