@@ -102,9 +102,19 @@ gif frames come from `Bundle.module`; the eight large/licensed ones come from
 nothing when they are absent. Audio comes from `EffectsConfig.soundsDir`
 (`docs/sound-routing.md`) — **no soundboard mp3 is in this repo**.
 
-### 💬 Every press is captioned
+### 💬 Every press is captioned — when ✓ Subtitles is on
 
-Each soundboard press puts a subtitle at the bottom of the overlay screen, for
+**Off by default** (2026-10-09). The menu's `✓/x Subtitles` row
+(`SubtitlesSwitch`, `UserDefaults` key `subtitlesOn` in
+`ro.victorrentea.victor-effects`, so it survives restarts) is the one switch
+for every subtitle on the room's screen: these press captions, and the `.srt`
+lines addons draws over a video snippet — addons' `VideoPlayer` reads the same
+key with `CFPreferencesCopyAppValue` when a clip starts, so no HTTP hop and
+nothing waits on this app. Missing key = off, on both sides. Switching it off
+also hides a caption already on screen; a video already playing keeps the
+state it started with.
+
+While on, each soundboard press puts a subtitle at the bottom of the overlay screen, for
 whoever in the room (or on the call) cannot hear the joke: `♪ Hello, is it me
 you're looking for? ♪` for a song, `[wolf howling]` for a noise.
 `SoundCaptions` holds the text, `CaptionOverlay` draws it.

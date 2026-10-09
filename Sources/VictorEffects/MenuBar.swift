@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Oct 8, 07:26"
+    static let BUILD_TIME = "Oct 9, 08:16"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -56,6 +56,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private var menu: NSMenu!
     private var whipItem: NSMenuItem!
     private var keepAliveItem: NSMenuItem!
+    private var subtitlesItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
     private var accessibilitySeparator: NSMenuItem!
 
@@ -318,6 +319,15 @@ final class MenuBar: NSObject, NSMenuDelegate {
         keepAliveItem.isEnabled = true
         menu.addItem(keepAliveItem)
 
+        // ✓ Subtitles — the soundboard captions and the video snippets' .srt
+        // lines, both behind this one row (`SubtitlesSwitch`, off by default,
+        // remembered across restarts). Same plain-text tick as BT Keepalive,
+        // retitled on every open for the same reason.
+        subtitlesItem = NSMenuItem(title: "", action: #selector(toggleSubtitlesAction), keyEquivalent: "")
+        subtitlesItem.target = self
+        subtitlesItem.isEnabled = true
+        menu.addItem(subtitlesItem)
+
         menu.addItem(.separator())
 
         // The build stamp on its own disabled row, above Quit (2026-09-13). It
@@ -388,6 +398,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         menuIsOpen = true
         refreshKeepAliveRow()
+        refreshSubtitlesRow()
         layOutHints()
     }
 
@@ -430,6 +441,20 @@ final class MenuBar: NSObject, NSMenuDelegate {
         refreshKeepAliveRow()
     }
 
+    @objc private func toggleSubtitlesAction() {
+        SubtitlesSwitch.set(!SubtitlesSwitch.isOn)
+        refreshSubtitlesRow()
+    }
+
+    private func refreshSubtitlesRow() {
+        guard let subtitlesItem else { return }
+        let on = SubtitlesSwitch.isOn
+        subtitlesItem.title = Self.checkTitle(checked: on, label: "Subtitles")
+        subtitlesItem.toolTip = on
+            ? "A subtitle under every soundboard press, and the .srt lines over a video snippet. Click to switch them off."
+            : "No subtitles: soundboard presses and video snippets play without them. Click to switch them on."
+    }
+
     /// One row, one live read: the checkmark is the switch, the tooltip says
     /// whether the tone is actually playing right now.
     private func refreshKeepAliveRow() {
@@ -455,6 +480,11 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// narrower than the 🔥/✨/🎦 above it, so hair spaces around it make up the
     /// difference — measured, so the words still start on one line.
     static func keepAliveTitle(checked: Bool) -> String {
+        checkTitle(checked: checked, label: "BT Keepalive")
+    }
+
+    /// The ✓/x switch-row title, shared by BT Keepalive and Subtitles.
+    static func checkTitle(checked: Bool, label: String) -> String {
         let mark = checked ? "✓" : "x"
         let font = NSFont.menuFont(ofSize: 0)
         func width(_ s: String) -> CGFloat { (s as NSString).size(withAttributes: [.font: font]).width }
@@ -463,7 +493,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         let count = Int((missing / width(hair)).rounded())
         let before = String(repeating: hair, count: count / 2)
         let after = String(repeating: hair, count: count - count / 2)
-        return before + mark + after + " BT Keepalive"
+        return before + mark + after + " " + label
     }
 
     @objc private func showPanelAction(_ sender: NSMenuItem) {

@@ -6,6 +6,8 @@ import QuartzCore
 /// the joke. Songs show the line that is sung (♪ … ♪), everything else names the
 /// noise the way TV captions do ([wolf howling]).
 ///
+/// Only while the ✓ Subtitles row is on (`SubtitlesSwitch`, off by default).
+///
 /// Shown on every PRESS, not on every play: `/sound/pressed/` (and the siren's
 /// `/alarm/start`) is where the tablet's presses and the panel's meet, whether
 /// the audio then plays on this Mac or on the tablet's own speaker. Hooking
@@ -151,6 +153,33 @@ enum SoundCaptions {
 
     static func lifetime(clipSeconds: TimeInterval?) -> TimeInterval {
         min(max(clipSeconds ?? minSeconds, minSeconds), maxSeconds)
+    }
+}
+
+/// The ✓ Subtitles row in the menu: ONE switch for every subtitle on the
+/// room's screen — the soundboard captions drawn here AND the `.srt` lines the
+/// addons app burns over a video snippet. **Off by default** (Victor,
+/// 2026-10-09): a caption is for the room that asked for one, not a default.
+///
+/// Kept in this app's own defaults domain (`ro.victorrentea.victor-effects`)
+/// so it survives a restart, and so addons can read it at the moment a video
+/// starts (`CFPreferencesCopyAppValue`, in its `VideoPlayer`) — a local read,
+/// no HTTP hop, nothing waits on this app being up. A missing key reads as off
+/// on both sides, which is also what addons sees with this app never launched.
+enum SubtitlesSwitch {
+    static let key = "subtitlesOn"
+
+    static var isOn: Bool { UserDefaults.standard.bool(forKey: key) }
+
+    /// Switching off also takes down the caption on screen: the click is the
+    /// answer to "that caption should not be there", and waiting up to 6 s for
+    /// it to expire would read as the switch not working.
+    static func set(_ on: Bool) {
+        UserDefaults.standard.set(on, forKey: key)
+        // Flushed now, not on cfprefsd's schedule: addons reads it on the very
+        // next video, which may be seconds away.
+        UserDefaults.standard.synchronize()
+        if !on { CaptionOverlay.hide() }
     }
 }
 

@@ -172,7 +172,9 @@ final class EffectsEngine {
 
     /// The subtitle under a press (`SoundCaptions`). Called from the press
     /// routes, so it captions the tablet's local plays as well as this Mac's.
+    /// Nothing at all while the ✓ Subtitles row is off (`SubtitlesSwitch`).
     func showCaption(for asset: String) {
+        guard SubtitlesSwitch.isOn else { return }
         guard let text = SoundCaptions.caption(for: asset) else { return }
         if isSuspended { effectsInfo("⏸️ suspended — dropping caption for \(asset)"); return }
         guard let screen = Screens.overlayScreen() else { return }
