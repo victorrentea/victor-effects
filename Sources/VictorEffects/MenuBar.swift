@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Oct 9, 19:00"
+    static let BUILD_TIME = "Oct 9, 19:37"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -449,7 +449,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
     private func refreshSubtitlesRow() {
         guard let subtitlesItem else { return }
         let on = SubtitlesSwitch.isOn
-        subtitlesItem.title = Self.checkTitle(checked: on, label: "Subtitles")
+        subtitlesItem.title = Self.checkTitle(checked: on, label: "Subtitles", offMark: " ")
         subtitlesItem.toolTip = on
             ? "A subtitle under every soundboard press, and the .srt lines over a video snippet. Click to switch them off."
             : "No subtitles: soundboard presses and video snippets play without them. Click to switch them on."
@@ -484,8 +484,11 @@ final class MenuBar: NSObject, NSMenuDelegate {
     }
 
     /// The ✓/x switch-row title, shared by BT Keepalive and Subtitles.
-    static func checkTitle(checked: Bool, label: String) -> String {
-        let mark = checked ? "✓" : "x"
+    /// Subtitles is off by default and shows a blank instead of an x when off
+    /// (Victor, 2026-10-09) — the padding is measured, so the label still
+    /// starts on the same line as every other row.
+    static func checkTitle(checked: Bool, label: String, offMark: String = "x") -> String {
+        let mark = checked ? "✓" : offMark
         let font = NSFont.menuFont(ofSize: 0)
         func width(_ s: String) -> CGFloat { (s as NSString).size(withAttributes: [.font: font]).width }
         let hair = "\u{200A}"
