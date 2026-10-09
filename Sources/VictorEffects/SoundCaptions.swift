@@ -104,7 +104,7 @@ enum SoundCaptions {
         "78_projector.mp3":           "[film projector whirring]",
         "79_door.mp3":                "[door slams]",
         "81_let_it_be.mp3":           "♪ Let it be ♪",
-        "81b_let_go.mp3":             "♪ Let go, let go ♪",
+        "81b_let_go.mp3":             "♪ Let go ♪",
         "82_over_and_out.mp3":        "\"Over and out.\"",
         "83_yummy.mp3":               "♪ Yummy, yummy, yummy ♪",
         "84_eclipse.mp3":             "[epic music]",
