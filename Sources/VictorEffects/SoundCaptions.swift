@@ -102,7 +102,7 @@ enum SoundCaptions {
         "78_projector.mp3":           "[film projector whirring]",
         "79_door.mp3":                "[door slams]",
         "81_let_it_be.mp3":           "♪ Let it be ♪",
-        "81b_let_go.mp3":             "♪ Ennja – Let Go ♪",
+        "81b_let_go.mp3":             "♪ Let go, let go ♪",
         "82_over_and_out.mp3":        "\"Over and out.\"",
         "83_yummy.mp3":               "♪ Yummy, yummy, yummy ♪",
         "84_eclipse.mp3":             "[epic music]",
@@ -164,10 +164,10 @@ enum SoundCaptions {
 /// nothing.
 enum CaptionOverlay {
     static let opacity: Float = 0.5
-    static let fontSize: CGFloat = 30
+    static let fontSize: CGFloat = 36
     /// Height of the gap under the caption, as a share of the visible height —
-    /// clear of the progress bar along the very bottom edge.
-    static let bottomInset: CGFloat = 0.08
+    /// low enough to stay off the slide body (5 %, ~56 pt on the Retina).
+    static let bottomInset: CGFloat = 0.05
 
     private static var panel: NSPanel?
     private static var generation = 0
@@ -185,7 +185,7 @@ enum CaptionOverlay {
         let textSize = label.boundingRect(
             with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading]).size
-        let padH: CGFloat = 22, padV: CGFloat = 10
+        let padH: CGFloat = 26, padV: CGFloat = 12
         let size = NSSize(width: ceil(textSize.width) + 2 * padH,
                           height: ceil(textSize.height) + 2 * padV)
         let frame = NSRect(x: visible.midX - size.width / 2,
@@ -199,7 +199,7 @@ enum CaptionOverlay {
         view.wantsLayer = true
         guard let layer = view.layer else { return }
         layer.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
-        layer.cornerRadius = 12
+        layer.cornerRadius = 14
         let textLayer = CATextLayer()
         textLayer.string = label
         textLayer.alignmentMode = .center

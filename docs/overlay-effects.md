@@ -115,8 +115,8 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   on its own speaker is captioned too. `/sound/play` is not hooked: it would
   miss the tablet's local plays and caption every panel press twice.
 - **50 % opacity**, pill and text together: readable, but the slide under it
-  stays visible. 30 pt semibold white on a black pill, centred, 8 % of the
-  visible height above the bottom edge (clear of the progress bar), wrapped at
+  stays visible. 36 pt semibold white on a black pill (20 % up from 30 pt on
+  2026-10-09), centred, 5 % of the visible height above the bottom edge, wrapped at
   80 % of the width, placed in the zoomed slice when ⌥-scroll is on.
 - **Lives as long as the clip, 2.5 s minimum, 6 s maximum** — long enough to
   read a blip, short enough that a 37 s theme does not park a line over the
