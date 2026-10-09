@@ -58,7 +58,7 @@ press cannot drift apart.
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
 | `GET /tiles` | `tiles.json` **plus** `effect` per tile and a top-level `effectsHash` | **404** `{"error":"no tiles.json in <soundsDir>"}`. See **the ⭐ catalogue** |
 | `GET /tiles/<path>` | image bytes | path resolved under `soundsDir` and **re-checked to still be inside it** — the names come from a JSON file this app does not own |
-| `GET /test/thumbnail-panel[/hide\|/press/<n>]` | panel JSON | `?page=videos` on the show and the press picks the panel's 🎬 second page (default `effects`; an unknown value falls back to it rather than 404). **503** `{"ok":false,"reason":"no-panel"}` when no panel is wired |
+| `GET /test/thumbnail-panel[/hide\|/press/<n>]` | panel JSON | `/press/<n>b` (and `/press/<n>b` outside `/test`) presses the tile under #n, layer B. `?page=videos` on the show and the press picks the panel's 🎬 second page (default `effects`; an unknown value falls back to it rather than 404). **503** `{"ok":false,"reason":"no-panel"}` when no panel is wired |
 | `GET /state` | diagnostics, below | |
 | `GET /config/reload` | `{"ok":true,"config":{…}}` | re-reads the file and drops the sounds/tiles/tile-image/timing caches |
 
