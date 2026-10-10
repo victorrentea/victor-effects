@@ -132,8 +132,20 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   read a blip, short enough that a 37 s theme does not park a line over the
   slides. It ends itself; `stopAll` (the pre-press stop, the 🛑, a suspend)
   only hides it early, and a newer press replaces it.
-- **Lyrics came from the clips**, by a Whisper pass over `soundsDir`, not from
-  memory of the song — a caption that disagrees with the audio is worse than
+- **Songs flow line by line** (2026-10-10). A song in `SoundCaptions.lyrics`
+  is a *track*: each sung line goes up at the second it starts in the clip, so
+  the room reads the words as they are sung, not one line for the whole clip.
+  A song whose first word comes ≥ 1 s in opens on its `table` line as a title
+  (Let it be, Ave Maria). A line holds until the next one is due + 0.5 s
+  handover (so they swap in place, no fade between them), or `maxSeconds` if
+  the next is further away — an instrumental gap goes blank. The last line
+  lives like a single caption. `CaptionOverlay.play` schedules the lines;
+  `hide()` (stop-all, the 🛑, a newer press, Subtitles off) cancels the ones
+  still queued. Songs whose lines would all read the same (Who let the dogs
+  out, Can't touch this) stay one line.
+- **Lyrics came from the clips**, by a Whisper pass over `soundsDir` (word timestamps
+  for the timed lines, `mlx_whisper` large-v3), not from memory of the song —
+  then corrected only where Whisper misheard a known lyric — a caption that disagrees with the audio is worse than
   none. A tile with no line yet gets its filename (`92_door_open.mp3` →
   `[door open]`); `SoundCaptionsTests` fails while any tile in `tiles.json`
   relies on that fallback. `80_badumtss.mp3` (silent placeholder) gets none.

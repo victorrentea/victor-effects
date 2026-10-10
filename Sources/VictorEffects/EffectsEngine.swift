@@ -172,14 +172,15 @@ final class EffectsEngine {
 
     /// The subtitle under a press (`SoundCaptions`). Called from the press
     /// routes, so it captions the tablet's local plays as well as this Mac's.
+    /// A song in `SoundCaptions.lyrics` gets its words line by line, as sung.
     /// Nothing at all while the ✓ Subtitles row is off (`SubtitlesSwitch`).
     func showCaption(for asset: String) {
         guard SubtitlesSwitch.isOn else { return }
-        guard let text = SoundCaptions.caption(for: asset) else { return }
+        let lines = SoundCaptions.schedule(for: asset, clipSeconds: SoundManager.shared.soundDuration(asset))
+        guard !lines.isEmpty else { return }
         if isSuspended { effectsInfo("⏸️ suspended — dropping caption for \(asset)"); return }
         guard let screen = Screens.overlayScreen() else { return }
-        let seconds = SoundCaptions.lifetime(clipSeconds: SoundManager.shared.soundDuration(asset))
-        CaptionOverlay.show(text, seconds: seconds, on: screen)
+        CaptionOverlay.play(lines, on: screen)
     }
 
     /// Run one effect by its route name, with the Bluetooth visual delay that

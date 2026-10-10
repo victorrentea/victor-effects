@@ -117,6 +117,60 @@ enum SoundCaptions {
         "91_sinking.mp3":             "[ship sinking]",
     ]
 
+    /// Songs whose words are sung line by line: each line goes up at the
+    /// second it starts in the clip (a Whisper pass with word timestamps over
+    /// `soundsDir`, then checked against the song's real lyrics where Whisper
+    /// misheard — "Shaney's back" is Shady's). Written bare: `schedule` wraps
+    /// them in ♪ … ♪. A song NOT here keeps its one line from `table`, and so
+    /// does a clip whose lines would all read the same (who let the dogs out,
+    /// can't touch this) — a line that never changes needs no clock.
+    static let lyrics: [String: [(at: TimeInterval, text: String)]] = [
+        "05_guess_whos_back.mp3": [(0, "Guess who's back, back again"),
+                                   (4.0, "Shady's back, tell a friend"),
+                                   (7.9, "Guess who's back, guess who's back")],
+        "09_ave_maria.mp3":       [(5.6, "Ave Maria"),
+                                   (13.6, "Jungfrau mild")],
+        "36_bad_habits.mp3":      [(0, "My bad habits lead to late nights endin' alone"),
+                                   (3.6, "Conversations with a stranger I barely know"),
+                                   (7.5, "Swearin' this will be the last, but it probably won't")],
+        "37_rainbow.mp3":         [(0, "Somewhere over the rainbow"),
+                                   (8.2, "Way up high")],
+        "38_imagine.mp3":         [(0, "Imagine all the people"),
+                                   (2.6, "Living for today")],
+        "46_michael_buble.mp3":   [(0, "It's beginning to look a lot like Christmas"),
+                                   (3.6, "Everywhere you go")],
+        "61_hallelujah.mp3":      [(0, "Hallelujah! Hallelujah!"),
+                                   (13.3, "Hallelujah! Hallelujah!"),
+                                   (20.5, "Hallelujah! Hallelujah!")],
+        "62_lionel_richie.mp3":   [(0, "Hello…"),
+                                   (1.8, "Is it me you're looking for?")],
+        "71_one_more_time.mp3":   [(0, "One more try…"),
+                                   (2.3, "I didn't know how much I loved you"),
+                                   (6.4, "One more try…"),
+                                   (8.7, "Let me put my arms around you")],
+        "72_if_tomorrow.mp3":     [(0, "If tomorrow never comes"),
+                                   (5.8, "Will she know how much I loved her?")],
+        "74_oops.mp3":            [(0, "Oh baby, baby"),
+                                   (1.3, "Oops, I did it again"),
+                                   (4.1, "I played with your heart"),
+                                   (6.8, "Got lost in the game")],
+        "76_sfx_118.mp3":         [(0, "It wasn't me"),
+                                   (0.7, "Heard the words that I told her"),
+                                   (2.4, "It wasn't me"),
+                                   (3.3, "Heard the screams getting louder"),
+                                   (4.7, "It wasn't me")],
+        "77_maui.mp3":            [(0, "Well, anyway, let me say you're welcome"),
+                                   (3.3, "For the wonderful world you know"),
+                                   (6.5, "Hey, it's okay")],
+        "81_let_it_be.mp3":       [(2.3, "When I find myself in times of trouble"),
+                                   (6.3, "Mother Mary comes to me"),
+                                   (9.0, "Speaking words of wisdom"),
+                                   (11.9, "Let it be")],
+        "83_yummy.mp3":           [(0, "Yeah, you got that yummy-yum"),
+                                   (2.9, "That yummy-yum"),
+                                   (4.6, "That yummy-yummy")],
+    ]
+
     /// Tiles that make no sound of their own (the minion crowd is a silent
     /// placeholder on the client) — a caption there would describe nothing.
     static let silent: Set<String> = ["80_badumtss.mp3"]
@@ -153,6 +207,47 @@ enum SoundCaptions {
 
     static func lifetime(clipSeconds: TimeInterval?) -> TimeInterval {
         min(max(clipSeconds ?? minSeconds, minSeconds), maxSeconds)
+    }
+}
+
+/// One line of a caption track: up at `at` seconds into the clip, for
+/// `seconds`. A noise or a one-line song is a track of one.
+struct CaptionLine: Equatable {
+    let at: TimeInterval
+    let text: String
+    let seconds: TimeInterval
+}
+
+extension SoundCaptions {
+    /// A song whose first word comes later than this opens on its `table`
+    /// line, so the screen says what is playing while the intro does.
+    static let titleLeadIn: TimeInterval = 1
+    /// A sung line stays up this much past the next line's start, so the next
+    /// one REPLACES it instead of fading in after it faded out.
+    static let handover: TimeInterval = 0.5
+
+    /// The whole track for a press. Every line ends itself — a sung line when
+    /// the next one is due (or after `maxSeconds`, so an instrumental gap goes
+    /// blank instead of parking a stale line), the last one when the clip ends,
+    /// bounded like a single caption.
+    static func schedule(for asset: String, clipSeconds: TimeInterval?) -> [CaptionLine] {
+        guard let first = caption(for: asset) else { return [] }
+        guard let sung = lyrics[asset], !sung.isEmpty else {
+            return [CaptionLine(at: 0, text: first, seconds: lifetime(clipSeconds: clipSeconds))]
+        }
+        var cues = sung.map { (at: $0.at, text: "♪ \($0.text) ♪") }
+        if cues[0].at >= titleLeadIn { cues.insert((at: 0, text: first), at: 0) }
+        return cues.indices.map { i in
+            let at = cues[i].at
+            let seconds: TimeInterval
+            if i + 1 < cues.count {
+                let gap = cues[i + 1].at - at
+                seconds = gap <= maxSeconds ? gap + handover : maxSeconds
+            } else {
+                seconds = lifetime(clipSeconds: clipSeconds.map { $0 - at })
+            }
+            return CaptionLine(at: at, text: cues[i].text, seconds: seconds)
+        }
     }
 }
 
@@ -200,6 +295,25 @@ enum CaptionOverlay {
 
     private static var panel: NSPanel?
     private static var generation = 0
+    /// Bumped by every new track and every `hide()`: a sung line still queued
+    /// from a song that was stopped, or replaced by another press, finds it
+    /// moved and stays down.
+    private static var track = 0
+
+    /// Plays a caption track: the first line now, each later one at its
+    /// second. Only the lines are scheduled here — each `show` still ends
+    /// itself, so a track nobody stops dies with its last line.
+    static func play(_ lines: [CaptionLine], on screen: NSScreen) {
+        track += 1
+        let current = track
+        for line in lines {
+            guard line.at > 0 else { show(line.text, seconds: line.seconds, on: screen); continue }
+            DispatchQueue.main.asyncAfter(deadline: .now() + line.at) {
+                guard current == track, SubtitlesSwitch.isOn else { return }
+                show(line.text, seconds: line.seconds, on: screen)
+            }
+        }
+    }
 
     static func show(_ text: String, seconds: TimeInterval, on screen: NSScreen) {
         generation += 1
@@ -223,6 +337,9 @@ enum CaptionOverlay {
 
         let panel = self.panel ?? makePanel()
         self.panel = panel
+        // The next sung line over a caption still up swaps in place: a fade
+        // from zero there would blink between every two lines of a song.
+        let replacing = panel.isVisible && (panel.contentView?.layer?.opacity ?? 0) > 0
 
         let view = NSView(frame: NSRect(origin: .zero, size: size))
         view.wantsLayer = true
@@ -242,11 +359,13 @@ enum CaptionOverlay {
         panel.contentView = view
         panel.setFrame(frame, display: true)
         layer.opacity = opacity
-        let fadeIn = CABasicAnimation(keyPath: "opacity")
-        fadeIn.fromValue = 0
-        fadeIn.toValue = opacity
-        fadeIn.duration = 0.15
-        layer.add(fadeIn, forKey: "fadeIn")
+        if !replacing {
+            let fadeIn = CABasicAnimation(keyPath: "opacity")
+            fadeIn.fromValue = 0
+            fadeIn.toValue = opacity
+            fadeIn.duration = 0.15
+            layer.add(fadeIn, forKey: "fadeIn")
+        }
         panel.orderFrontRegardless()
 
         let fadeOut: TimeInterval = 0.4
@@ -256,8 +375,10 @@ enum CaptionOverlay {
         }
     }
 
-    /// Take the caption down early — `stop-all`, a re-tap, the 🛑.
+    /// Take the caption down early — `stop-all`, a re-tap, the 🛑 — along
+    /// with any sung lines still to come.
     static func hide() {
+        track += 1
         guard let panel, panel.isVisible else { return }
         generation += 1
         fade(over: 0.2, generation: generation)
