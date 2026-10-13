@@ -1717,7 +1717,15 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   while the glass is up** (2026-10-08 — the lens IS the pointer; the arrow sitting
   in the middle of it was noise): hidden when the wheel/click capture arms,
   released when it disarms, which every exit goes through, with the heartbeat's
-  release-once box so a double stop cannot cancel another effect's hide. It rides the pointer for the
+  release-once box so a double stop cannot cancel another effect's hide. **2026-10-13,
+  the arrow was back over the lens** at a meetup. Two changes: `SetsCursorInBackground`
+  is now set before *every* hide instead of once per process (a long-running process
+  on an evening of projector reconfigurations), and near a screen edge (100 pt, the
+  menu bar / Dock band) the follow tick re-hides at 4 Hz, and for 2 s after leaving.
+  That is `ShareZoom`'s policy, and the box counts every extra hide and undoes them all.
+  **Verify with ScreenCaptureKit `showsCursor = true`, never `screencapture -C`**:
+  the latter draws the arrow even while it is hidden, which made the hide look
+  broken for every effect, 🔥 included. It rides the pointer for the
   length of the clip (~37.8 s, measured off the mp3; `magnifierFallbackDuration`
   when the audio is not on this machine) and magnifies **only what is inside its
   lens** — everything outside the rim is the untouched desktop, not a less-zoomed

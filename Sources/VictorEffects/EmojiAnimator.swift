@@ -6577,20 +6577,35 @@ class EmojiAnimator {
     ///
     /// Main thread only — the counters behind it are not thread-safe.
     private final class HeartbeatCursorHide {
-        private var held = true
+        /// Hides issued and not yet undone: one from `init`, plus one per
+        /// `reassert()`. `release()` undoes exactly this many.
+        private var depth = 0
         init() {
             // Lifts the "only while frontmost" restriction: our overlay floats
             // over whatever app Victor is actually in, so without this the real
             // arrow keeps showing over the beat.
+            hide()
+        }
+        /// Hide ONCE MORE while already hidden. The screen edges are where the
+        /// system UI lives (the menu bar, the auto-hidden Dock, hot corners), and
+        /// the pointer touching one gives the real arrow back — the trick
+        /// `ShareZoom` in victor-macos-addons learned first (2026-10-01).
+        func reassert() {
+            guard depth > 0 else { return }
+            hide()
+        }
+        func release() {
+            while depth > 0 {
+                NSCursor.unhide()
+                CGDisplayShowCursor(CGMainDisplayID())
+                depth -= 1
+            }
+        }
+        private func hide() {
             EmojiAnimator.armBackgroundCursorHiding()
             NSCursor.hide()
             CGDisplayHideCursor(CGMainDisplayID())
-        }
-        func release() {
-            guard held else { return }
-            held = false
-            NSCursor.unhide()
-            CGDisplayShowCursor(CGMainDisplayID())
+            depth += 1
         }
     }
 
@@ -7237,6 +7252,9 @@ class EmojiAnimator {
 
     /// The glass drops onto the pointer rather than blinking into existence, and
     /// lifts off at the end of the clip.
+    /// How close to a screen edge (points) counts as "where the system UI lives"
+    /// for re-hiding the pointer — a Dock's width, as `ShareZoom` uses.
+    private static let magnifierEdgeBand: CGFloat = 100
     private static let magnifierEntrance: CFTimeInterval = 0.32
     private static let magnifierFade: CFTimeInterval = 0.4
 
@@ -7438,6 +7456,8 @@ class EmojiAnimator {
         // The first picture is milliseconds old here, so the first refresh is a
         // whole interval away rather than immediate.
         var nextCaptureAt = CACurrentMediaTime() + Self.magnifierRecaptureInterval
+        var rehideUntil: CFTimeInterval = 0
+        var nextRehideAt: CFTimeInterval = 0
         let glassRadius = clip.bounds.width / 2
 
         let advance: () -> Bool = { [weak self, weak clip, weak shot, weak glass, weak effect] in
@@ -7458,8 +7478,21 @@ class EmojiAnimator {
                                                   zoom: self._magnifierZoom)
             CATransaction.commit()
 
-            // 2. …and four times a second, the desktop it is looking at.
+            // 2. The real pointer stays gone (Victor, 2026-10-13: the arrow showed
+            //    over the lens). Near an edge the menu bar or the Dock can show it
+            //    again, so re-hide at 4 Hz there and for 2 s after leaving.
             let now = CACurrentMediaTime()
+            let band = Self.magnifierEdgeBand
+            if focus.x <= bounds.minX + band || focus.x >= bounds.maxX - band
+                || focus.y <= bounds.minY + band || focus.y >= bounds.maxY - band {
+                rehideUntil = now + 2
+            }
+            if now < rehideUntil, now >= nextRehideAt {
+                nextRehideAt = now + 0.25
+                self._magnifierCursorHide?.reassert()
+            }
+
+            // 3. …and four times a second, the desktop it is looking at.
             guard !capturing, now >= nextCaptureAt else { return true }
             capturing = true
             nextCaptureAt = now + Self.magnifierRecaptureInterval
@@ -8645,23 +8678,32 @@ class EmojiAnimator {
     /// that lifts that restriction; it's private/undocumented but has been stable
     /// for ~15 years and this app isn't sandboxed. Resolved via dlsym so a future
     /// macOS that drops the symbols degrades to "cursor visible" rather than
-    /// failing to launch. Runs once (lazy static); the flag never needs clearing
-    /// — it only changes what hide/show mean, and a process exit/crash releases
-    /// the hide automatically with the window-server connection.
-    private static let _backgroundCursorHidingArmed: Bool = {
-        typealias DefaultConnFn = @convention(c) () -> Int32
-        typealias SetPropFn = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+    /// failing to launch. The flag never needs clearing — it only changes what
+    /// hide/show mean, and a process exit/crash releases the hide automatically
+    /// with the window-server connection.
+    ///
+    /// **Set again before EVERY hide, not once per process** (2026-10-13). It
+    /// used to be a lazy static, and on the evening of a meetup — the displays
+    /// reconfigured several times for the projector — the 🔍 glass left the
+    /// real arrow on screen in a process that had been up for days with the
+    /// flag set once, long before. Whether the window server drops it on a
+    /// display change is not proven; setting it again costs one IPC call per
+    /// effect start, so it is simply never stale. Only the dlsym is cached.
+    private typealias SetConnectionPropertyFn = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+    private static let _cgsCursorSymbols: (connection: @convention(c) () -> Int32,
+                                           setProperty: SetConnectionPropertyFn)? = {
         let rtldDefault = UnsafeMutableRawPointer(bitPattern: -2)  // RTLD_DEFAULT
         guard let connSym = dlsym(rtldDefault, "_CGSDefaultConnection"),
-              let propSym = dlsym(rtldDefault, "CGSSetConnectionProperty") else { return false }
-        let defaultConnection = unsafeBitCast(connSym, to: DefaultConnFn.self)
-        let setConnectionProperty = unsafeBitCast(propSym, to: SetPropFn.self)
-        let cid = defaultConnection()
-        _ = setConnectionProperty(cid, cid, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
-        return true
+              let propSym = dlsym(rtldDefault, "CGSSetConnectionProperty") else { return nil }
+        return (unsafeBitCast(connSym, to: (@convention(c) () -> Int32).self),
+                unsafeBitCast(propSym, to: SetConnectionPropertyFn.self))
     }()
 
-    private static func armBackgroundCursorHiding() { _ = _backgroundCursorHidingArmed }
+    private static func armBackgroundCursorHiding() {
+        guard let cgs = _cgsCursorSymbols else { return }
+        let cid = cgs.connection()
+        _ = cgs.setProperty(cid, cid, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
+    }
 
     /// Glyph size of the pulsing cursor heart: 108 (itself 2× the original)
     /// **× 0.8** since 2026-09-11 — Victor wanted it smaller without losing the
