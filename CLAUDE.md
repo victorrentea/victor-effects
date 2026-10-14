@@ -16,6 +16,8 @@ port.
 | thumbnail panel | `docs/thumbnail-panel.md` | the right-⌘ soundboard grid |
 | testing | `docs/testing.md` | the `/test/*` hooks |
 | deploy | `docs/deployment.md` | build-app.sh, LaunchAgent, TCC, code signing |
+| install & release | `docs/install-and-release.md` | `install.sh` (what users run), `tools/release.sh`, what the clean-VM runs found |
+| licences | `docs/assets-and-licences.md` | what may be committed; `assetsDir` drop-ins; the copyright guard |
 
 **Read the zone's doc BEFORE touching its code.** Most of the constants in there
 were arrived at by being wrong in front of a room first; the details are
@@ -71,12 +73,15 @@ this one only routes.
   a git checkout of the tablet repo.
 - **Visual tests go on the non-projected screen.** The built-in retina is the
   overlay screen and may be mirrored to a room.
-- **Sounds are not in this repo.** They live in `EffectsConfig.soundsDir`; never
-  commit an mp3 beyond the bundled `click.wav`, `phoenix.mp3`, `confetti.mp3`,
-  `whip_[A-E].mp3`, `ak47_draw.mp3` (19 KB, the gun's own draw sound — not a tile)
-  `espresso_pour.mp3` (98 KB, the first ☕ pour's loop) and `coffee_pour.mp3`
-  (44 KB, the loop of every pour once the break timer is open) — both public
-  domain, neither a tile.
+- **Only media we may publish is committed** (`docs/assets-and-licences.md`):
+  own work, or licensed for redistribution and credited in
+  `Sources/VictorEffects/Resources/CREDITS.md` / `starter-pack/credits.json`.
+  Anything else lives in `assetsDir` and is looked up with
+  `EffectsResources.url(name, ext)`; `build-app.sh` runs `copyright-guard.py`,
+  which fails if a file from the private ledger is tracked here.
+- **Every `AVAudioPlayer` is built with `SoundManager.player(…)`** — it refuses
+  until the launch warm-up is done, because a player built on the main thread on
+  a cold system froze the app for minutes (`AudioGateTests`).
 - **This repo is public.** No paths under a home directory, no client names, no
   tokens. Anything machine-specific belongs in `EffectsConfig`.
 - The HTTP handlers and the in-process callers share one entry point,
