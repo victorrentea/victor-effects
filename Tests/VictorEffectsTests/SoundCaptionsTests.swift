@@ -19,7 +19,7 @@ final class SoundCaptionsTests: XCTestCase {
 
     func testUnknownTileFallsBackToItsFilename() {
         XCTAssertEqual(SoundCaptions.caption(for: "92_door_open.mp3"), "[door open]")
-        XCTAssertEqual(SoundCaptions.caption(for: "38b_dreamer.mp3"), "[dreamer]")
+        XCTAssertEqual(SoundCaptions.caption(for: "99b_dreamer.mp3"), "[dreamer]")
         XCTAssertEqual(SoundCaptions.caption(for: "alarm.mp3"), "[alarm]")
         XCTAssertEqual(SoundCaptions.caption(for: "90_breaking-glass.mp3"), "[glass shattering]")
         XCTAssertEqual(SoundCaptions.fallback(for: "99_breaking-glass.mp3"), "[breaking glass]")
@@ -85,9 +85,15 @@ final class SoundCaptionsTests: XCTestCase {
               let doc = TilesManifest.parse(data) else {
             throw XCTSkip("no tiles.json under soundsDir — tablet assets not on this machine")
         }
-        for tile in doc.tiles where !SoundCaptions.silent.contains(tile.asset) {
-            XCTAssertNotNil(SoundCaptions.table[tile.asset],
-                            "#\(tile.n) \(tile.asset) has no line in SoundCaptions.table")
+        // Layer B too (`under`): the tiles under the tiles are pressed and
+        // heard like any other, and this loop once skipped them — 38b and 46b
+        // went out captioned "[dreamer]" and "[my way]" (2026-10-14).
+        let pressable = doc.tiles.flatMap { tile in
+            [("#\(tile.n)", tile.asset)] + (tile.under.map { [("#\(tile.n)b", $0.asset)] } ?? [])
+        }
+        XCTAssertTrue(pressable.contains { $0.0.hasSuffix("b") }, "no layer-B tile seen — is `under` still parsed?")
+        for (n, asset) in pressable where !SoundCaptions.silent.contains(asset) {
+            XCTAssertNotNil(SoundCaptions.table[asset], "\(n) \(asset) has no line in SoundCaptions.table")
         }
     }
 }
