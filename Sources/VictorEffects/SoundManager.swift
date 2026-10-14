@@ -185,14 +185,54 @@ class SoundManager {
     /// cost here, on a background queue while the app is still starting,
     /// means the registrar is warm before anyone presses anything. On a warm
     /// Mac this is a millisecond.
+    ///
+    /// **And until it is done, no sound is built at all** — `player(…)` throws
+    /// instead. Warming up in the background is not enough on its own: a press
+    /// that lands while the registrar is still answering builds its player on
+    /// the main thread and waits on that same call (a second VM install: 11
+    /// minutes, the confetti 20 s after launch). A sound skipped in the first
+    /// seconds after a boot costs nothing; a frozen app costs the demo.
     static func warmUpAudioStack() {
         DispatchQueue.global(qos: .utility).async {
             let started = Date()
+            defer {
+                audioReady = true
+                let took = Date().timeIntervalSince(started)
+                if took > 1 { effectsInfo("🔈 audio stack warmed up in \(String(format: "%.1f", took)) s (off the main thread) — sounds on") }
+            }
             guard let url = EffectsResources.url("click", "wav"),
                   let player = try? AVAudioPlayer(contentsOf: url) else { return }
             player.prepareToPlay()
-            let took = Date().timeIntervalSince(started)
-            if took > 1 { effectsInfo("🔈 audio stack warmed up in \(String(format: "%.1f", took)) s (off the main thread)") }
+        }
+    }
+
+    private static let audioReadyLock = NSLock()
+    private static var _audioReady = false
+    private static var warnedNotReady = false
+    /// Set once by `warmUpAudioStack`. The tests never warm up, so they
+    /// set it themselves where they need a player.
+    static var audioReady: Bool {
+        get { audioReadyLock.lock(); defer { audioReadyLock.unlock() }; return _audioReady }
+        set { audioReadyLock.lock(); _audioReady = newValue; audioReadyLock.unlock() }
+    }
+
+    enum AudioNotReady: Error { case warmingUp }
+
+    /// Every player in the app is built here — see `warmUpAudioStack`.
+    static func player(contentsOf url: URL) throws -> AVAudioPlayer {
+        try checkReady(url.lastPathComponent)
+        return try AVAudioPlayer(contentsOf: url)
+    }
+
+    static func player(data: Data) throws -> AVAudioPlayer {
+        try checkReady("(generated tone)")
+        return try AVAudioPlayer(data: data)
+    }
+
+    private static func checkReady(_ what: String) throws {
+        guard audioReady else {
+            effectsInfo("🔈 \(what) skipped — the audio stack is still warming up after launch")
+            throw AudioNotReady.warmingUp
         }
     }
 
@@ -214,7 +254,7 @@ class SoundManager {
     /// Duration (seconds) of a bundled sound file, or nil if unavailable.
     func soundDuration(_ filename: String) -> TimeInterval? {
         guard let url = soundURL(for: filename) else { return nil }
-        return try? AVAudioPlayer(contentsOf: url).duration
+        return try? SoundManager.player(contentsOf: url).duration
     }
 
     /// Start `player` with the same Bluetooth latency compensation the
@@ -250,7 +290,7 @@ class SoundManager {
                 return
             }
             do {
-                let player = try AVAudioPlayer(contentsOf: url)
+                let player = try SoundManager.player(contentsOf: url)
                 player.numberOfLoops = -1
                 player.volume = 1.0
                 player.prepareToPlay()
@@ -290,7 +330,7 @@ class SoundManager {
             }
 
             do {
-                let player = try AVAudioPlayer(contentsOf: url)
+                let player = try SoundManager.player(contentsOf: url)
                 player.volume = max(0.0, min(1.0, volume))
                 if rate != 1.0 {
                     player.enableRate = true
@@ -338,7 +378,7 @@ class SoundManager {
                 return
             }
             do {
-                let player = try AVAudioPlayer(contentsOf: url)
+                let player = try SoundManager.player(contentsOf: url)
                 let level = max(0.0, min(1.0, volume))
                 player.volume = fadeIn > 0 ? 0 : level
                 player.prepareToPlay()
@@ -380,7 +420,7 @@ class SoundManager {
                 return
             }
             do {
-                let player = try AVAudioPlayer(contentsOf: url)
+                let player = try SoundManager.player(contentsOf: url)
                 player.volume = max(0.0, min(1.0, volume))
                 player.prepareToPlay()
                 self.overlappingPlayers.append(player)
@@ -427,7 +467,7 @@ class SoundManager {
             return nil
         }
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
+            let player = try SoundManager.player(contentsOf: url)
             tabletFileGain = Self.fileGain[filename] ?? 1.0
             player.volume = tabletVolume * tabletFileGain
             player.prepareToPlay()
@@ -481,7 +521,7 @@ class SoundManager {
             return nil
         }
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
+            let player = try SoundManager.player(contentsOf: url)
             tabletFileGain = Self.fileGain[filename] ?? 1.0
             player.volume = tabletVolume * tabletFileGain
             player.prepareToPlay()
@@ -533,7 +573,7 @@ class SoundManager {
             return nil
         }
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
+            let player = try SoundManager.player(contentsOf: url)
             player.volume = tabletVolume * (Self.fileGain[filename] ?? 1.0)
             player.prepareToPlay()
             overlappingPlayers.append(player)

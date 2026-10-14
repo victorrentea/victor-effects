@@ -221,7 +221,7 @@ final class BluetoothKeepAlive {
 
     private func play(_ wav: Data, on uid: String, what: String) -> AVAudioPlayer? {
         do {
-            let p = try AVAudioPlayer(data: wav)
+            let p = try SoundManager.player(data: wav)
             p.currentDevice = uid
             p.volume = 1.0  // amplitude is baked into the samples
             p.prepareToPlay()

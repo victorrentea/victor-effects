@@ -4420,7 +4420,7 @@ class EmojiAnimator {
     /// the gun rather than after a Bluetooth delay.
     private func playMinigunDrawSound() {
         guard let url = EffectsResources.url("ak47_draw", "mp3"),
-              let player = try? AVAudioPlayer(contentsOf: url) else {
+              let player = try? SoundManager.player(contentsOf: url) else {
             overlayError("ak47_draw.mp3 not found in bundle")
             return
         }

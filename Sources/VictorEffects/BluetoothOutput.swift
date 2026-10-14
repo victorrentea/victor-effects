@@ -199,7 +199,7 @@ enum BluetoothOutput {
             cachedWav = (seconds, data)
         }
         do {
-            let p = try AVAudioPlayer(data: data)
+            let p = try SoundManager.player(data: data)
             p.volume = 1.0  // amplitude is baked into the samples (≈ -56 dBFS)
             p.prepareToPlay()
             wakePlayer = p
@@ -230,7 +230,7 @@ enum BluetoothOutput {
         do {
             // A 2s near-silent loop; each end fades to zero so the loop
             // boundary is click-free and the ≈ -56 dBFS tone stays inaudible.
-            let p = try AVAudioPlayer(data: makeSilentToneWav(seconds: 2.0))
+            let p = try SoundManager.player(data: makeSilentToneWav(seconds: 2.0))
             p.numberOfLoops = -1
             p.volume = 1.0  // amplitude is baked into the samples
             p.prepareToPlay()
