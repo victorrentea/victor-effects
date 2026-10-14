@@ -282,10 +282,30 @@ enum SubtitlesSwitch {
     }
 }
 
-/// The subtitle itself: one borderless panel, reused, centred near the bottom of
-/// the visible slice of the overlay screen, and scaled down by the screen zoom
-/// factor so it keeps its rest size on the glass. The whole caption — pill and text —
-/// sits at **50 % opacity** so it reads without covering the slide under it.
+/// The caption's own window class, so a screenshot can tell it from the
+/// overlay: every screenshot effect leaves it out of the picture
+/// (`CaptionSafeCapture`, `captureScreenExcludingOverlay`), or a press caption
+/// would be photographed and then blown up under itself by the effect it
+/// captions.
+final class CaptionPanel: NSPanel {}
+
+/// The subtitle itself: one borderless panel, reused, centred near the bottom
+/// of the glass, the same size and in the same place whatever else is going on
+/// (Victor, 2026-10-14). The whole caption — pill and text — sits at
+/// **50 % opacity** so it reads without covering the slide under it.
+///
+/// - **Painted last.** Its window level (`windowLevel`) is above every other
+///   window this app opens — the overlay, the whip, the edge flash, even the
+///   peek mascot — so no effect can cover it. It stays an ordinary window: Zoom
+///   and Teams capture it like everything else on the screen.
+/// - **Left out of our own screenshots**, so a screenshot effect (💀 #39, 🎼,
+///   🚔, 💓…) never zooms a frozen copy of it under the live one.
+/// - **Pinned through the zooms.** macOS ⌥-scroll magnifies the framebuffer,
+///   this panel included, so the caption is laid out at its rest size and then
+///   scaled down by the zoom factor and centred on the slice on the glass —
+///   re-placed at 30 Hz while it is up, so a pan or a zoom mid-caption does not
+///   leave it behind. The other zoom (⌥⇧, `ShareZoom` in addons) is a window
+///   *under* this one, so it needs nothing here.
 ///
 /// A new caption replaces the one on screen; `hide()` is what `stopAll` calls.
 /// Neither is what ends it: every `show` schedules its own removal (the
@@ -297,13 +317,45 @@ enum CaptionOverlay {
     /// Height of the gap under the caption, as a share of the visible height —
     /// low enough to stay off the slide body (5 %, ~56 pt on the Retina).
     static let bottomInset: CGFloat = 0.05
+    /// Above the peek mascot's `maximumWindow + 1`, the highest anything else
+    /// here goes. `CaptionLevelTests` parses the sources to keep it that way.
+    static let windowLevel = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)) + 2)
+    static let followInterval: TimeInterval = 1.0 / 30
 
-    private static var panel: NSPanel?
+    private static var panel: CaptionPanel?
     private static var generation = 0
     /// Bumped by every new track and every `hide()`: a sung line still queued
     /// from a song that was stopped, or replaced by another press, finds it
     /// moved and stays down.
     private static var track = 0
+    /// What is up now, kept to re-place it when the zoom moves.
+    private static var shown: (box: CALayer, restSize: CGSize, screen: CGRect, visible: CGRect)?
+    private static var follower: Timer?
+
+    /// The caption's window while it is on the glass, nil otherwise. Read off
+    /// the main thread by the screenshot helpers, hence the lock.
+    private static let lock = NSLock()
+    private static var _onGlassWindowID: CGWindowID?
+    static var onGlassWindowID: CGWindowID? {
+        lock.lock(); defer { lock.unlock() }
+        return _onGlassWindowID
+    }
+    private static func setOnGlass(_ id: CGWindowID?) {
+        lock.lock(); _onGlassWindowID = id; lock.unlock()
+    }
+
+    /// Where a caption of `restSize` (its size unzoomed) goes, and how much it
+    /// is shrunk, when `visible` is the part of `screen` on the glass. Pure:
+    /// everything scales by the same factor, so on the glass it is the same
+    /// box at the same place at any zoom.
+    static func placement(restSize: CGSize, visible: CGRect, screen: CGRect) -> (frame: CGRect, scale: CGFloat) {
+        let k = visible.width / max(screen.width, 1)
+        let size = CGSize(width: restSize.width * k, height: restSize.height * k)
+        let frame = CGRect(x: visible.midX - size.width / 2,
+                           y: visible.minY + visible.height * bottomInset,
+                           width: size.width, height: size.height)
+        return (frame, k)
+    }
 
     /// Plays a caption track: the first line now, each later one at its
     /// second. Only the lines are scheduled here — each `show` still ends
@@ -324,25 +376,18 @@ enum CaptionOverlay {
         generation += 1
         let gen = generation
 
-        let visible = ScreenZoom.visibleRect(in: screen.frame, of: screen)
-        // Under ⌥-scroll zoom the glass magnifies this panel too: drawn at its
-        // rest size, a 2× zoom put a 72 pt caption on the slide. Shrunk by the
-        // zoom factor, it reads on the glass exactly as it does unzoomed.
-        let k = visible.width / max(screen.frame.width, 1)
+        // Laid out once at the rest size; the zoom only ever scales it.
         let label = NSAttributedString(string: text, attributes: [
-            .font: NSFont.systemFont(ofSize: fontSize * k, weight: .semibold),
+            .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
             .foregroundColor: NSColor.white,
         ])
-        let maxTextWidth = visible.width * 0.8
+        let maxTextWidth = screen.frame.width * 0.8
         let textSize = label.boundingRect(
             with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading]).size
-        let padH: CGFloat = 26 * k, padV: CGFloat = 12 * k
-        let size = NSSize(width: ceil(textSize.width) + 2 * padH,
-                          height: ceil(textSize.height) + 2 * padV)
-        let frame = NSRect(x: visible.midX - size.width / 2,
-                           y: visible.minY + visible.height * bottomInset,
-                           width: size.width, height: size.height)
+        let padH: CGFloat = 26, padV: CGFloat = 12
+        let restSize = CGSize(width: ceil(textSize.width) + 2 * padH,
+                              height: ceil(textSize.height) + 2 * padV)
 
         let panel = self.panel ?? makePanel()
         self.panel = panel
@@ -350,23 +395,29 @@ enum CaptionOverlay {
         // from zero there would blink between every two lines of a song.
         let replacing = panel.isVisible && (panel.contentView?.layer?.opacity ?? 0) > 0
 
-        let view = NSView(frame: NSRect(origin: .zero, size: size))
+        let view = NSView(frame: NSRect(origin: .zero, size: restSize))
         view.wantsLayer = true
         guard let layer = view.layer else { return }
-        layer.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
-        layer.cornerRadius = 14 * k
+        let box = CALayer()
+        box.anchorPoint = .zero
+        box.bounds = CGRect(origin: .zero, size: restSize)
+        box.position = .zero
+        box.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
+        box.cornerRadius = 14
         let textLayer = CATextLayer()
         textLayer.string = label
         textLayer.alignmentMode = .center
         textLayer.isWrapped = true
         textLayer.contentsScale = screen.backingScaleFactor
         textLayer.frame = CGRect(x: padH, y: padV, width: ceil(textSize.width), height: ceil(textSize.height))
-        layer.addSublayer(textLayer)
+        box.addSublayer(textLayer)
+        layer.addSublayer(box)
 
         // A fresh view per caption, so a fade still running on the previous
         // one (the pre-press stop-all hides it) cannot touch this one.
         panel.contentView = view
-        panel.setFrame(frame, display: true)
+        shown = (box, restSize, screen.frame, .null)
+        place(screen: screen)
         layer.opacity = opacity
         if !replacing {
             let fadeIn = CABasicAnimation(keyPath: "opacity")
@@ -376,12 +427,45 @@ enum CaptionOverlay {
             layer.add(fadeIn, forKey: "fadeIn")
         }
         panel.orderFrontRegardless()
+        setOnGlass(CGWindowID(panel.windowNumber))
+        startFollowing(screen)
 
         let fadeOut: TimeInterval = 0.4
         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, seconds - fadeOut)) {
             guard gen == generation else { return }
             fade(over: fadeOut, generation: gen)
         }
+    }
+
+    /// Puts the caption on the slice that is on the glass now. A no-op while
+    /// the slice has not moved, so the 30 Hz follow costs one zoom read a tick.
+    private static func place(screen: NSScreen) {
+        guard let panel, let current = shown else { return }
+        let visible = ScreenZoom.visibleRect(in: screen.frame, of: screen)
+        guard visible != current.visible else { return }
+        shown?.visible = visible
+        let (frame, k) = placement(restSize: current.restSize, visible: visible, screen: screen.frame)
+        // No implicit animation: a 33 ms correction that eases reads as the
+        // caption swimming after the pan.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        current.box.setAffineTransform(CGAffineTransform(scaleX: k, y: k))
+        CATransaction.commit()
+        panel.setFrame(frame, display: true)
+    }
+
+    private static func startFollowing(_ screen: NSScreen) {
+        follower?.invalidate()
+        let timer = Timer(timeInterval: followInterval, repeats: true) { _ in place(screen: screen) }
+        RunLoop.main.add(timer, forMode: .common)
+        follower = timer
+    }
+
+    private static func stopFollowing() {
+        follower?.invalidate()
+        follower = nil
+        shown = nil
+        setOnGlass(nil)
     }
 
     /// Take the caption down early — `stop-all`, a re-tap, the 🛑 — along
@@ -401,6 +485,7 @@ enum CaptionOverlay {
         CATransaction.setCompletionBlock {
             guard gen == generation else { return }
             panel.orderOut(nil)
+            stopFollowing()
         }
         let out = CABasicAnimation(keyPath: "opacity")
         out.fromValue = layer.presentation()?.opacity ?? layer.opacity
@@ -411,16 +496,26 @@ enum CaptionOverlay {
         CATransaction.commit()
     }
 
-    private static func makePanel() -> NSPanel {
-        let panel = NSPanel(contentRect: .zero,
-                            styleMask: [.borderless, .nonactivatingPanel],
-                            backing: .buffered, defer: false)
+    private static func makePanel() -> CaptionPanel {
+        let panel = CaptionPanel(contentRect: .zero,
+                                 styleMask: [.borderless, .nonactivatingPanel],
+                                 backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
-        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)))
+        panel.level = windowLevel
+        // A name the window list shows, so another process (addons' ⌥⇧
+        // ShareZoom) can find this window to leave it out of its own capture.
+        panel.title = "Victor Effects caption"
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         return panel
+    }
+
+    /// Built at launch rather than at the first press, so the window exists —
+    /// and is in the window list — before anything that wants to exclude it
+    /// from a capture builds its filter.
+    static func prepare() {
+        if panel == nil { panel = makePanel() }
     }
 }

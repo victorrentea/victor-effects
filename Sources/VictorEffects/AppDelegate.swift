@@ -33,6 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !NSScreen.screens.isEmpty else { fatalError("No screens available") }
         overlayPanel = OverlayPanel(screen: Screens.overlayScreen() ?? NSScreen.screens[0])
         overlayPanel.orderFrontRegardless()
+        // The caption window exists from launch, so the window list has it
+        // before anything builds a capture filter that should leave it out.
+        CaptionOverlay.prepare()
         NotificationCenter.default.addObserver(
             self, selector: #selector(screensChanged),
             name: NSApplication.didChangeScreenParametersNotification, object: nil)

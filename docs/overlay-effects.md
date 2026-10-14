@@ -131,6 +131,31 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   shrunk by the zoom factor there (font, padding, corners; 2026-10-14), since
   the glass magnifies the panel too: unscaled, 2× zoom put a 72 pt line on the
   slide. On the glass it is the same size zoomed or not.
+- **Pinned, and painted last** (Victor, 2026-10-14: "same size and position,
+  even zoomed, on top of any effect, still captured by Zoom/Teams").
+  - *Level:* `CaptionOverlay.windowLevel` is `maximumWindow + 2`, above every
+    other window here (the overlay, whip and edge flash at `maximumWindow`, the
+    peek mascot at `+ 1`). `CaptionPinTests` **parses** every `level =` in the
+    sources and fails if anything reaches it. It is an ordinary window — no
+    `sharingType` games — so a screen share carries it.
+  - *⌥-scroll zoom, live:* laid out once at the rest size, then scaled by the
+    zoom factor and centred on the slice (`CaptionOverlay.placement`, pure and
+    tested: magnified back up, it is the unzoomed box to the hundredth of a
+    point). A 30 Hz timer re-places it while it is up, so a pan or zoom
+    mid-song does not leave it behind; it stops with the caption.
+  - *Screenshot effects* (💀 #39, 🎼, 🚔, 💓, 🪚…): the press is captioned
+    *before* its effect runs, so the capture used to photograph the caption and
+    then zoom the copy under the live one — visible straight through a 50 %
+    pill. While a caption is on the glass, `captureBuiltInDisplay` and its fast
+    twin take a ScreenCaptureKit shot with only the caption left out
+    (`CaptionSafeCapture`, 1 s timeout, nil = the ordinary capture), and the 💓 /
+    💀 live refresh adds it to its exclusion set. With Subtitles off nothing
+    about any capture changes.
+  - *⌥⇧ zoom (`ShareZoom`, addons):* our window sits above its window, so the
+    live caption is untouched — but ShareZoom's own capture still sees it and
+    magnifies a ghost into its picture until addons excludes it. The panel is
+    made at launch (`CaptionOverlay.prepare()`) and titled `Victor Effects
+    caption`, so addons can find it in `SCShareableContent` by owner + title.
 - **Lives as long as the clip, 2.5 s minimum, 6 s maximum** — long enough to
   read a blip, short enough that a 37 s theme does not park a line over the
   slides. It ends itself; `stopAll` (the pre-press stop, the 🛑, a suspend)
