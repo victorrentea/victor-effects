@@ -127,7 +127,10 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
 - **50 % opacity**, pill and text together: readable, but the slide under it
   stays visible. 36 pt semibold white on a black pill (20 % up from 30 pt on
   2026-10-09), centred, 5 % of the visible height above the bottom edge, wrapped at
-  80 % of the width, placed in the zoomed slice when ⌥-scroll is on.
+  80 % of the width, placed in the zoomed slice when ⌥-scroll is on — and
+  shrunk by the zoom factor there (font, padding, corners; 2026-10-14), since
+  the glass magnifies the panel too: unscaled, 2× zoom put a 72 pt line on the
+  slide. On the glass it is the same size zoomed or not.
 - **Lives as long as the clip, 2.5 s minimum, 6 s maximum** — long enough to
   read a blip, short enough that a 37 s theme does not park a line over the
   slides. It ends itself; `stopAll` (the pre-press stop, the 🛑, a suspend)

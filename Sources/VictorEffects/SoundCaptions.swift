@@ -279,7 +279,8 @@ enum SubtitlesSwitch {
 }
 
 /// The subtitle itself: one borderless panel, reused, centred near the bottom of
-/// the visible slice of the overlay screen. The whole caption — pill and text —
+/// the visible slice of the overlay screen, and scaled down by the screen zoom
+/// factor so it keeps its rest size on the glass. The whole caption — pill and text —
 /// sits at **50 % opacity** so it reads without covering the slide under it.
 ///
 /// A new caption replaces the one on screen; `hide()` is what `stopAll` calls.
@@ -320,15 +321,19 @@ enum CaptionOverlay {
         let gen = generation
 
         let visible = ScreenZoom.visibleRect(in: screen.frame, of: screen)
+        // Under ⌥-scroll zoom the glass magnifies this panel too: drawn at its
+        // rest size, a 2× zoom put a 72 pt caption on the slide. Shrunk by the
+        // zoom factor, it reads on the glass exactly as it does unzoomed.
+        let k = visible.width / max(screen.frame.width, 1)
         let label = NSAttributedString(string: text, attributes: [
-            .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
+            .font: NSFont.systemFont(ofSize: fontSize * k, weight: .semibold),
             .foregroundColor: NSColor.white,
         ])
         let maxTextWidth = visible.width * 0.8
         let textSize = label.boundingRect(
             with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading]).size
-        let padH: CGFloat = 26, padV: CGFloat = 12
+        let padH: CGFloat = 26 * k, padV: CGFloat = 12 * k
         let size = NSSize(width: ceil(textSize.width) + 2 * padH,
                           height: ceil(textSize.height) + 2 * padV)
         let frame = NSRect(x: visible.midX - size.width / 2,
@@ -345,7 +350,7 @@ enum CaptionOverlay {
         view.wantsLayer = true
         guard let layer = view.layer else { return }
         layer.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
-        layer.cornerRadius = 14
+        layer.cornerRadius = 14 * k
         let textLayer = CATextLayer()
         textLayer.string = label
         textLayer.alignmentMode = .center
