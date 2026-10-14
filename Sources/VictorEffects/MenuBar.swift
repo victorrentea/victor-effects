@@ -645,9 +645,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// An emoji rendered into a status-item-sized image. A plain `button.title`
     /// works too but sits on a different baseline than every icon-based item in
     /// the bar, so ⭐ ends up visibly lower than its neighbours.
-    /// The idle face: `idleIcon` as a **template** image, so the menu bar tints
-    /// it (white on a dark bar, black on a light one) like every other monochrome
-    /// icon there — the ⭐ it replaced was a colour emoji and needed no tint.
+    /// The idle face: `idleIcon` filled with a blue → purple → red gradient
+    /// (Victor, 2026-10-14), so it stands out in the bar the way the colour ⭐
+    /// before it did. Not a template: the menu bar would tint it flat. The stops
+    /// are saturated mid-tones so it reads on a dark bar AND a light one.
     static func fxIcon(pt: CGFloat = 16) -> NSImage? {
         let str = NSAttributedString(string: idleIcon, attributes: [
             .font: NSFont.systemFont(ofSize: pt),
@@ -657,10 +658,20 @@ final class MenuBar: NSObject, NSMenuDelegate {
         let size = NSSize(width: ceil(strSize.width) + 2, height: 18)
         let img = NSImage(size: size)
         img.lockFocus()
-        str.draw(at: NSPoint(x: (size.width - strSize.width) / 2,
-                             y: (size.height - strSize.height) / 2))
+        let origin = NSPoint(x: (size.width - strSize.width) / 2,
+                             y: (size.height - strSize.height) / 2)
+        str.draw(at: origin)
+        // Paint the gradient only where the glyphs already are, spread over the
+        // glyphs' own box so the 𝓯 really is blue and the 𝔁 really is red.
+        NSGraphicsContext.current?.compositingOperation = .sourceIn
+        NSGradient(colors: [NSColor(srgbRed: 0.10, green: 0.45, blue: 1.00, alpha: 1),
+                            NSColor(srgbRed: 0.62, green: 0.25, blue: 1.00, alpha: 1),
+                            NSColor(srgbRed: 1.00, green: 0.15, blue: 0.25, alpha: 1)])!
+            .draw(from: NSPoint(x: origin.x + strSize.width * 0.12, y: 0),
+                  to: NSPoint(x: origin.x + strSize.width * 0.88, y: 0),
+                  options: [.drawsBeforeStartingLocation, .drawsAfterEndingLocation])
         img.unlockFocus()
-        img.isTemplate = true
+        img.isTemplate = false
         return img
     }
 
