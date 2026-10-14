@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = EffectsConfig.shared   // logs what it loaded
+        SoundManager.warmUpAudioStack()
 
         // Both grants are asked for ONCE, here, before anything needs them.
         requestPermissionsAtLaunch()

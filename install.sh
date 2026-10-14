@@ -164,11 +164,16 @@ if [ "$STARTED" = 0 ]; then
     open -a "$APP"
 fi
 UP=0
-for _ in $(seq 1 30); do
+# Up to 60 s: right after a boot, or on a slow disk, a first launch can take
+# most of a minute (measured on a fresh VM).
+for _ in $(seq 1 120); do
     if curl -fs -m 1 "http://127.0.0.1:$PORT/ping" >/dev/null 2>&1; then UP=1; break; fi
     sleep 0.5
 done
-[ "$UP" = 1 ] || die "It did not answer on port $PORT within 15 s. Log: /tmp/victor-effects.log"
+if [ "$UP" != 1 ]; then
+    warn "Installed and started, but it has not answered on port $PORT within 60 s yet."
+    warn "It may still be starting (first launch after a boot is slow). Check: curl http://127.0.0.1:$PORT/ping — log: /tmp/victor-effects.log"
+fi
 curl -fs -m 2 "http://127.0.0.1:$PORT/effect/confetti" >/dev/null 2>&1 || true
 say "Running: the menu bar shows an fx icon and confetti just fell on the screen."
 

@@ -173,6 +173,29 @@ class SoundManager {
     /// the same precedence `EffectsConfig.assetURL` applies), then the handful
     /// of sounds bundled with the app itself (click, phoenix, confetti, the
     /// whip cracks).
+    /// **Open one sound off the main thread at launch** (2026-10-14).
+    ///
+    /// The first `AVAudioPlayer(contentsOf:)` of a login session asks the
+    /// audio-component registrar for its codec list over a *synchronous* XPC
+    /// call, and on a cold system that call can take minutes — measured on a
+    /// freshly booted Mac VM: 2 min 48 s. Every player here is built on the
+    /// main thread, and so is every HTTP answer (`dispatch` is main-only), so
+    /// the first sound after a boot froze the whole app: the installer's
+    /// confetti left a fresh install deaf to `/ping` for minutes. Paying that
+    /// cost here, on a background queue while the app is still starting,
+    /// means the registrar is warm before anyone presses anything. On a warm
+    /// Mac this is a millisecond.
+    static func warmUpAudioStack() {
+        DispatchQueue.global(qos: .utility).async {
+            let started = Date()
+            guard let url = EffectsResources.url("click", "wav"),
+                  let player = try? AVAudioPlayer(contentsOf: url) else { return }
+            player.prepareToPlay()
+            let took = Date().timeIntervalSince(started)
+            if took > 1 { effectsInfo("🔈 audio stack warmed up in \(String(format: "%.1f", took)) s (off the main thread)") }
+        }
+    }
+
     func soundURL(for filename: String) -> URL? {
         if let dir = Self.sharedSoundsDir() {
             let shared = dir.appendingPathComponent(filename)
