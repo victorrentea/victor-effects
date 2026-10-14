@@ -1,7 +1,7 @@
 #!/bin/bash
 # Publish a GitHub release that install.sh can fetch: a universal (arm64 +
 # x86_64), ad-hoc signed "Victor Effects.app", zipped, plus the starter pack
-# inside it. Run from a clean checkout of master on the maintainer's Mac:
+# inside it. Run from a clean checkout of main on the maintainer's Mac:
 #
 #   tools/release.sh            # tag = v<yyyy.mm.dd-HHMM>
 #   tools/release.sh v1.2.0     # explicit tag
