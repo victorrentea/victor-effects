@@ -1,0 +1,220 @@
+{
+ "columns": 8,
+ "tiles": [
+  {
+   "n": 1,
+   "asset": "01_baby.mp3",
+   "image": "tiles/sfx_01_baby.jpg"
+  },
+  {
+   "n": 2,
+   "asset": "02_siren.mp3",
+   "image": "tiles/sfx_02_siren.jpg"
+  },
+  {
+   "n": 3,
+   "asset": "03_explosion.mp3",
+   "image": "tiles/sfx_03_explosion.jpg"
+  },
+  {
+   "n": 4,
+   "asset": "04_wolf.mp3",
+   "image": "tiles/sfx_04_wolf.jpg"
+  },
+  {
+   "n": 8,
+   "asset": "08_scream_man.mp3",
+   "image": "tiles/sfx_08_scream_man.jpg"
+  },
+  {
+   "n": 9,
+   "asset": "09_ave_maria.mp3",
+   "image": "tiles/sfx_09_ave_maria.jpg"
+  },
+  {
+   "n": 10,
+   "asset": "10_red_phone.mp3",
+   "image": "tiles/sfx_10_red_phone.jpg"
+  },
+  {
+   "n": 11,
+   "asset": "11_fire.mp3",
+   "image": "tiles/sfx_11_fire.jpg"
+  },
+  {
+   "n": 12,
+   "asset": "12_cricket.mp3",
+   "image": "tiles/sfx_12_cricket.jpg"
+  },
+  {
+   "n": 13,
+   "asset": "13_heartbeat.mp3",
+   "image": "tiles/sfx_13_heartbeat.jpg"
+  },
+  {
+   "n": 15,
+   "asset": "15_flatline.mp3",
+   "image": "tiles/sfx_15_flatline.jpg"
+  },
+  {
+   "n": 18,
+   "asset": "18_chainsaw.mp3",
+   "image": "tiles/sfx_18_chainsaw.jpg"
+  },
+  {
+   "n": 19,
+   "asset": "19_fail.mp3",
+   "image": "tiles/sfx_19_fail.jpg"
+  },
+  {
+   "n": 20,
+   "asset": "20_storm.mp3",
+   "image": "tiles/sfx_20_storm.jpg"
+  },
+  {
+   "n": 22,
+   "asset": "22_minigun.mp3",
+   "image": "tiles/sfx_22_minigun.jpg"
+  },
+  {
+   "n": 23,
+   "asset": "23_radar.mp3",
+   "image": "tiles/sfx_23_radar.jpg"
+  },
+  {
+   "n": 26,
+   "asset": "26_drum.mp3",
+   "image": "tiles/sfx_26_drum.jpg"
+  },
+  {
+   "n": 27,
+   "asset": "27_clapping.mp3",
+   "image": "tiles/sfx_27_clapping.jpg"
+  },
+  {
+   "n": 30,
+   "asset": "30_cow.mp3",
+   "image": "tiles/sfx_30_cow.jpg"
+  },
+  {
+   "n": 32,
+   "asset": "32_sheep.mp3",
+   "image": "tiles/sfx_32_sheep.jpg"
+  },
+  {
+   "n": 34,
+   "asset": "34_phoenix.mp3",
+   "image": "tiles/sfx_34_phoenix.jpg"
+  },
+  {
+   "n": 42,
+   "asset": "42_saxophone.mp3",
+   "image": "tiles/sfx_42_saxophone.jpg"
+  },
+  {
+   "n": 47,
+   "asset": "47_dog_bark.mp3",
+   "image": "tiles/sfx_47_dog_bark.jpg"
+  },
+  {
+   "n": 48,
+   "asset": "48_rooster.mp3",
+   "image": "tiles/sfx_48_rooster.jpg"
+  },
+  {
+   "n": 49,
+   "asset": "49_wrong.mp3",
+   "image": "tiles/sfx_49_wrong.jpg"
+  },
+  {
+   "n": 50,
+   "asset": "50_gong.mp3",
+   "image": "tiles/sfx_50_gong.jpg"
+  },
+  {
+   "n": 51,
+   "asset": "51_beethoven.mp3",
+   "image": "tiles/sfx_51_beethoven.jpg"
+  },
+  {
+   "n": 53,
+   "asset": "53_rain.mp3",
+   "image": "tiles/sfx_53_rain.jpg"
+  },
+  {
+   "n": 57,
+   "asset": "57_checkmark.mp3",
+   "image": "tiles/sfx_57_checkmark.jpg"
+  },
+  {
+   "n": 58,
+   "asset": "58_cat.mp3",
+   "image": "tiles/sfx_58_cat.jpg"
+  },
+  {
+   "n": 59,
+   "asset": "59_game_over.mp3",
+   "image": "tiles/sfx_59_game_over.jpg"
+  },
+  {
+   "n": 61,
+   "asset": "61_hallelujah.mp3",
+   "image": "tiles/sfx_61_hallelujah.jpg"
+  },
+  {
+   "n": 63,
+   "asset": "63_air_horn.mp3",
+   "image": "tiles/sfx_63_air_horn.jpg"
+  },
+  {
+   "n": 64,
+   "asset": "64_fbi.mp3",
+   "image": "tiles/sfx_64_fbi.jpg"
+  },
+  {
+   "n": 65,
+   "asset": "65_school_bell.mp3",
+   "image": "tiles/sfx_65_school_bell.jpg"
+  },
+  {
+   "n": 66,
+   "asset": "66_toilet.mp3",
+   "image": "tiles/sfx_66_toilet.jpg"
+  },
+  {
+   "n": 68,
+   "asset": "68_pig.mp3",
+   "image": "tiles/sfx_68_pig.jpg"
+  },
+  {
+   "n": 69,
+   "asset": "69_scream_ghost.mp3",
+   "image": "tiles/sfx_69_scream_ghost.jpg"
+  },
+  {
+   "n": 70,
+   "asset": "70_cavalry.mp3",
+   "image": "tiles/sfx_70_cavalry.jpg"
+  },
+  {
+   "n": 80,
+   "asset": "80_badumtss.mp3",
+   "image": "tiles/sfx_80_badumtss.jpg"
+  },
+  {
+   "n": 86,
+   "asset": "86_doorbell.mp3",
+   "image": "tiles/sfx_86_doorbell.jpg"
+  },
+  {
+   "n": 89,
+   "asset": "89_fireworks.mp3",
+   "image": "tiles/sfx_89_fireworks.jpg"
+  },
+  {
+   "n": 90,
+   "asset": "90_breaking-glass.mp3",
+   "image": "tiles/sfx_90_breaking-glass.jpg"
+  }
+ ]
+}

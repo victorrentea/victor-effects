@@ -1,0 +1,691 @@
+[
+ {
+  "file": "01_baby.mp3",
+  "title": "Crying baby 2",
+  "author": "MBPL",
+  "source": "https://freesound.org/people/MBPL/sounds/668793/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_01_baby.jpg",
+  "title": "tile for 01_baby",
+  "author": "Google (Noto Emoji U+1F476), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f476.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "02_siren.mp3",
+  "title": "Police Siren",
+  "author": "TitanKaempfer",
+  "source": "https://freesound.org/people/TitanKaempfer/sounds/746302/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_02_siren.jpg",
+  "title": "tile for 02_siren",
+  "author": "Google (Noto Emoji U+1F6A8), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f6a8.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "03_explosion.mp3",
+  "title": "Explosion 2.wav",
+  "author": "Deganoth",
+  "source": "https://freesound.org/people/Deganoth/sounds/165910/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_03_explosion.jpg",
+  "title": "tile for 03_explosion",
+  "author": "Google (Noto Emoji U+1F4A5), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f4a5.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "04_wolf.mp3",
+  "title": "22_Lobo_aullando.wav",
+  "author": "JoseAgudelo",
+  "source": "https://freesound.org/people/JoseAgudelo/sounds/472402/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_04_wolf.jpg",
+  "title": "tile for 04_wolf",
+  "author": "Google (Noto Emoji U+1F43A), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f43a.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "08_scream_man.mp3",
+  "title": "Man screaming.wav",
+  "author": "Archeos",
+  "source": "https://freesound.org/people/Archeos/sounds/325548/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_08_scream_man.jpg",
+  "title": "tile for 08_scream_man",
+  "author": "Google (Noto Emoji U+1F631), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f631.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "09_ave_maria.mp3",
+  "title": "Rappold and Spalding - Ave Maria (Bach, Gounod)",
+  "author": "Marie Rappold (soprano), Albert Spalding (violin); Edison Amberol 28005 (1911), denoised by impy4ever",
+  "source": "https://commons.wikimedia.org/wiki/File:Rappold_and_Spalding_-_Ave_Maria_(Bach,_Gounod).ogg",
+  "license": "PD",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_09_ave_maria.jpg",
+  "title": "tile for 09_ave_maria",
+  "author": "Google (Noto Emoji U+1F64F), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f64f.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "10_red_phone.mp3",
+  "title": "Phone Old Landline Ringing",
+  "author": "robotjay",
+  "source": "https://freesound.org/people/robotjay/sounds/275163/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_10_red_phone.jpg",
+  "title": "tile for 10_red_phone",
+  "author": "Google (Noto Emoji U+260E), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u260e.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "11_fire.mp3",
+  "title": "Fire crackling in fireplace",
+  "author": "Davor",
+  "source": "https://freesound.org/people/Davor/sounds/382616/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_11_fire.jpg",
+  "title": "tile for 11_fire",
+  "author": "Google (Noto Emoji U+1F525), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f525.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "12_cricket.mp3",
+  "title": "cherping summer night crickets.wav",
+  "author": "Dashman71",
+  "source": "https://freesound.org/people/Dashman71/sounds/477863/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_12_cricket.jpg",
+  "title": "tile for 12_cricket",
+  "author": "Google (Noto Emoji U+1F997), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f997.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "13_heartbeat.mp3",
+  "title": "heartbeat-80bpm.wav",
+  "author": "loudernoises",
+  "source": "https://freesound.org/people/loudernoises/sounds/332820/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_13_heartbeat.jpg",
+  "title": "tile for 13_heartbeat",
+  "author": "Google (Noto Emoji U+1F493), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f493.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "15_flatline.mp3",
+  "title": "flatline",
+  "author": "victor-effects contributors",
+  "source": "synthesized for this project",
+  "license": "own-CC0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_15_flatline.jpg",
+  "title": "tile for 15_flatline",
+  "author": "Google (Noto Emoji U+1FAC0), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1fac0.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "18_chainsaw.mp3",
+  "title": "Chainsaw - Pull to Start and Run.wav",
+  "author": "Stefan021",
+  "source": "https://freesound.org/people/Stefan021/sounds/431742/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_18_chainsaw.jpg",
+  "title": "tile for 18_chainsaw",
+  "author": "Google (Noto Emoji U+1FA9A), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1fa9a.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "19_fail.mp3",
+  "title": "wah wah sad trombone.wav",
+  "author": "kirbydx",
+  "source": "https://freesound.org/people/kirbydx/sounds/175409/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_19_fail.jpg",
+  "title": "tile for 19_fail",
+  "author": "Google (Noto Emoji U+1F44E), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f44e.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "20_storm.mp3",
+  "title": "Heavy_Thunderstorm_with_Rain.wav",
+  "author": "Audeption",
+  "source": "https://freesound.org/people/Audeption/sounds/698811/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_20_storm.jpg",
+  "title": "tile for 20_storm",
+  "author": "Google (Noto Emoji U+26C8), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u26c8.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "22_minigun.mp3",
+  "title": "Heavy Machine Gun",
+  "author": "ShawnyBoy",
+  "source": "https://freesound.org/people/ShawnyBoy/sounds/165394/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_22_minigun.jpg",
+  "title": "tile for 22_minigun",
+  "author": "Google (Noto Emoji U+1F52B), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f52b.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "23_radar.mp3",
+  "title": "radar",
+  "author": "victor-effects contributors",
+  "source": "synthesized for this project",
+  "license": "own-CC0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_23_radar.jpg",
+  "title": "tile for 23_radar",
+  "author": "Google (Noto Emoji U+1F4E1), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f4e1.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "26_drum.mp3",
+  "title": "drumroll.wav",
+  "author": "adriann",
+  "source": "https://freesound.org/people/adriann/sounds/191718/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_26_drum.jpg",
+  "title": "tile for 26_drum",
+  "author": "Google (Noto Emoji U+1F941), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f941.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "27_clapping.mp3",
+  "title": "Crowd_Applause.wav",
+  "author": "ken788",
+  "source": "https://freesound.org/people/ken788/sounds/386764/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_27_clapping.jpg",
+  "title": "tile for 27_clapping",
+  "author": "Google (Noto Emoji U+1F44F), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f44f.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "30_cow.mp3",
+  "title": "Cow moo #8",
+  "author": "spurioustransients",
+  "source": "https://freesound.org/people/spurioustransients/sounds/513565/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_30_cow.jpg",
+  "title": "tile for 30_cow",
+  "author": "Google (Noto Emoji U+1F404), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f404.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "32_sheep.mp3",
+  "title": "Sheep Baa",
+  "author": "emilyws",
+  "source": "https://freesound.org/people/emilyws/sounds/414541/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_32_sheep.jpg",
+  "title": "tile for 32_sheep",
+  "author": "Google (Noto Emoji U+1F411), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f411.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "34_phoenix.mp3",
+  "title": "hawk.wav",
+  "author": "denalwa",
+  "source": "https://freesound.org/people/denalwa/sounds/582183/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_34_phoenix.jpg",
+  "title": "tile for 34_phoenix",
+  "author": "Google (Noto Emoji U+1F985), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f985.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "42_saxophone.mp3",
+  "title": "sax jazz",
+  "author": "alonart",
+  "source": "https://freesound.org/people/alonart/sounds/147868/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_42_saxophone.jpg",
+  "title": "tile for 42_saxophone",
+  "author": "Google (Noto Emoji U+1F3B7), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f3b7.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "47_dog_bark.mp3",
+  "title": "Barking Dog",
+  "author": "SuperStudioBR",
+  "source": "https://freesound.org/people/SuperStudioBR/sounds/180977/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_47_dog_bark.jpg",
+  "title": "tile for 47_dog_bark",
+  "author": "Google (Noto Emoji U+1F415), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f415.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "48_rooster.mp3",
+  "title": "Rooster crow",
+  "author": "jsbarrett",
+  "source": "https://freesound.org/people/jsbarrett/sounds/200339/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_48_rooster.jpg",
+  "title": "tile for 48_rooster",
+  "author": "Google (Noto Emoji U+1F413), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f413.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "49_wrong.mp3",
+  "title": "wrong",
+  "author": "victor-effects contributors",
+  "source": "synthesized for this project",
+  "license": "own-CC0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_49_wrong.jpg",
+  "title": "tile for 49_wrong",
+  "author": "Google (Noto Emoji U+274C), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u274c.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "50_gong.mp3",
+  "title": "Gong Brilliant Paiste 32\"",
+  "author": "JensZygar",
+  "source": "https://freesound.org/people/JensZygar/sounds/486629/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_50_gong.jpg",
+  "title": "tile for 50_gong",
+  "author": "Google (Noto Emoji U+1F514), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f514.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "51_beethoven.mp3",
+  "title": "Ludwig van Beethoven - symphony no. 5 in c minor, op. 67 - i. allegro con brio",
+  "author": "Skidmore College orchestra via Musopen",
+  "source": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_i._allegro_con_brio.ogg",
+  "license": "Attribution",
+  "attribution": "Skidmore College Orchestra, via Musopen (Wikimedia Commons)",
+  "note": "Commons tags the recording both PD (by the orchestra) and {{Attribution}}; credited to satisfy both."
+ },
+ {
+  "file": "tiles/sfx_51_beethoven.jpg",
+  "title": "tile for 51_beethoven",
+  "author": "Google (Noto Emoji U+1F3BC), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f3bc.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "53_rain.mp3",
+  "title": "Rain heavy 2 (rural)",
+  "author": "jmbphilmes",
+  "source": "https://freesound.org/people/jmbphilmes/sounds/200272/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_53_rain.jpg",
+  "title": "tile for 53_rain",
+  "author": "Google (Noto Emoji U+1F327), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f327.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "57_checkmark.mp3",
+  "title": "checkmark",
+  "author": "victor-effects contributors",
+  "source": "synthesized for this project",
+  "license": "own-CC0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_57_checkmark.jpg",
+  "title": "tile for 57_checkmark",
+  "author": "Google (Noto Emoji U+2705), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u2705.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "58_cat.mp3",
+  "title": "cat meow",
+  "author": "tuberatanka",
+  "source": "https://freesound.org/people/tuberatanka/sounds/110011/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_58_cat.jpg",
+  "title": "tile for 58_cat",
+  "author": "Google (Noto Emoji U+1F408), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f408.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "59_game_over.mp3",
+  "title": "game over",
+  "author": "victor-effects contributors",
+  "source": "synthesized for this project",
+  "license": "own-CC0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_59_game_over.jpg",
+  "title": "tile for 59_game_over",
+  "author": "Google (Noto Emoji U+1F3AE), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f3ae.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "61_hallelujah.mp3",
+  "title": "Messiah Hallelujah Chorus 1916 (Edison Diamond Disc)",
+  "author": "Edison (1916), Handel composer",
+  "source": "https://commons.wikimedia.org/wiki/File:Messiah_Hallelujah_Chorus_1916.ogg",
+  "license": "PD",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_61_hallelujah.jpg",
+  "title": "tile for 61_hallelujah",
+  "author": "Google (Noto Emoji U+1F607), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f607.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "63_air_horn.mp3",
+  "title": "Industrial Air Horn",
+  "author": "mcpable",
+  "source": "https://freesound.org/people/mcpable/sounds/131930/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_63_air_horn.jpg",
+  "title": "tile for 63_air_horn",
+  "author": "Google (Noto Emoji U+1F4EF), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f4ef.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "64_fbi.mp3",
+  "title": "door_knock.wav",
+  "author": "wjtaylor",
+  "source": "https://freesound.org/people/wjtaylor/sounds/268500/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_64_fbi.jpg",
+  "title": "tile for 64_fbi",
+  "author": "Google (Noto Emoji U+1F6AA), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f6aa.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "65_school_bell.mp3",
+  "title": "School bell.wav",
+  "author": "deleted_user_7020630",
+  "source": "https://freesound.org/people/deleted_user_7020630/sounds/378394/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_65_school_bell.jpg",
+  "title": "tile for 65_school_bell",
+  "author": "Google (Noto Emoji U+23F0), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u23f0.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "66_toilet.mp3",
+  "title": "ToiletFlush.wav",
+  "author": "Hotlavaman",
+  "source": "https://freesound.org/people/Hotlavaman/sounds/108677/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_66_toilet.jpg",
+  "title": "tile for 66_toilet",
+  "author": "Google (Noto Emoji U+1F6BD), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f6bd.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "68_pig.mp3",
+  "title": "Pig Oink",
+  "author": "qubodup",
+  "source": "https://freesound.org/people/qubodup/sounds/442906/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_68_pig.jpg",
+  "title": "tile for 68_pig",
+  "author": "Google (Noto Emoji U+1F416), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f416.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "69_scream_ghost.mp3",
+  "title": "Ghost wails",
+  "author": "colorsCrimsonTears",
+  "source": "https://freesound.org/people/colorsCrimsonTears/sounds/556419/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_69_scream_ghost.jpg",
+  "title": "tile for 69_scream_ghost",
+  "author": "Google (Noto Emoji U+1F47B), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f47b.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "70_cavalry.mp3",
+  "title": "Charge - Concert Band - United States Air Force Heritage of America Band",
+  "author": "US Air Force Heritage of America Band (Ceremonial Music, 2005)",
+  "source": "https://commons.wikimedia.org/wiki/File:Charge_-_Concert_Band_-_United_States_Air_Force_Heritage_of_America_Band.mp3",
+  "license": "PD",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_70_cavalry.jpg",
+  "title": "tile for 70_cavalry",
+  "author": "Google (Noto Emoji U+1F40E), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f40e.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "80_badumtss.mp3",
+  "title": "Musical, Percussion, Drums, Ba-Dum-Tss",
+  "author": "Vein_Adams",
+  "source": "https://freesound.org/people/Vein_Adams/sounds/713649/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_80_badumtss.jpg",
+  "title": "tile for 80_badumtss",
+  "author": "Google (Noto Emoji U+1F602), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f602.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "86_doorbell.mp3",
+  "title": "DoorBell Shortened",
+  "author": "jwheeler91",
+  "source": "https://freesound.org/people/jwheeler91/sounds/442280/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_86_doorbell.jpg",
+  "title": "tile for 86_doorbell",
+  "author": "Google (Noto Emoji U+1F6CE), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f6ce.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "89_fireworks.mp3",
+  "title": "Fireworks.flac",
+  "author": "SyntaxSeed",
+  "source": "https://freesound.org/people/SyntaxSeed/sounds/244770/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_89_fireworks.jpg",
+  "title": "tile for 89_fireworks",
+  "author": "Google (Noto Emoji U+1F386), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f386.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ },
+ {
+  "file": "90_breaking-glass.mp3",
+  "title": "Glass Break",
+  "author": "unfa",
+  "source": "https://freesound.org/people/unfa/sounds/221528/",
+  "license": "CC0-1.0",
+  "attribution": ""
+ },
+ {
+  "file": "tiles/sfx_90_breaking-glass.jpg",
+  "title": "tile for 90_breaking-glass",
+  "author": "Google (Noto Emoji U+1FA9F), composed for this project",
+  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1fa9f.png",
+  "license": "Apache-2.0",
+  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
+ }
+]
