@@ -19,9 +19,9 @@ load-bearing:
   dereferences a sounds folder into the bundle: the mp3s are read live from
   `EffectsConfig.soundsDir`, so a changed sound needs no rebuild and no symlink
   ever reaches `.build`.
-- **The icon** is generated from `Sources/VictorEffects/Resources/icon_explosion.png`
-  — Noto Emoji's 💥 (Apache-2.0) since 2026-10-14; it used to be Apple's own
-  glyph rendered by a script, which is Apple's artwork — through `sips` + `iconutil`.
+- **The icon** is `Sources/VictorEffects/Resources/icon_fx.png` — the menu bar's own 𝓯𝔁
+  drawn large on a rounded square by `tools/make-icon.swift` (own artwork, 2026-10-14;
+  it used to be Apple's 💥 glyph, which is Apple's art) — through `sips` + `iconutil`.
 - **`Bundle.module` is deliberately *not* copied into the `.app`.** The
   generated resource accessor resolves it from an **absolute** `.build/…`
   path. Anything placed at the `.app` root, outside `Contents/`, counts as

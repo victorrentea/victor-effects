@@ -14,7 +14,7 @@ generator scripts, and looked at. 34 files left the repo:
   draw sound and the CS key art (Valve); the Death Star render (Lucasfilm); the
   Minions GIF (Universal/Illumination); the Claude and Copilot logos
   (Anthropic, GitHub); and the app icon, which was Apple's own 💥 emoji glyph
-  rendered by a script.
+  rendered by a script — replaced by the menu bar's 𝓯𝔁 drawn large (`tools/make-icon.swift`).
 - **25 with no recorded origin** — GIFs and sprites downloaded over the years
   (applause hands, blood drip, bullet hole, cavalry knight, chainsaw sheet,
   confetti pop, drum, ECG line, explosion, falling bomb, fire alarm, fire and

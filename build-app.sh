@@ -64,10 +64,10 @@ echo "VictorEffects built."
 
 echo "Building $APP_NAME.app..."
 
-# Convert the 💥 PNG (Noto Emoji, Apache-2.0 — Resources/CREDITS.md) to ICNS
+# The icon: the menu bar's 𝓯𝔁, drawn large by tools/make-icon.swift (own artwork) → ICNS
 ICONSET=$(mktemp -d)/icon.iconset
 mkdir -p "$ICONSET"
-SRC_ICON="$DIR/Sources/VictorEffects/Resources/icon_explosion.png"
+SRC_ICON="$DIR/Sources/VictorEffects/Resources/icon_fx.png"
 for SIZE in 16 32 64 128 256 512; do
     sips -z $SIZE $SIZE "$SRC_ICON" --out "$ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null 2>&1
     DOUBLE=$((SIZE * 2))

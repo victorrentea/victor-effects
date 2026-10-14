@@ -14,7 +14,4 @@ quietly when it is missing — see `docs/assets-and-licences.md`.
 | `espresso_pour.mp3` | Wikimedia Commons, [Espresso machine.ogg](https://commons.wikimedia.org/wiki/File:Espresso_machine.ogg) | Public domain |
 | `coffee_pour.mp3` | Wikimedia Commons, [Boiling water being poured into a mug for tea.ogg](https://commons.wikimedia.org/wiki/File:Boiling_water_being_poured_into_a_mug_for_tea.ogg) | Public domain |
 | `whip_A.mp3` … `whip_E.mp3` | [OpenWhip](https://github.com/GitFrog1111/OpenWhip) `sounds/A–E.mp3`, byte-identical | MIT (OpenWhip `package.json`) |
-| `icon_explosion.png` | [Noto Emoji](https://github.com/googlefonts/noto-emoji) `2D/png/512/emoji_u1f4a5.png`, © Google | Apache-2.0 |
-
-Apache-2.0 notice for the Noto Emoji image: Copyright 2013 Google LLC. Licensed
-under the Apache License, Version 2.0 — http://www.apache.org/licenses/LICENSE-2.0.
+| `icon_fx.png` | the menu bar's 𝓯𝔁 drawn large by `tools/make-icon.swift` | own work (MIT) |
