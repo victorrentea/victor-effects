@@ -2,7 +2,7 @@
 
 ## For users: `install.sh`
 
-`curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/master/install.sh | bash`
+`curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/main/install.sh | bash`
 downloads the latest GitHub release (`Victor-Effects.zip`, a universal ad-hoc
 signed app), installs it to `/Applications` (`~/Applications` if not writable),
 registers a LaunchAgent that runs `open -a` at login, waits for `/ping`, fires

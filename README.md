@@ -15,7 +15,7 @@ which keeps the training/transcription half and proxies the effect routes here.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/main/install.sh | bash
 ```
 
 That is the whole install: it downloads the latest release (one app for Apple

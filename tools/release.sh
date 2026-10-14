@@ -39,7 +39,7 @@ ls -lh "$ZIP"
 
 gh release create "$TAG" "$ZIP" install.sh \
     --title "Victor Effects $TAG" \
-    --notes "Install or update: \`curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/master/install.sh | bash\`
+    --notes "Install or update: \`curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/main/install.sh | bash\`
 
 Universal app (Apple silicon + Intel), macOS 13+, ad-hoc signed. Includes the free starter soundboard (starter-pack/CREDITS.md)."
 echo "✅ Released $TAG"

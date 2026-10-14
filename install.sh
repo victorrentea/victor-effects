@@ -1,7 +1,7 @@
 #!/bin/bash
 # Install Victor Effects on this Mac — one command, no Xcode needed:
 #
-#   curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/master/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/main/install.sh | bash
 #
 # What it does, in order (every step is safe to re-run):
 #   1. downloads the latest release (a universal app: Apple silicon + Intel)
@@ -217,5 +217,5 @@ Try it:
   hold the RIGHT ⌘ key                               # the soundboard panel
 Your own sounds: put NN_name.mp3 files plus a tiles.json in a folder and point
 "soundsDir" at it in ~/.victor-effects/config.json (README: "Bring your own sounds").
-Uninstall: curl -fsSL https://raw.githubusercontent.com/$REPO/master/install.sh | bash -s -- --uninstall
+Uninstall: curl -fsSL https://raw.githubusercontent.com/$REPO/main/install.sh | bash -s -- --uninstall
 EOF
