@@ -403,7 +403,7 @@ enum RainStorm {
     /// worse storm; a storm that refuses to run because a PNG is missing is no
     /// storm at all.
     static func cloudPhoto(index: Int) -> CGImage? {
-        guard let url = Bundle.module.url(forResource: "cloud-\(index % cloudCount)",
+        guard let url = EffectsResources.bundle.url(forResource: "cloud-\(index % cloudCount)",
                                           withExtension: "png",
                                           subdirectory: "Resources/clouds"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),

@@ -12,7 +12,48 @@ shell script, an editor plugin or another app can fire an effect. Hold the right
 It was extracted from [victor-macos-addons](https://github.com/victorrentea/victor-macos-addons),
 which keeps the training/transcription half and proxies the effect routes here.
 
-## Build and run
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/victorrentea/victor-effects/master/install.sh | bash
+```
+
+That is the whole install: it downloads the latest release (one app for Apple
+silicon and Intel, macOS 13+), puts it in `/Applications`, starts it at login,
+fires a confetti burst to prove it works, and opens the one System Settings pane
+you have to visit yourself. No Xcode, no config file — it comes with a free
+starter soundboard (`starter-pack/`) and every effect is one `curl` away:
+
+```bash
+curl http://127.0.0.1:55124/effect/fireworks
+```
+
+**Two permissions only you can grant** (macOS lets no script or agent tick
+them): *Accessibility* for the hotkeys (hold the right ⌘ for the soundboard, ⌃W
+for the whip) and *Screen Recording* for the effects that bend what is on
+screen. System Settings › Privacy & Security, switch on "Victor Effects", then
+quit and reopen it from its `fx` menu. Everything else works without them.
+
+Options: `--from-source` (build locally instead of downloading), `--no-login-item`,
+`--uninstall` — pass them as `curl … | bash -s -- --uninstall`.
+
+### Installing with an AI agent (Claude Code, Codex, …)
+
+Ask it: *"install victor-effects from github.com/victorrentea/victor-effects"*.
+What it should do, and all it needs to do:
+
+1. run the one-liner above;
+2. check `curl -s http://127.0.0.1:55124/state` — `permissions.accessibility`
+   and `permissions.screenRecording` say what is still missing;
+3. tell you which of the two switches to flip (it cannot flip them: TCC is
+   protected by SIP, and editing it is not something to attempt);
+4. after you flipped them, restart the app (`osascript -e 'quit app "Victor Effects"'; open -a "Victor Effects"`)
+   and fire `/effect/confetti` to show you.
+
+Your own sounds: a folder of `NN_name.mp3` files plus a `tiles.json`, pointed to
+by `"soundsDir"` in `~/.victor-effects/config.json` (see *Bring your own sounds*).
+
+## Build from source
 
 ```bash
 swift build && swift test
@@ -21,19 +62,16 @@ open "/Applications/Victor Effects.app"
 ./install-startup.sh           # optional: start at login (LaunchAgent)
 ```
 
-A ⭐ appears in the menu bar — six rows: `✨ Effects` (Right ⌘),
-`🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `✓ BT Keepalive` (the Bluetooth
-keep-alive's switch and its only lamp — ✅ playing, ⚪️ armed, 🚫 off), a disabled
-`Version: <timestamp>`, which tells you which binary is running, and `⏻ Quit` (⌘Q).
-(A seventh, `⚠️ Grant Accessibility`, appears only while the grant is missing.)
-Every row opens with a glyph in one column and ends its gesture in another: the
-gestures are drawn as right-aligned **hints**, not as key equivalents, because
-`NSMenu` puts a real key equivalent in a column of its own that no tab stop can
-reach — one native ⌘Q was enough to knock the whole right edge crooked. The log
-is `/tmp/victor-effects.log`.
+An `fx` appears in the menu bar. Its menu: `✨ Effects` (Right ⌘), `🎦 Videos`
+(Right ⌘⇧), `🔥 Whip` (⌃W), `✓ BT Keepalive` and `✓ Subtitles` (switches),
+`ⓘ Built <timestamp>` (which binary is running; opens this repo) and `⏻ Quit`
+(⌘Q) — plus `⚠️ Grant Accessibility` while that grant is missing. The gestures
+are drawn as right-aligned **hints**, not as key equivalents, because `NSMenu`
+puts a real key equivalent in a column of its own that no tab stop can reach.
+The log is `/tmp/victor-effects.log`.
 
 **Stop-all is the icon, not a row.** While anything is running — including an
-armed 🔥 whip — the ⭐ turns 🛑, and a plain click stops everything at once;
+armed 🔥 whip — the `fx` turns 🛑, and a plain click stops everything at once;
 right-click (or ⌃-click) opens the menu in either state. The click asks what is
 running at that instant rather than trusting the icon, so it cannot miss an
 effect that started a moment ago. See `docs/overlay-effects.md`.
@@ -50,11 +88,22 @@ access.
 
 ## Bring your own sounds
 
-**No audio for the soundboard ships in this repo.** The app reads a folder of
-`NN_name.mp3` files at runtime, named in the config, and hashes it so a client
-can tell whether its own copy matches. Only three tiny bundled sounds are part of
-the app itself (a click, a phoenix screech, a confetti pop) plus the five whip
-cracks.
+The app reads a folder of `NN_name.mp3` files plus a `tiles.json` (the grid:
+which sound, which picture, in what order) at runtime, and hashes it so a client
+such as a tablet can tell whether its own copy matches.
+
+**Out of the box it uses the starter pack** (`starter-pack/`, bundled in the
+app): 43 short sounds — CC0 and public-domain recordings plus a few synthesized
+here — each with a Noto Emoji tile and a credit line in
+`starter-pack/CREDITS.md`. Sounds named like the starter pack's
+(`03_explosion.mp3`, `50_gong.mp3`, …) also fire their desktop effect; the map is
+`Sources/VictorEffects/SoundEffectMap.swift`.
+
+To use your own: copy `starter-pack/` somewhere, change it, and set
+`"soundsDir"` in `~/.victor-effects/config.json` to that folder (then
+`curl 127.0.0.1:55124/config/reload`). Mind the licences of what you put in it
+if you share it — the maintainer's own soundboard is not published for exactly
+that reason.
 
 ## Configuration — `~/.victor-effects/config.json`
 
@@ -74,7 +123,7 @@ cracks.
 | key | default | meaning |
 |---|---|---|
 | `port` | `55124` | HTTP listen port |
-| `soundsDir` | `~/.victor-effects/sounds` | soundboard mp3s, `sound-timing.json`, `tiles.json`, `tiles/` |
+| `soundsDir` | `~/.victor-effects/sounds` | soundboard mp3s, `sound-timing.json`, `tiles.json`, `tiles/` — when the folder does not exist, the bundled starter pack |
 | `assetsDir` | `~/.victor-effects/assets` | optional extra images a few effects want (see below) |
 | `eventWebhook` | *(none)* | fire-and-forget `GET <url>?type=…` for cross-app gestures |
 | `bluetoothSpeakerNameMatch` | *(empty = off)* | substring of a Bluetooth speaker's name to keep awake between sounds |
@@ -130,7 +179,7 @@ mouse button 6/7 cracks it. Esc or a second ⌃W dismisses it.
 **A crack types into whatever app is focused**: it posts ⌃C followed by a short
 phrase and Return, which is the point — it is meant for interrupting a coding
 agent in a terminal. Do not crack it over something you care about. The physics
-and the phrases are a port of [OpenWhip](https://github.com/aleiby/openwhip);
+and the phrases are a port of [OpenWhip](https://github.com/GitFrog1111/OpenWhip);
 `tools/whip-parity/` holds the JS reference and the golden data the Swift
 implementation is tested against.
 
@@ -139,11 +188,16 @@ Because the tap swallows ⌃W globally, that key stops reaching terminals
 
 ## Assets and licences
 
-The GIFs and PNGs in `Sources/VictorEffects/Resources/` came over from the
-public addons repo; their provenance is not tracked and using them is your
-responsibility. The soundboard audio is never committed for exactly that reason.
-`claude-icon.png` and `copilot-icon.png` are third-party logos used for an
-optional mascot.
+Only material that is our own or licensed for redistribution ships in this repo
+— each file is credited in `Sources/VictorEffects/Resources/CREDITS.md` and
+`starter-pack/CREDITS.md`. The whip's physics, phrases and crack sounds come
+from [OpenWhip](https://github.com/GitFrog1111/OpenWhip) (MIT).
+
+Many effects were built around pictures that are someone else's (game sprites,
+film stills, GIFs with no licence). Those are **not** published: the app looks
+for them in `assetsDir` (`~/.victor-effects/assets`) and the effect degrades
+quietly without them. `docs/assets-and-licences.md` lists the names, so you can
+drop your own in.
 
 ## See them
 

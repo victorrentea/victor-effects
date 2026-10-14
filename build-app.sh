@@ -7,7 +7,9 @@ cd "$DIR"
 
 APP_NAME="Victor Effects"
 BUNDLE_ID="ro.victorrentea.victor-effects"
-APP_DIR="/Applications/$APP_NAME.app"
+# APP_DIR=<path> builds somewhere else (tools/release.sh builds into dist/);
+# UNIVERSAL=1 builds arm64 + x86_64, for a release anyone's Mac can run.
+APP_DIR="${APP_DIR:-/Applications/$APP_NAME.app}"
 CONTENTS="$APP_DIR/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
@@ -40,8 +42,19 @@ else
     echo "⚠️  SKIP_TESTS=1 — tests skipped"
 fi
 
+# Third-party media must never reach this public repo: on the maintainer's Mac
+# the private ledger lists every such file by hash (docs/assets-and-licences.md);
+# anywhere else the check says it skipped.
+python3 "$DIR/tools/copyright-guard.py" check || { echo "❌ NOT deploying."; exit 1; }
+
 echo "Building VictorEffects..."
-swift build -c "$BUILD_CONFIG"
+if [ "${UNIVERSAL:-0}" = "1" ]; then
+    swift build -c "$BUILD_CONFIG" --arch arm64 --arch x86_64
+    BINARY="$DIR/.build/apple/Products/Release/VictorEffects"
+else
+    swift build -c "$BUILD_CONFIG"
+    BINARY="$DIR/.build/arm64-apple-macosx/$BUILD_CONFIG/VictorEffects"
+fi
 echo "VictorEffects built."
 
 # NOTE: no sounds-dereference step here, unlike victor-macos-addons. The
@@ -51,7 +64,7 @@ echo "VictorEffects built."
 
 echo "Building $APP_NAME.app..."
 
-# Convert the 💥 PNG (tools/make-icon.swift) to ICNS
+# Convert the 💥 PNG (Noto Emoji, Apache-2.0 — Resources/CREDITS.md) to ICNS
 ICONSET=$(mktemp -d)/icon.iconset
 mkdir -p "$ICONSET"
 SRC_ICON="$DIR/Sources/VictorEffects/Resources/icon_explosion.png"
@@ -72,15 +85,24 @@ cp "$ICNS_FILE" "$RESOURCES/AppIcon.icns"
 
 # The release binary, never a debug-run artifact: debug artifacts live at a
 # different path and macOS records TCC grants per path+identity.
-cp "$DIR/.build/arm64-apple-macosx/$BUILD_CONFIG/VictorEffects" "$MACOS/$APP_NAME"
+cp "$BINARY" "$MACOS/$APP_NAME"
 
-# NOTE: Bundle.module resources are resolved at runtime from the generated
-# accessor's ABSOLUTE ".build/arm64-apple-macosx/$BUILD_CONFIG/VictorEffects_VictorEffects.bundle"
-# path. We intentionally do NOT copy that bundle into the .app: anything at the
-# .app ROOT (outside Contents/) is "unsealed content" that makes codesign fall
-# back to an ad-hoc signature, which BREAKS TCC persistence (Accessibility and
-# Screen Recording re-prompt on every rebuild). The trade-off: always deploy
-# from this permanent checkout, and do not `swift package clean`.
+# The images and sounds travel INSIDE the app, in Contents/Resources (sealed,
+# so the signing identity survives) — never at the .app root, where they would
+# be unsealed content. EffectsResources.bundle looks here first; SwiftPM's own
+# Bundle.module only knows an absolute .build/ path that no other Mac has.
+# Assembled from the source folder rather than copied out of .build, because
+# the native and the universal builds lay their bundles out differently.
+RES_BUNDLE="$RESOURCES/VictorEffects_VictorEffects.bundle"
+mkdir -p "$RES_BUNDLE"
+cp -R "$DIR/Sources/VictorEffects/Resources" "$RES_BUNDLE/Resources"
+rm -f "$RES_BUNDLE/Resources/AppIcon.icns" "$RES_BUNDLE/Resources/.keep"
+
+# The free starter soundboard (starter-pack/README.md): what the app plays
+# until ~/.victor-effects/config.json points soundsDir somewhere else.
+if [ -d "$DIR/starter-pack" ]; then
+    cp -R "$DIR/starter-pack" "$RESOURCES/starter-pack"
+fi
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -109,6 +131,7 @@ PLIST
 
 # Sign with a stable identity when one is available, so TCC grants survive a
 # rebuild. Example: export CODESIGN_IDENTITY="Apple Development: You (TEAMID)"
+# CODESIGN_IDENTITY=- forces ad-hoc (what a public release ships with).
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-}"
 if [ -z "$SIGNING_IDENTITY" ]; then
     # grep, not rg: this runs under bash where `rg` may be a zsh-only shim, and a
@@ -122,7 +145,10 @@ if [ -z "$SIGNING_IDENTITY" ]; then
     done
 fi
 
-if [ -n "$SIGNING_IDENTITY" ]; then
+if [ "$SIGNING_IDENTITY" = "-" ]; then
+    codesign --force --sign - "$APP_DIR"
+    echo "Signed ad-hoc (release build)."
+elif [ -n "$SIGNING_IDENTITY" ]; then
     codesign --force --sign "$SIGNING_IDENTITY" "$APP_DIR"
     echo "Signed with: $SIGNING_IDENTITY"
 else

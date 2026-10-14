@@ -183,7 +183,7 @@ class SoundManager {
         // bundleURL, not resourceURL: NSBundle reports <bundle>/Resources as
         // the resource dir for this flat SPM bundle, which would double the
         // "Resources" path component.
-        let local = Bundle.module.bundleURL.appendingPathComponent("Resources/\(filename)")
+        let local = EffectsResources.bundle.bundleURL.appendingPathComponent("Resources/\(filename)")
         if FileManager.default.fileExists(atPath: local.path) { return local }
         return nil
     }

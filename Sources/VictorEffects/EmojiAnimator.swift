@@ -1712,7 +1712,7 @@ class EmojiAnimator {
         if cancelIfRunning("zorro") { return }
         let bounds = hostLayer.bounds
 
-        guard let url = Bundle.module.url(forResource: "zorro_fire", withExtension: "gif", subdirectory: "Resources"),
+        guard let url = EffectsResources.url("zorro_fire", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return }
 
         let frameCount = CGImageSourceGetCount(source)
@@ -2588,7 +2588,7 @@ class EmojiAnimator {
     func showApplause(playSound: Bool = true) {
         if cancelIfRunning("applause", sound: playSound ? "27_clapping.mp3" : nil) { return }
 
-        guard let url = Bundle.module.url(forResource: "applause-hands", withExtension: "gif"),
+        guard let url = EffectsResources.url("applause-hands", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("applause-hands.gif not found")
             return
@@ -2686,7 +2686,7 @@ class EmojiAnimator {
     func showMinion() {
         if cancelIfRunning("minion") { return }
 
-        guard let url = Bundle.module.url(forResource: "minion", withExtension: "gif"),
+        guard let url = EffectsResources.url("minion", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("minion.gif not found")
             return
@@ -2777,8 +2777,7 @@ class EmojiAnimator {
     func showWolfHowl() {
         if cancelIfRunning("wolf-howl") { return }
 
-        guard let url = Bundle.module.url(forResource: "wolf-howl", withExtension: "gif", subdirectory: "Resources")
-                ?? Bundle.module.url(forResource: "wolf-howl", withExtension: "gif"),
+        guard let url = EffectsResources.url("wolf-howl", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("wolf-howl.gif not found")
             return
@@ -2922,7 +2921,7 @@ class EmojiAnimator {
 
         // ECG canvas — full screen (amplitude needs full height)
         // Load the extracted ECG image (green line, transparent background)
-        guard let url = Bundle.module.url(forResource: "ecg_line", withExtension: "png", subdirectory: "Resources"),
+        guard let url = EffectsResources.url("ecg_line", "png"),
               let nsImage = NSImage(contentsOf: url),
               let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             pulseRunning = false
@@ -3374,7 +3373,7 @@ class EmojiAnimator {
     /// so the geometry below can be stated in fractions of the artwork instead of
     /// fractions of a transparent margin.
     private static let fallingBombImage: CGImage? = {
-        guard let url = Bundle.module.url(forResource: "falling-bomb", withExtension: "png"),
+        guard let url = EffectsResources.url("falling-bomb", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }()
@@ -3426,7 +3425,7 @@ class EmojiAnimator {
     /// blasts in the air within a second of each other, and re-decoding 400 KB of
     /// gif on every click hitches exactly while the room is watching.
     private static let explosionFrames: (images: [CGImage], duration: Double) = {
-        guard let url = Bundle.module.url(forResource: "explosion", withExtension: "gif"),
+        guard let url = EffectsResources.url("explosion", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return ([], 0) }
         var images: [CGImage] = []
         var total: Double = 0
@@ -4221,7 +4220,7 @@ class EmojiAnimator {
     /// shot) → sprite + muzzle flash. Three layers so the tick, the recoil and
     /// the flash never fight over one `transform`.
     private func makeMinigunGun(in bounds: CGRect) -> (gun: CALayer, rig: CALayer, kick: CALayer, flash: CALayer)? {
-        guard let url = Bundle.module.url(forResource: "ak47", withExtension: "png"),
+        guard let url = EffectsResources.url("ak47", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             overlayError("ak47.png not found in bundle")
@@ -4299,7 +4298,7 @@ class EmojiAnimator {
 
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
-        guard let url = Bundle.module.url(forResource: "bullet_hole", withExtension: "png"),
+        guard let url = EffectsResources.url("bullet_hole", "png"),
               let image = NSImage(contentsOf: url),
               let holeImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             overlayError("bullet_hole.png not found")
@@ -4420,7 +4419,7 @@ class EmojiAnimator {
     /// one 1.5 s clip). Its own player, like the trigger's, so it starts with
     /// the gun rather than after a Bluetooth delay.
     private func playMinigunDrawSound() {
-        guard let url = Bundle.module.url(forResource: "ak47_draw", withExtension: "mp3"),
+        guard let url = EffectsResources.url("ak47_draw", "mp3"),
               let player = try? AVAudioPlayer(contentsOf: url) else {
             overlayError("ak47_draw.mp3 not found in bundle")
             return
@@ -4728,7 +4727,7 @@ class EmojiAnimator {
     /// The 16 frames, decoded once. A press must be instant (the cursor is
     /// already moving), so the ~1.7 MP sheet is not re-decoded per press.
     private static let chainsawFrames: [CGImage] = {
-        guard let url = Bundle.module.url(forResource: "chainsaw-frames", withExtension: "png"),
+        guard let url = EffectsResources.url("chainsaw-frames", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let sheet = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return [] }
         let cw = sheet.width / chainsawGrid.cols
@@ -5367,7 +5366,7 @@ class EmojiAnimator {
         }
 
         // Game Over image centered — PNG with transparent background
-        if let url = Bundle.module.url(forResource: "game-over", withExtension: "png"),
+        if let url = EffectsResources.url("game-over", "png"),
            let img = NSImage(contentsOf: url) {
             let imgW = bounds.width * 0.7
             let imgH = imgW * (img.size.height / img.size.width)
@@ -5583,7 +5582,7 @@ class EmojiAnimator {
     func showBloodDrip(playSound: Bool = true) {
         if cancelIfRunning("blood-drip", sound: playSound ? "40_joker.mp3" : nil) { return }
 
-        guard let url = Bundle.module.url(forResource: "blood-drip", withExtension: "gif"),
+        guard let url = EffectsResources.url("blood-drip", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("blood-drip.gif not found")
             return
@@ -5682,7 +5681,7 @@ class EmojiAnimator {
     /// internal so a headless test can assert the asset bundles and decodes
     /// (28 transparent 226×340 frames) without firing the on-screen effect.
     static func loadPhoenixFrames() -> [CGImage] {
-        guard let url = Bundle.module.url(forResource: "phoenix", withExtension: "png"),
+        guard let url = EffectsResources.url("phoenix", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("phoenix.png not found")
             return []
@@ -5704,7 +5703,7 @@ class EmojiAnimator {
 
     /// Frame count of the bundled APNG, read without decoding any pixels.
     private static let phoenixFrameCount: Int = {
-        guard let url = Bundle.module.url(forResource: "phoenix", withExtension: "png"),
+        guard let url = EffectsResources.url("phoenix", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return 28 }
         return CGImageSourceGetCount(source)
     }()
@@ -6621,8 +6620,7 @@ class EmojiAnimator {
     private static let heartbeatDogScale: CGFloat = 2.0 / 3.0
 
     private static func makeHeartbeatDogLayer(bounds: CGRect) -> CALayer? {
-        guard let url = Bundle.module.url(forResource: "heartbeat-dog", withExtension: "png", subdirectory: "Resources")
-                ?? Bundle.module.url(forResource: "heartbeat-dog", withExtension: "png"),
+        guard let url = EffectsResources.url("heartbeat-dog", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             overlayError("heartbeat-dog.png not found in bundle")
@@ -7161,7 +7159,7 @@ class EmojiAnimator {
     }
 
     private static func loadHeartbeatBeats() -> [Double] {
-        guard let url = Bundle.module.url(forResource: "heartbeat_beats", withExtension: "json", subdirectory: "Resources"),
+        guard let url = EffectsResources.url("heartbeat_beats", "json"),
               let data = try? Data(contentsOf: url),
               let beats = try? JSONDecoder().decode([Double].self, from: data) else {
             return []
@@ -7909,7 +7907,7 @@ class EmojiAnimator {
         // folder is gone: it existed only while the asset was not yet
         // committed, and it made the effect depend on a folder the app has no
         // business reading.
-        guard let pngURL = Bundle.module.url(forResource: "death-star", withExtension: "png"),
+        guard let pngURL = EffectsResources.url("death-star", "png"),
               let nsImage = NSImage(contentsOf: pngURL),
               let cg = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             overlayError("death-star.png missing from the bundle")
@@ -8836,7 +8834,7 @@ class EmojiAnimator {
     func showFireAlarm(playSound: Bool = true) {
         if cancelIfRunning("fire-alarm", sound: playSound ? "65_school_bell.mp3" : nil) { return }
 
-        guard let url = Bundle.module.url(forResource: "fire-alarm", withExtension: "gif"),
+        guard let url = EffectsResources.url("fire-alarm", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("fire-alarm.gif not found")
             return
@@ -9536,7 +9534,7 @@ class EmojiAnimator {
         // screenshot's `position`, and children ride along with it for free —
         // so the phone rattles in lockstep with the desktop instead of drifting
         // out of phase with a shake of its own.
-        if let url = Bundle.module.url(forResource: "red-phone", withExtension: "png"),
+        if let url = EffectsResources.url("red-phone", "png"),
            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
            let phone = CGImageSourceCreateImageAtIndex(source, 0, nil) {
             let aspect = CGFloat(phone.width) / CGFloat(phone.height)
@@ -9572,7 +9570,7 @@ class EmojiAnimator {
 
         // APNG (full 8-bit alpha — flood-filled from the GIF's black bg) in
         // the bundle; frame delays come from the APNG dictionary.
-        guard let url = Bundle.module.url(forResource: "cavalry", withExtension: "png"),
+        guard let url = EffectsResources.url("cavalry", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("cavalry.png not found in bundle")
             return
@@ -9648,7 +9646,7 @@ class EmojiAnimator {
     func showCounterStrike(playSound: Bool = true) {
         if cancelIfRunning("counter-strike", sound: playSound ? "73_counter_strike.mp3" : nil) { return }
 
-        guard let url = Bundle.module.url(forResource: "counter-strike", withExtension: "png"),
+        guard let url = EffectsResources.url("counter-strike", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             overlayError("counter-strike.png not found in bundle")
@@ -9723,7 +9721,7 @@ class EmojiAnimator {
     func showWasntMe(playSound: Bool = true) {
         if cancelIfRunning("wasnt-me", sound: playSound ? "76_sfx_118.mp3" : nil) { return }
 
-        guard let url = Bundle.module.url(forResource: "wasnt-me", withExtension: "gif"),
+        guard let url = EffectsResources.url("wasnt-me", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("wasnt-me.gif not found in bundle")
             return
@@ -9829,7 +9827,7 @@ class EmojiAnimator {
     func showMicrowave(playSound: Bool = true, volume: Float? = nil) -> TimeInterval {
         _ = cancelIfRunning("microwave", sound: playSound ? "61_dinner.mp3" : nil)
 
-        guard let url = Bundle.module.url(forResource: "microwave", withExtension: "gif"),
+        guard let url = EffectsResources.url("microwave", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             overlayError("microwave.gif not found in bundle")
             return 0
@@ -10534,7 +10532,7 @@ class EmojiAnimator {
 
     func showGong(playSound: Bool = true) {
         if cancelIfRunning("gong", sound: playSound ? "50_gong.mp3" : nil) { return }
-        guard let url = Bundle.module.url(forResource: "gong", withExtension: "gif"),
+        guard let url = EffectsResources.url("gong", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return }
 
         let count = CGImageSourceGetCount(source)
@@ -10620,7 +10618,7 @@ class EmojiAnimator {
 
     func showWrongX(playSound: Bool = true) {
         if cancelIfRunning("wrong-x", sound: playSound ? "49_wrong.mp3" : nil) { return }
-        guard let url = Bundle.module.url(forResource: "leg", withExtension: "png"),
+        guard let url = EffectsResources.url("leg", "png"),
               let nsImg = NSImage(contentsOf: url),
               let cg = nsImg.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
 
@@ -10702,7 +10700,7 @@ class EmojiAnimator {
 
     func showDrumRoll(playSound: Bool = true) {
         if cancelIfRunning("drum-roll", sound: playSound ? "26_drum.mp3" : nil) { return }
-        guard let url = Bundle.module.url(forResource: "drum", withExtension: "gif"),
+        guard let url = EffectsResources.url("drum", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return }
 
         let count = CGImageSourceGetCount(source)
@@ -11039,7 +11037,7 @@ class EmojiAnimator {
     /// The 40 frames, decoded once. Same reason as the chainsaw's: the press has
     /// to be instant because the cursor is already moving under the user's hand.
     private static let fireFrames: [CGImage] = {
-        guard let url = Bundle.module.url(forResource: "fire-frames", withExtension: "png"),
+        guard let url = EffectsResources.url("fire-frames", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let sheet = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return [] }
         let cw = sheet.width / fireGrid.cols
@@ -11169,7 +11167,7 @@ class EmojiAnimator {
 
     static func fireballFrames(_ ball: Fireball = fireball) -> [CGImage] {
         if let cached = fireballFrameCache { return cached }
-        guard let url = Bundle.module.url(forResource: ball.asset, withExtension: "png"),
+        guard let url = EffectsResources.url(ball.asset, "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let sheet = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             fireballFrameCache = []   // a missing sheet is asked about once
@@ -11916,7 +11914,7 @@ class EmojiAnimator {
     func showElephant() {
         if activeEffects["elephant"] != nil { stopElephant(); return }
 
-        guard let url = Bundle.module.url(forResource: "elephant", withExtension: "png"),
+        guard let url = EffectsResources.url("elephant", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             overlayError("elephant.png is not in the bundle")
@@ -11995,7 +11993,7 @@ class EmojiAnimator {
     func showPanda() {
         if activeEffects["panda"] != nil { stopPanda(); return }
 
-        guard let url = Bundle.module.url(forResource: "panda", withExtension: "png"),
+        guard let url = EffectsResources.url("panda", "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             overlayError("panda.png is not in the bundle")
@@ -12247,7 +12245,7 @@ class EmojiAnimator {
     }
 
     static func bundledPNG(_ name: String) -> CGImage? {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "png"),
+        guard let url = EffectsResources.url(name, "png"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }

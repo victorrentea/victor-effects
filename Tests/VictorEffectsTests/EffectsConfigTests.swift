@@ -73,4 +73,21 @@ final class EffectsConfigTests: XCTestCase {
         XCTAssertTrue(expanded.hasSuffix("/x"))
         XCTAssertEqual(EffectsConfig.expand("/abs/path"), "/abs/path")
     }
+
+    // MARK: - The starter pack fallback (2026-10-14)
+
+    func testAnExistingConfiguredSoundsDirWins() {
+        let mine = URL(fileURLWithPath: "/mine"), pack = URL(fileURLWithPath: "/app/starter-pack")
+        XCTAssertEqual(EffectsConfig.resolveSoundsDir(configured: mine, starterPack: pack, isDir: { _ in true }), mine)
+    }
+
+    func testAMissingSoundsDirFallsBackToTheStarterPack() {
+        let mine = URL(fileURLWithPath: "/mine"), pack = URL(fileURLWithPath: "/app/starter-pack")
+        XCTAssertEqual(EffectsConfig.resolveSoundsDir(configured: mine, starterPack: pack, isDir: { $0 == pack }), pack)
+    }
+
+    func testNoStarterPackKeepsTheConfiguredPathForTheErrorMessage() {
+        let mine = URL(fileURLWithPath: "/mine")
+        XCTAssertEqual(EffectsConfig.resolveSoundsDir(configured: mine, starterPack: nil, isDir: { _ in false }), mine)
+    }
 }

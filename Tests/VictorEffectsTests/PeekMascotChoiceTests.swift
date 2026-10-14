@@ -81,11 +81,13 @@ final class PeekMascotChoiceTests: XCTestCase {
             .deletingLastPathComponent()      // Tests
             .deletingLastPathComponent()      // repo root
             .appendingPathComponent("Sources/VictorEffects/Resources")
+        // Shipped, or (the logos, since 2026-10-14) a documented assetsDir drop-in.
+        let dropIns = (try? AssetsDoc.dropInNames()) ?? []
         for mascot in PeekMascot.allCases {
             let png = resources.appendingPathComponent("\(mascot.rawValue).png")
             XCTAssertTrue(
-                FileManager.default.fileExists(atPath: png.path),
-                "\(mascot.rawValue).png is not in Resources"
+                FileManager.default.fileExists(atPath: png.path) || dropIns.contains("\(mascot.rawValue).png"),
+                "\(mascot.rawValue).png is neither in Resources nor a drop-in in docs/assets-and-licences.md"
             )
         }
         XCTAssertEqual(PeekMascot.claude.flipped, .copilot)

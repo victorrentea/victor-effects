@@ -66,7 +66,7 @@ final class CoffeePourSound {
 
     private func player(_ clip: Clip) -> AVAudioPlayer? {
         if let p = players[clip] { return p }
-        guard let url = Bundle.module.url(forResource: clip.rawValue, withExtension: "mp3"),
+        guard let url = EffectsResources.url(clip.rawValue, "mp3"),
               let p = try? AVAudioPlayer(contentsOf: url) else {
             overlayError("\(clip.rawValue).mp3 not found in bundle")
             return nil

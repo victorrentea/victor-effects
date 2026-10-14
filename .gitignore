@@ -8,3 +8,4 @@
 # Burned-in edits of the tablet video clips (originals + .ass sources +
 # burn.sh). Large binaries and third-party footage: kept here, never committed.
 video-edits/
+dist/

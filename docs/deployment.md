@@ -20,7 +20,8 @@ load-bearing:
   `EffectsConfig.soundsDir`, so a changed sound needs no rebuild and no symlink
   ever reaches `.build`.
 - **The icon** is generated from `Sources/VictorEffects/Resources/icon_explosion.png`
-  (itself produced by `tools/make-icon.swift`) through `sips` + `iconutil`.
+  — Noto Emoji's 💥 (Apache-2.0) since 2026-10-14; it used to be Apple's own
+  glyph rendered by a script, which is Apple's artwork — through `sips` + `iconutil`.
 - **`Bundle.module` is deliberately *not* copied into the `.app`.** The
   generated resource accessor resolves it from an **absolute** `.build/…`
   path. Anything placed at the `.app` root, outside `Contents/`, counts as

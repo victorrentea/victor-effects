@@ -196,8 +196,10 @@ final class EmojiAnimatorTests: XCTestCase {
 
     // MARK: - ☢️ The bomb that falls into the blast
 
-    func testFallingBombResourceIsBundled() {
-        XCTAssertNotNil(Bundle.module.url(forResource: "falling-bomb.png", withExtension: nil, subdirectory: "Resources"))
+    /// Not bundled since 2026-10-14 (no recorded origin): a drop-in name for
+    /// `assetsDir`, so it has to be listed where users look for those names.
+    func testFallingBombIsADocumentedDropIn() throws {
+        XCTAssertTrue(try AssetsDoc.dropInNames().contains("falling-bomb.png"))
     }
 
     /// The bug this fixes: the full-screen fireball used to start on the clip's

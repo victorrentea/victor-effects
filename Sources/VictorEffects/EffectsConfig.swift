@@ -99,7 +99,7 @@ final class EffectsConfig {
             effectsInfo("No config at \(path) — using defaults (port 55124, soundsDir ~/.victor-effects/sounds)")
         }
         values = EffectsConfigValues.parse(jsonData: data, env: ProcessInfo.processInfo.environment)
-        effectsInfo("Config: port=\(values.port) soundsDir=\(soundsDir.path) assetsDir=\(assetsDir.path) "
+        effectsInfo("Config: port=\(values.port) soundsDir=\(soundsDir.path)\(soundsDirIsStarterPack ? " (starter pack — \(configuredSoundsDir.path) does not exist)" : "") assetsDir=\(assetsDir.path) "
             + "webhook=\(values.eventWebhook.isEmpty ? "-" : values.eventWebhook) "
             + "screen=\(values.overlayScreen) bt=\(values.bluetoothSpeakerNameMatch.isEmpty ? "-" : values.bluetoothSpeakerNameMatch)")
         return values
@@ -112,7 +112,32 @@ final class EffectsConfig {
     func override(_ v: EffectsConfigValues) { values = v }
 
     var port: UInt16 { values.port }
-    var soundsDir: URL { URL(fileURLWithPath: Self.expand(values.soundsDir)) }
+    /// The soundboard folder: the configured one when it exists, else the
+    /// free starter pack inside the app (2026-10-14) — so a fresh install has
+    /// a working panel and tablet grid before anyone writes a config. A
+    /// configured folder that is *missing* still falls back, and `/state`
+    /// says which one won (`soundsDirSource`).
+    var soundsDir: URL {
+        Self.resolveSoundsDir(configured: configuredSoundsDir, starterPack: Self.starterPackDir)
+    }
+    var configuredSoundsDir: URL { URL(fileURLWithPath: Self.expand(values.soundsDir)) }
+    var soundsDirIsStarterPack: Bool { soundsDir != configuredSoundsDir }
+
+    /// `Contents/Resources/starter-pack` of the running app; nil under `swift run`.
+    static var starterPackDir: URL? {
+        Bundle.main.resourceURL?.appendingPathComponent("starter-pack")
+    }
+
+    /// Pure, so the fallback rule is a test rather than a filesystem.
+    static func resolveSoundsDir(configured: URL, starterPack: URL?,
+                                 isDir: (URL) -> Bool = { url in
+                                     var d: ObjCBool = false
+                                     return FileManager.default.fileExists(atPath: url.path, isDirectory: &d) && d.boolValue
+                                 }) -> URL {
+        if isDir(configured) { return configured }
+        if let starterPack, isDir(starterPack) { return starterPack }
+        return configured
+    }
     var assetsDir: URL { URL(fileURLWithPath: Self.expand(values.assetsDir)) }
     var eventWebhook: String { values.eventWebhook }
     var bluetoothSpeakerNameMatch: String { values.bluetoothSpeakerNameMatch }
@@ -147,6 +172,7 @@ final class EffectsConfig {
             + "\"bluetoothSpeakerNameMatch\":\(s(values.bluetoothSpeakerNameMatch)),"
             + "\"overlayScreen\":\(s(values.overlayScreen)),\"chargeEmoji\":[\(emoji)],"
             + "\"addonsBaseURL\":\(s(addonsBaseURL)),"
+            + "\"soundsDirSource\":\(s(soundsDirIsStarterPack ? "starter-pack" : "config")),"
             + "\"soundsDirExists\":\(soundsDirExists)}"
     }
 
@@ -165,7 +191,7 @@ final class EffectsConfig {
         let ext = ns.pathExtension
         let base = ns.deletingPathExtension
         if !ext.isEmpty,
-           let bundled = Bundle.module.url(forResource: base, withExtension: ext) {
+           let bundled = EffectsResources.bundle.url(forResource: base, withExtension: ext) {
             return bundled
         }
         return nil

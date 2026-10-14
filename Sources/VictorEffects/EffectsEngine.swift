@@ -108,6 +108,10 @@ final class EffectsEngine {
         return "{\"playing\":\(playingJSON),\"activeEffects\":[\(effects)],"
             + "\"whipShowing\":\(whipIsShowing),"
             + "\"panelMonitor\":\(panelMonitor),\"panelVisible\":\(panelVisible),"
+            // The two grants, so whoever installed the app (an agent, often)
+            // can tell what is still missing without a screen (2026-10-14).
+            + "\"permissions\":{\"accessibility\":\(AXIsProcessTrusted()),"
+            + "\"screenRecording\":\(CGPreflightScreenCaptureAccess())},"
             + "\"config\":\(EffectsConfig.shared.asJSON)}"
     }
 
