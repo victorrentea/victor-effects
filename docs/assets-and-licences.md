@@ -17,7 +17,7 @@ generator scripts, and looked at. 34 files left the repo:
   rendered by a script — replaced by the menu bar's 𝓯𝔁 drawn large (`tools/make-icon.swift`).
 - **25 with no recorded origin** — GIFs and sprites downloaded over the years
   (applause hands, blood drip, bullet hole, cavalry knight, chainsaw sheet,
-  confetti pop, drum, ECG line, explosion, falling bomb, fire alarm, fire and
+  confetti pop (replaced by a CC0 party popper, shipped), drum, ECG line, explosion, falling bomb, fire alarm, fire and
   fireball sheets, game-over, gong, heartbeat dog, leg, microwave, phoenix art
   and cry, red phone, Santa hat, "wasn't me", wolf howl, Zorro fire).
 

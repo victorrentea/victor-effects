@@ -149,8 +149,20 @@ PLIST
     say "Login item registered ($LAUNCH_AGENT)"
 fi
 
-say "Starting $APP_NAME"
-open -a "$APP"
+# The login item's RunAtLoad launches it already; a second `open` while that
+# launch is still in flight makes the app relaunch itself (a reopen = restart,
+# by design). So give the login item up to 10 s, and open only if it did not.
+STARTED=0
+if [ "$LOGIN_ITEM" = 1 ]; then
+    for _ in $(seq 1 20); do
+        pgrep -f "$APP_NAME.app/Contents/MacOS" >/dev/null 2>&1 && { STARTED=1; break; }
+        sleep 0.5
+    done
+fi
+if [ "$STARTED" = 0 ]; then
+    say "Starting $APP_NAME"
+    open -a "$APP"
+fi
 UP=0
 for _ in $(seq 1 30); do
     if curl -fs -m 1 "http://127.0.0.1:$PORT/ping" >/dev/null 2>&1; then UP=1; break; fi
@@ -160,8 +172,15 @@ done
 curl -fs -m 2 "http://127.0.0.1:$PORT/effect/confetti" >/dev/null 2>&1 || true
 say "Running: the menu bar shows an fx icon and confetti just fell on the screen."
 
-STATE=$(curl -fs -m 2 "http://127.0.0.1:$PORT/state" || echo '{}')
-grant_missing() { printf '%s' "$STATE" | grep -q "\"$1\":false"; }
+# A grant counts as given only when /state says true — an unanswered or
+# older /state is "missing", never "granted".
+STATE=""
+for _ in $(seq 1 20); do
+    STATE=$(curl -fs -m 3 "http://127.0.0.1:$PORT/state" || true)
+    printf '%s' "$STATE" | grep -q '"permissions"' && break
+    sleep 0.5
+done
+grant_missing() { ! printf '%s' "$STATE" | grep -q "\"$1\":true"; }
 
 echo
 if grant_missing accessibility || grant_missing screenRecording; then
