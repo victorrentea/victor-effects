@@ -1788,6 +1788,78 @@ class EmojiAnimator {
         trackEffect("zorro", layer: container, duration: totalDuration + 0.2)
     }
 
+    // MARK: - Glow sprites
+
+    /// A shape with a soft glow, drawn ONCE into a bitmap and shared by every
+    /// layer that shows it. A `shadow` on a layer is re-rendered offscreen and
+    /// blurred on every frame the layer moves, fades or spins — harmless on a
+    /// handful of layers, and what made the fireworks and the snow drag the
+    /// whole Mac down with a few hundred of them on screen at once (measured
+    /// 2026-10-14 at 39 and 27 ms a frame, `EffectsRenderCostTests`). A layer
+    /// whose `contents` is this image is one textured quad for the GPU.
+    ///
+    /// `core` is the shape's own box in points; `blur` is what the layer's
+    /// `shadowRadius` used to be. The image is that box grown by `margin(blur:)`
+    /// on every side, so a layer showing it takes `glowBounds(core:blur:)`.
+    private static var glowSpriteCache: [String: CGImage] = [:]
+
+    static func glowMargin(blur: CGFloat) -> CGFloat { ceil(blur * 1.6) }
+
+    static func glowBounds(core: CGSize, blur: CGFloat) -> CGRect {
+        let m = glowMargin(blur: blur)
+        return CGRect(x: 0, y: 0, width: core.width + 2 * m, height: core.height + 2 * m)
+    }
+
+    static func glowSprite(key: String, core: CGSize, blur: CGFloat, glow: NSColor, glowOpacity: CGFloat = 1,
+                           scale: CGFloat, draw: (CGContext) -> Void) -> CGImage? {
+        let cacheKey = "\(key)|\(core.width)x\(core.height)|\(blur)|\(scale)"
+        if let hit = glowSpriteCache[cacheKey] { return hit }
+        let box = glowBounds(core: core, blur: blur)
+        let pw = Int(ceil(box.width * scale)), ph = Int(ceil(box.height * scale))
+        guard pw > 0, ph > 0,
+              let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        ctx.scaleBy(x: scale, y: scale)
+        let m = glowMargin(blur: blur)
+        ctx.translateBy(x: m, y: m)
+        // CGContext's blur is in device pixels and spreads about twice as far as
+        // a layer's `shadowRadius` of the same number; this keeps the halo the
+        // size the layers had.
+        ctx.setShadow(offset: .zero, blur: blur * scale * 1.15,
+                      color: glow.withAlphaComponent(glowOpacity).cgColor)
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        draw(ctx)
+        ctx.endTransparencyLayer()
+        guard let img = ctx.makeImage() else { return nil }
+        glowSpriteCache[cacheKey] = img
+        return img
+    }
+
+    /// A layer showing a glow sprite, centred on `center`.
+    private static func glowLayer(_ image: CGImage?, core: CGSize, blur: CGFloat, center: CGPoint,
+                                  scale: CGFloat) -> CALayer {
+        let layer = CALayer()
+        layer.bounds = glowBounds(core: core, blur: blur)
+        layer.position = center
+        layer.contents = image
+        layer.contentsScale = scale
+        layer.minificationFilter = .trilinear
+        return layer
+    }
+
+    /// A filled glowing disc: the fireworks' flash and their streak tips.
+    private static func glowDisc(diameter: CGFloat, fill: NSColor, glow: NSColor, blur: CGFloat,
+                                 center: CGPoint, scale: CGFloat) -> CALayer {
+        let core = CGSize(width: diameter, height: diameter)
+        let img = glowSprite(key: "disc|\(fill)|\(glow)", core: core, blur: blur, glow: glow, scale: scale) { ctx in
+            ctx.setFillColor(fill.cgColor)
+            ctx.fillEllipse(in: CGRect(origin: .zero, size: core))
+        }
+        return glowLayer(img, core: core, blur: blur, center: center, scale: scale)
+    }
+
     // MARK: - Fireworks
 
     private static let fireworkPalettes: [[NSColor]] = [
@@ -1856,16 +1928,151 @@ class EmojiAnimator {
         }
     }
 
+    /// One line of a burst, relative to its centre: a quad curve from the
+    /// centre to `end`, bent by `control`.
+    struct FireworkStreak {
+        let control: CGPoint
+        let end: CGPoint
+        let color: NSColor
+        let width: CGFloat
+        /// Every other streak carries a glowing dot at its head.
+        let hasTip: Bool
+    }
+
+    /// The whole burst, every line at full length with its glow, in a square
+    /// of side `2 × half` centred on the burst. Pure drawing, no shared state:
+    /// safe off the main thread, where it runs while the flash covers the wait.
+    static func fireworkPicture(_ streaks: [FireworkStreak], palette: [NSColor], half: CGFloat,
+                                glowBlur: CGFloat, scale: CGFloat) -> CGImage? {
+        let px = Int(ceil(2 * half * scale))
+        guard px > 0,
+              let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        ctx.scaleBy(x: scale, y: scale)
+        ctx.translateBy(x: half, y: half)
+        ctx.setLineCap(.round)
+        // One transparency layer per colour, so a colour's glow is blurred once
+        // for all of its lines rather than once per line.
+        for color in palette {
+            let mine = streaks.filter { $0.color == color }
+            guard !mine.isEmpty else { continue }
+            ctx.saveGState()
+            ctx.setShadow(offset: .zero, blur: glowBlur * scale * 1.15, color: color.cgColor)
+            ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+            ctx.setStrokeColor(color.cgColor)
+            for streak in mine {
+                ctx.setLineWidth(streak.width)
+                ctx.move(to: .zero)
+                ctx.addQuadCurve(to: streak.end, control: streak.control)
+                ctx.strokePath()
+            }
+            ctx.endTransparencyLayer()
+            ctx.restoreGState()
+        }
+        return ctx.makeImage()
+    }
+
+    /// Puts a drawn burst on screen: the picture behind a radial mask whose
+    /// ring is `FireworkReveal`, faded over its second half like the lines
+    /// were, plus the glowing dots riding the heads.
+    private static func revealFirework(_ picture: CGImage?, streaks: [FireworkStreak], center: CGPoint,
+                                       half: CGFloat, reach: CGFloat, duration: Double, big: Bool,
+                                       scale: CGFloat, container: CALayer) {
+        let burst = CALayer()
+        burst.bounds = CGRect(x: 0, y: 0, width: 2 * half, height: 2 * half)
+        burst.position = center
+        burst.contents = picture
+        burst.contentsScale = scale
+
+        let ring = CAGradientLayer()
+        ring.type = .radial
+        ring.frame = burst.bounds
+        ring.startPoint = CGPoint(x: 0.5, y: 0.5)
+        ring.endPoint = CGPoint(x: 1, y: 1)
+        ring.colors = [NSColor.clear.cgColor, NSColor.white.cgColor, NSColor.white.cgColor, NSColor.clear.cgColor]
+        ring.locations = FireworkReveal.locations(at: 0, reach: Double(reach / half))
+        burst.mask = ring
+        container.addSublayer(burst)
+
+        let reveal = CAKeyframeAnimation(keyPath: "locations")
+        let steps = 40
+        reveal.values = (0...steps).map {
+            FireworkReveal.locations(at: Double($0) / Double(steps), reach: Double(reach / half))
+        }
+        reveal.duration = duration
+        reveal.calculationMode = .linear
+        reveal.fillMode = .forwards
+        reveal.isRemovedOnCompletion = false
+        ring.add(reveal, forKey: "reveal")
+
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1.0
+        fade.toValue = 0.0
+        fade.beginTime = CACurrentMediaTime() + duration * 0.5
+        fade.duration = duration * 0.5
+        fade.fillMode = .both
+        fade.isRemovedOnCompletion = false
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak burst] in burst?.removeFromSuperlayer() }
+        burst.add(fade, forKey: "fade")
+        CATransaction.commit()
+
+        // Glowing dot at the tip of every other streak — a sprite, shared.
+        for streak in streaks where streak.hasTip {
+            let dot = Self.glowDisc(diameter: big ? 6 : 4, fill: .white, glow: streak.color, blur: 6,
+                                    center: center, scale: scale)
+            container.addSublayer(dot)
+
+            let dotPath = CGMutablePath()
+            dotPath.move(to: center)
+            dotPath.addQuadCurve(to: CGPoint(x: center.x + streak.end.x, y: center.y + streak.end.y),
+                                 control: CGPoint(x: center.x + streak.control.x, y: center.y + streak.control.y))
+
+            let dotMove = CAKeyframeAnimation(keyPath: "position")
+            dotMove.path = dotPath
+            dotMove.timingFunction = CAMediaTimingFunction(name: .easeOut)
+
+            let dotFade = CABasicAnimation(keyPath: "opacity")
+            dotFade.fromValue = 1.0
+            dotFade.toValue = 0.0
+            dotFade.beginTime = duration * 0.4
+            dotFade.duration = duration * 0.6
+            dotFade.fillMode = .forwards
+
+            let dotShrink = CABasicAnimation(keyPath: "transform.scale")
+            dotShrink.fromValue = 1.5
+            dotShrink.toValue = 0.2
+            dotShrink.timingFunction = CAMediaTimingFunction(name: .easeIn)
+
+            let dotGroup = CAAnimationGroup()
+            dotGroup.animations = [dotMove, dotFade, dotShrink]
+            dotGroup.duration = duration
+            dotGroup.fillMode = .forwards
+            dotGroup.isRemovedOnCompletion = false
+
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { [weak dot] in dot?.removeFromSuperlayer() }
+            dot.add(dotGroup, forKey: "tip")
+            CATransaction.commit()
+        }
+    }
+
     private func launchRocket(from start: CGPoint, to burst: CGPoint,
                               palette: [NSColor], scale: CGFloat, big: Bool, container: CALayer) {
         let riseDuration = Double.random(in: 0.4...0.7)
 
-        // Rocket — bright streak rising up
+        // Rocket — bright streak rising up. The path is drawn around the
+        // layer's own origin, since `position` is what carries it: drawn at
+        // `start` it rode the rise TWICE offset, so a rocket meant for the right
+        // half of the screen climbed off its edge and burst from nowhere.
         let rocket = CAShapeLayer()
         let trailPath = CGMutablePath()
-        trailPath.move(to: start)
-        trailPath.addLine(to: CGPoint(x: start.x, y: start.y + 40))
+        trailPath.move(to: CGPoint(x: 0, y: -40))
+        trailPath.addLine(to: .zero)
         rocket.path = trailPath
+        rocket.position = start
         rocket.strokeColor = NSColor.white.cgColor
         rocket.lineWidth = 3
         rocket.lineCap = .round
@@ -1874,6 +2081,9 @@ class EmojiAnimator {
         rocket.shadowOffset = .zero
         rocket.shadowRadius = 12
         rocket.shadowOpacity = 1.0
+        // A fixed outline for the glow: without it the shadow is re-derived
+        // from the layer's pixels offscreen on every frame of the climb.
+        rocket.shadowPath = trailPath.copy(strokingWithWidth: 3, lineCap: .round, lineJoin: .round, miterLimit: 1)
         container.addSublayer(rocket)
 
         // Rise animation
@@ -1907,17 +2117,9 @@ class EmojiAnimator {
         let duration = big ? Double.random(in: 1.8...2.5) : Double.random(in: 1.2...1.8)
 
         // Massive flash
-        let flash = CALayer()
         let flashSize: CGFloat = big ? 120 : 60
-        flash.frame = CGRect(x: center.x - flashSize/2, y: center.y - flashSize/2,
-                              width: flashSize, height: flashSize)
-        flash.cornerRadius = flashSize / 2
-        flash.backgroundColor = NSColor.white.cgColor
-        flash.shadowColor = palette[0].cgColor
-        flash.shadowOffset = .zero
-        flash.shadowRadius = big ? 80 : 40
-        flash.shadowOpacity = 1.0
-        flash.contentsScale = scale
+        let flash = Self.glowDisc(diameter: flashSize, fill: .white, glow: palette[0], blur: big ? 80 : 40,
+                                  center: center, scale: scale)
         container.addSublayer(flash)
 
         let flashScale = CABasicAnimation(keyPath: "transform.scale")
@@ -1938,124 +2140,37 @@ class EmojiAnimator {
         flash.add(flashGroup, forKey: "flash")
         CATransaction.commit()
 
-        // Streaking lines — the real firework effect
+        // Streaking lines — the real firework effect. Decided here, drawn ONCE
+        // into a picture off the main thread, and revealed by a ring that races
+        // outward (the heads) with a second edge following it in (the tails).
+        // They used to be fifty `CAShapeLayer`s per burst, each animating its
+        // `strokeStart`/`strokeEnd` with a `shadow` for the glow: every one was
+        // re-stroked and re-blurred on every frame, ~300 at the finale, and the
+        // whole Mac stuttered (39 ms a frame, `EffectsRenderCostTests`). Now a
+        // burst is one picture and one gradient mask.
+        let glowBlur: CGFloat = big ? 8 : 4
+        let half = ceil(burstRadius * 1.1 + Self.glowMargin(blur: glowBlur))
+        var streaks: [FireworkStreak] = []
         for i in 0..<streakCount {
             let baseAngle = (CGFloat(i) / CGFloat(streakCount)) * 2 * .pi
             let angle = baseAngle + CGFloat.random(in: -0.12...0.12)
             let dist = burstRadius * CGFloat.random(in: 0.6...1.0)
-            let color = palette.randomElement()!
-
-            // Each streak is a line (CAShapeLayer) that extends outward
-            let endPoint = CGPoint(
-                x: center.x + cos(angle) * dist,
-                y: center.y + sin(angle) * dist
-            )
-            // Gravity droop at the end
-            let droopEnd = CGPoint(x: endPoint.x, y: endPoint.y - dist * 0.25)
-
-            let streakPath = CGMutablePath()
-            streakPath.move(to: center)
-            streakPath.addQuadCurve(to: droopEnd,
-                                     control: endPoint)
-
-            let streak = CAShapeLayer()
-            streak.path = streakPath
-            streak.strokeColor = color.cgColor
-            streak.lineWidth = big ? CGFloat.random(in: 2.5...4.5) : CGFloat.random(in: 1.5...3.0)
-            streak.lineCap = .round
-            streak.fillColor = nil
-            streak.shadowColor = color.cgColor
-            streak.shadowOffset = .zero
-            streak.shadowRadius = big ? 8 : 4
-            streak.shadowOpacity = 1.0
-            streak.strokeEnd = 0
-            container.addSublayer(streak)
-
-            // Draw the streak outward rapidly
-            let drawDuration = duration * 0.35
-            let draw = CABasicAnimation(keyPath: "strokeEnd")
-            draw.fromValue = 0
-            draw.toValue = 1
-            draw.duration = drawDuration
-            draw.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            draw.fillMode = .forwards
-            draw.isRemovedOnCompletion = false
-
-            // Then the tail follows (strokeStart catches up)
-            let tail = CABasicAnimation(keyPath: "strokeStart")
-            tail.fromValue = 0
-            tail.toValue = 1
-            tail.beginTime = drawDuration * 0.4
-            tail.duration = duration - drawDuration * 0.4
-            tail.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            tail.fillMode = .forwards
-            tail.isRemovedOnCompletion = false
-
-            // Fade at the end
-            let fade = CABasicAnimation(keyPath: "opacity")
-            fade.fromValue = 1.0
-            fade.toValue = 0.0
-            fade.beginTime = duration * 0.5
-            fade.duration = duration * 0.5
-            fade.fillMode = .forwards
-            fade.isRemovedOnCompletion = false
-
-            let group = CAAnimationGroup()
-            group.animations = [draw, tail, fade]
-            group.duration = duration
-            group.fillMode = .forwards
-            group.isRemovedOnCompletion = false
-
-            CATransaction.begin()
-            CATransaction.setCompletionBlock { [weak streak] in streak?.removeFromSuperlayer() }
-            streak.add(group, forKey: "burst")
-            CATransaction.commit()
-
-            // Glowing dot at the tip of each streak
-            if i % 2 == 0 {
-                let dot = CALayer()
-                let dotSize: CGFloat = big ? 6 : 4
-                dot.frame = CGRect(x: center.x - dotSize/2, y: center.y - dotSize/2,
-                                    width: dotSize, height: dotSize)
-                dot.cornerRadius = dotSize / 2
-                dot.backgroundColor = NSColor.white.cgColor
-                dot.shadowColor = color.cgColor
-                dot.shadowOffset = .zero
-                dot.shadowRadius = 6
-                dot.shadowOpacity = 1.0
-                dot.contentsScale = scale
-                container.addSublayer(dot)
-
-                let dotPath = CGMutablePath()
-                dotPath.move(to: center)
-                dotPath.addQuadCurve(to: droopEnd, control: endPoint)
-
-                let dotMove = CAKeyframeAnimation(keyPath: "position")
-                dotMove.path = dotPath
-                dotMove.timingFunction = CAMediaTimingFunction(name: .easeOut)
-
-                let dotFade = CABasicAnimation(keyPath: "opacity")
-                dotFade.fromValue = 1.0
-                dotFade.toValue = 0.0
-                dotFade.beginTime = duration * 0.4
-                dotFade.duration = duration * 0.6
-                dotFade.fillMode = .forwards
-
-                let dotShrink = CABasicAnimation(keyPath: "transform.scale")
-                dotShrink.fromValue = 1.5
-                dotShrink.toValue = 0.2
-                dotShrink.timingFunction = CAMediaTimingFunction(name: .easeIn)
-
-                let dotGroup = CAAnimationGroup()
-                dotGroup.animations = [dotMove, dotFade, dotShrink]
-                dotGroup.duration = duration
-                dotGroup.fillMode = .forwards
-                dotGroup.isRemovedOnCompletion = false
-
-                CATransaction.begin()
-                CATransaction.setCompletionBlock { [weak dot] in dot?.removeFromSuperlayer() }
-                dot.add(dotGroup, forKey: "tip")
-                CATransaction.commit()
+            // Relative to the burst's centre: out along the angle, then a
+            // gravity droop at the end.
+            let control = CGPoint(x: cos(angle) * dist, y: sin(angle) * dist)
+            streaks.append(FireworkStreak(
+                control: control,
+                end: CGPoint(x: control.x, y: control.y - dist * 0.25),
+                color: palette.randomElement()!,
+                width: big ? CGFloat.random(in: 2.5...4.5) : CGFloat.random(in: 1.5...3.0),
+                hasTip: i % 2 == 0))
+        }
+        DispatchQueue.global(qos: .userInteractive).async {
+            let picture = Self.fireworkPicture(streaks, palette: palette, half: half, glowBlur: glowBlur, scale: scale)
+            DispatchQueue.main.async { [weak container] in
+                guard let container, container.superlayer != nil else { return }
+                Self.revealFirework(picture, streaks: streaks, center: center, half: half, reach: burstRadius,
+                                    duration: duration, big: big, scale: scale, container: container)
             }
         }
 
@@ -5305,6 +5420,8 @@ class EmojiAnimator {
     /// replacement; `captureBuiltInDisplay()`'s `screencapture` remains the
     /// fallback for the day it stops answering.
     private static func captureBuiltInDisplayFast() -> CGImage? {
+        // A press caption on the glass must not end up in the picture.
+        if let shot = CaptionSafeCapture.displayImage(displayID: builtInDisplayID()) { return shot }
         var count: UInt32 = 0
         guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return nil }
         var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
@@ -6902,10 +7019,12 @@ class EmojiAnimator {
         guard #available(macOS 14.0, *) else { done(nil); return }
         // Main thread: `NSApp.windows` is AppKit state, and the only caller is a
         // main-queue timer.
-        let excluded = Set(NSApp.windows.compactMap {
+        let overlay = Set(NSApp.windows.compactMap {
             $0 is OverlayPanel ? CGWindowID($0.windowNumber) : nil
         })
-        guard !excluded.isEmpty else { done(nil); return }
+        guard !overlay.isEmpty else { done(nil); return }
+        // The press caption too, while it is up — or the refresh bakes it in.
+        let excluded = overlay.union(CaptionOverlay.onGlassWindowID.map { [$0] } ?? [])
         heartbeatContentFilter(excluding: excluded, displayID: builtInDisplayID()) { filter in
             guard let filter = filter else { DispatchQueue.main.async { done(nil) }; return }
             let cfg = SCStreamConfiguration()
@@ -6932,17 +7051,19 @@ class EmojiAnimator {
     /// "this display, minus these windows", evaluated at capture time, so windows
     /// that open after it was built still show up. Only the exclusion list is
     /// frozen — and our overlay panel is created once at launch and never
-    /// replaced, so that is exactly the part that may be.
+    /// replaced, so that is exactly the part that may be. Kept per exclusion
+    /// set: the press caption joins it while it is up (one panel, reused, so
+    /// there are only ever two sets).
     ///
-    /// Typed `AnyObject?` so the stored property itself carries no macOS 14
+    /// Typed `AnyObject` so the stored property itself carries no macOS 14
     /// requirement; the package still builds for macOS 13.
-    private static var _heartbeatContentFilter: AnyObject?
+    private static var _heartbeatContentFilters: [Set<CGWindowID>: AnyObject] = [:]
 
     @available(macOS 14.0, *)
     private static func heartbeatContentFilter(excluding: Set<CGWindowID>,
                                                displayID: CGDirectDisplayID,
                                                _ done: @escaping (SCContentFilter?) -> Void) {
-        if let cached = _heartbeatContentFilter as? SCContentFilter { done(cached); return }
+        if let cached = _heartbeatContentFilters[excluding] as? SCContentFilter { done(cached); return }
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { content, error in
             guard let content = content,
                   let display = content.displays.first(where: { $0.displayID == displayID })
@@ -6960,7 +7081,7 @@ class EmojiAnimator {
                 return
             }
             let filter = SCContentFilter(display: display, excludingWindows: mine)
-            DispatchQueue.main.async { _heartbeatContentFilter = filter }
+            DispatchQueue.main.async { _heartbeatContentFilters[excluding] = filter }
             done(filter)
         }
     }
@@ -7168,6 +7289,8 @@ class EmojiAnimator {
     }
 
     private static func captureBuiltInDisplay() -> CGImage? {
+        // A press caption on the glass must not end up in the picture.
+        if let shot = CaptionSafeCapture.displayImage(displayID: builtInDisplayID()) { return shot }
         // Unique per call: several capture effects (heartbeat, broken glass, FBI,
         // phone) can now run this concurrently — a pid-only path would let them
         // clobber each other's file.
@@ -8310,23 +8433,20 @@ class EmojiAnimator {
         let fallSeconds = Self.snowFallSecondsFar
             - Double(depth) * (Self.snowFallSecondsFar - Self.snowFallSecondsNear)
 
-        let flake = CAShapeLayer()
-        flake.path = Self.snowflakePath(radius: radius)
-        flake.bounds = CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)
-        // Ice blue, not white (2026-09-23): white line art with a white halo
-        // vanished over a white slide, which is most of what is on screen.
-        flake.strokeColor = Self.snowflakeColor.cgColor
-        flake.fillColor = nil
-        flake.lineWidth = max(1.0, radius * 0.13)
-        flake.lineCap = .round
-        flake.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        // The halo is what makes it read as snow rather than as line art.
-        // A deeper blue halo gives the flake an outline on white backgrounds too.
-        flake.shadowColor = Self.snowflakeHaloColor.cgColor
-        flake.shadowRadius = radius * 0.55
-        flake.shadowOpacity = 0.9
-        flake.shadowOffset = .zero
-        flake.masksToBounds = false
+        // One picture of a flake with its halo, drawn once at the largest size
+        // and shown by every flake at its own: line width and halo are both a
+        // fixed fraction of the radius, so a scaled-down big flake IS a small
+        // one. Each flake was a `CAShapeLayer` with a blurred `shadow` before —
+        // re-rendered offscreen every frame it fell and spun, a hundred and
+        // more at once, which is what slowed the whole Mac during the song
+        // (27 ms a frame, `EffectsRenderCostTests`).
+        let flake = CALayer()
+        let sprite = Self.snowflakeSprite(scale: NSScreen.screens.first?.backingScaleFactor ?? 2.0)
+        let k = radius / Self.snowflakeSpriteRadius
+        flake.bounds = CGRect(x: 0, y: 0, width: sprite.bounds.width * k, height: sprite.bounds.height * k)
+        flake.contents = sprite.image
+        flake.contentsScale = sprite.scale
+        flake.minificationFilter = .trilinear
 
         // Falling = decreasing y (hostLayer is not geometry-flipped).
         let floorY = radius * 0.6
@@ -8396,6 +8516,30 @@ class EmojiAnimator {
         CATransaction.setCompletionBlock { [weak flake] in flake?.removeFromSuperlayer() }
         flake.add(group, forKey: "snowflake")
         CATransaction.commit()
+    }
+
+    /// The radius `snowflakeSprite` is drawn at — the largest flake, so every
+    /// flake shows it the same size or smaller.
+    private static let snowflakeSpriteRadius: CGFloat = 60
+
+    /// The flake's picture: ice-blue line art and its deeper-blue halo, as the
+    /// shape layer drew them (`lineWidth` 0.13 r, `shadowRadius` 0.55 r at
+    /// 0.9 opacity). The halo is what makes it read as snow rather than as
+    /// line art, and gives it an outline on a white slide.
+    private static func snowflakeSprite(scale: CGFloat) -> (image: CGImage?, bounds: CGRect, scale: CGFloat) {
+        let r = snowflakeSpriteRadius
+        let core = CGSize(width: 2 * r, height: 2 * r)
+        let blur = r * 0.55
+        let image = glowSprite(key: "snowflake", core: core, blur: blur, glow: snowflakeHaloColor,
+                               glowOpacity: 0.9, scale: scale) { ctx in
+            ctx.translateBy(x: r, y: r)
+            ctx.addPath(snowflakePath(radius: r))
+            ctx.setStrokeColor(snowflakeColor.cgColor)
+            ctx.setLineWidth(r * 0.13)
+            ctx.setLineCap(.round)
+            ctx.strokePath()
+        }
+        return (image, glowBounds(core: core, blur: blur), scale)
     }
 
     /// A six-spoke snowflake centred on (0,0): each arm carries two pairs of

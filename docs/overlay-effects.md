@@ -533,7 +533,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   each — the least detail that still reads as a snowflake and not an asterisk), an
   **ice-blue stroke with a deeper blue glow** (`snowflakeColor` / `snowflakeHaloColor`,
   2026-09-23). It was white-on-white-glow until then, which disappeared over a white
-  slide — most of what is ever on screen. **One number — depth
+  slide — most of what is ever on screen. Since 2026-10-14 every flake shows **one
+  shared picture** of flake + halo (`snowflakeSprite`, drawn once at the 60 pt
+  radius and scaled down) instead of being a `CAShapeLayer` with a `shadow` — see
+  **Glow without a shadow** below. **One number — depth
   0…1 — drives size, fall speed, brightness and sway width together**, so a flake can
   never read as a contradiction (big but distant, tiny but racing); near flakes are
   **60 px**, bright and cross in ~3.5 s, far ones **15 px**, faint and take ~6.5 s —
@@ -2204,6 +2207,46 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   the ordinary routed `/sound/play` path, which is why #71 needs no special case
   in `playSound` and no `onStop` entry. `stop-all` clears it like any other
   tracked effect; re-firing redraws it (it is not a toggle).
+
+## 🏎️ Glow without a shadow — what a full-screen effect may cost
+
+A `shadow` on a layer (`shadowRadius` without a fixed `shadowPath`) is drawn by
+rendering the layer **offscreen** and blurring the result — again on every
+frame the layer moves, spins, fades or changes its stroke. On a handful of
+layers that is free. The fireworks had ~300 of them at the finale (a glow on
+every streak and every tip dot, each streak also animating
+`strokeStart`/`strokeEnd`), the ❄️ snow ~150 spinning flakes with a 33 pt halo
+each, and both visibly slowed the whole Mac. Measured on a Retina-sized target
+through `CARenderer` (`EffectsRenderCostTests`, which leaves a frame of each in
+`$TMPDIR`), on 2026-10-14:
+
+| | before | after |
+|---|---|---|
+| 🎆 fireworks, mean / p95 frame | 39 ms / 178 ms | ~4 ms / ~8 ms |
+| ❄️ snow, mean / p95 frame | 27 ms / 49 ms | ~3 ms / ~5 ms |
+
+A 120 Hz screen has 8.3 ms. The rules that got there, for the next effect:
+
+- **A glow that does not change shape is a picture.** `glowSprite` draws a shape
+  and its blurred halo into a bitmap once (cached by key), and every layer that
+  shows it is a textured quad: the snowflakes, the fireworks' flash and tip
+  dots (`glowDisc`). Moving, scaling, spinning and fading such a layer costs
+  the GPU nothing worth measuring.
+- **A shadow on a fixed outline gets a `shadowPath`** (the rocket's trail) so it
+  is derived from the path, not from the layer's pixels every frame.
+- **Lines that grow and shrink are drawn once and revealed.** A burst's streaks
+  are decided up front, drawn full-length with a real blur glow into one
+  picture **off the main thread** (`fireworkPicture`, one transparency layer per
+  colour so each colour's glow is blurred once), and shown behind a radial
+  `CAGradientLayer` mask whose ring races outward for the heads and follows
+  for the tails (`FireworkReveal`, pure and tested). One mask per burst instead
+  of fifty re-stroked shape layers. The ring is radial, so shorter streaks
+  finish growing a moment earlier than longer ones — what sparks flying at one
+  speed would do anyway.
+
+The rocket also climbs under its own burst again: its trail was drawn at
+`start` *and* moved by `position`, so it rode the rise offset by its own x and
+a rocket for the right half of the screen left it.
 
 ## ☕ The coffee cups — the chimney, the pot, the explosions
 
