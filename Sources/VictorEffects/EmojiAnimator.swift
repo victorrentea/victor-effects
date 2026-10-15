@@ -247,6 +247,8 @@ class EmojiAnimator {
     private var _minigunFireSound: AK47FireSound?
     private var _minigunPendingCut: DispatchWorkItem?
     private var _minigunPulledAt: CFTimeInterval = 0
+    private var _minigunBloom: CGFloat = 0            // rounds of spray "heat" — 0 = dead accurate
+    private var _minigunReleasedAt: CFTimeInterval = 0
     private var _minigunDrawPlayer: AVAudioPlayer?
 
     // 🪚 Chainsaw cursor: for the length of tile #18 the pointer IS a running
@@ -4250,6 +4252,25 @@ class EmojiAnimator {
         max(0, sniperReticleRingRadius(scale: minigunReticleScale)
                - max(holeSize.width, holeSize.height) / 2)
     }
+    /// Counter-Strike's first-shot accuracy (2026-10-15, Victor: *"if I fire
+    /// one by one like in Counter Strike I should have precision … when I
+    /// machine gun a lot the bullets scatter"*). The spread a round may take is
+    /// `minigunSpreadRadius × minigunBloomFraction(bloom)`, where `bloom` counts
+    /// the rounds fired in the burst so far: the first lands **on the
+    /// crosshair**, the cone opens over `minigunBloomRounds` held rounds to the
+    /// full ring (an eased curve, so the 2nd and 3rd still hit close).
+    static let minigunBloomRounds: CGFloat = 6
+    static func minigunBloomFraction(_ bloom: CGFloat) -> CGFloat {
+        pow(min(1, max(0, bloom) / minigunBloomRounds), 1.5)
+    }
+    /// Releasing the trigger lets the aim settle: one round of bloom per this
+    /// long. Tapping at up to ~8 a second stays dead accurate; spamming faster
+    /// opens the cone like a held burst would. Capped at `minigunBloomRounds`,
+    /// so even a long spray recovers within ~0.7 s.
+    static let minigunBloomRecoveryPerRound: Double = 0.12
+    static func minigunBloomAfterRest(_ bloom: CGFloat, rest: Double) -> CGFloat {
+        max(0, min(bloom, minigunBloomRounds) - CGFloat(max(0, rest) / minigunBloomRecoveryPerRound))
+    }
     /// The gun is put away this long after the last activity — its appearance,
     /// or the trigger's last release. The self-termination rule: an effect
     /// that only ends on a re-press or a stop-all would stay up (and keep
@@ -4453,6 +4474,8 @@ class EmojiAnimator {
         let now = CACurrentMediaTime()
         _minigunArmedAt = now
         _minigunLastActivity = now
+        _minigunBloom = 0
+        _minigunReleasedAt = now
         _minigunLastMouseX = mousePointInHostLayer().x
         startMinigunReticle()
         startMinigunInputCapture()
@@ -4555,6 +4578,7 @@ class EmojiAnimator {
         // the first burst would be two soundtracks at once.
         stopMinigunDrawSound()
         _minigunPulledAt = CACurrentMediaTime()
+        _minigunBloom = Self.minigunBloomAfterRest(_minigunBloom, rest: _minigunPulledAt - _minigunReleasedAt)
         _minigunNextShot = _minigunPulledAt       // the first round goes out now
         // Its own engine, already running: the noise has to begin with the
         // finger, so no Bluetooth start delay (the keep-alive holds the speaker
@@ -4569,6 +4593,7 @@ class EmojiAnimator {
         _minigunFiring = false
         let now = CACurrentMediaTime()
         _minigunLastActivity = now
+        _minigunReleasedAt = now
         // At the end of the round in flight a held burst rings out on its
         // tail; a single round is already ringing out by itself.
         let cut = DispatchWorkItem { [weak self] in
@@ -4598,7 +4623,8 @@ class EmojiAnimator {
         let y: CGFloat
         if let target = Self.minigunShotTarget(forMouse: mouse, in: bounds) {
             let angle = CGFloat.random(in: 0..<(2 * .pi))
-            let r = Self.minigunSpreadRadius(holeSize: size) * CGFloat.random(in: 0...1)
+            let r = Self.minigunSpreadRadius(holeSize: size) * Self.minigunBloomFraction(_minigunBloom)
+                * CGFloat.random(in: 0...1)
             x = min(max(target.x + r * cos(angle) - size.width / 2, 0), bounds.width - size.width)
             y = min(max(target.y + r * sin(angle) - size.height / 2, 0), bounds.height - size.height)
         } else {
@@ -4617,6 +4643,7 @@ class EmojiAnimator {
         }
         addMinigunQuestionMark(to: hole)
         _minigunHoles.append(hole)
+        _minigunBloom += 1
         // A long burst must not pile up layers without bound.
         if _minigunHoles.count > Self.minigunMaxHoles {
             _minigunHoles.removeFirst().removeFromSuperlayer()

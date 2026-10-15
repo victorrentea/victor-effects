@@ -1015,7 +1015,15 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     drawn ring's radius (`sniperReticleRingRadius`, 75 pt at the reticle's 2.5×) less half a
     hole, ≈ **54 pt**. It replaced a fixed 79 pt (140, then half the area on 09-23, then
     × 0.8 on 09-30): wider than the ring itself, and with a 43 pt hole on top, rounds landed
-    well outside it. Density peaks at the centre (r ∝ u). Holes are drawn at **0.49** of the
+    well outside it. Density peaks at the centre (r ∝ u).
+  - **Taps are precise, bursts spray** (2026-10-15, Victor: *"if I fire one by one like in
+    Counter Strike I should have precision … when I machine gun a lot the bullets
+    scatter"*). That ring radius is only the *ceiling*: each round's spread is
+    `minigunSpreadRadius × minigunBloomFraction(bloom)`, `bloom` = rounds fired so far in
+    the burst. Round 1 lands **on the crosshair**, the cone opens on an eased curve
+    ((n/6)^1.5) to the full ring by the 7th held round. Releasing recovers one round of
+    bloom per **0.12 s** (`minigunBloomAfterRest`, capped at 6), so tapping up to ~8/s stays
+    dead accurate and even a long spray settles in ~0.7 s. Holes are drawn at **0.49** of the
     art (`minigunBulletHoleScale`: 0.7, then 30 % smaller on 2026-09-30), sit below the gun,
     capped at 250.
   - **Every hole asks a question** (2026-10-01, Victor: the room *shoots questions* at the

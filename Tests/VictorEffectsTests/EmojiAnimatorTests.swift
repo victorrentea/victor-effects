@@ -342,6 +342,22 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertEqual(EmojiAnimator.minigunBulletHoleScale, 0.49, accuracy: 0.001)
     }
 
+    /// Victor, 2026-10-15: taps land on the crosshair like Counter-Strike's
+    /// first shot; only a held burst sprays, and a pause brings the aim back.
+    func testMinigunTapsAreAccurateAndBurstsSpray() {
+        typealias A = EmojiAnimator
+        XCTAssertEqual(A.minigunBloomFraction(0), 0)                     // first round: dead on
+        XCTAssertLessThan(A.minigunBloomFraction(1), 0.1)                // second: barely off
+        XCTAssertEqual(A.minigunBloomFraction(A.minigunBloomRounds), 1)  // full ring after 6
+        XCTAssertEqual(A.minigunBloomFraction(50), 1)                    // never past the ring
+        // A tap every 0.25 s fully recovers the one round it fired.
+        XCTAssertEqual(A.minigunBloomAfterRest(1, rest: 0.25 - 0.1), 0)
+        // A long spray settles within a second.
+        XCTAssertEqual(A.minigunBloomAfterRest(80, rest: 0.75), 0)
+        // A quick re-pull mid-spray keeps most of the scatter.
+        XCTAssertGreaterThan(A.minigunBloomAfterRest(6, rest: 0.05), 5)
+    }
+
     /// One round is a body at full level, then a decay to −60 dB; the release
     /// tail decays from its first sample.
     func testAK47RoundEnvelope() {
