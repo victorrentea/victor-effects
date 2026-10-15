@@ -858,6 +858,13 @@ class EmojiAnimator {
         SoundManager.shared.play(Self.victoryCheerSound)
     }
 
+    /// The addons app saw the deciding ☕ pop (`/effect/coffee/armed`): its −1
+    /// is still flying, but the vote is settled, so the cups filled from now on
+    /// burst as fireworks. Silent — the 🤠 waits for `coffeeBreakWon`.
+    func coffeeBreakArmed() {
+        coffeeVictory.won(at: CACurrentMediaTime())
+    }
+
     private func bangVictory() {
         SoundManager.shared.play(Self.victoryBangSound, rate: Self.victoryBangRate)
     }

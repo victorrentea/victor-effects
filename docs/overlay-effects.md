@@ -2418,6 +2418,13 @@ flood of coffee cups"*. The rules:
    clip at a time so a cluster does not stack into noise). A victory burst
    **pays nothing**: the watch it would pull closer is the one just emptied,
    and a pop arriving after it closed would open a fresh UNTIL BREAK.
+   **Armed one flight earlier** (2026-10-15): `GET /effect/coffee/armed`
+   (`coffeeBreakArmed`) turns `CoffeeVictory` on **without** the yee-haw. The
+   addons app sends it as soon as the cup whose −1 will empty the watch pops,
+   because that −1 then flies for over a second, and every cup filled in that
+   second used to pop as a vote whose minute was dropped on a watch at zero —
+   seven of them, the first time it was measured. `coffee/won` still arrives
+   on the landing and is what cheers.
    **How it ends**: 10 s after the win, stretched by every ☕ that arrives while
    it is on, so a room still sending cups keeps getting fireworks; a ☕ after
    that is a vote again. A deadline, never a flag; `stop-all` resets it.

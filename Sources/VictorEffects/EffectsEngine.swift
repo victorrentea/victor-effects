@@ -366,6 +366,12 @@ final class EffectsEngine {
             // and the cups the pot fills from now on burst big with fireworks
             // (and pay nothing) until 10 s pass without a ☕.
             animator.coffeeBreakWon()
+        case "coffee/armed":
+            // Addons: the ☕ that just popped will empty the UNTIL BREAK watch
+            // once its −1 lands. Turn the next cups into fireworks NOW — the
+            // room keeps filling cups during that second of flight — but keep
+            // the yee-haw for the landing (`coffee/won`).
+            animator.coffeeBreakArmed()
         case "coffee/pop":
             // Skip the salvo and the pot entirely: burst a ☕ mid-screen and fire
             // the same event a real payoff fires, so the whole chain can be
