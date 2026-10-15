@@ -338,6 +338,8 @@ final class EffectsEngine {
         case "elephant/stop": animator.stopElephant()
         case "panda":         animator.showPanda()
         case "panda/stop":    animator.stopPanda()
+        case "opus":          animator.showOpus()
+        case "opus/stop":     animator.stopOpus()
         case "claude-peek":   animator.showClaudePeek()
         case "claude-peek/stop": animator.stopClaudePeek()
         case "heart":         animator.spawnEmoji("❤️")

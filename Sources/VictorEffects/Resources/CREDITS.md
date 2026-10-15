@@ -8,7 +8,7 @@ quietly when it is missing — see `docs/assets-and-licences.md`.
 | file | origin | licence |
 |---|---|---|
 | `click.wav` | a generated 1800 Hz tap | own work (MIT, with the code) |
-| `elephant.png`, `panda.png` | generated for this project (image tools), cut out locally | own work (MIT) |
+| `elephant.png`, `panda.png`, `opus.png` | generated for this project (image tools), cut out locally | own work (MIT) |
 | `heartbeat_beats.json` | measured from a recording | own work (MIT) |
 | `clouds/*.png` | two public-domain / CC0 photographs — `clouds/CREDITS.md` | PD / CC0 |
 | `espresso_pour.mp3` | Wikimedia Commons, [Espresso machine.ogg](https://commons.wikimedia.org/wiki/File:Espresso_machine.ogg) | Public domain |

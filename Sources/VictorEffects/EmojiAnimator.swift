@@ -12187,6 +12187,64 @@ class EmojiAnimator {
         CATransaction.commit()
     }
 
+    // MARK: - 🤖 The rusty Opus head, dead centre (⌘⌃O)
+
+    /// Same lifetime as the elephant and the panda: long enough to land the
+    /// line, short enough that nobody waits for it to leave.
+    static let opusLifetime: Double = elephantLifetime
+
+    /// Centred on the screen at 60% of its height — the size the head has on
+    /// the slide it was cut out of, which is the look this key reproduces.
+    static func opusFrame(in bounds: CGRect, aspect: CGFloat) -> CGRect {
+        var h = bounds.height * 0.6
+        var w = h * aspect
+        if w > bounds.width * 0.9 { w = bounds.width * 0.9; h = w / max(aspect, 0.01) }
+        return CGRect(x: bounds.midX - w / 2, y: bounds.midY - h / 2, width: w, height: h)
+    }
+
+    /// 🤖 The rusty robot head with the orange beacon appears in the middle of
+    /// the screen. **No entrance and no exit**: the elephant and the panda walk,
+    /// this one is a cut — it is there, then it is not, like a slide change. The
+    /// key again removes it, and it leaves on its own after `opusLifetime`.
+    func showOpus() {
+        if activeEffects["opus"] != nil { stopOpus(); return }
+
+        guard let url = EffectsResources.url("opus", "png"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            overlayError("opus.png is not in the bundle")
+            return
+        }
+
+        let frame = Self.opusFrame(in: hostLayer.bounds, aspect: CGFloat(image.width) / CGFloat(image.height))
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)   // no implicit fade-in: a cut
+        let layer = CALayer()
+        layer.frame = frame
+        layer.contents = image
+        layer.contentsGravity = .resizeAspect
+        layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        stageLayer.addSublayer(layer)
+        CATransaction.commit()
+        activeEffects["opus"] = layer
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.opusLifetime) { [weak self, weak layer] in
+            guard let self, let layer, self.activeEffects["opus"] === layer else { return }
+            self.stopOpus()
+        }
+    }
+
+    /// Gone in one frame, the way it came. Safe when nothing is showing.
+    func stopOpus() {
+        guard let layer = activeEffects["opus"] else { return }
+        activeEffects.removeValue(forKey: "opus")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.removeFromSuperlayer()
+        CATransaction.commit()
+    }
+
     // MARK: - 🤖 Claude leans in from the left (⌘⌃Q)
 
     /// One key, two agents: the wave is not an ad for a vendor, it is "the

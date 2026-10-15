@@ -302,7 +302,7 @@ ones. Two tools now cover them:
   On it: zorro, fireworks, sepia, confetti (both), money, iris, applause, minion,
   wolf, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
   Star Wars, snow, fire alarm, cavalry, wasn't-me, microwave, universal minions,
-  rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda,
+  rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda, opus,
   game over and its CRT, sketch arrow, the reaction emojis (not ☕), the ❌ fail
   stamp (no longer a frozen `ZoomSlice`), and the **progress bar**
   (`ProgressBarOverlay(host:)` asks for the stage at every use).
