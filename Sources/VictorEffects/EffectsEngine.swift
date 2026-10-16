@@ -467,10 +467,13 @@ final class EffectsEngine {
         let controller = whipController ?? WhipController()
         whipController = controller
         controller.onEscape = { [weak self] in self?.whipController?.hide() }
-        // Every crack makes the claude-peek mascot flinch, if he is on screen.
-        // Wired here rather than inside the whip so the overlay keeps knowing
-        // nothing about the effects it triggers; a no-op the rest of the time.
-        controller.onCrack = { [weak self] in self?.animator.whipClaudePeek() }
+        // The claude-peek mascot jumps when the rope HITS him, with sparks where
+        // it touched (2026-10-16; until then every crack anywhere did it).
+        // Wired here so the overlay keeps knowing nothing about the effects it
+        // triggers; a no-op while he is not on screen.
+        controller.onRope = { [weak self] points, speeds in
+            self?.animator.whipLash(points: points, speeds: speeds)
+        }
         controller.show()
     }
 

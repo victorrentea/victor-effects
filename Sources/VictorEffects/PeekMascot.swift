@@ -433,3 +433,61 @@ enum PeekMascotOutline {
         )
     }
 }
+
+/// Where the mascot's picture is actually drawn, for "did the whip touch him":
+/// his box has transparent corners, and a lash through them is a miss. A small
+/// copy of the image's alpha (128 px wide, ~3 pt a cell at his size), read
+/// with a one-cell margin so a rope as thick as the whip's still counts.
+struct PeekAlphaMask {
+    let width: Int
+    let height: Int
+    let alpha: [UInt8]
+    /// The image's own aspect: the layer draws it `.resizeAspect` in its frame.
+    let aspect: CGFloat
+
+    init?(image: CGImage, width: Int = 128) {
+        guard image.width > 0, image.height > 0 else { return nil }
+        let height = max(1, Int((CGFloat(width) * CGFloat(image.height) / CGFloat(image.width)).rounded()))
+        var data = [UInt8](repeating: 0, count: width * height)
+        let drawn: Bool = data.withUnsafeMutableBytes { buffer in
+            guard let ctx = CGContext(data: buffer.baseAddress, width: width, height: height,
+                                      bitsPerComponent: 8, bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                                      bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) else { return false }
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        self.width = width
+        self.height = height
+        self.alpha = data
+        self.aspect = CGFloat(image.width) / CGFloat(image.height)
+    }
+
+    /// Is `p` (same coordinates as `frame`, y up) on a drawn pixel of the
+    /// picture fitted into `frame`?
+    func isOpaque(_ p: CGPoint, in frame: CGRect, threshold: UInt8 = 80) -> Bool {
+        guard frame.width > 0, frame.height > 0 else { return false }
+        var fit = frame
+        if frame.width / frame.height > aspect {
+            fit.size.width = frame.height * aspect
+            fit.origin.x = frame.midX - fit.width / 2
+        } else {
+            fit.size.height = frame.width / aspect
+            fit.origin.y = frame.midY - fit.height / 2
+        }
+        let u = (p.x - fit.minX) / fit.width
+        let v = (p.y - fit.minY) / fit.height
+        guard u >= 0, u <= 1, v >= 0, v <= 1 else { return false }
+        // Row 0 of the bitmap is the TOP of the picture; v counts up.
+        let cx = min(width - 1, Int(u * CGFloat(width)))
+        let cy = min(height - 1, Int((1 - v) * CGFloat(height)))
+        for dy in -1...1 {
+            for dx in -1...1 {
+                let x = cx + dx, y = cy + dy
+                guard x >= 0, x < width, y >= 0, y < height else { continue }
+                if alpha[y * width + x] >= threshold { return true }
+            }
+        }
+        return false
+    }
+}

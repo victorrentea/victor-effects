@@ -78,11 +78,32 @@ overlay holds the A2DP link warm with `BluetoothOutput.startContinuousWarm()`
 for exactly this reason, so a crack has zero spin-up lag and adding the
 compensation delay would only make it late.
 
-## The mascot flinches
+## The mascot flinches — when the rope hits him
 
-Every crack — flicked, Return'd, thumb-buttoned or `GET /effect/whip/crack` —
-makes the ⌘⌃Q mascot **jump**, if he happens to be on screen
-(`EmojiAnimator.whipClaudePeek`). The whip already scolds the agent in the
+**Only a hit counts** (2026-10-16, Victor: *"să sară … doar dacă îi atinge
+biciul, și atunci să apară niște scântei unde îl atinge"*). Until then every
+crack anywhere on the screen made the ⌘⌃Q mascot jump. Now the whip reports its
+rope every frame (`WhipController.onRope`: the links in global framebuffer
+points, converted by AppKit so the ⌥-scroll shrink is included, plus how far
+each moved), and `EmojiAnimator.whipLash` makes him jump only if:
+
+- a link **moving at least 18 pt a frame** (~1100 pt/s; a crack's tip runs at
+  260) — a rope draped over him or carried slowly across is not a hit;
+- **outside the handle third** of the rope — that end is the pointer, and
+  pointing at him is not hitting him;
+- passes over a **drawn pixel** of him (`PeekAlphaMask`, a 128-px-wide copy of
+  the picture's alpha read with a one-cell margin), not his box — the
+  transparent corners around Clawd are a miss. Each link is walked every 5 pt
+  (`lashSampleStep`) so a leg is not stepped over between two links, and the
+  hit test takes him where he is drawn: staged for ⌥-scroll, mid-slide, mid-hop.
+
+One hop per lash (0.35 s cooldown, a lash crosses him over several frames), and
+**a few sparks fly where it hit**: a white flash and twelve short yellow streaks
+thrown out of the contact point, gone in 0.6 s, `1/zoom` under ⌥-scroll. The log
+says `🔥 whip hit claude-peek at x,y`. A Return/thumb crack is a scripted flick
+from the pointer, so it hits him only if that flick sweeps through him.
+
+The hop itself is unchanged (`EmojiAnimator.whipClaudePeek`): The whip already scolds the agent in the
 terminal; this is the same joke told to the room instead of to the shell, and
 the robot standing still through a crack aimed at him was the thing that read as
 missing.
@@ -141,9 +162,10 @@ cut-outs, plus that a crack is one hop, that consecutive cracks go opposite
 ways, and that he lands on the pixel he came in on however many times he is hit
 mid-air.
 
-The wiring is `WhipController.onCrack`, set in `EffectsEngine.toggleWhip`, so the
-overlay stays a rope and a sound and knows nothing about what listens. Inside
-it, `cracked()` is the **one funnel** every crack passes through — sound, then
+The wiring is `WhipController.onRope`, set in `EffectsEngine.toggleWhip`, so the
+overlay stays a rope and a sound and knows nothing about what listens.
+`onCrack` stays for whoever wants every crack (nobody, since 2026-10-16), and
+`cracked()` is still the **one funnel** every crack passes through — sound, then
 listeners. `PeekWhipJumpTests.testEveryCrackGoesThroughTheFunnel` parses
 `WhipOverlay.swift` to keep a third `playCrack()` call site from quietly
 skipping the second half.

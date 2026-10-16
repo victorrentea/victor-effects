@@ -12775,6 +12775,160 @@ class EmojiAnimator {
         schedulePeekExit(layer: layer)
     }
 
+    // MARK: 🔥 Only when the rope actually touches him
+
+    /// 🔥 The rope moved: if a fast part of it went through the mascot's
+    /// **drawn pixels** (not his box — the transparent corners around Clawd do
+    /// not count), he jumps and a few sparks fly where it hit (Victor,
+    /// 2026-10-16: *"să sară … doar dacă îi atinge biciul, și atunci să apară
+    /// niște scântei unde îl atinge"*). Until then every crack anywhere on the
+    /// screen made him jump. `points` are the rope's links in global
+    /// framebuffer points, handle first; `speeds` how far each moved this frame,
+    /// in the whip's own (glass) points.
+    func whipLash(points: [CGPoint], speeds: [CGFloat]) {
+        guard let layer = activeEffects["claude-peek"],
+              let contents = layer.contents else { return }
+        let image = contents as! CGImage
+        let now = CACurrentMediaTime()
+        guard now - lastPeekLash >= Self.peekLashCooldown,
+              let mask = Self.peekAlphaMask(for: image) else { return }
+        let origin = EdgeFlash.builtInScreen?.frame.origin ?? .zero
+        let hit = Self.firstLashHit(points: points, speeds: speeds,
+                                    minSpeed: Self.peekLashMinSpeed,
+                                    from: points.count / Self.peekLashSkipHandleFraction) { g in
+            self.peekIsOpaque(atGlobal: g, layer: layer, screenOrigin: origin, mask: mask)
+        }
+        guard let hit else { return }
+        lastPeekLash = now
+        effectsInfo("🔥 whip hit claude-peek at \(Int(hit.x)),\(Int(hit.y))")
+        whipClaudePeek()
+        spawnWhipSparks(at: CGPoint(x: hit.x - origin.x, y: hit.y - origin.y))
+    }
+
+    /// Below this a link is draped over him or carried by the hand, not
+    /// striking: glass points per 60 Hz frame (~1100 pt/s). A crack's tip runs
+    /// at 260.
+    static let peekLashMinSpeed: CGFloat = 18
+    /// The handle third of the rope never counts: it is the pointer, and
+    /// resting the pointer on the robot is not hitting him.
+    static let peekLashSkipHandleFraction = 3
+    /// A lash crosses him over several frames: one hop per lash.
+    static let peekLashCooldown: CFTimeInterval = 0.35
+    private var lastPeekLash: CFTimeInterval = 0
+
+    /// Points are tried every this many points along each link, so a thin limb
+    /// (Clawd's legs) is not stepped over between two links.
+    static let lashSampleStep: CGFloat = 5
+
+    /// The first point along the fast part of the rope that `isOpaque` says is
+    /// on him, walked every `lashSampleStep` along each link. Pure, for the tests.
+    static func firstLashHit(points: [CGPoint], speeds: [CGFloat], minSpeed: CGFloat,
+                             from start: Int, isOpaque: (CGPoint) -> Bool) -> CGPoint? {
+        guard points.count == speeds.count, start < points.count else { return nil }
+        for i in max(0, start)..<points.count {
+            let next = i + 1 < points.count ? i + 1 : i
+            guard Swift.max(speeds[i], speeds[next]) >= minSpeed else { continue }
+            let a = points[i], b = points[next]
+            let n = Swift.max(1, Int((hypot(b.x - a.x, b.y - a.y) / lashSampleStep).rounded(.up)))
+            for k in 0..<n {
+                let t = CGFloat(k) / CGFloat(n)
+                let p = CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+                if isOpaque(p) { return p }
+            }
+        }
+        return nil
+    }
+
+    /// Is the global point `g` on a drawn pixel of the mascot as he is shown
+    /// right now — staged for ⌥-scroll, mid-slide or mid-hop included (the
+    /// presentation's offset from the model is taken off).
+    private func peekIsOpaque(atGlobal g: CGPoint, layer: CALayer, screenOrigin: CGPoint,
+                              mask: PeekAlphaMask) -> Bool {
+        guard let sup = layer.superlayer else { return false }
+        var p = CGPoint(x: g.x - screenOrigin.x, y: g.y - screenOrigin.y)
+        if sup !== hostLayer { p = sup.convert(p, from: hostLayer) }
+        if let shown = layer.presentation() {
+            p.x -= shown.position.x - layer.position.x
+            p.y -= shown.position.y - layer.position.y
+        }
+        return mask.isOpaque(p, in: layer.frame)
+    }
+
+    private static var peekAlphaMasks: [ObjectIdentifier: PeekAlphaMask] = [:]
+
+    /// One per costume, kept: the images themselves are cached for good
+    /// (`peekImageCache`), so the key cannot be reused by another picture.
+    static func peekAlphaMask(for image: CGImage) -> PeekAlphaMask? {
+        let key = ObjectIdentifier(image)
+        if let mask = peekAlphaMasks[key] { return mask }
+        guard let mask = PeekAlphaMask(image: image) else { return nil }
+        peekAlphaMasks[key] = mask
+        return mask
+    }
+
+    /// A few sparks where the rope hit him: short bright streaks thrown out of
+    /// the contact point, a white flash under them, all gone in half a second.
+    /// Drawn `1/zoom` under ⌥-scroll, like everything at the pointer.
+    private func spawnWhipSparks(at point: CGPoint) {
+        let k = ScreenZoom.counterScale(for: ScreenZoom.overlayFactor)
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        let burst = CALayer()
+        burst.frame = hostLayer.bounds
+        hostLayer.addSublayer(burst)
+
+        let flash = CALayer()
+        let side = 26 * k
+        flash.frame = CGRect(x: point.x - side / 2, y: point.y - side / 2, width: side, height: side)
+        flash.cornerRadius = side / 2
+        flash.backgroundColor = NSColor.white.cgColor
+        flash.shadowColor = NSColor.systemYellow.cgColor
+        flash.shadowOpacity = 1
+        flash.shadowRadius = 10 * k
+        flash.shadowOffset = .zero
+        flash.opacity = 0
+        burst.addSublayer(flash)
+        let pop = CAKeyframeAnimation(keyPath: "opacity")
+        pop.values = [0.95, 0.6, 0]
+        pop.keyTimes = [0, 0.3, 1]
+        pop.duration = 0.18
+        flash.add(pop, forKey: "pop")
+
+        for _ in 0..<12 {
+            let spark = CALayer()
+            let length = CGFloat.random(in: 7...15) * k
+            let thick = CGFloat.random(in: 2...3.2) * k
+            spark.bounds = CGRect(x: 0, y: 0, width: length, height: thick)
+            spark.cornerRadius = thick / 2
+            spark.position = point
+            let g = CGFloat.random(in: 0.75...1)
+            spark.backgroundColor = NSColor(red: 1, green: g, blue: 0.35 * g, alpha: 1).cgColor
+            spark.contentsScale = scale
+            spark.opacity = 0
+            let angle = CGFloat.random(in: 0..<(2 * .pi))
+            spark.setAffineTransform(CGAffineTransform(rotationAngle: angle))
+            burst.addSublayer(spark)
+
+            let dist = CGFloat.random(in: 28...85) * k
+            let end = CGPoint(x: point.x + cos(angle) * dist,
+                              y: point.y + sin(angle) * dist - CGFloat.random(in: 6...18) * k)
+            let move = CABasicAnimation(keyPath: "position")
+            move.fromValue = NSValue(point: point)
+            move.toValue = NSValue(point: end)
+            move.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            let fade = CAKeyframeAnimation(keyPath: "opacity")
+            fade.values = [1, 1, 0]
+            fade.keyTimes = [0, 0.45, 1]
+            let group = CAAnimationGroup()
+            group.animations = [move, fade]
+            group.duration = Double.random(in: 0.28...0.5)
+            spark.add(group, forKey: "spark")
+        }
+        // Self-termination: the burst removes itself, whatever else happens.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak burst] in
+            burst?.removeFromSuperlayer()
+        }
+    }
+
     /// Which direction the next crack throws him. Reset when he walks on, so a
     /// fresh appearance always opens with the same first hop and the sequence is
     /// the same one the room saw last time.

@@ -39,7 +39,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 
 - `GET /test/whip` — show the 🔥 whip on the screen under the cursor (same as ⌃W and the `🔥 Whip` menu row). NB it stays up until Esc, a second call, or `/effect/stop-all`
 - `GET /test/whip/crack` — crack it: the scripted flick (`forceCrack`) plus one of `whip_A..E.mp3`. A no-op while the whip is hidden, not an error. It does **not** fire the typing macro — that only happens on a real click, and it types into whatever app has focus (`docs/whip.md`)
-  - To see the mascot flinch, call `/test/claude-peek` first and crack within its five seconds: he jumps, lands on the same pixel, and his exit timer restarts (`docs/whip.md`). With nothing on screen the crack is unchanged
+  - To see the mascot flinch, call `/test/claude-peek` first and lash the rope **through him** within its five seconds (a crack elsewhere does nothing to him since 2026-10-16): he jumps, sparks fly at the contact point, he lands on the same pixel, his exit timer restarts, and the log says `🔥 whip hit claude-peek at x,y` (`docs/whip.md`). `PeekWhipLashTests` covers the hit rules headlessly
 
 ## Thumbnail panel
 

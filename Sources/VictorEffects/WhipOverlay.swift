@@ -26,11 +26,17 @@ final class WhipController {
     var onVisibilityChanged: ((Bool) -> Void)?
 
     /// Fired on **every** crack, whatever made it — a real flick, Return, the
-    /// thumb buttons or `/effect/whip/crack`. The whip has no idea what listens;
-    /// today it is the claude-peek mascot flinching (`EmojiAnimator
-    /// .whipClaudePeek`), which is why this is a callback and not a direct call
-    /// into the animator: the overlay stays a rope and a sound.
+    /// thumb buttons or `/effect/whip/crack`. The whip has no idea what listens
+    /// (nobody since 2026-10-16: the claude-peek mascot now jumps on a HIT, via
+    /// `onRope`), which is why this is a callback and not a direct call into
+    /// the animator: the overlay stays a rope and a sound.
     var onCrack: (() -> Void)?
+
+    /// Fired every frame with the rope's links in **global framebuffer points**
+    /// (handle first) and how far each moved this frame, in the whip's own
+    /// points — so a listener can tell what the rope actually touched. The
+    /// claude-peek mascot jumps only when it is hit (`EmojiAnimator.whipLash`).
+    var onRope: ((_ points: [CGPoint], _ speeds: [CGFloat]) -> Void)?
 
     private var panel: WhipPanel?
     private var view: WhipView?
@@ -222,6 +228,25 @@ final class WhipController {
         }
         view.points = physics.points
         view.needsDisplay = true
+        if let onRope, let panel { reportRope(physics.points, view: view, panel: panel, to: onRope) }
+    }
+
+    /// The view's points go through AppKit's own conversion, which knows the
+    /// ⌥-scroll shrink (`ZoomedPanel` keeps the design size as the bounds) and
+    /// the flip, so the listener gets where each link really is on the screen.
+    private func reportRope(_ points: [WhipPhysics.Point], view: NSView, panel: NSPanel,
+                            to listener: ([CGPoint], [CGFloat]) -> Void) {
+        guard !points.isEmpty else { return }
+        var global: [CGPoint] = []
+        var speeds: [CGFloat] = []
+        global.reserveCapacity(points.count)
+        speeds.reserveCapacity(points.count)
+        for p in points {
+            let inWindow = view.convert(NSPoint(x: p.x, y: p.y), to: nil)
+            global.append(panel.convertPoint(toScreen: inWindow))
+            speeds.append(CGFloat(((p.x - p.px) * (p.x - p.px) + (p.y - p.py) * (p.y - p.py)).squareRoot()))
+        }
+        listener(global, speeds)
     }
 
     // MARK: - Input
