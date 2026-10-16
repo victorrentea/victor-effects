@@ -13,6 +13,12 @@ Three files, one overlay:
 | `WhipOverlay.swift` | `WhipController` + `WhipPanel` + `WhipView`: the window, the per-frame draw, the cursor poll, the crack sounds |
 | `WhipMacro.swift` | what a *click* sends into whatever app has focus |
 
+**Under ⌥-scroll zoom the rope keeps its size** (2026-10-16): the panel is
+re-mapped every frame onto the slice on the glass, shrunk by the zoom, with the
+view's bounds kept at the whole screen (`ZoomedPanel`), and the pointer is
+converted with that same slice — so the physics still runs in whole-screen
+points, which are now glass points. At rest nothing changes.
+
 ## Turning it on
 
 **⌃W** toggles it, globally, **swallowed** — the key does not reach the app

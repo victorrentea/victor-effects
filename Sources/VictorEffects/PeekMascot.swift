@@ -269,9 +269,71 @@ final class PeekHitPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    // MARK: ⌥-scroll zoom
+
+    /// The mascot this panel is the click target for, while it is followed.
+    private weak var followed: CALayer?
+    private weak var followedRoot: CALayer?
+    private var followedOrigin: CGPoint = .zero
+    private var follower: Timer?
+    /// Same beat as `ZoomFollower`, which is what moves a staged mascot: the
+    /// target is re-read on the tick that may have moved the robot.
+    static let followInterval: TimeInterval = 1.0 / 30
+
+    /// Where `layer` is really drawn, as a global frame: its MODEL frame carried
+    /// through every ancestor up to `root` (the overlay's host layer, whose
+    /// coordinates are the overlay screen's with its origin at `screenOrigin`).
+    ///
+    /// That is what makes the click target zoom-proof without knowing anything
+    /// about the zoom. A mascot added straight to the host layer comes back as
+    /// its own frame — the panel stays where it always was, magnified together
+    /// with the robot. A mascot on the zoom stage (`EmojiAnimator.stageLayer`)
+    /// comes back shrunk by the factor and moved into the slice, which is exactly
+    /// where the stage draws it (`ZoomedPanel.frame` of its unstaged frame —
+    /// `ZoomFollower.stageGeometry` is the same linear map). The model frame,
+    /// not the presentation, so the panel does not chase the slide-in or the
+    /// whip's hop, as before.
+    static func globalFrame(of layer: CALayer, in root: CALayer, screenOrigin: CGPoint) -> CGRect {
+        let inRoot = layer.superlayer.map { $0 === root ? layer.frame : root.convert(layer.frame, from: $0) }
+            ?? layer.frame
+        return inRoot.offsetBy(dx: screenOrigin.x, dy: screenOrigin.y)
+    }
+
+    /// Keep this target over `layer` wherever it is drawn — now, and at 30 Hz
+    /// until `dismiss()` or until the layer leaves the tree, so a ⌥-scroll or a
+    /// pan while the robot is up does not leave the target behind on the glass.
+    /// A costume change that resizes the layer is picked up the same way.
+    func follow(_ layer: CALayer, in root: CALayer, screenOrigin: CGPoint) {
+        followed = layer
+        followedRoot = root
+        followedOrigin = screenOrigin
+        refollow()
+        follower?.invalidate()
+        let timer = Timer(timeInterval: Self.followInterval, repeats: true) { [weak self] _ in
+            self?.refollow()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        follower = timer
+    }
+
+    private func refollow() {
+        guard let layer = followed, let root = followedRoot, layer.superlayer != nil else {
+            stopFollowing()
+            return
+        }
+        let target = Self.globalFrame(of: layer, in: root, screenOrigin: followedOrigin)
+        if frame != target { setFrame(target, display: false) }
+    }
+
+    private func stopFollowing() {
+        follower?.invalidate()
+        follower = nil
+    }
+
     /// Take it down, restoring the pointer if it is still sitting on us — the
     /// hand cursor must not outlive the thing it was pointing at.
     func dismiss() {
+        stopFollowing()
         if frame.contains(NSEvent.mouseLocation) { NSCursor.arrow.set() }
         orderOut(nil)
     }

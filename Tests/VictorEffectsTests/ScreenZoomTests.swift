@@ -156,4 +156,71 @@ final class ScreenZoomTests: XCTestCase {
         XCTAssertEqual(g.scale, 1, accuracy: 1e-9)
         XCTAssertEqual(g.position, CGPoint(x: slice.midX, y: slice.midY))
     }
+
+    // MARK: - Drawing AT the pointer: 1/zoom about the pointer
+
+    func testTheCounterScaleIsTheInverseOfTheZoomAndExactlyOneAtRest() {
+        XCTAssertEqual(ScreenZoom.counterScale(for: 2), 0.5)
+        XCTAssertEqual(ScreenZoom.counterScale(for: 4), 0.25)
+        XCTAssertEqual(ScreenZoom.counterScale(for: 1), 1)
+        // Under the threshold is "not zoomed": exactly 1, not 0.995.
+        XCTAssertEqual(ScreenZoom.counterScale(for: 1.005), 1)
+    }
+
+    /// A pointer stage over the overlay, pinned at the pointer: the pointer
+    /// stays where it is, and anything d away from it lands d/zoom away — so
+    /// the 2× magnification puts it back exactly d away on the glass.
+    func testAPointerStageShrinksItsChildrenAboutThePointer() {
+        let (host, stage) = pinnedStage(pivot: CGPoint(x: 1200, y: 300), factor: 2)
+        assertPoint(host.convert(CGPoint(x: 1200, y: 300), from: stage), CGPoint(x: 1200, y: 300))
+        assertPoint(host.convert(CGPoint(x: 1400, y: 300), from: stage), CGPoint(x: 1300, y: 300))
+        assertPoint(host.convert(CGPoint(x: 1200, y: 100), from: stage), CGPoint(x: 1200, y: 200))
+        // A child laid out in display coordinates keeps them: its centre on the
+        // pointer stays on the pointer, its size halves.
+        let child = CALayer()
+        child.bounds = CGRect(x: 0, y: 0, width: 200, height: 100)
+        child.position = CGPoint(x: 1200, y: 300)
+        stage.addSublayer(child)
+        let seen = host.convert(child.frame, from: stage)
+        XCTAssertEqual(seen.width, 100, accuracy: 1e-9)
+        XCTAssertEqual(seen.height, 50, accuracy: 1e-9)
+        assertPoint(CGPoint(x: seen.midX, y: seen.midY), CGPoint(x: 1200, y: 300))
+    }
+
+    /// At rest nothing moves: the stage covers the display exactly, unscaled,
+    /// wherever the pointer is.
+    func testAPointerStageIsTheIdentityAtRest() {
+        for factor: CGFloat in [1, 1.005] {
+            let (host, stage) = pinnedStage(pivot: CGPoint(x: 37, y: 1050), factor: factor)
+            XCTAssertTrue(CATransform3DIsIdentity(stage.transform))
+            XCTAssertEqual(stage.frame, display)
+            assertPoint(host.convert(CGPoint(x: 1000, y: 10), from: stage), CGPoint(x: 1000, y: 10))
+        }
+    }
+
+    /// The zoom moves mid-effect (⌥-scroll in, then out): re-pinning follows
+    /// it both ways and a pointer that moved meanwhile is still the fixed point.
+    func testRepinningAPointerStageFollowsTheZoomAndThePointer() {
+        let (host, stage) = pinnedStage(pivot: CGPoint(x: 500, y: 500), factor: 2)
+        ScreenZoom.pinPointerStage(stage, full: display, pivot: CGPoint(x: 900, y: 200), factor: 4)
+        assertPoint(host.convert(CGPoint(x: 900, y: 200), from: stage), CGPoint(x: 900, y: 200))
+        assertPoint(host.convert(CGPoint(x: 1300, y: 200), from: stage), CGPoint(x: 1000, y: 200))
+        ScreenZoom.pinPointerStage(stage, full: display, pivot: CGPoint(x: 900, y: 200), factor: 1)
+        XCTAssertEqual(stage.frame, display)
+    }
+
+    private func pinnedStage(pivot: CGPoint, factor: CGFloat) -> (host: CALayer, stage: CALayer) {
+        let host = CALayer()
+        host.frame = display
+        let stage = CALayer()
+        stage.frame = display
+        host.addSublayer(stage)
+        ScreenZoom.pinPointerStage(stage, full: display, pivot: pivot, factor: factor)
+        return (host, stage)
+    }
+
+    private func assertPoint(_ a: CGPoint, _ b: CGPoint, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(a.x, b.x, accuracy: 1e-6, file: file, line: line)
+        XCTAssertEqual(a.y, b.y, accuracy: 1e-6, file: file, line: line)
+    }
 }

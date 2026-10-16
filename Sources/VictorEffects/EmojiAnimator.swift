@@ -462,7 +462,12 @@ class EmojiAnimator {
         glyph.shadowOffset = .zero
         glyph.shadowOpacity = 0
         carrier.addSublayer(glyph)
-        hostLayer.addSublayer(carrier)
+        // 🔍 On the zoom stage, like every other reaction: under ⌥-scroll it
+        // rises inside the slice on the glass at its unzoomed size. The pot
+        // and its stream join it there (`showPot`), and `tickCoffeePour` takes
+        // the pointer into the stage's coordinates, so the pour never mixes
+        // the two.
+        stageLayer.addSublayer(carrier)
 
         let cup = CoffeeCup(carrier: carrier, glyph: glyph)
         if let shape = Self.coffeeInterior {
@@ -633,7 +638,12 @@ class EmojiAnimator {
 
         // Overlay panel covers the built-in screen; its layer origin (0,0) sits at
         // the screen's bottom-left, so shift the global point by the screen origin.
-        let p = CGPoint(x: globalPoint.x - frame.origin.x, y: globalPoint.y - frame.origin.y)
+        // 🔍 …then into the zoom stage the cups, the pot and the stream live on
+        // (the identity at rest). Not through `stageLayer`, which would move the
+        // stage to the top of the overlay sixty times a second: until a cup has
+        // been spawned there is no stage and nothing to pour into.
+        let hostPoint = CGPoint(x: globalPoint.x - frame.origin.x, y: globalPoint.y - frame.origin.y)
+        let p = _stage.superlayer === hostLayer ? _stage.convert(hostPoint, from: hostLayer) : hostPoint
         let pad = Self.coffeeHitSlop
         let armed = coffeeVictory.isOn(at: now)
         var touching = false
@@ -838,12 +848,14 @@ class EmojiAnimator {
         cup.carrier.removeFromSuperlayer()
         coffeeCups.removeAll { $0 === cup }
 
-        pixelDissolve(at: center, side: side, violence: size.violence, grid: size.grid)
+        pixelDissolve(at: center, side: side, violence: size.violence, grid: size.grid, into: _stage)
         if victory {
             bangVictory()
             return
         }
-        coffeePayoffs.append(center)
+        // The payoff leaves as a point on the display (it becomes a global
+        // point in `tickCoffeePour`): out of the stage it popped on.
+        coffeePayoffs.append(hostLayer.convert(center, from: _stage))
         // This pop opens the break timer (or pulls it closer): from here on the
         // pot is full, and the next cup is poured, not brewed.
         _lastCoffeePayout = CACurrentMediaTime()
@@ -926,8 +938,8 @@ class EmojiAnimator {
             pot.transform = CATransform3DMakeRotation(_potTilt, 0, 0, 1)
             pot.position = p
             stream.emitterPosition = p
-            hostLayer.addSublayer(stream)
-            hostLayer.addSublayer(pot)
+            stageLayer.addSublayer(stream)
+            stageLayer.addSublayer(pot)
             CATransaction.commit()
             _potLayer = pot
             _potStream = stream
@@ -1068,7 +1080,7 @@ class EmojiAnimator {
     /// `grid` is tiles per side: 12 for the calm pop, more for a storm's
     /// "many pieces".
     private func pixelDissolve(at center: CGPoint, side: CGFloat, violence: CGFloat = 1,
-                               grid g: Int = dissolveGrid) {
+                               grid g: Int = dissolveGrid, into parent: CALayer) {
         let tiles = Self.dissolveTiles(grid: g)
         let v = max(1, violence)
         let extra = v - 1                                   // 0 in calm, up to 2.6 in a storm
@@ -1078,7 +1090,7 @@ class EmojiAnimator {
 
         let container = CALayer()
         container.frame = CGRect(x: center.x - side / 2, y: center.y - side / 2, width: side, height: side)
-        hostLayer.addSublayer(container)
+        parent.addSublayer(container)
 
         for t in tiles {
             // Row 0 is the TOP of the bitmap; the overlay layer's y grows upward.
@@ -1210,7 +1222,10 @@ class EmojiAnimator {
                                     cupsOnScreen: coffeeCups.count + 1)
         let side = Self.emojiSize * Self.emojiRiseScale * Self.coffeeFillGrowScale
             * (victory ? Self.coffeeExplodeGrowScale : 1)
-        pixelDissolve(at: p, side: side, violence: size.violence, grid: size.grid)
+        // On the zoom stage, where a real cup pops (`burstCoffee`).
+        let stage = stageLayer
+        pixelDissolve(at: stage.convert(p, from: hostLayer), side: side,
+                      violence: size.violence, grid: size.grid, into: stage)
         if victory {
             bangVictory()
             return nil
@@ -3304,13 +3319,14 @@ class EmojiAnimator {
 
         let layer = CATextLayer()
         layer.string = "😱"
-        layer.fontSize = initialSize * 0.83
         layer.alignmentMode = .center
         // anchorPoint .5,.5 so transform.scale grows around the centre AND so
         // updating `position` each frame keeps that centre pinned to the mouse.
-        layer.bounds = CGRect(x: 0, y: 0, width: initialSize, height: initialSize)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        // 🔍 Sized for the glass: 1/zoom about the pointer, re-fitted every tick.
+        Self.fitPointerGlyph(layer, fontSize: initialSize * 0.83,
+                             box: CGSize(width: initialSize, height: initialSize))
         layer.position = mousePointInHostLayer()   // start centred on the live cursor
         CATransaction.commit()
         layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
@@ -3377,6 +3393,8 @@ class EmojiAnimator {
             CATransaction.begin()
             CATransaction.setDisableActions(true)   // move instantly, no implicit position animation
             layer.position = self.mousePointInHostLayer()
+            Self.fitPointerGlyph(layer, fontSize: initialSize * 0.83,
+                                 box: CGSize(width: initialSize, height: initialSize))
             CATransaction.commit()
         }
         _fearTimer = timer
@@ -3657,9 +3675,11 @@ class EmojiAnimator {
     /// crosshair rather than be centred on it.
     static func bombBlastFrame(in bounds: CGRect, fullScreen: Bool, at center: CGPoint) -> CGRect {
         let size = min(bounds.width, bounds.height) * 1.2 / (fullScreen ? 1 : aimedScaleDivisor)
+        // `bounds.min…` so a ZOOM SLICE can be handed in too (an aimed strike
+        // sizes itself on the slice on the glass): zero for the display.
         return fullScreen
-            ? CGRect(x: (bounds.width - size) / 2,
-                     y: (bounds.height - size) / 2 + bounds.height / 6 - bounds.height * 0.1,
+            ? CGRect(x: bounds.minX + (bounds.width - size) / 2,
+                     y: bounds.minY + (bounds.height - size) / 2 + bounds.height / 6 - bounds.height * 0.1,
                      width: size, height: size)
             : CGRect(x: center.x - size / 2,
                      y: center.y - size * bombImpactFractionFromBottom,
@@ -3704,7 +3724,8 @@ class EmojiAnimator {
     /// window server can run without us.
     @discardableResult
     private func spawnFallingBomb(to impact: CGPoint, blastSize: CGFloat,
-                                  fullScreen: Bool, fall: Double) -> CALayer? {
+                                  fullScreen: Bool, fall: Double,
+                                  layout: CGRect, into parent: CALayer) -> CALayer? {
         guard let image = Self.fallingBombImage, fall > 0 else { return nil }
         let height = Self.fallingBombHeight(forBlast: blastSize, fullScreen: fullScreen)
 
@@ -3719,12 +3740,12 @@ class EmojiAnimator {
         bomb.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         bomb.zPosition = Self.bombFallingZ
 
-        let start = CGPoint(x: impact.x, y: impact.y + CGFloat(fall) * Self.bombFallSpeed(in: hostLayer.bounds))
+        let start = CGPoint(x: impact.x, y: impact.y + CGFloat(fall) * Self.bombFallSpeed(in: layout))
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         bomb.position = start
         CATransaction.commit()
-        hostLayer.addSublayer(bomb)
+        parent.addSublayer(bomb)
         _bombFalling.append(bomb)
 
         let drop = CABasicAnimation(keyPath: "position.y")
@@ -3767,9 +3788,12 @@ class EmojiAnimator {
 
         let bounds = hostLayer.bounds
         let fall = Self.explosionBlastOnset - Self.explosionWhistleForeground
+        // 🔍 On the zoom stage: laid out on the display as ever, shrunk into
+        // the slice on the glass under ⌥-scroll — the nuke falls in the middle
+        // of what the room sees, at its unzoomed size, live through pans.
         let bomb = spawnFallingBomb(to: Self.bombBlastImpactPoint(in: bounds, fullScreen: true, at: .zero),
                                     blastSize: Self.bombBlastFrame(in: bounds, fullScreen: true, at: .zero).width,
-                                    fullScreen: true, fall: fall)
+                                    fullScreen: true, fall: fall, layout: bounds, into: stageLayer)
 
         let epoch = _bombEpoch
         DispatchQueue.main.asyncAfter(deadline: .now() + fall) { [weak self] in
@@ -3795,6 +3819,13 @@ class EmojiAnimator {
         // making targets. See `bombAutoDropDelay`.
         guard _bombSessionActive, !_bombBigDropped else { return }
         let point = mousePointInHostLayer()
+        // 🔍 An aimed strike is drawn AT the click, so under ⌥-scroll zoom it is
+        // sized on the slice on the glass (`bombBlastFrame` / `bombFallSpeed`
+        // take a rect): blast, bomb and fall all 1/zoom, magnified back to
+        // their unzoomed size. Snapshotted at the click — the strike is planted
+        // there and is over in ~2 s. The display at rest.
+        let layout = ZoomSlice.current(in: hostLayer.bounds).rect
+        let zoomScale = hostLayer.bounds.width > 0 ? layout.width / hostLayer.bounds.width : 1
 
         // **Every target stays until its own bomb lands** (Victor, 2026-09-14),
         // which undoes the one-crosshair rule of 2026-09-09 — `retirePlantedReticles`
@@ -3814,6 +3845,9 @@ class EmojiAnimator {
         CATransaction.setDisableActions(true)
         reticle.position = point
         reticle.zPosition = Self.bombReticleZ
+        // Its own transform is the grow / turn / pop; the zoom goes on its
+        // children, which `sublayerTransform` scales about the ring's centre.
+        if zoomScale != 1 { reticle.sublayerTransform = CATransform3DMakeScale(zoomScale, zoomScale, 1) }
         CATransaction.commit()
         hostLayer.addSublayer(reticle)
 
@@ -3826,9 +3860,9 @@ class EmojiAnimator {
         // that only appears near the end of its fuse — the small bombs read as
         // part of the same raid, not as a separate effect with its own physics.
         let bomb = spawnFallingBomb(to: point,
-                                    blastSize: Self.bombBlastFrame(in: hostLayer.bounds,
+                                    blastSize: Self.bombBlastFrame(in: layout,
                                                                    fullScreen: false, at: point).width,
-                                    fullScreen: false, fall: fuse)
+                                    fullScreen: false, fall: fuse, layout: layout, into: hostLayer)
 
         _bombPlanted.append(reticle)
         // The FIRST click is what cancels the full-screen nuke, so it is also
@@ -3843,7 +3877,7 @@ class EmojiAnimator {
             guard let self, self._bombEpoch == epoch else { return }
             self._bombPlanted.removeAll { $0 === reticle }
             self.consumeFallingBomb(bomb)
-            self.spawnBombBlast(at: point)
+            self.spawnBombBlast(at: point, layout: layout)
             // The one frame that ties the blast to the ring it grew under: the
             // target pops as the fireball opens. The `superlayer` check is the
             // only case left where there is nothing to pop — `stopBombSession`
@@ -3927,16 +3961,18 @@ class EmojiAnimator {
     /// small aimed strike onto a planted target. The geometry lives in
     /// `bombBlastFrame`, which the falling bomb aims by — see there for why it is
     /// placed the way it is.
-    private func spawnBombBlast(at center: CGPoint, fullScreen: Bool = false) {
+    private func spawnBombBlast(at center: CGPoint, fullScreen: Bool = false, layout: CGRect? = nil) {
         let (images, duration) = Self.explosionFrames
         guard let first = images.first, duration > 0 else { finishBomb(); return }
 
         let layer = CALayer()
-        layer.frame = Self.bombBlastFrame(in: hostLayer.bounds, fullScreen: fullScreen, at: center)
+        // The nuke on the zoom stage (see `dropFullScreenBomb`), an aimed blast
+        // on the host at the click, sized on the slice it was planted under.
+        layer.frame = Self.bombBlastFrame(in: layout ?? hostLayer.bounds, fullScreen: fullScreen, at: center)
         layer.contentsGravity = .resizeAspect
         layer.zPosition = Self.bombBlastZ
         layer.contents = first
-        hostLayer.addSublayer(layer)
+        (fullScreen ? stageLayer : hostLayer).addSublayer(layer)
         _bombBlasts.append(layer)
 
         let anim = CAKeyframeAnimation(keyPath: "contents")
@@ -4459,7 +4495,18 @@ class EmojiAnimator {
                                   height: image.size.height * Self.minigunBulletHoleScale)
 
         if let parts = makeMinigunGun(in: bounds) {
-            container.addSublayer(parts.gun)
+            // 🔍 The gun stands on the bottom edge of what the room SEES: its
+            // own zoom stage (`ZoomFollower.stage`), so under ⌥-scroll it sits
+            // on the slice's bottom edge at its unzoomed size, live through
+            // pans. The holes stay on `container`, glued to the desktop.
+            let gunStage = CALayer()
+            gunStage.frame = bounds
+            container.addSublayer(gunStage)
+            ZoomFollower.shared.stage(gunStage, full: bounds)
+            gunStage.addSublayer(parts.gun)
+            parts.gun.position.x = Self.minigunBodyX(
+                forMouseX: gunStage.convert(mousePointInHostLayer(), from: hostLayer).x,
+                inWidth: bounds.width)
             _minigunGunLayer = parts.gun
             _minigunRigLayer = parts.rig
             _minigunKickLayer = parts.kick
@@ -4506,6 +4553,7 @@ class EmojiAnimator {
         CATransaction.setDisableActions(true)
         reticle.position = mousePointInHostLayer()
         reticle.zPosition = 9_000   // ride above the bullet holes
+        Self.fitPointerReticle(reticle)
         CATransaction.commit()
         hostLayer.addSublayer(reticle)
         _minigunReticleLayer = reticle
@@ -4540,9 +4588,15 @@ class EmojiAnimator {
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        _minigunReticleLayer?.position = mouse
+        if let reticle = _minigunReticleLayer {
+            reticle.position = mouse
+            Self.fitPointerReticle(reticle)
+        }
         if let gun = _minigunGunLayer {
-            gun.position.x = Self.minigunBodyX(forMouseX: mouse.x, inWidth: hostLayer.bounds.width)
+            // The sway reads the pointer where the gun's stage sees it, so the
+            // muzzle sits over the crosshair zoomed exactly as it does unzoomed.
+            let staged = gun.superlayer.map { $0.convert(mouse, from: hostLayer) } ?? mouse
+            gun.position.x = Self.minigunBodyX(forMouseX: staged.x, inWidth: hostLayer.bounds.width)
         }
         let bob = Self.minigunBobOffset(phase: _minigunBobPhase, energy: _minigunBobEnergy)
         _minigunRigLayer?.transform = CATransform3DMakeTranslation(bob.x, bob.y, 0)
@@ -4625,13 +4679,20 @@ class EmojiAnimator {
     private func fireMinigunRound(at mouse: CGPoint) {
         guard let container = _minigunContainer, let image = _minigunHoleImage else { return }
         let bounds = container.bounds
-        let size = _minigunHoleSize
+        // 🔍 Shot at the size the crosshair is drawn at (1/zoom under ⌥-scroll,
+        // `fitPointerReticle`), so every hole still lands whole inside the red
+        // ring on the glass; from then on it is glued to the desktop like any
+        // hole. 1 at rest.
+        let zoomScale = ScreenZoom.counterScale(for: ScreenZoom.overlayFactor)
+        let size = CGSize(width: _minigunHoleSize.width * zoomScale,
+                          height: _minigunHoleSize.height * zoomScale)
         let x: CGFloat
         let y: CGFloat
         if let target = Self.minigunShotTarget(forMouse: mouse, in: bounds) {
             let angle = CGFloat.random(in: 0..<(2 * .pi))
-            let r = Self.minigunSpreadRadius(holeSize: size) * Self.minigunBloomFraction(_minigunBloom)
-                * CGFloat.random(in: 0...1)
+            // ring·s − hole·s/2: the unzoomed spread, scaled with the ring.
+            let r = Self.minigunSpreadRadius(holeSize: _minigunHoleSize) * zoomScale
+                * Self.minigunBloomFraction(_minigunBloom) * CGFloat.random(in: 0...1)
             x = min(max(target.x + r * cos(angle) - size.width / 2, 0), bounds.width - size.width)
             y = min(max(target.y + r * sin(angle) - size.height / 2, 0), bounds.height - size.height)
         } else {
@@ -4642,9 +4703,9 @@ class EmojiAnimator {
         hole.frame = CGRect(x: x, y: y, width: size.width, height: size.height)
         hole.contents = image
         hole.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        // Below the gun: rounds land on the desktop, not on the rifle.
-        if let gun = _minigunGunLayer {
-            container.insertSublayer(hole, below: gun)
+        // Below the gun (its stage): rounds land on the desktop, not on the rifle.
+        if let gunStage = _minigunGunLayer?.superlayer, gunStage.superlayer === container {
+            container.insertSublayer(hole, below: gunStage)
         } else {
             container.addSublayer(hole)
         }
@@ -4824,7 +4885,7 @@ class EmojiAnimator {
         }
         // Faded, not shrunk (2026-10-01): a hole that shrinks reads as being
         // sucked back in; one that fades just leaves, "?" and all.
-        for hole in container.sublayers ?? [] where hole !== gun {
+        for hole in container.sublayers ?? [] where hole !== gun?.superlayer {
             let fade = CABasicAnimation(keyPath: "opacity")
             fade.fromValue = 1.0
             fade.toValue = 0.0
@@ -4991,6 +5052,7 @@ class EmojiAnimator {
         CATransaction.commit()
         hostLayer.addSublayer(saw)
         _chainsawLayer = saw
+        fitChainsawToZoom()
 
         let rev = CAKeyframeAnimation(keyPath: "contents")
         rev.values = frames
@@ -5032,6 +5094,7 @@ class EmojiAnimator {
             self._chainsawLayer?.position = point
             self._chainsawSparks?.emitterPosition = point
             CATransaction.commit()
+            self.fitChainsawToZoom()
             if self._chainsawCutting { self.extendChainsawCut(to: point) }
             self._chainsawSound?.tick(cutting: self._chainsawCutting, dt: tickInterval)
         }
@@ -5209,6 +5272,36 @@ class EmojiAnimator {
     /// Set up the layer stack the cut lives in, and the mask that decides what
     /// is still holding on. Ordered kerf → holes → pieces so a piece falls in
     /// front of the black it came out of, and the whole stack sits under the saw.
+    /// Downward pull on a spark, in points per second².
+    private static let chainsawSparkGravity: CGFloat = 900
+
+    /// 🔍 The saw and its sparks are drawn AT the pointer, so under ⌥-scroll
+    /// zoom they are drawn 1/zoom the size and the magnification brings them
+    /// back to exactly their unzoomed size, under the hand. The saw has no
+    /// animated transform and its anchor is the teeth, which sit on the
+    /// pointer, so its own `transform` scales it about the pointer. The sparks
+    /// are scaled through the emitter's multipliers (size, speed) and their
+    /// gravity, NOT by scaling the emitter layer: a layer scaled about the
+    /// moving pointer would drag every spark already in the air along with
+    /// the hand. Re-checked every tick, touched only when the zoom moved. The
+    /// kerf and the fallen pieces are glued to the desktop and are left alone.
+    private func fitChainsawToZoom() {
+        let s = ScreenZoom.counterScale(for: ScreenZoom.overlayFactor)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if let saw = _chainsawLayer, saw.transform.m11 != s {
+            saw.transform = s == 1 ? CATransform3DIdentity : CATransform3DMakeScale(s, s, 1)
+        }
+        if let sparks = _chainsawSparks, sparks.scale != Float(s) {
+            sparks.scale = Float(s)
+            sparks.velocity = Float(s)
+            for name in ["sparkL", "sparkR"] {
+                sparks.setValue(-Self.chainsawSparkGravity * s, forKeyPath: "emitterCells.\(name).yAcceleration")
+            }
+        }
+        CATransaction.commit()
+    }
+
     private func beginChainsawDamage() {
         let bounds = hostLayer.bounds
         let damage = CALayer()
@@ -5259,8 +5352,8 @@ class EmojiAnimator {
         // Additive, so overlapping sparks pile up into a white-hot core instead
         // of averaging into a flat orange smear.
         emitter.renderMode = .additive
-        emitter.emitterCells = [Self.chainsawSparkCell(dot: dot, longitude: 0),
-                                Self.chainsawSparkCell(dot: dot, longitude: .pi)]
+        emitter.emitterCells = [Self.chainsawSparkCell(dot: dot, longitude: 0, name: "sparkR"),
+                                Self.chainsawSparkCell(dot: dot, longitude: .pi, name: "sparkL")]
         emitter.birthRate = 0          // off until the blade goes in (startChainsawCut)
         hostLayer.addSublayer(emitter)
         _chainsawSparks = emitter
@@ -5268,8 +5361,9 @@ class EmojiAnimator {
 
     /// One lateral jet. Two of them (longitude 0 and π) give the two-sided spray
     /// a blade throws along the line of the cut, rather than a firework.
-    private static func chainsawSparkCell(dot: CGImage, longitude: CGFloat) -> CAEmitterCell {
+    private static func chainsawSparkCell(dot: CGImage, longitude: CGFloat, name: String) -> CAEmitterCell {
         let cell = CAEmitterCell()
+        cell.name = name   // `fitChainsawToZoom` reaches its gravity by this name
         cell.contents = dot
         cell.birthRate = 110
         cell.lifetime = 0.55
@@ -5281,7 +5375,7 @@ class EmojiAnimator {
         // sparks read as an explosion at the cursor instead of as material
         // being thrown sideways out of a groove.
         cell.emissionRange = .pi / 9
-        cell.yAcceleration = -900      // host layer is y-up, so gravity is negative
+        cell.yAcceleration = -chainsawSparkGravity   // host layer is y-up, so gravity is negative
         cell.scale = 0.16
         cell.scaleRange = 0.12
         cell.scaleSpeed = -0.12        // they burn down to nothing as they fly
@@ -6879,6 +6973,18 @@ class EmojiAnimator {
                 CATransaction.setDisableActions(true)   // move the lens instantly, no slide
                 layer.setValue(CIVector(x: center.x, y: center.y),
                                forKeyPath: "filters.\(Self.heartbeatBumpFilterName).inputCenter")
+                // 🔍 …and the breathe's pivot on the middle of the glass (the
+                // display's centre at rest). The scale is 1 here too, so moving
+                // the pivot is just as invisible. Position follows the anchor so
+                // the photo itself stays exactly where it is.
+                let pivot = HeartbeatBump.breatheAnchor(
+                    unitViewport: ScreenZoom.unitViewport(of: Screens.overlayScreen()))
+                if layer.anchorPoint != pivot {
+                    let frame = layer.frame
+                    layer.anchorPoint = pivot
+                    layer.position = CGPoint(x: frame.minX + pivot.x * frame.width,
+                                             y: frame.minY + pivot.y * frame.height)
+                }
                 CATransaction.commit()
 
                 let keyTimes = times.map { NSNumber(value: $0 / cycleDur) }
@@ -7452,11 +7558,12 @@ class EmojiAnimator {
         _ = cancelIfRunning("magnifier")
         _magnifierZoom = MagnifierGlass.minZoom
         let bounds = hostLayer.bounds
-        // Sized on the zoomed slice, not the display: the lens is two thirds of
-        // what the room SEES, and at 2× screen zoom two thirds of the display
-        // would be a lens taller than the glass. Only the size — the lens still
-        // rides the pointer, which is always inside the slice anyway.
-        let diameter = MagnifierGlass.outerDiameter(in: ZoomSlice.current(in: bounds).rect)
+        // Sized on the display, as unzoomed. Under ⌥-scroll zoom the whole glass
+        // (container) is a POINTER STAGE: drawn 1/zoom about the pointer and
+        // re-pinned on every follow tick, so the magnification brings it back
+        // to exactly this size — two thirds of what the room sees — however
+        // far he zooms in or out while it is up.
+        let diameter = MagnifierGlass.outerDiameter(in: bounds)
         guard diameter > 1 else { return }
 
         // On screen for exactly as long as the clip plays — the lifecycle rule.
@@ -7478,6 +7585,8 @@ class EmojiAnimator {
 
         let container = CALayer()
         container.frame = bounds
+        let zoom = ScreenZoom.overlayFactor
+        ScreenZoom.pinPointerStage(container, full: bounds, pivot: focus, factor: zoom)
 
         // The lens: a circular window with the whole screenshot behind it,
         // blown up and slid until the pointer's spot sits in the middle.
@@ -7490,7 +7599,7 @@ class EmojiAnimator {
         shot.contentsGravity = .resize
         shot.contentsScale = scale
         shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus, glassRadius: glassRadius,
-                                              zoom: _magnifierZoom)
+                                              zoom: Self.magnifierShotZoom(_magnifierZoom, screenZoom: zoom))
         clip.addSublayer(shot)
         container.addSublayer(clip)
 
@@ -7590,6 +7699,15 @@ class EmojiAnimator {
     }
 
     /// The pointer, in the overlay's own points.
+    /// 🔍 The picture inside the lens is drawn on the pointer stage too, so it
+    /// is shrunk by the screen zoom along with the glass — and the desktop
+    /// around the glass is magnified by it. Blown up by the screen zoom on top
+    /// of the lens's own, the lens shows the desktop `lensZoom`× bigger than
+    /// what surrounds it on the glass, exactly as it does unzoomed. Pure.
+    static func magnifierShotZoom(_ lensZoom: CGFloat, screenZoom: CGFloat) -> CGFloat {
+        lensZoom / ScreenZoom.counterScale(for: screenZoom)
+    }
+
     private static func magnifierFocus(bounds: CGRect, hostLayer: CALayer) -> CGPoint {
         let anchor = layerAnchor(forGlobalMouse: VisibleCursor.location,
                                  panelOrigin: hostLayer.bounds.origin,
@@ -7624,13 +7742,16 @@ class EmojiAnimator {
             //    implicit slide. A magnifier easing in behind the hand reads as
             //    lag; this one is held, not thrown.
             let focus = Self.magnifierFocus(bounds: bounds, hostLayer: self.hostLayer)
+            let zoom = ScreenZoom.overlayFactor
             CATransaction.begin()
             CATransaction.setDisableActions(true)
+            ScreenZoom.pinPointerStage(effect, full: bounds, pivot: focus, factor: zoom)
             clip.position = focus
             glass.position = focus
             shot.frame = MagnifierGlass.shotFrame(screen: bounds, focus: focus,
                                                   glassRadius: glassRadius,
-                                                  zoom: self._magnifierZoom)
+                                                  zoom: Self.magnifierShotZoom(self._magnifierZoom,
+                                                                               screenZoom: zoom))
             CATransaction.commit()
 
             // 2. The real pointer stays gone (Victor, 2026-10-13: the arrow showed
@@ -8235,7 +8356,12 @@ class EmojiAnimator {
         // than peeling off it. (The two ranges happen to overlap: the cursor
         // heart's 86.4 pt across a 0.8…1.35 beat spans the same sizes the random
         // range used to, so the variety survived the change.)
-        let fontSize = Self.heartCursorFontSize
+        // 🔍 Under ⌥-scroll zoom the cursor heart is drawn 1/zoom the size, and
+        // so is everything about its clone — glyph, wobble, drift — snapshotted
+        // at birth (a heart lives ~4 s): magnified, it peels off the cursor
+        // exactly as it does unzoomed. 1 at rest.
+        let s = ScreenZoom.counterScale(for: ScreenZoom.overlayFactor)
+        let fontSize = Self.heartCursorFontSize * s
         let birthScale = heartCursorLiveScale()
         // The layer box must be taller than the glyph or CATextLayer clips the
         // heart's bottom tip (the emoji line box is ~1.18× the font size).
@@ -8254,13 +8380,15 @@ class EmojiAnimator {
         layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         container.addSublayer(layer)
 
-        // Travel from the spawn point up to (just past) the top edge.
-        let riseHeight = (bounds.height - origin.y) + box * 1.5
+        // Travel from the spawn point up to (just past) the top edge — of the
+        // glass: the zoom slice's top, which is the display's at rest.
+        let top = ZoomSlice.current(in: bounds).rect.maxY
+        let riseHeight = max(0, top - origin.y) + box * 1.5
         // A per-heart net sideways drift fans the hearts out in various
         // directions — mostly up, some up-left, some up-right — while the
         // sine term layered on top gives each one its vertical spiral.
-        let drift = CGFloat.random(in: -0.18...0.18) * bounds.width
-        let amplitude = CGFloat.random(in: 24...60)
+        let drift = CGFloat.random(in: -0.18...0.18) * bounds.width * s
+        let amplitude = CGFloat.random(in: 24...60) * s
         let frequency = Double.random(in: 1.5...3.0)  // full sine cycles over the rise
         let phase = Double.random(in: 0...(2 * .pi))
         let direction: CGFloat = Bool.random() ? 1 : -1
@@ -8839,6 +8967,41 @@ class EmojiAnimator {
 
     /// Current mouse position expressed in hostLayer-local coordinates,
     /// clamped to the built-in screen (reuses the heartbeat anchor mapping).
+    /// 🔍 A sprite drawn AT the pointer (the 🔥 fireball), sized for the glass:
+    /// its box `1/zoom` of the unzoomed one, so ⌥-scroll magnifies it back to
+    /// exactly that size (`ScreenZoom.counterScale`). The layer's anchor sits
+    /// on the pointer, so shrinking the box shrinks it about the pointer. Size,
+    /// not `transform`: these sprites animate `transform.scale` themselves (the
+    /// fear's growth, the heart's beat, the fireball's shrink-and-return),
+    /// which would overwrite a scale put there. Touches the layer only when the
+    /// answer changed, so a follow tick at rest re-renders nothing. Call it
+    /// with implicit actions off.
+    static func fitPointerSprite(_ layer: CALayer, base: CGSize,
+                                 factor: CGFloat = ScreenZoom.overlayFactor) {
+        let s = ScreenZoom.counterScale(for: factor)
+        let bounds = CGRect(x: 0, y: 0, width: base.width * s, height: base.height * s)
+        if layer.bounds != bounds { layer.bounds = bounds }
+    }
+
+    /// The same for a drawn crosshair (the 🔫 sniper reticle): a container of
+    /// shape layers, nothing animating its transform, centred on the pointer —
+    /// so its own `transform` is what scales it about the pointer.
+    static func fitPointerReticle(_ layer: CALayer, factor: CGFloat = ScreenZoom.overlayFactor) {
+        let s = ScreenZoom.counterScale(for: factor)
+        guard layer.transform.m11 != s else { return }
+        layer.transform = s == 1 ? CATransform3DIdentity : CATransform3DMakeScale(s, s, 1)
+    }
+
+    /// The same for a glyph: its font has to shrink with its box.
+    static func fitPointerGlyph(_ layer: CATextLayer, fontSize: CGFloat, box: CGSize,
+                                factor: CGFloat = ScreenZoom.overlayFactor) {
+        let s = ScreenZoom.counterScale(for: factor)
+        let bounds = CGRect(x: 0, y: 0, width: box.width * s, height: box.height * s)
+        guard layer.bounds != bounds || layer.fontSize != fontSize * s else { return }
+        layer.fontSize = fontSize * s
+        layer.bounds = bounds
+    }
+
     private func mousePointInHostLayer() -> CGPoint {
         let bounds = hostLayer.bounds
         let anchor = Self.layerAnchor(forGlobalMouse: VisibleCursor.location,
@@ -8905,12 +9068,12 @@ class EmojiAnimator {
         let box = size * Self.heartCursorBoxRatio
         let heart = CATextLayer()
         heart.string = "❤️"
-        heart.fontSize = size
         heart.alignmentMode = .center
-        heart.bounds = CGRect(x: 0, y: 0, width: box, height: box)
         heart.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        // 🔍 1/zoom about the pointer, re-fitted on every follow tick below.
+        Self.fitPointerGlyph(heart, fontSize: size, box: CGSize(width: box, height: box))
         heart.position = mousePointInHostLayer()   // centred on the pointer, not above it
         CATransaction.commit()
         hostLayer.addSublayer(heart)
@@ -8948,7 +9111,10 @@ class EmojiAnimator {
             }
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            self._heartCursorLayer?.position = self.mousePointInHostLayer()
+            if let heart = self._heartCursorLayer as? CATextLayer {
+                heart.position = self.mousePointInHostLayer()
+                Self.fitPointerGlyph(heart, fontSize: size, box: CGSize(width: box, height: box))
+            }
             CATransaction.commit()
         }
         _heartCursorTimer = timer
@@ -11452,6 +11618,8 @@ class EmojiAnimator {
     /// go on living for a second Escape while passing his clicks and scrolls
     /// through to the fires already standing.
     private var _firePointerLayer: CALayer?
+    /// The fireball's box at rest; drawn `1/zoom` of it under ⌥-scroll zoom.
+    private var _fireballBaseSize: CGSize = .zero
 
     private var _fireTimer: Timer?
     private var _fireHidCursor = false            // balance hide/unhide of the real cursor
@@ -11544,7 +11712,9 @@ class EmojiAnimator {
         // the wheel belongs to the fire on the ground. `fireballZ` puts it
         // BELOW the fires it starts — see that constant for why.
         let pointer = CALayer()
+        _fireballBaseSize = Self.fireballBounds(for: firstBallFrame).size
         pointer.bounds = Self.fireballBounds(for: firstBallFrame)
+        Self.fitPointerSprite(pointer, base: _fireballBaseSize)
         pointer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         pointer.contents = firstBallFrame
         pointer.contentsGravity = .resizeAspect
@@ -11600,7 +11770,10 @@ class EmojiAnimator {
             // The ball's anchor IS its centre, so this one assignment is what
             // puts the ball under the pointer at every size — and what makes the
             // fire a click plants stand exactly where the ball was.
-            self._firePointerLayer?.position = self.mousePointInHostLayer()
+            if let ball = self._firePointerLayer {
+                ball.position = self.mousePointInHostLayer()
+                Self.fitPointerSprite(ball, base: self._fireballBaseSize)
+            }
             CATransaction.commit()
         }
         _fireTimer = timer
@@ -12426,7 +12599,8 @@ class EmojiAnimator {
         layer.contents = image
         layer.contentsGravity = .resizeAspect
         layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        hostLayer.addSublayer(layer)
+        // On the zoom stage, so ⌥-scroll leaves the robot on the glass at its size.
+        stageLayer.addSublayer(layer)
         activeEffects["claude-peek"] = layer
 
         let slideIn = CABasicAnimation(keyPath: "position.x")
@@ -12451,6 +12625,8 @@ class EmojiAnimator {
         let screenOrigin = EdgeFlash.builtInScreen?.frame.origin ?? .zero
         let hitFrame = frame.offsetBy(dx: screenOrigin.x, dy: screenOrigin.y)
         peekHitPanel = PeekHitPanel(frame: hitFrame) { [weak self] in self?.flipPeekMascot() }
+        // Kept over where the robot is really drawn, staged and zoomed included.
+        peekHitPanel?.follow(layer, in: hostLayer, screenOrigin: screenOrigin)
 
         schedulePeekExit(layer: layer)
     }
@@ -12733,8 +12909,7 @@ class EmojiAnimator {
         layer.frame = frame
         layer.contents = image
         CATransaction.commit()
-        let screenOrigin = EdgeFlash.builtInScreen?.frame.origin ?? .zero
-        peekHitPanel?.setFrame(frame.offsetBy(dx: screenOrigin.x, dy: screenOrigin.y), display: false)
+        // The click target is re-fitted by its follow (`PeekHitPanel.follow`).
 
         let wiggle = CAKeyframeAnimation(keyPath: "transform.rotation.z")
         wiggle.values = [0, -0.12, 0.10, -0.065, 0.04, 0]

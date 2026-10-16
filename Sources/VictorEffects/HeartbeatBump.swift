@@ -106,4 +106,16 @@ enum HeartbeatBump {
     static func center(forAnchor anchor: CGPoint, bounds: CGRect) -> CGPoint {
         CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height)
     }
+
+    /// Where the `breatheScale` breathe pivots, as the photo layer's
+    /// `anchorPoint`: the middle of what the room SEES. Unzoomed that is the
+    /// display's centre, as it always was. Under ⌥-scroll zoom the display's
+    /// centre may be far off the glass, and a 2 % scale about a point off the
+    /// glass reads as the whole picture sliding one way, not as a breathe — so
+    /// the pivot is the zoom slice's centre (`unitViewport`, y up). Moved only
+    /// between beats, while the scale is back at 1, so the move is invisible.
+    static func breatheAnchor(unitViewport unit: CGRect?) -> CGPoint {
+        guard let unit, unit.width > 0, unit.height > 0 else { return CGPoint(x: 0.5, y: 0.5) }
+        return CGPoint(x: unit.midX, y: unit.midY)
+    }
 }

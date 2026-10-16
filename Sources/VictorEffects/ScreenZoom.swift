@@ -108,6 +108,68 @@ enum ScreenZoom {
     }
 }
 
+// MARK: - Drawing AT the pointer under zoom
+
+/// The pointer is always on the glass, so an effect drawn at it never lands off
+/// screen — but it is magnified with everything else, and Victor never wants to
+/// zoom INTO an effect. Such an effect is drawn `1/factor` the size, about the
+/// pointer, so the magnification brings it back to exactly its unzoomed size,
+/// still under the hand. Every caller re-applies this in its own follow tick
+/// (the factor changes mid-effect with ⌥-scroll), and at rest every answer here
+/// is the identity, so nothing moves on a Mac nobody zoomed.
+extension ScreenZoom {
+    /// The magnification of `screen` right now: exactly 1 at rest, below
+    /// `minimumFactor`, or when the window server cannot be asked.
+    static func factor(of screen: NSScreen?) -> CGFloat {
+        guard let unit = unitViewport(of: screen), unit.width > 0 else { return 1 }
+        return 1 / unit.width
+    }
+
+    /// `factor(of:)` for the screen the overlay draws on.
+    static var overlayFactor: CGFloat { factor(of: Screens.overlayScreen()) }
+
+    /// What to multiply a size drawn at the pointer by: `1/factor`, and exactly
+    /// 1 (not "within an ulp") while unzoomed.
+    static func counterScale(for factor: CGFloat) -> CGFloat {
+        factor >= CGFloat(minimumFactor) ? 1 / factor : 1
+    }
+
+    /// A POINTER STAGE: a layer covering `full` (in its superlayer, origin
+    /// included) whose children keep their display coordinates, drawn
+    /// `counterScale` the size about `pivot`. The trick is the anchor: put it
+    /// on the pivot, put `position` there too, and the layer's own `transform`
+    /// then scales about that point — a child at q lands at
+    /// `pivot + (q − pivot)/factor`, the pivot itself stays put, and nothing
+    /// inside learns about the zoom. For sprites whose OWN `transform.scale` is
+    /// animated (a key-path animation would overwrite a scale set on them) and
+    /// for groups of layers. Pure.
+    static func pointerStage(full: CGRect, pivot: CGPoint, factor: CGFloat)
+        -> (anchorPoint: CGPoint, position: CGPoint, scale: CGFloat) {
+        let s = counterScale(for: factor)
+        // At rest: the plain centred layer, EXACTLY — an anchor on the pivot
+        // would put the frame back within an ulp, not on it.
+        guard s != 1, full.width > 0, full.height > 0 else {
+            return (CGPoint(x: 0.5, y: 0.5), CGPoint(x: full.midX, y: full.midY), 1)
+        }
+        return (CGPoint(x: (pivot.x - full.minX) / full.width, y: (pivot.y - full.minY) / full.height),
+                pivot, s)
+    }
+
+    /// Applies `pointerStage` to `layer`, with implicit animation off (a 16 ms
+    /// correction animated over a quarter second reads as the sprite swimming).
+    static func pinPointerStage(_ layer: CALayer, full: CGRect, pivot: CGPoint, factor: CGFloat) {
+        let g = pointerStage(full: full, pivot: pivot, factor: factor)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let bounds = CGRect(origin: .zero, size: full.size)
+        if layer.bounds != bounds { layer.bounds = bounds }
+        layer.anchorPoint = g.anchorPoint
+        layer.position = g.position
+        layer.transform = g.scale == 1 ? CATransform3DIdentity : CATransform3DMakeScale(g.scale, g.scale, 1)
+        CATransaction.commit()
+    }
+}
+
 /// Re-pins layers to the zoom viewport while they are on screen.
 ///
 /// `visibleRect` is a snapshot, and the viewport moves under the pointer: an

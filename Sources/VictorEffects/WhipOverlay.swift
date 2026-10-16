@@ -37,6 +37,12 @@ final class WhipController {
     private var physics: WhipPhysics?
     private var displayTimer: Timer?
     private var screenFrame: NSRect = .zero
+    /// The display the whip is on, whose ⌥-scroll zoom it follows.
+    private var screen: NSScreen?
+    /// The slice of `screenFrame` on the glass that the panel was last mapped
+    /// into (`ZoomedPanel`). The pointer is converted with this SAME rect each
+    /// frame, so the rope's handle and the window can never disagree by a pan.
+    private var appliedVisible: CGRect = .zero
 
     private var escGlobalMonitor: Any?
     private var escLocalMonitor: Any?
@@ -110,12 +116,17 @@ final class WhipController {
         guard panel == nil else { return }
 
         let screen = screenUnderMouse()
+        self.screen = screen
         screenFrame = screen.frame
 
         let p = WhipPanel(screenFrame: screenFrame)
         let v = WhipView(frame: NSRect(origin: .zero, size: screenFrame.size))
         v.onMouseDown = { [weak self] in self?.handleClick() }
         p.contentView = v
+        // Before the first pointer read: the spawn below converts the pointer
+        // with the slice this places the panel on.
+        appliedVisible = .null
+        placeForZoom(p)
 
         let sim = WhipPhysics(width: Double(screenFrame.width), height: Double(screenFrame.height))
         let mouse = viewPoint(forGlobal: VisibleCursor.location)
@@ -150,6 +161,7 @@ final class WhipController {
         panel = nil
         view = nil
         physics = nil
+        screen = nil
         flickQueue = []
         if wasShowing { onVisibilityChanged?(false) }
     }
@@ -196,6 +208,7 @@ final class WhipController {
 
     @objc private func tick() {
         guard let physics, let view else { return }
+        if let panel { placeForZoom(panel) }
         let now = nowMs()
         // A scripted flick (forceCrack) drives the handle for a few frames to
         // imitate a fast mouse sweep; otherwise follow the real cursor.
@@ -251,8 +264,34 @@ final class WhipController {
 
     /// Convert a global (y-up) screen point to the flipped overlay view's space
     /// (origin top-left, y-down) — matching the physics/HTML-canvas coordinates.
+    ///
+    /// Under ⌥-scroll zoom the view's space is the GLASS: the panel covers only
+    /// the slice on the glass and its view keeps the whole screen's size as its
+    /// bounds, so the point is first taken to where it is seen on the unzoomed
+    /// screen. At rest that step is the identity.
     private func viewPoint(forGlobal g: NSPoint) -> CGPoint {
-        CGPoint(x: g.x - screenFrame.minX, y: screenFrame.maxY - g.y)
+        Self.viewPoint(forGlobal: g, screen: screenFrame, visible: appliedVisible)
+    }
+
+    /// Pure half of `viewPoint`, for the tests.
+    static func viewPoint(forGlobal g: NSPoint, screen: CGRect, visible: CGRect) -> CGPoint {
+        let d = ZoomedPanel.designPoint(g, screen: screen, visible: visible)
+        return CGPoint(x: d.x - screen.minX, y: screen.maxY - d.y)
+    }
+
+    /// Keep the panel on the slice that is on the glass, shrunk by the zoom, so
+    /// the rope is the thickness and length it is unzoomed (`ZoomedPanel`).
+    /// Called every frame from `tick` — the pointer that pans the zoom is the
+    /// pointer that swings the whip — and a no-op while the slice holds still.
+    /// The physics never learns about the zoom: it runs on the whole screen's
+    /// size, which is what the view's bounds stay.
+    private func placeForZoom(_ panel: NSPanel) {
+        let slice = ZoomedPanel.visible(on: screen, fallback: screenFrame)
+        guard slice != appliedVisible else { return }
+        appliedVisible = slice
+        ZoomedPanel.apply(panel,
+                          frame: ZoomedPanel.frame(design: screenFrame, screen: screenFrame, visible: slice),
+                          designSize: screenFrame.size)
     }
 }
 

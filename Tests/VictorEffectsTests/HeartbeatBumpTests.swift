@@ -89,4 +89,13 @@ final class HeartbeatBumpTests: XCTestCase {
         // …versus the 270 pt it used to sweep at 1.30.
         XCTAssertGreaterThan(halfDiagonal * 0.30, 250)
     }
+
+    /// The breathe pivots on the middle of the glass: the display's centre at
+    /// rest, the zoom slice's centre under ⌥-scroll — a 2 % scale about a point
+    /// off the glass would read as the whole picture sliding one way.
+    func testTheBreathePivotsOnTheMiddleOfWhatIsOnTheGlass() {
+        XCTAssertEqual(HeartbeatBump.breatheAnchor(unitViewport: nil), CGPoint(x: 0.5, y: 0.5))
+        let topLeftQuarter = CGRect(x: 0, y: 0.5, width: 0.5, height: 0.5)
+        XCTAssertEqual(HeartbeatBump.breatheAnchor(unitViewport: topLeftQuarter), CGPoint(x: 0.25, y: 0.75))
+    }
 }

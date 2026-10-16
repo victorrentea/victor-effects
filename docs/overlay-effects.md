@@ -227,11 +227,16 @@ Three things worth knowing before touching it:
 
 **The other zoom: ⌥⇧+scroll (`ShareZoom` in victor-macos-addons, 2026-10-01).**
 That one is a magnifier done *in a window* so a Zoom share carries it, and it needs
-none of the above: our overlay sits at the maximum window level, above its window,
-so every effect is drawn unmagnified over the zoomed picture — already what an
-effect looks like unzoomed — and `SLSGetZoomParametersForDisplay` keeps reporting
-1× through it, so `ScreenZoom` stays out of the way. Screenshot effects photograph
-the zoomed picture (only our own panel is excluded), which is what is on the glass.
+none of the above: every window of ours sits at `maximumWindow` ± 2, above its
+window, so every effect is drawn unmagnified over the zoomed picture — already what
+an effect looks like unzoomed — and `SLSGetZoomParametersForDisplay` keeps reporting
+1× through it, so `ScreenZoom` stays out of the way. **What it does need is to not
+film us**: until 2026-10-16 its capture left out only the 💬 caption, so every
+effect was ALSO filmed into the magnified picture under the live one — the 💀 skull
+boom "duplicated". Addons now excludes every window of this bundle id, watches for
+panels opened mid-zoom and re-lists after this app relaunches
+(`docs/displays-projector.md` over there). Screenshot effects photograph the zoomed
+picture (only our own panel is excluded), which is what is on the glass.
 The one thing it breaks is **the cursor**: that zoom pans only when the pointer
 pushes an edge, hides the real cursor and draws a magnified one where the pointer's
 point appears on the glass, so anything drawn at `NSEvent.mouseLocation` was left
@@ -267,11 +272,9 @@ ecranul"*):
   frame and the crop come from **one** snapshot, so a pan between two reads
   cannot hand the layer one slice and the picture another. Used by
   **❌ fail (#19)**, **💀 skull boom (#39)**, **🚪 dark door (#25)**, **🎼 Beethoven (#51)**, **🚔 FBI knock
-  (#64)**, **☎️ phone ring (#10)** and **💥 broken glass (#90)**, and by the
-  **🔍 Pink Panther magnifier (#6)** for its *size* only: the lens is two
-  thirds of the slice's height, since two thirds of the display at 2× was a
-  lens taller than the glass. It still rides the pointer, which is inside the
-  slice anyway.
+  (#64)**, **☎️ phone ring (#10)** and **💥 broken glass (#90)**. (The
+  **🔍 magnifier** sized its lens on it until 2026-10-16; it is now a pointer
+  stage, see "drawn AT THE POINTER" below.)
 - **`ZoomFollower.stage(_:full:)` — for a long effect you talk over.** The
   container keeps its children laid out over the whole display and is itself
   scaled by `1/factor` and centred on the slice, re-pinned at 30 Hz like the
@@ -303,7 +306,8 @@ ones. Two tools now cover them:
   wolf, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
   Star Wars, snow, fire alarm, cavalry, wasn't-me, microwave, universal minions,
   rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda, opus,
-  game over and its CRT, sketch arrow, the reaction emojis (not ☕), the ❌ fail
+  game over and its CRT, sketch arrow, the reaction emojis (☕ too since
+  2026-10-16, with the pot and stream that pour into it), the ❌ fail
   stamp (no longer a frozen `ZoomSlice`), and the **progress bar**
   (`ProgressBarOverlay(host:)` asks for the stage at every use).
 - **`ZoomFollower.stage(_:full:laidOutFor:disposeWhenEmptied:)` — for screenshot
@@ -320,17 +324,61 @@ ones. Two tools now cover them:
   link-confirmation call lasts 4.5 s, not the "over in a second" assumed before.
 - **⌥+scroll is no longer swallowed** by the magnifier's and the fire's wheel
   taps (⌘ already passed through) — they were stopping the zoom itself.
+- **Our other windows follow it too** (2026-10-16), the caption's way:
+  `ZoomedPanel` maps a panel's unzoomed frame into the slice, shrunk by the
+  factor, and keeps the unzoomed size as its content view's bounds, so drawing
+  and hit-testing scale together. Done for the **thumbnail board** (60 Hz once
+  landed, `docs/thumbnail-panel.md`) and the **🔥 whip** (in its own 60 Hz tick;
+  the rope is the same thickness zoomed, `docs/whip.md`). The **claude-peek**
+  robot is on `stageLayer`, and its click target follows it:
+  `PeekHitPanel.follow(_:in:screenOrigin:)` pins the panel at 30 Hz to wherever
+  the layer is really drawn (model frame through every ancestor, so it does not
+  chase the slide-in), which also covers the costume change on a click.
 
-**Deliberate exceptions:** everything drawn AT THE POINTER (fear, chainsaw, fire,
-magnifier lens, aimed bombs, spiral hearts, whip, ☕ pot and cups — the pointer
-is always on the glass, and their coordinates are the display's, which a stage
-would scramble) and everything GLUED TO THE DESKTOP (bullet holes, planted fires,
-saw cuts, the heartbeat's photo — the zoom magnifies them with the desktop,
-which is right). Known gaps, low value for the risk: the minigun's gun on the
-display's bottom edge, the claude-peek click panel (an NSPanel in display
-coordinates), the explosion's un-aimed bomb at the display centre, the
-magnifier lens size read once, the heartbeat's 2 % breathe about the display
-centre.
+**Drawn AT THE POINTER: shrunk about the pointer** (2026-10-16, Victor: *"I
+never want to zoom into an effect"*). The pointer is always on the glass, so
+these never landed off it — they were just magnified with everything else, and
+a stage would scramble their display coordinates. Each is now drawn `1/zoom`
+the size **about the pointer**, re-fitted in its own follow tick (⌥-scroll
+mid-effect re-fits it), and exactly unchanged at rest (`ScreenZoom.factor(of:)`,
+`counterScale(for:)`; `ScreenZoomTests`, `PointerZoomTests`). How, depends on
+what the sprite already animates:
+
+- **its box** when it animates its own `transform.scale` (a scale set there
+  would be overwritten): 😱 fear, the spiral hearts' ❤️ cursor, the 🔥 fireball
+  (`fitPointerGlyph`, `fitPointerSprite`);
+- **its own `transform`** when nothing animates it: the 🪚 saw (anchored on its
+  teeth), the 🔫 crosshair (`fitPointerReticle`). The saw's sparks go through the
+  emitter's `scale`/`velocity` multipliers and their gravity — scaling the
+  emitter layer about a moving pointer would drag every spark in the air along;
+- **a pointer stage** for a group (`ScreenZoom.pinPointerStage`: a display-sized
+  layer anchored on the pointer, scaled `1/zoom`, children untouched): the 🔍
+  magnifier, sized on the display again. The picture inside is blown up by the
+  zoom on top of the lens's own power (`magnifierShotZoom`), so it still shows
+  the desktop `lensZoom`× bigger than the magnified desktop around it.
+
+Sized once, where they are planted: the ❤️ clones (glyph, wobble, drift; they
+rise to the slice's top), the aimed ☢️ strikes (`bombBlastFrame` and
+`bombFallSpeed` take the slice — `bombBlastFrame` honours a rect's origin now —
+and the target ring scales through `sublayerTransform`, its own transform being
+the grow-and-turn), and the 🔫 holes (shot at the crosshair's size and spread, so
+every hole still lands whole in the red ring; glued from then on). The ☕ cups,
+pot and stream live on `stageLayer` (above); `tickCoffeePour` takes the pointer
+into the stage once per tick and the payoff point back out, so the hit test,
+the aim and the surface clip never mix coordinates.
+
+The old known gaps are closed: the 🔫 gun stands on its own `ZoomFollower` stage
+inside the holes' container (the slice's bottom edge, its sway read through
+that stage), the un-aimed ☢️ nuke falls on `stageLayer`, the 💓 breathe pivots on
+the slice's centre (`HeartbeatBump.breatheAnchor`, moved between beats while the
+scale is 1). The 🔥 whip is `ZoomedPanel`'s (above); the 🐶/🐱 were staged in
+2026-09.
+
+**GLUED TO THE DESKTOP, deliberately:** the heartbeat's photo, the saw's kerf and
+falling pieces, planted fires, bullet holes once shot — the zoom magnifies them
+with the desktop, which is right. A kerf and a planted fire are therefore still
+drawn at their unzoomed size in the framebuffer, i.e. `zoom`× on the glass next
+to a saw or a fireball at 1×.
 
 
 

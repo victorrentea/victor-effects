@@ -28,6 +28,35 @@ final class ThumbnailPanel: NSPanel {
     /// exactly how a panel ends up invisible but "visible".
     private var slideGeneration = 0
 
+    // MARK: ⌥-scroll zoom (`ZoomedPanel`)
+
+    /// The frame the board is laid out for — global points on the UNZOOMED
+    /// screen, the frame the controller chose. The window itself sits at this
+    /// frame mapped into the slice on the glass (`ZoomedPanel.frame`), and the
+    /// content view keeps this size as its bounds, so tiles are laid out once at
+    /// the same size zoomed or not and clicks land on the tile that is drawn.
+    private var designFrame: NSRect?
+    /// The display the board is on — the one whose zoom it follows. Not
+    /// necessarily the overlay screen: on a two-screen desk the board goes on
+    /// the other one, and macOS zooms each display on its own.
+    private var zoomScreen: NSScreen?
+    /// The slice the frame was last mapped into, so the follower is one zoom
+    /// read per tick while nothing moves.
+    private var appliedVisible: CGRect?
+    /// Re-maps the board while it is up and landed, because the viewport pans
+    /// with the pointer — and the pointer is travelling to a tile. 60 Hz, not
+    /// the caption's 30: this one is clicked, and a frame left behind by a pan
+    /// is a click on the neighbouring tile.
+    private var zoomPin: Timer?
+    static let zoomFollowInterval: TimeInterval = 1.0 / 60
+
+    /// The zoom shrink applied to the window right now (1 at rest), for the
+    /// test hook's report.
+    var zoomScale: CGFloat {
+        guard let designFrame, designFrame.width > 0 else { return 1 }
+        return frame.width / designFrame.width
+    }
+
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
                    styleMask: [.borderless, .nonactivatingPanel],
@@ -127,11 +156,22 @@ final class ThumbnailPanel: NSPanel {
         contentView?.layer?.masksToBounds = !fills
     }
 
-    func show(at frame: NSRect, slidingFrom offscreenX: CGFloat) {
+    /// `frame` and `offscreenX` are in UNZOOMED global points; under ⌥-scroll
+    /// zoom both are mapped into the slice on `screen`'s glass here, so the
+    /// board lands — and slides in from the edge of — what the room sees.
+    func show(at frame: NSRect, on screen: NSScreen?, slidingFrom offscreenX: CGFloat) {
         slideGeneration += 1
+        let generation = slideGeneration
+        stopZoomPin()
 
-        setFrame(NSRect(x: offscreenX, y: frame.minY,
-                        width: frame.width, height: frame.height), display: false)
+        designFrame = frame
+        zoomScreen = screen
+        let slice = currentVisible(design: frame)
+        appliedVisible = slice
+        let target = glassFrame(frame, slice)
+        let parked = glassFrame(NSRect(x: offscreenX, y: frame.minY,
+                                       width: frame.width, height: frame.height), slice)
+        ZoomedPanel.apply(self, frame: parked, designSize: frame.size, display: false)
         let visible: NSView = page == .effects ? grid : videoGrid
         visible.frame = contentView?.bounds ?? NSRect(origin: .zero, size: frame.size)
         visible.needsLayout = true
@@ -149,24 +189,30 @@ final class ThumbnailPanel: NSPanel {
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = Self.slideInDuration
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            animator().setFrame(frame, display: true)
+            animator().setFrame(target, display: true)
             animator().alphaValue = 1
         }, completionHandler: { [weak self] in
             // The board has landed, possibly right under a pointer that never
             // moved — which is the whole gesture. Light the tile it is on.
             self?.syncHoverToMouse()
+            // Follow the zoom only once landed: re-placing it mid-slide would
+            // fight `animator().setFrame`. A slide-out that overtook this one
+            // owns the window now and must not be followed.
+            guard let self, self.slideGeneration == generation else { return }
+            self.startZoomPin()
         })
     }
 
     /// Resize in place, un-animated: the page switch changes how tall the grid
     /// hugs, and a board that grew a row must not slide to say so.
+    /// `frame` is the new DESIGN frame, mapped onto the glass like `show`'s.
     func resize(to frame: NSRect) {
         guard isVisible else { return }
-        setFrame(frame, display: true)
-        let visible: NSView = page == .effects ? grid : videoGrid
-        visible.frame = contentView?.bounds ?? visible.frame
-        visible.needsLayout = true
-        visible.layoutSubtreeIfNeeded()
+        designFrame = frame
+        let slice = currentVisible(design: frame)
+        appliedVisible = slice
+        ZoomedPanel.apply(self, frame: glassFrame(frame, slice), designSize: frame.size)
+        fitPagesToContent()
         syncHoverToMouse()
     }
 
@@ -179,9 +225,19 @@ final class ThumbnailPanel: NSPanel {
         guard isVisible else { hideNow(); return }
         slideGeneration += 1
         let generation = slideGeneration
+        stopZoomPin()
 
+        // Out to the parking spot mapped like the board itself — the right edge
+        // of the slice on the glass, not of the unzoomed screen, which zoomed in
+        // is somewhere off the glass entirely.
         var out = frame
-        out.origin.x = offscreenX
+        if let designFrame {
+            out.origin.x = glassFrame(NSRect(x: offscreenX, y: designFrame.minY,
+                                             width: designFrame.width, height: designFrame.height),
+                                      currentVisible(design: designFrame)).minX
+        } else {
+            out.origin.x = offscreenX
+        }
 
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = Self.slideOutDuration
@@ -202,6 +258,7 @@ final class ThumbnailPanel: NSPanel {
 
     private func finishSlideOut(_ generation: Int) {
         guard slideGeneration == generation else { return }  // a show overtook us
+        stopZoomPin()
         orderOut(nil)
         alphaValue = 1
         // The board usually disappears while the mouse is still on it (the key
@@ -218,11 +275,70 @@ final class ThumbnailPanel: NSPanel {
     /// the app is going away.
     func hideNow() {
         slideGeneration += 1
+        stopZoomPin()
         orderOut(nil)
         alphaValue = 1
         grid.releaseCursor()
         videoGrid.releaseCursor()
         clearHover()
+    }
+}
+
+extension ThumbnailPanel {
+    /// The slice of the board's screen on the glass now — the screen itself at
+    /// rest, or when the screen is unknown (then nothing is mapped at all).
+    fileprivate func currentVisible(design: NSRect) -> CGRect {
+        guard let zoomScreen else { return design }
+        return ZoomedPanel.visible(on: zoomScreen, fallback: zoomScreen.frame)
+    }
+
+    fileprivate func glassFrame(_ design: NSRect, _ slice: CGRect) -> NSRect {
+        guard let zoomScreen else { return design }
+        return ZoomedPanel.frame(design: design, screen: zoomScreen.frame, visible: slice)
+    }
+
+    /// Both pages back onto the content's (design-sized) bounds. A resize of a
+    /// view with scaled bounds autoresizes its subviews by the INTERMEDIATE
+    /// bounds AppKit computes before ours are re-asserted, so this is not
+    /// optional after a zoom change.
+    fileprivate func fitPagesToContent() {
+        guard let bounds = contentView?.bounds else { return }
+        for view in [grid, videoGrid] as [NSView] where view.frame != bounds {
+            view.frame = bounds
+            view.needsLayout = true
+        }
+        let visible: NSView = page == .effects ? grid : videoGrid
+        visible.needsLayout = true
+        visible.layoutSubtreeIfNeeded()
+    }
+
+    fileprivate func startZoomPin() {
+        stopZoomPin()
+        // Nothing to follow on a screen nobody can zoom into (unknown screen).
+        guard zoomScreen != nil else { return }
+        let timer = Timer(timeInterval: Self.zoomFollowInterval, repeats: true) { [weak self] _ in
+            self?.followZoom()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        zoomPin = timer
+    }
+
+    fileprivate func stopZoomPin() {
+        zoomPin?.invalidate()
+        zoomPin = nil
+    }
+
+    /// One tick: a no-op while the slice has not moved; otherwise the board is
+    /// re-mapped onto the glass and the hover re-resolved, since the board just
+    /// moved under a pointer that did not.
+    private func followZoom() {
+        guard isVisible, let designFrame else { stopZoomPin(); return }
+        let slice = currentVisible(design: designFrame)
+        guard slice != appliedVisible else { return }
+        appliedVisible = slice
+        ZoomedPanel.apply(self, frame: glassFrame(designFrame, slice), designSize: designFrame.size)
+        fitPagesToContent()
+        syncHoverToMouse()
     }
 }
 

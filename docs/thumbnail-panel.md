@@ -198,6 +198,22 @@ still draws over it on the built-in screen while clicks still reach the panel.
 dragging anything along. Hover highlights come from an `NSTrackingArea`, which
 works without key status.
 
+**It follows ⌥-scroll zoom** (2026-10-16). macOS zoom magnifies the
+framebuffer, the panel with it: at 2× the board was twice the size and mostly
+off the glass. The controller still chooses an *unzoomed* frame (placement, hug
+and metrics unchanged); the panel maps it into the slice on the glass of **its
+own** display (`ZoomedPanel.frame` — not the overlay screen's, since on a
+two-screen desk the board is on the other one and macOS zooms each display on its
+own) and keeps that frame's size as the content view's **bounds**, so AppKit
+scales drawing *and* hit-testing together: magnified back, the board is the same
+size in the same place, and a click lands on the tile drawn under it
+(`ZoomedPanelTests`, which proves the hit on a real panel). Re-mapped at 60 Hz
+once it has landed (not mid-slide — that would fight the animation), because
+the viewport pans with the pointer travelling to a tile; slides in from and out
+to the slice's right edge. At rest it is the identity, frame for frame.
+`/test/thumbnail-panel` reports `zoomScale` (1 at rest, 0.5 at 2×). Tiles look
+softer zoomed — they are rendered at 1/factor and blown up, as the caption is.
+
 **The cursor over the panel is an arrow and never changes shape** (`PanelCursor`,
 pinned from `ThumbnailGridView`, `TileView` and `PanelContentView`): being the
 window on top does not win the pointer's shape, so with no answer from us the

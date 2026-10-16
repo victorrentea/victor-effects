@@ -34,7 +34,10 @@ final class CoffeePourRenderTests: XCTestCase {
         defer { animator.stopAllActiveEffects() }
 
         animator.spawnEmoji("☕")
-        let carrier = try XCTUnwrap(root.sublayers?.last, "the cup's carrier")
+        // The cup, the pot and the stream live on the zoom stage (identity on
+        // an unzoomed Mac, so stage points are the root's points here).
+        let stage = animator.stageLayer
+        let carrier = try XCTUnwrap(stage.sublayers?.last, "the cup's carrier")
         let cup = carrier.position
         // The spout above the coffee, inside the cup's hit box. (The spout
         // pours down-LEFT at full lean, so a tip over the cup's left rim
@@ -53,7 +56,7 @@ final class CoffeePourRenderTests: XCTestCase {
             renderer.render(at: CACurrentMediaTime())
             Thread.sleep(forTimeInterval: 1.0 / 60)
         }
-        let stream = try XCTUnwrap(root.sublayers?.compactMap { $0 as? CAEmitterLayer }.first, "the stream")
+        let stream = try XCTUnwrap(stage.sublayers?.compactMap { $0 as? CAEmitterLayer }.first, "the stream")
         let clip = try XCTUnwrap(stream.mask, "the stream is clipped")
         let surface = clip.frame.minY
 

@@ -252,7 +252,11 @@ final class ThumbnailPanelController {
         let offscreen = placement.screen.visibleFrame.maxX
         offscreenX = offscreen
         lastPlacement = placement
-        panel.show(at: hugged, slidingFrom: offscreen)
+        // The NSScreen behind the chosen `PanelScreen`, for the ⌥-scroll zoom
+        // the panel follows (`ZoomedPanel`): the frames above stay in unzoomed
+        // points and the panel maps them onto the glass of THIS display.
+        let screen = NSScreen.screens.first { $0.frame == placement.screen.fullFrame }
+        panel.show(at: hugged, on: screen, slidingFrom: offscreen)
         panel.grid.setPlaying(asset: press.playing?.asset)
         panel.videoGrid.setPlaying(id: videoPress.playing?.id)
         effectsInfo("Thumbnail panel (\(page.rawValue)) on \"\(placed.screen.name)\" "
@@ -402,7 +406,9 @@ final class ThumbnailPanelController {
             + "\"overlayScreen\":\(placement.screen.isOverlay),"
             + "\"frame\":{\"x\":\(Int(f.minX)),\"y\":\(Int(f.minY)),"
             + "\"w\":\(Int(f.width)),\"h\":\(Int(f.height))},"
-            + "\"tiles\":\(tiles),\"seconds\":\(Int(Self.testShowSeconds))}"
+            + "\"tiles\":\(tiles),\"seconds\":\(Int(Self.testShowSeconds)),"
+            // The window's shrink under ⌥-scroll zoom: 1 at rest, 0.5 at 2×.
+            + "\"zoomScale\":\(Double(panel?.zoomScale ?? 1))}"
     }
 
     /// `GET /test/thumbnail-panel/press/<n>` — exactly what a click does,

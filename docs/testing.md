@@ -43,7 +43,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 
 ## Thumbnail panel
 
-- `GET /test/thumbnail-panel` — show the tile grid on the screen the placement rule picks, and answer with the frame and screen name it chose. The headless way to check `ThumbnailPanelPlacement` on a rig you are actually sitting at
+- `GET /test/thumbnail-panel` — show the tile grid on the screen the placement rule picks, and answer with the frame and screen name it chose, plus `zoomScale` (1 at rest, 0.5 under a 2× ⌥-scroll zoom: the shrink `ZoomedPanel` applied to the window). The headless way to check `ThumbnailPanelPlacement` on a rig you are actually sitting at
 - `GET /test/thumbnail-panel/hide` — hide it
 - `GET /test/thumbnail-panel/press/<n>` — press tile `n` exactly as a click does: stop-all, play, paired effect, and the scheduled `/sound/stopped`. The headless proof of `SoundboardPress`, and the only way to exercise it without a mouse on the right screen
 - `GET /test/thumbnail-panel?page=videos` — the same, on the panel's 🎬 **second page**. The answer carries `"page":"videos"` and a `tiles` count that must match `curl -s 127.0.0.1:55123/videos | jq '.videos|length'` — the two-command check that the fetch, the parse and the grid all agree
