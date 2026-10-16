@@ -12223,9 +12223,12 @@ class EmojiAnimator {
 
     // MARK: - 🤖 The rusty Opus head, dead centre (⌘⌃O)
 
-    /// Same lifetime as the elephant and the panda: long enough to land the
-    /// line, short enough that nobody waits for it to leave.
-    static let opusLifetime: Double = elephantLifetime
+    /// NOT the elephant's 5 s. The head is a slide, not a gag: it stays while
+    /// Victor talks over it and leaves when he presses ⌘⌃O again. With 5 s the
+    /// clock always won the race to the key (every showing on 2026-10-16 ended
+    /// by timeout), so the toggle was never reachable. The minute is only the
+    /// self-termination backstop for a forgotten head.
+    static let opusLifetime: Double = 60
 
     /// Centred on the screen at 60% of its height — the size the head has on
     /// the slide it was cut out of, which is the look this key reproduces.
@@ -12239,7 +12242,7 @@ class EmojiAnimator {
     /// 🤖 The rusty robot head with the orange beacon appears in the middle of
     /// the screen. **No entrance and no exit**: the elephant and the panda walk,
     /// this one is a cut — it is there, then it is not, like a slide change. The
-    /// key again removes it, and it leaves on its own after `opusLifetime`.
+    /// key again removes it; `opusLifetime` is only the backstop.
     func showOpus() {
         if activeEffects["opus"] != nil { stopOpus(); return }
 
