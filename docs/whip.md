@@ -271,15 +271,21 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
 - **Exclusive both ways.** `EffectsEngine.togglePray` hides the whip before
   showing him, `toggleWhip` hides him before showing the whip — one mode under
   the pointer at a time. Esc, a second ⌃⇧W and stop-all take him down.
-- **He follows the pointer**, eased (`PrayController.follow`, 0.35 a frame) so
-  he drifts after it, centred on it, 200 pt tall, breathing ±2%. Same panel
+- **His hands follow the pointer**, only them (2026-10-20, Victor: *"instead
+  of the man praying just … his two hands"*), eased (`PrayController.follow`,
+  0.35 a frame) so they drift after it, centred on it, breathing ±2%. They are
+  the figure drawn through a traced outline (`PrayView.handsOutline`, unit
+  coordinates of the 265×324 cut-out — a new picture needs a new trace), so the
+  man (200 pt tall) is placed by his hands and grows around those very pixels. Same panel
   (`WhipPanel`, `maximumWindow`) and the same `ZoomedPanel` mapping every frame,
   so ⌥-scroll and the ⌥⇧ zoom treat him exactly as they treat the rope.
 - **A click sings, nothing is typed.** It plays `pray-hymn.mp3` at the tablet's
-  level × 0.8, lights a golden glow behind him and drops a ray of light on him
-  from the top of the screen (falls in 0.45 s, shimmers; a halo over his head
-  was the first try and went on 2026-10-20) for the
-  clip's 8 s (`singMs`). A click mid-hymn starts it over; hiding him stops
+  level × 0.8; the rest of the man fades in around the hands (`manFadeInMs`,
+  0.8 s), and at `lightDelayMs` (1.5 s) a ray of light drops on him from the
+  top of the screen (falls in 0.45 s, shimmers; a halo over his head was the
+  first try and went on 2026-10-20) with a golden glow behind him. Man, ray and
+  glow fade out together over the last second (`fadeOutMs`) of the clip's 8 s
+  (`singMs`), back to hands. A click mid-hymn starts it over; hiding him stops
   it. Return and buttons 6/7 still mean nothing here — they are the whip's.
 - **Both media are drop-ins** (`docs/assets-and-licences.md`): the stock
   picture with its white background flood-filled away, and the first 8 s of the
@@ -288,5 +294,10 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
 - **⌃⇧ held is also addons' emoji-picker hold**, and this tap eats the W before
   addons sees it, so the hold is never marked as a shortcut: a ⌃⇧ kept down past
   the picker's delay still opens it. A quick chord does not.
+- **The real arrow is hidden while he — or the whip — is up** (`CursorHide`,
+  shared with the heartbeat and the 🔍 glass; 2026-10-20). Each overlay takes
+  one hide on show and gives exactly that back on hide, and re-asserts it at
+  4 Hz within 100 pt of a screen edge, where the menu bar or the Dock would
+  bring the arrow back.
 - Counts as running for the 🛑 (`prayIsShowing`), and `GET /state` reports
   `prayShowing`.

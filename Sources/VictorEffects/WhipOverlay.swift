@@ -49,6 +49,9 @@ final class WhipController {
     /// into (`ZoomedPanel`). The pointer is converted with this SAME rect each
     /// frame, so the rope's handle and the window can never disagree by a pan.
     private var appliedVisible: CGRect = .zero
+    /// The real arrow is hidden while the whip is up — the handle IS the
+    /// pointer (Victor, 2026-10-20).
+    private var cursorHide: CursorHide?
 
     private var escGlobalMonitor: Any?
     private var escLocalMonitor: Any?
@@ -171,6 +174,7 @@ final class WhipController {
         physics = sim
 
         p.orderFrontRegardless()
+        cursorHide = CursorHide()
 
         // On Bluetooth output, keep the A2DP amp continuously warm for the whole
         // time the whip is on screen. A crack can fire at any instant, so rather
@@ -190,6 +194,8 @@ final class WhipController {
         displayTimer = nil
         removeEscMonitors()
         BluetoothOutput.stopContinuousWarm()
+        cursorHide?.release()
+        cursorHide = nil
         panel?.orderOut(nil)
         panel = nil
         view = nil
@@ -244,6 +250,7 @@ final class WhipController {
     @objc private func tick() {
         guard let physics, let view else { return }
         if let panel { placeForZoom(panel) }
+        cursorHide?.reassertNearEdge(pointer: VisibleCursor.location, screen: screenFrame)
         let now = nowMs()
         // A scripted flick (forceCrack) drives the handle for a few frames to
         // imitate a fast mouse sweep; otherwise follow the real cursor.

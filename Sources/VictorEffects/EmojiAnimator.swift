@@ -6732,7 +6732,7 @@ class EmojiAnimator {
         // now: an arrow parked on top of the bulge it is itself causing looks
         // like the arrow is what got magnified, and the magnification stops
         // being the subject.
-        let cursorHide = HeartbeatCursorHide()
+        let cursorHide = CursorHide()
         // Whoever tears down first gives it back — normally `watchHeartbeatScreen`.
         // This is the backstop for the one path that has no timer: a capture that
         // never returns, so the follow is never armed at all.
@@ -6805,52 +6805,6 @@ class EmojiAnimator {
             }
         }
         return soundDuration
-    }
-
-    /// A cursor hide that can be released exactly once, by whichever teardown
-    /// path gets there first.
-    ///
-    /// `NSCursor.hide()`/`unhide()` and `CGDisplayHideCursor`/`ShowCursor` are
-    /// **counted**, so a double release does not merely do nothing — it cancels
-    /// somebody else's hide (the 😱 fear face's, say, which hides the pointer for
-    /// its own reasons). The heartbeat has three ends that all have to be safe:
-    /// the follow timer noticing the effect is over, the capture completion
-    /// finding itself preempted, and an absolute backstop for when neither runs.
-    /// A box that can only be opened once is cheaper than three call sites
-    /// agreeing on who wins.
-    ///
-    /// Main thread only — the counters behind it are not thread-safe.
-    private final class HeartbeatCursorHide {
-        /// Hides issued and not yet undone: one from `init`, plus one per
-        /// `reassert()`. `release()` undoes exactly this many.
-        private var depth = 0
-        init() {
-            // Lifts the "only while frontmost" restriction: our overlay floats
-            // over whatever app Victor is actually in, so without this the real
-            // arrow keeps showing over the beat.
-            hide()
-        }
-        /// Hide ONCE MORE while already hidden. The screen edges are where the
-        /// system UI lives (the menu bar, the auto-hidden Dock, hot corners), and
-        /// the pointer touching one gives the real arrow back — the trick
-        /// `ShareZoom` in victor-macos-addons learned first (2026-10-01).
-        func reassert() {
-            guard depth > 0 else { return }
-            hide()
-        }
-        func release() {
-            while depth > 0 {
-                NSCursor.unhide()
-                CGDisplayShowCursor(CGMainDisplayID())
-                depth -= 1
-            }
-        }
-        private func hide() {
-            EmojiAnimator.armBackgroundCursorHiding()
-            NSCursor.hide()
-            CGDisplayHideCursor(CGMainDisplayID())
-            depth += 1
-        }
     }
 
     /// 🐶 The chihuahua pinned over the beating screen. It is cut out of its
@@ -7071,7 +7025,7 @@ class EmojiAnimator {
     /// no longer the active heartbeat, and releases `cursorHide` on the way out.
     private func watchHeartbeatScreen(_ imgLayer: CALayer, effect: CALayer, bounds: CGRect,
                                       until deadline: CFTimeInterval,
-                                      cursorHide: HeartbeatCursorHide) {
+                                      cursorHide: CursorHide) {
         let timer = DispatchSource.makeTimerSource(queue: .main)
         var capturing = false
         // The initial screenshot is milliseconds old at this point, so the first
@@ -7536,7 +7490,7 @@ class EmojiAnimator {
     /// pointer (Victor, 2026-10-08: "only the lens, no mouse"). Tied to the
     /// input capture, whose stop every exit already goes through; the box is
     /// the heartbeat's, so a double stop cannot cancel another effect's hide.
-    private var _magnifierCursorHide: HeartbeatCursorHide?
+    private var _magnifierCursorHide: CursorHide?
     /// Read from the tap's own thread, so it is a flag and not a dictionary
     /// lookup: `activeEffects` is only ever mutated on main.
     fileprivate var _magnifierIsLive = false
@@ -7810,7 +7764,7 @@ class EmojiAnimator {
     /// only observe; a tap can consume.
     private func startMagnifierInputCapture() {
         stopMagnifierInputCapture()
-        _magnifierCursorHide = HeartbeatCursorHide()
+        _magnifierCursorHide = CursorHide()
 
         let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
             | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
@@ -9038,7 +8992,7 @@ class EmojiAnimator {
                 unsafeBitCast(propSym, to: SetConnectionPropertyFn.self))
     }()
 
-    private static func armBackgroundCursorHiding() {
+    static func armBackgroundCursorHiding() {
         guard let cgs = _cgsCursorSymbols else { return }
         let cid = cgs.connection()
         _ = cgs.setProperty(cid, cid, "SetsCursorInBackground" as CFString, kCFBooleanTrue)

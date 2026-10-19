@@ -6,11 +6,14 @@ import Foundation
 /// of the whip. And I click to play some short clip of a religious hymn"*).
 ///
 /// While active:
-///   • a man with his hands together follows the cursor where the rope would,
-///   • a **click** plays a few seconds of a hymn (`pray-hymn.mp3`) and lights a
-///     golden glow behind him for as long as it sings — nothing is typed, this
-///     is the gesture that ASKS the agent, the whip's click is the one that
-///     tells it,
+///   • only his two hands, joined, follow the cursor where the rope would, and
+///     the real arrow is hidden (2026-10-20, Victor: *"instead of the man
+///     praying just … his two hands"*),
+///   • a **click** plays a few seconds of a hymn (`pray-hymn.mp3`): the rest of
+///     the man fades in around the hands, and a beat later a ray of light falls
+///     from the sky onto him, with a golden glow, for as long as it sings; then
+///     he fades back to hands. Nothing is typed — this is the gesture that ASKS
+///     the agent, the whip's click is the one that tells it,
 ///   • Esc, ⌃⇧W again, the menu row or stop-all dismisses it.
 ///
 /// **Exclusive with the whip**: `EffectsEngine.togglePray` puts the whip away
@@ -29,6 +32,7 @@ final class PrayController {
     private var screenFrame: NSRect = .zero
     private var screen: NSScreen?
     private var appliedVisible: CGRect = .zero
+    private var cursorHide: CursorHide?
 
     private var escGlobalMonitor: Any?
     private var escLocalMonitor: Any?
@@ -37,9 +41,15 @@ final class PrayController {
     /// under it: it is a punchline, not a concert.
     static let hymn = "pray-hymn.mp3"
     static let hymnVolumeFactor: Float = 0.8
-    /// How long the glow stays lit after a click — the length of the excerpt
-    /// in `assetsDir` (8 s, with its own fade-out over the last 1.2 s).
+    /// How long a click lasts — the length of the excerpt in `assetsDir`
+    /// (8 s, with its own fade-out over the last 1.2 s).
     static let singMs = 8000.0
+    /// The man fades in around his hands over this long after a click…
+    static let manFadeInMs = 800.0
+    /// …and the light starts to fall once he is there, a beat later.
+    static let lightDelayMs = 1500.0
+    /// Man, ray and glow all fade out together over the clip's last second.
+    static let fadeOutMs = 1000.0
 
     var isShowing: Bool { panel != nil }
 
@@ -66,6 +76,7 @@ final class PrayController {
         panel = p
         view = v
         p.orderFrontRegardless()
+        cursorHide = CursorHide()
 
         // The hymn may start at any click; keep the A2DP link warm so it does
         // not arrive a beat after the glow (no-op off Bluetooth).
@@ -83,6 +94,8 @@ final class PrayController {
             SoundManager.shared.stopOverlapping(Self.hymn, fade: SoundManager.interruptFade)
         }
         BluetoothOutput.stopContinuousWarm()
+        cursorHide?.release()
+        cursorHide = nil
         panel?.orderOut(nil)
         panel = nil
         view = nil
@@ -111,6 +124,7 @@ final class PrayController {
     @objc private func tick() {
         guard let view else { return }
         if let panel { placeForZoom(panel) }
+        cursorHide?.reassertNearEdge(pointer: VisibleCursor.location, screen: screenFrame)
         let now = nowMs()
         // Eased, not glued: he drifts after the pointer, which reads as a
         // person following rather than a cursor image.
@@ -127,7 +141,8 @@ final class PrayController {
     // MARK: - Input
 
     /// A click sings, from the top — a second click mid-hymn starts it over
-    /// rather than stacking a second choir on the first. Also
+    /// (the man stays, the light falls again) rather than stacking a second
+    /// choir on the first. Also
     /// `/effect/pray/sing`, so the click can be checked without a mouse.
     func sing() {
         guard let view else { return }
@@ -183,11 +198,16 @@ final class PrayController {
 
 // MARK: - View
 
-/// The man, centred on the pointer, breathing slowly; while the hymn sings, a
-/// golden glow behind him and a ray of light falling on him from the top of
-/// the screen, both easing in and out. (A halo over his head came first and
-/// went on 2026-10-20 — Victor: *"a ray of light … falling from the sky,
-/// rather than this angelic circle on top of my head"*.)
+/// His joined hands, centred on the pointer, breathing slowly. A click fades
+/// the rest of him in around them, then a ray of light falls on him from the
+/// top of the screen with a golden glow behind him, all easing out together
+/// at the end of the hymn. (A halo over his head came first and went on
+/// 2026-10-20 — Victor: *"a ray of light … falling from the sky, rather than
+/// this angelic circle on top of my head"*.)
+///
+/// The hands are not a second picture: they are the same figure drawn through
+/// `handsOutline`, on top of the whole man at full opacity, so as he fades in
+/// they are the very pixels he grows around — no seam, no jump.
 private final class PrayView: NSView {
 
     var figure: NSImage?
@@ -201,51 +221,86 @@ private final class PrayView: NSView {
     static let beamColor = NSColor(red: 1.0, green: 0.96, blue: 0.78, alpha: 1)
     /// How long the ray takes to come down from the top edge to him.
     static let beamFallMs = 450.0
+    /// The joined hands in `praying-man.png`, in unit coordinates of the
+    /// picture (y down): fingertips under his nose, down to the wrists. Traced
+    /// on the 265×324 cut-out; a different picture needs a new trace.
+    static let handsOutline: [CGPoint] = [
+        (0.502, 0.343), (0.536, 0.340), (0.558, 0.370), (0.592, 0.432), (0.626, 0.509),
+        (0.645, 0.602), (0.645, 0.685), (0.604, 0.710), (0.528, 0.719), (0.445, 0.710),
+        (0.408, 0.685), (0.408, 0.602), (0.426, 0.509), (0.460, 0.432), (0.483, 0.370),
+    ].map { CGPoint(x: $0.0, y: $0.1) }
+    /// The middle of `handsOutline` — the point that sits on the pointer.
+    static let handsCentre = CGPoint(x: 0.527, y: 0.53)
 
     override var isFlipped: Bool { true }
     override var wantsDefaultClipping: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) { onMouseDown?() }
 
-    /// 0…1: up over the first half second of the hymn, down over its last
-    /// second, nothing while silent.
-    private var glow: CGFloat {
+    /// 0…1 ramp: up over `upMs` from `start` ms into the hymn, down over its
+    /// last `fadeOutMs`, nothing while silent.
+    private func ramp(from start: Double, upMs: Double) -> CGFloat {
         guard let since = singingSinceMs else { return 0 }
         let t = nowMs - since
-        let up = min(1, t / 500)
-        let down = min(1, max(0, (PrayController.singMs - t) / 1000))
+        guard t > start else { return 0 }
+        let up = min(1, (t - start) / upMs)
+        let down = min(1, max(0, (PrayController.singMs - t) / PrayController.fadeOutMs))
         return CGFloat(min(up, down))
     }
+
+    /// The rest of him, around the hands.
+    private var man: CGFloat { ramp(from: 0, upMs: PrayController.manFadeInMs) }
+    /// The ray and the glow.
+    private var light: CGFloat { ramp(from: PrayController.lightDelayMs, upMs: 500) }
 
     override func draw(_ dirtyRect: NSRect) {
         let breathe = 1 + 0.02 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 3.2))
         let h = Self.figureHeight * breathe
         let aspect = figure.map { $0.size.width / max(1, $0.size.height) } ?? 1
         let w = h * aspect
-        let rect = CGRect(x: at.x - w / 2, y: at.y - h / 2, width: w, height: h)
+        // Placed by his hands, not his middle: they are what follows the
+        // pointer, and they must not move when the rest of him appears.
+        let rect = CGRect(x: at.x - w * Self.handsCentre.x, y: at.y - h * Self.handsCentre.y,
+                          width: w, height: h)
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
-        let g = glow
-        if g > 0, let ctx = NSGraphicsContext.current?.cgContext {
+        let g = light
+        if g > 0 {
             drawBeam(ctx, onto: rect, strength: g)
             let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
             let radius = h * 0.85 * pulse
             let colors = [Self.glowColor.withAlphaComponent(0.75 * g).cgColor,
                           Self.glowColor.withAlphaComponent(0).cgColor] as CFArray
             if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
-                let c = CGPoint(x: at.x, y: at.y - h * 0.1)
+                let c = CGPoint(x: rect.midX, y: rect.midY - h * 0.1)
                 ctx.drawRadialGradient(gradient, startCenter: c, startRadius: 0,
                                        endCenter: c, endRadius: radius, options: [])
             }
         }
 
-        if let figure {
-            figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1,
-                        respectFlipped: true, hints: [.interpolation: NSImageInterpolation.high])
-        } else {
-            let str = NSAttributedString(string: "🙏", attributes: [.font: NSFont.systemFont(ofSize: h * 0.7)])
+        guard let figure else {
+            let str = NSAttributedString(string: "🙏", attributes: [.font: NSFont.systemFont(ofSize: h * 0.4)])
             let s = str.size()
             str.draw(at: CGPoint(x: at.x - s.width / 2, y: at.y - s.height / 2))
+            return
         }
+        let hints: [NSImageRep.HintKey: Any] = [.interpolation: NSImageInterpolation.high]
+        let m = man
+        if m > 0 {
+            figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: m,
+                        respectFlipped: true, hints: hints)
+        }
+        let hands = CGMutablePath()
+        hands.addLines(between: Self.handsOutline.map {
+            CGPoint(x: rect.minX + $0.x * rect.width, y: rect.minY + $0.y * rect.height)
+        })
+        hands.closeSubpath()
+        ctx.saveGState()
+        ctx.addPath(hands)
+        ctx.clip()
+        figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1,
+                    respectFlipped: true, hints: hints)
+        ctx.restoreGState()
     }
 
     /// A ray from the top of the screen down onto him: narrow up there, wider
@@ -256,7 +311,8 @@ private final class PrayView: NSView {
     /// a spot of the screen.
     private func drawBeam(_ ctx: CGContext, onto rect: CGRect, strength g: CGFloat) {
         guard let since = singingSinceMs, rect.maxY > 0 else { return }
-        let f = CGFloat(min(1, (nowMs - since) / Self.beamFallMs))
+        let fallen = nowMs - since - PrayController.lightDelayMs
+        let f = CGFloat(min(1, max(0, fallen) / Self.beamFallMs))
         let land = rect.maxY - rect.height * 0.15
         let reach = land * (1 - (1 - f) * (1 - f))          // ease-out
         guard reach > 1 else { return }
@@ -267,10 +323,10 @@ private final class PrayView: NSView {
             let tw = topW * k
             let bw = tw + (landW * k - tw) * (reach / land)
             let path = CGMutablePath()
-            path.move(to: CGPoint(x: at.x - tw / 2, y: 0))
-            path.addLine(to: CGPoint(x: at.x + tw / 2, y: 0))
-            path.addLine(to: CGPoint(x: at.x + bw / 2, y: reach))
-            path.addLine(to: CGPoint(x: at.x - bw / 2, y: reach))
+            path.move(to: CGPoint(x: rect.midX - tw / 2, y: 0))
+            path.addLine(to: CGPoint(x: rect.midX + tw / 2, y: 0))
+            path.addLine(to: CGPoint(x: rect.midX + bw / 2, y: reach))
+            path.addLine(to: CGPoint(x: rect.midX - bw / 2, y: reach))
             path.closeSubpath()
             let alpha = a * g * shimmer
             let colors = [Self.beamColor.withAlphaComponent(alpha * 0.7).cgColor,
@@ -280,7 +336,7 @@ private final class PrayView: NSView {
             ctx.saveGState()
             ctx.addPath(path)
             ctx.clip()
-            ctx.drawLinearGradient(gradient, start: CGPoint(x: at.x, y: 0), end: CGPoint(x: at.x, y: reach), options: [])
+            ctx.drawLinearGradient(gradient, start: CGPoint(x: rect.midX, y: 0), end: CGPoint(x: rect.midX, y: reach), options: [])
             ctx.restoreGState()
         }
     }
