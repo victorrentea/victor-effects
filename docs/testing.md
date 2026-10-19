@@ -40,7 +40,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 - `GET /test/whip` — show the 🔥 whip on the screen under the cursor (same as ⌃W and the `🔥 Whip` menu row). NB it stays up until Esc, a second call, or `/effect/stop-all`
 - `GET /test/whip/crack` — crack it: the scripted flick (`forceCrack`) plus one of `whip_A..E.mp3`. A no-op while the whip is hidden, not an error. It does **not** fire the typing macro — that only happens on a real click, and it types into whatever app has focus (`docs/whip.md`)
   - To see the mascot flinch, call `/test/claude-peek` first and lash the rope **through him** within its five seconds (a crack elsewhere does nothing to him since 2026-10-16): he jumps, sparks fly at the contact point, he lands on the same pixel, his exit timer restarts, and the log says `🔥 whip hit claude-peek at x,y` (`docs/whip.md`). `PeekWhipLashTests` covers the hit rules headlessly; `GET /test/claude-peek/flinch` gives him the hop and the 😮 O mouth of a hit without aiming one
-- `GET /test/pray`, `GET /test/pray/sing` — toggle 🙏 pray (⌃⇧W, puts the whip away) and play its click: the hymn plus the glow, for 8 s. A no-op while he is hidden (`docs/whip.md`)
+- `GET /test/pray`, `GET /test/pray/sing` — toggle 🙏 pray (⌃⇧W, puts the whip away) and play its click: the hymn plus the glow, for 9.5 s. A no-op while he is hidden (`docs/whip.md`)
 
 ## Thumbnail panel
 

@@ -283,13 +283,15 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
   level × 0.8; the rest of the man fades in around the hands (`manFadeInMs`,
   0.8 s), and at `lightDelayMs` (1.5 s) a ray of light drops on him from the
   top of the screen, slanting in from the upper left (`beamTiltDegrees`, 18°
-  off the vertical; falls in 0.45 s, shimmers; a halo over his head was the
-  first try and went on 2026-10-20) with a golden glow behind him. Man, ray and
-  glow fade out together over the last second (`fadeOutMs`) of the clip's 8 s
-  (`singMs`), back to hands. A click mid-hymn starts it over; hiding him stops
+  off the vertical; falls in 1.35 s, `beamFallMs`, three times the first try;
+  shimmers; a halo over his head was the
+  first try and went on 2026-10-20) and once it lands a golden glow comes up
+  behind him, slower still (`glowUpMs`, 2 s). Man, ray and glow fade out
+  together over the last second (`fadeOutMs`) of the clip's 9.5 s (`singMs`;
+  8 s until 2026-10-20), back to hands. A click mid-hymn starts it over; hiding him stops
   it. Return and buttons 6/7 still mean nothing here — they are the whip's.
 - **Both media are drop-ins** (`docs/assets-and-licences.md`): the stock
-  picture with its white background flood-filled away, and the first 8 s of the
+  picture with its white background flood-filled away, and the first 9.5 s of the
   soundboard's Ave Maria with a 1.2 s fade. Without the picture he is a 🙏 glyph;
   without the hymn the click logs a missing file and only the glow plays.
 - **⌃⇧ held is also addons' emoji-picker hold**, and this tap eats the W before

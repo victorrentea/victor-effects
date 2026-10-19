@@ -42,8 +42,10 @@ final class PrayController {
     static let hymn = "pray-hymn.mp3"
     static let hymnVolumeFactor: Float = 0.8
     /// How long a click lasts — the length of the excerpt in `assetsDir`
-    /// (8 s, with its own fade-out over the last 1.2 s).
-    static let singMs = 8000.0
+    /// (9.5 s since 2026-10-20, was 8 — Victor: *"prolong a bit the Ave
+    /// Maria … 10–20% more"*; same speed, a longer cut, its own fade-out over
+    /// the last 1.2 s).
+    static let singMs = 9500.0
     /// The man fades in around his hands over this long after a click…
     static let manFadeInMs = 800.0
     /// …and the light starts to fall once he is there, a beat later.
@@ -219,8 +221,12 @@ private final class PrayView: NSView {
     static let figureHeight: CGFloat = 200
     static let glowColor = NSColor(red: 1.0, green: 0.84, blue: 0.35, alpha: 1)
     static let beamColor = NSColor(red: 1.0, green: 0.96, blue: 0.78, alpha: 1)
-    /// How long the ray takes to come down from the top edge to him.
-    static let beamFallMs = 450.0
+    /// How long the ray takes to come down from the top edge to him — three
+    /// times the first 450 ms (Victor, 2026-10-20: *"three times slower"*).
+    static let beamFallMs = 1350.0
+    /// The glow on him comes up only once the ray has landed, and slower
+    /// still than the ray fell.
+    static let glowUpMs = 2000.0
     /// The ray comes in from up and to the LEFT, not straight down (Victor,
     /// 2026-10-20: *"slightly from the left up"*) — this many degrees off
     /// the vertical, its source sliding left the further he is from the top.
@@ -254,8 +260,12 @@ private final class PrayView: NSView {
 
     /// The rest of him, around the hands.
     private var man: CGFloat { ramp(from: 0, upMs: PrayController.manFadeInMs) }
-    /// The ray and the glow.
+    /// The ray.
     private var light: CGFloat { ramp(from: PrayController.lightDelayMs, upMs: 500) }
+    /// The glow behind him, after the ray lands.
+    private var glow: CGFloat {
+        ramp(from: PrayController.lightDelayMs + Self.beamFallMs, upMs: Self.glowUpMs)
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         let breathe = 1 + 0.02 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 3.2))
@@ -269,11 +279,12 @@ private final class PrayView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
         let g = light
-        if g > 0 {
-            drawBeam(ctx, onto: rect, strength: g)
+        if g > 0 { drawBeam(ctx, onto: rect, strength: g) }
+        let gl = glow
+        if gl > 0 {
             let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
             let radius = h * 0.85 * pulse
-            let colors = [Self.glowColor.withAlphaComponent(0.75 * g).cgColor,
+            let colors = [Self.glowColor.withAlphaComponent(0.75 * gl).cgColor,
                           Self.glowColor.withAlphaComponent(0).cgColor] as CFArray
             if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
                 let c = CGPoint(x: rect.midX, y: rect.midY - h * 0.1)
