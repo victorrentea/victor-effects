@@ -260,8 +260,10 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
   (`WhipPanel`, `maximumWindow`) and the same `ZoomedPanel` mapping every frame,
   so ⌥-scroll and the ⌥⇧ zoom treat him exactly as they treat the rope.
 - **A click sings, nothing is typed.** It plays `pray-hymn.mp3` at the tablet's
-  level × 0.8 and lights a golden glow behind him and a halo over his head for
-  the clip's 8 s (`singMs`). A click mid-hymn starts it over; hiding him stops
+  level × 0.8, lights a golden glow behind him and drops a ray of light on him
+  from the top of the screen (falls in 0.45 s, shimmers; a halo over his head
+  was the first try and went on 2026-10-20) for the
+  clip's 8 s (`singMs`). A click mid-hymn starts it over; hiding him stops
   it. Return and buttons 6/7 still mean nothing here — they are the whip's.
 - **Both media are drop-ins** (`docs/assets-and-licences.md`): the stock
   picture with its white background flood-filled away, and the first 8 s of the

@@ -184,7 +184,10 @@ final class PrayController {
 // MARK: - View
 
 /// The man, centred on the pointer, breathing slowly; while the hymn sings, a
-/// golden glow behind him and a halo over his head, both easing in and out.
+/// golden glow behind him and a ray of light falling on him from the top of
+/// the screen, both easing in and out. (A halo over his head came first and
+/// went on 2026-10-20 — Victor: *"a ray of light … falling from the sky,
+/// rather than this angelic circle on top of my head"*.)
 private final class PrayView: NSView {
 
     var figure: NSImage?
@@ -195,6 +198,9 @@ private final class PrayView: NSView {
 
     static let figureHeight: CGFloat = 200
     static let glowColor = NSColor(red: 1.0, green: 0.84, blue: 0.35, alpha: 1)
+    static let beamColor = NSColor(red: 1.0, green: 0.96, blue: 0.78, alpha: 1)
+    /// How long the ray takes to come down from the top edge to him.
+    static let beamFallMs = 450.0
 
     override var isFlipped: Bool { true }
     override var wantsDefaultClipping: Bool { false }
@@ -220,6 +226,7 @@ private final class PrayView: NSView {
 
         let g = glow
         if g > 0, let ctx = NSGraphicsContext.current?.cgContext {
+            drawBeam(ctx, onto: rect, strength: g)
             let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
             let radius = h * 0.85 * pulse
             let colors = [Self.glowColor.withAlphaComponent(0.75 * g).cgColor,
@@ -239,22 +246,42 @@ private final class PrayView: NSView {
             let s = str.size()
             str.draw(at: CGPoint(x: at.x - s.width / 2, y: at.y - s.height / 2))
         }
+    }
 
-        if g > 0 {
-            // The halo floats over the top of his head (the cut-out's crown
-            // sits ~4% under the top edge).
-            let haloW = w * 0.42, haloH = h * 0.075
-            let halo = NSBezierPath(ovalIn: CGRect(x: at.x - haloW / 2, y: rect.minY - haloH * 0.2,
-                                                    width: haloW, height: haloH))
-            halo.lineWidth = 5
-            Self.glowColor.withAlphaComponent(g).setStroke()
-            let shadow = NSShadow()
-            shadow.shadowColor = Self.glowColor.withAlphaComponent(g)
-            shadow.shadowBlurRadius = 12
-            NSGraphicsContext.saveGraphicsState()
-            shadow.set()
-            halo.stroke()
-            NSGraphicsContext.restoreGraphicsState()
+    /// A ray from the top of the screen down onto him: narrow up there, wider
+    /// than him where it lands, drawn BEHIND him so his outline sits in it.
+    /// Three nested passes, the widest the faintest, stand in for a soft edge;
+    /// it falls from the top in `beamFallMs` and shimmers slightly while lit.
+    /// It follows him as he follows the pointer — the light is on him, not on
+    /// a spot of the screen.
+    private func drawBeam(_ ctx: CGContext, onto rect: CGRect, strength g: CGFloat) {
+        guard let since = singingSinceMs, rect.maxY > 0 else { return }
+        let f = CGFloat(min(1, (nowMs - since) / Self.beamFallMs))
+        let land = rect.maxY - rect.height * 0.15
+        let reach = land * (1 - (1 - f) * (1 - f))          // ease-out
+        guard reach > 1 else { return }
+        let shimmer = 1 + 0.08 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 0.9))
+        let topW = rect.width * 0.4, landW = rect.width * 1.3
+        let space = CGColorSpaceCreateDeviceRGB()
+        for (k, a) in [(CGFloat(1.0), CGFloat(0.16)), (0.7, 0.2), (0.4, 0.28)] {
+            let tw = topW * k
+            let bw = tw + (landW * k - tw) * (reach / land)
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: at.x - tw / 2, y: 0))
+            path.addLine(to: CGPoint(x: at.x + tw / 2, y: 0))
+            path.addLine(to: CGPoint(x: at.x + bw / 2, y: reach))
+            path.addLine(to: CGPoint(x: at.x - bw / 2, y: reach))
+            path.closeSubpath()
+            let alpha = a * g * shimmer
+            let colors = [Self.beamColor.withAlphaComponent(alpha * 0.7).cgColor,
+                          Self.beamColor.withAlphaComponent(alpha).cgColor,
+                          Self.beamColor.withAlphaComponent(0).cgColor] as CFArray
+            guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 0.8, 1]) else { continue }
+            ctx.saveGState()
+            ctx.addPath(path)
+            ctx.clip()
+            ctx.drawLinearGradient(gradient, start: CGPoint(x: at.x, y: 0), end: CGPoint(x: at.x, y: reach), options: [])
+            ctx.restoreGState()
         }
     }
 }
