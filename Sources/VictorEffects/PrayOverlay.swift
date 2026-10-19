@@ -57,7 +57,7 @@ final class PrayController {
         let p = WhipPanel(screenFrame: screenFrame)
         let v = PrayView(frame: NSRect(origin: .zero, size: screenFrame.size))
         v.figure = Self.loadFigure()
-        v.onMouseDown = { [weak self] in self?.handleClick() }
+        v.onMouseDown = { [weak self] in self?.sing() }
         p.contentView = v
         appliedVisible = .null
         placeForZoom(p)
@@ -127,8 +127,9 @@ final class PrayController {
     // MARK: - Input
 
     /// A click sings, from the top — a second click mid-hymn starts it over
-    /// rather than stacking a second choir on the first.
-    private func handleClick() {
+    /// rather than stacking a second choir on the first. Also
+    /// `/effect/pray/sing`, so the click can be checked without a mouse.
+    func sing() {
         guard let view else { return }
         SoundManager.shared.stopOverlapping(Self.hymn)
         let volume = SoundManager.shared.currentTabletVolume * Self.hymnVolumeFactor

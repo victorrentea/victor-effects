@@ -397,6 +397,8 @@ final class EffectsEngine {
             whipController?.forceCrack()
         case "pray":
             togglePray()
+        case "pray/sing":
+            prayController?.sing()
         case "stop-all":
             stopAll()
         default:

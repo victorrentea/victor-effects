@@ -75,6 +75,7 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/effect/whip/crack"), .effect("whip/crack"))
         XCTAssertEqual(route("/test/pray"), .effect("pray"))
         XCTAssertEqual(route("/effect/pray"), .effect("pray"))
+        XCTAssertEqual(route("/test/pray/sing"), .effect("pray/sing"))
     }
 
     func testRouteMapsSoundPressedAndStopped() {

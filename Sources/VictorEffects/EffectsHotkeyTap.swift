@@ -73,8 +73,10 @@ final class EffectsHotkeyTap {
             return .swallowToggleWhip
         }
         // ⌃⇧W, the sibling. A terminal cannot tell it from ⌃W, so it is eaten
-        // for the same reason. addons' ⌃⇧ emoji-picker hold opens only after a
-        // pause with no key, so a quick chord never shows it.
+        // for the same reason. ⌃⇧ held is also addons' emoji-picker hold, and
+        // this tap eats the W before addons sees it — so the hold is never
+        // marked as a shortcut and a ⌃⇧ kept down past its delay still opens
+        // the picker. Release the chord promptly.
         if keyCode == VK_W && hasCtrl && hasShift && !hasCmd && !hasOpt {
             return .swallowTogglePray
         }

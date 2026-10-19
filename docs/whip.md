@@ -250,7 +250,7 @@ rope is no longer OpenWhip's.
 called pray instead of whip … exclusive to the whip mode … appearing instead of
 the whip. And I click to play some short clip of a religious hymn"*).
 `PrayOverlay.swift`; toggled by **⌃⇧W** (swallowed, like ⌃W: a terminal reads
-it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray`.
+it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (`/effect/pray/sing` is the click, for checking it headless).
 
 - **Exclusive both ways.** `EffectsEngine.togglePray` hides the whip before
   showing him, `toggleWhip` hides him before showing the whip — one mode under
@@ -267,7 +267,8 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray`.
   picture with its white background flood-filled away, and the first 8 s of the
   soundboard's Ave Maria with a 1.2 s fade. Without the picture he is a 🙏 glyph;
   without the hymn the click logs a missing file and only the glow plays.
-- **⌃⇧ is also addons' emoji-picker hold**; it opens only after a pause with no
-  key in it, so a quick ⌃⇧W chord never brings it up.
+- **⌃⇧ held is also addons' emoji-picker hold**, and this tap eats the W before
+  addons sees it, so the hold is never marked as a shortcut: a ⌃⇧ kept down past
+  the picker's delay still opens it. A quick chord does not.
 - Counts as running for the 🛑 (`prayIsShowing`), and `GET /state` reports
   `prayShowing`.
