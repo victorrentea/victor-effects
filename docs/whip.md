@@ -89,15 +89,21 @@ compensation delay would only make it late.
 **Every crack throws one polite word off the tip** (2026-10-19, Victor: *"make
 my whip throw please statements … whenever where it cracks"*): *please*,
 *pretty please*, *I beg you*, *with a cherry on top*, … (`WhipPleas.phrases`),
-in heavy pink with a white outline, popping to 115% and floating 70 pt up over
-1.3 s before it fades. Drawn by `WhipView` itself, so it sits on the rope's
+in heavy pink, 41 pt with a **black** outline (34 pt and white until
+2026-10-20), popping to 115% and floating 70 pt up over 1.3 s before it fades.
+It appears **60 pt past the tip**, on the line from the handle through the tip
+(`WhipPleas.launchPoint`), so it flies off away from the pointer instead of
+sitting in the rope's own scribble; a tip curled back onto the handle sends it
+straight up. Drawn by `WhipView` itself, so it sits on the rope's
 panel and keeps its size under ⌥-scroll like the rope does, and clamped inside
 the screen so a crack at the bezel does not cut the word in half.
 
 - **Owed, then paid.** `cracked()` (the funnel) only marks a plea owed; `tick`
   throws it on the frame the physics actually snaps — or when a scripted flick
-  runs out without one. A Return/thumb crack goes through the funnel *before*
-  its flick, while the tip still hangs at the pointer, so throwing it there put
+  runs out without one. Either way it is thrown from **the lash** — where the
+  tip was on its fastest frame while the plea was owed (`pleaLash`) — because
+  by the end of a flick with no snap the tip has swung back to the pointer. A Return/thumb crack goes through the funnel
+  *before* its flick, while the tip still hangs at the pointer, so throwing it there put
   the word in the wrong place.
 - **A shuffle-bag, not `random()`** (`WhipPleas.Bag`): every word once per round,
   never the same one twice in a row, even across the refill (`WhipPleasTests`).

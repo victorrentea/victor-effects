@@ -116,13 +116,22 @@ final class WhipController {
     /// pointer — `tick` pays it on the frame the rope actually snaps, or when
     /// the flick runs out, whichever comes first.
     private var pleaOwed = false
+    /// While a plea is owed: where the handle and tip were on the frame the
+    /// tip moved fastest — the lash. A scripted flick often ends without a
+    /// snap, and by then the tip has swung back to the pointer, so the word is
+    /// thrown from here rather than from wherever the tip happens to be.
+    private var pleaLash: (speed: Double, handle: CGPoint, tip: CGPoint)?
     private var pleaBag = WhipPleas.Bag()
 
     private func throwPlea(now: Double) {
         pleaOwed = false
-        guard let view, let tip = physics?.points.last else { return }
+        let lash = pleaLash
+        pleaLash = nil
+        guard let view, let handle = physics?.points.first, let tip = physics?.points.last else { return }
+        let from = lash.map { ($0.handle, $0.tip) }
+            ?? (CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y))
         view.pleas.append(WhipView.Plea(
-            text: pleaBag.next(), at: CGPoint(x: tip.x, y: tip.y), bornMs: now))
+            text: pleaBag.next(), at: WhipPleas.launchPoint(handle: from.0, tip: from.1), bornMs: now))
     }
 
     var isShowing: Bool { panel != nil }
@@ -188,6 +197,7 @@ final class WhipController {
         screen = nil
         flickQueue = []
         pleaOwed = false
+        pleaLash = nil
         if wasShowing { onVisibilityChanged?(false) }
     }
 
@@ -244,6 +254,12 @@ final class WhipController {
         // own forceCrack already announced one (avoid doubling).
         if didCrack && now > suppressNaturalCrackUntilMs {
             cracked()
+        }
+        if pleaOwed, let handle = physics.points.first, let tip = physics.points.last {
+            let speed = ((tip.x - tip.px) * (tip.x - tip.px) + (tip.y - tip.py) * (tip.y - tip.py)).squareRoot()
+            if speed > (pleaLash?.speed ?? -1) {
+                pleaLash = (speed, CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y))
+            }
         }
         if pleaOwed && (didCrack || flickQueue.isEmpty) { throwPlea(now: now) }
         view.pleas.removeAll { now - $0.bornMs > WhipPleas.lifeMs }
@@ -493,8 +509,8 @@ private final class WhipView: NSView {
 
     /// Pops out of the snap point, floats up and fades: a quick overshoot to
     /// 115% in the first 12% of its life, then a rise of `riseDistance`, fading
-    /// over the last 40%. White outline + dark shadow so it reads on any
-    /// backdrop, the same trick as the rope's halo.
+    /// over the last 40%. Black outline + dark shadow so it reads on any
+    /// backdrop (white until 2026-10-20 — Victor asked for a black border).
     private func drawPlea(_ plea: Plea) {
         let t = CGFloat(min(1, max(0, (nowMs - plea.bornMs) / WhipPleas.lifeMs)))
         let pop: CGFloat = t < 0.12 ? lerp(0.5, 1.15, t / 0.12)
@@ -508,7 +524,7 @@ private final class WhipView: NSView {
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: WhipPleas.color.withAlphaComponent(alpha),
-            .strokeColor: NSColor.white.withAlphaComponent(alpha),
+            .strokeColor: NSColor.black.withAlphaComponent(alpha),
             .strokeWidth: -4.0,   // negative = fill AND stroke
             .shadow: shadow,
         ]
@@ -532,7 +548,22 @@ enum WhipPleas {
     ]
     static let lifeMs = 1300.0
     static let riseDistance: CGFloat = 70
-    static let fontSize: CGFloat = 34
+    /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).
+    static let fontSize: CGFloat = 41
+    /// How far past the tip, away from the handle, the word is thrown — at the
+    /// tip itself it sat in the rope's own scribble, too close to the pointer
+    /// (2026-10-20: *"pop out a bit further away from where the mouse is"*).
+    static let throwBeyondTip: CGFloat = 60
+
+    /// Where a plea appears: `throwBeyondTip` further along the line from the
+    /// handle (the pointer) through the tip. A tip that has curled back onto
+    /// the handle has no direction worth following, so the word goes up.
+    static func launchPoint(handle: CGPoint, tip: CGPoint) -> CGPoint {
+        let dx = tip.x - handle.x, dy = tip.y - handle.y
+        let len = (dx * dx + dy * dy).squareRoot()
+        guard len > 20 else { return CGPoint(x: tip.x, y: tip.y - throwBeyondTip) }
+        return CGPoint(x: tip.x + dx / len * throwBeyondTip, y: tip.y + dy / len * throwBeyondTip)
+    }
     static let color = NSColor(red: 1.0, green: 0.36, blue: 0.62, alpha: 1)
 
     /// A shuffle-bag, not `randomElement()`: a random pick repeats itself often
