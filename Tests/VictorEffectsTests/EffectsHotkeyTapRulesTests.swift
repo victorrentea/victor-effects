@@ -27,9 +27,20 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                        .pass)
     }
 
+    func testControlShiftWTogglesPrayAndIsSwallowed() {
+        // 🙏 pray, the whip's exclusive sibling (2026-10-19). Swallowed for the
+        // same reason as ⌃W: a terminal reads ⌃⇧W as ⌃W and deletes a word.
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: false),
+                       .swallowTogglePray)
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: true),
+                       .swallowTogglePray)
+        // ⌘⌃⇧W is still nobody's here.
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift, .maskCommand],
+                                     whipShowing: false), .pass)
+    }
+
     func testOtherModifiersOnWAreLeftAlone() {
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskAlternate], whipShowing: false), .pass)
-        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: false), .pass)
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskCommand], whipShowing: false), .pass)
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [], whipShowing: false), .pass)
     }

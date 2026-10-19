@@ -42,6 +42,10 @@ final class EffectsEngine {
     var whip: WhipController? { whipController }
     var whipIsShowing: Bool { whipController?.isShowing ?? false }
 
+    /// 🙏 Pray, the whip's other mode (⌃⇧W) — lazy for the same reason.
+    private var prayController: PrayController?
+    var prayIsShowing: Bool { prayController?.isShowing ?? false }
+
     init(overlayPanel: OverlayPanel) {
         self.overlayPanel = overlayPanel
         guard let hostLayer = overlayPanel.contentView?.layer else {
@@ -106,7 +110,7 @@ final class EffectsEngine {
         }
         let effects = animator.activeEffectNames.map { "\"\($0)\"" }.joined(separator: ",")
         return "{\"playing\":\(playingJSON),\"activeEffects\":[\(effects)],"
-            + "\"whipShowing\":\(whipIsShowing),"
+            + "\"whipShowing\":\(whipIsShowing),\"prayShowing\":\(prayIsShowing),"
             + "\"panelMonitor\":\(panelMonitor),\"panelVisible\":\(panelVisible),"
             // The two grants, so whoever installed the app (an agent, often)
             // can tell what is still missing without a screen (2026-10-14).
@@ -391,6 +395,8 @@ final class EffectsEngine {
             toggleWhip()
         case "whip/crack":
             whipController?.forceCrack()
+        case "pray":
+            togglePray()
         case "stop-all":
             stopAll()
         default:
@@ -434,6 +440,7 @@ final class EffectsEngine {
             || !animator.activeEffectNames.isEmpty
             || progressBar.isRunning
             || whipIsShowing
+            || prayIsShowing
             || animator.isChainsawRunning
             || animator.isFireRunning
     }
@@ -450,6 +457,7 @@ final class EffectsEngine {
         // The whip is an overlay like any other: "silence everything" takes it
         // down too.
         whipController?.hide()
+        prayController?.hide()
         CaptionOverlay.hide()
     }
 
@@ -464,6 +472,9 @@ final class EffectsEngine {
             controller.hide()
             return
         }
+        // One mode under the pointer at a time: the whip and 🙏 pray are
+        // exclusive, so drawing one puts the other away.
+        prayController?.hide()
         let controller = whipController ?? WhipController()
         whipController = controller
         controller.onEscape = { [weak self] in self?.whipController?.hide() }
@@ -474,6 +485,20 @@ final class EffectsEngine {
         controller.onRope = { [weak self] points, speeds in
             self?.animator.whipLash(points: points, speeds: speeds)
         }
+        controller.show()
+    }
+
+    /// ⌃⇧W: the praying man in the whip's place, a hymn on each click
+    /// (`PrayOverlay.swift`). A toggle, exclusive with the whip both ways.
+    func togglePray() {
+        if let controller = prayController, controller.isShowing {
+            controller.hide()
+            return
+        }
+        whipController?.hide()
+        let controller = prayController ?? PrayController()
+        prayController = controller
+        controller.onEscape = { [weak self] in self?.prayController?.hide() }
         controller.show()
     }
 

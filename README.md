@@ -63,7 +63,7 @@ open "/Applications/Victor Effects.app"
 ```
 
 An `fx` appears in the menu bar. Its menu: `✨ Effects` (Right ⌘), `🎦 Videos`
-(Right ⌘⇧), `🔥 Whip` (⌃W), `✓ BT Keepalive` and `✓ Subtitles` (switches),
+(Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃⇧W), `✓ BT Keepalive` and `✓ Subtitles` (switches),
 `ⓘ Built <timestamp>` (which binary is running; opens this repo) and `⏻ Quit`
 (⌘Q) — plus `⚠️ Grant Accessibility` while that grant is missing. The gestures
 are drawn as right-aligned **hints**, not as key equivalents, because `NSMenu`
@@ -175,6 +175,11 @@ schema.
 
 ⌃W shows a whip that follows the mouse; flicking it, pressing **Return**, or a
 mouse button 6/7 cracks it. Esc or a second ⌃W dismisses it.
+
+⌃⇧W puts a praying man under the pointer instead (🙏 pray — the whip and he
+are never out together); a click plays a few seconds of a hymn. His picture
+and the hymn are drop-ins (`praying-man.png`, `pray-hymn.mp3` in `assetsDir`);
+without them he is a 🙏 and the click is silent.
 
 **A crack types into whatever app is focused**: it posts ⌃C followed by a short
 phrase and Return, which is the point — it is meant for interrupting a coding

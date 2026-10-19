@@ -58,7 +58,10 @@ shipped or listed here):
 Plus the ones that were never in the repo: `brother_full.gif`,
 `love_hand_left.png`, `love_hand_right.png`, `pngtree-fail-stamp-cleaned.png`,
 `wazzup.png`, `siren_lamp.png`, `scared_cat.gif`, `red_button.gif`,
-`phoenix-rising.mov`, `phoenix-rising.mp3`, `universal-minions.mp3` and the
+`phoenix-rising.mov`, `phoenix-rising.mp3`, `universal-minions.mp3`,
+`praying-man.png` (a stock illustration, white background flood-filled away)
+and `pray-hymn.mp3` (the first 8 s of the soundboard's Ave Maria, faded out —
+both for 🙏 pray, 2026-10-19) and the
 folders `gangnam_frames/`, `skull-boom/`, `universal-minions/`.
 
 ## The soundboard

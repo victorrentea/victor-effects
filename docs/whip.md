@@ -243,3 +243,31 @@ input sequence and writes `Tests/VictorEffectsTests/Resources/whip_golden.json`.
 `WhipPhysicsTests.testSettleMatchesJSGolden` asserts the Swift simulation lands
 on the same node positions. Change a constant in `P` and that test tells you the
 rope is no longer OpenWhip's.
+
+## 🙏 Pray — the other mode (⌃⇧W)
+
+**A praying man in the whip's place** (2026-10-19, Victor: *"another feature
+called pray instead of whip … exclusive to the whip mode … appearing instead of
+the whip. And I click to play some short clip of a religious hymn"*).
+`PrayOverlay.swift`; toggled by **⌃⇧W** (swallowed, like ⌃W: a terminal reads
+it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray`.
+
+- **Exclusive both ways.** `EffectsEngine.togglePray` hides the whip before
+  showing him, `toggleWhip` hides him before showing the whip — one mode under
+  the pointer at a time. Esc, a second ⌃⇧W and stop-all take him down.
+- **He follows the pointer**, eased (`PrayController.follow`, 0.35 a frame) so
+  he drifts after it, centred on it, 200 pt tall, breathing ±2%. Same panel
+  (`WhipPanel`, `maximumWindow`) and the same `ZoomedPanel` mapping every frame,
+  so ⌥-scroll and the ⌥⇧ zoom treat him exactly as they treat the rope.
+- **A click sings, nothing is typed.** It plays `pray-hymn.mp3` at the tablet's
+  level × 0.8 and lights a golden glow behind him and a halo over his head for
+  the clip's 8 s (`singMs`). A click mid-hymn starts it over; hiding him stops
+  it. Return and buttons 6/7 still mean nothing here — they are the whip's.
+- **Both media are drop-ins** (`docs/assets-and-licences.md`): the stock
+  picture with its white background flood-filled away, and the first 8 s of the
+  soundboard's Ave Maria with a 1.2 s fade. Without the picture he is a 🙏 glyph;
+  without the hymn the click logs a missing file and only the glow plays.
+- **⌃⇧ is also addons' emoji-picker hold**; it opens only after a pause with no
+  key in it, so a quick ⌃⇧W chord never brings it up.
+- Counts as running for the 🛑 (`prayIsShowing`), and `GET /state` reports
+  `prayShowing`.

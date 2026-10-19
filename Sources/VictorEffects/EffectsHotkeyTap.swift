@@ -47,6 +47,8 @@ final class EffectsHotkeyTap {
         /// ⌃W — toggle the whip and **eat the key** (it must not reach the app
         /// underneath, where it would delete a word).
         case swallowToggleWhip
+        /// ⌃⇧W — toggle 🙏 pray, the whip's other mode, eaten the same way.
+        case swallowTogglePray
         /// Crack the whip, and let the event continue on its way.
         case crack
         /// Not ours.
@@ -69,6 +71,12 @@ final class EffectsHotkeyTap {
 
         if keyCode == VK_W && hasCtrl && !hasCmd && !hasOpt && !hasShift {
             return .swallowToggleWhip
+        }
+        // ⌃⇧W, the sibling. A terminal cannot tell it from ⌃W, so it is eaten
+        // for the same reason. addons' ⌃⇧ emoji-picker hold opens only after a
+        // pause with no key, so a quick chord never shows it.
+        if keyCode == VK_W && hasCtrl && hasShift && !hasCmd && !hasOpt {
+            return .swallowTogglePray
         }
         if whipShowing && (keyCode == VK_RETURN || keyCode == VK_KEYPAD_ENTER) {
             return .crack
@@ -165,6 +173,7 @@ final class EffectsHotkeyTap {
     // MARK: - Wiring
 
     var onToggleWhip: (() -> Void)?
+    var onTogglePray: (() -> Void)?
     var onCrack: (() -> Void)?
     var whipShowing: () -> Bool = { false }
 
@@ -284,6 +293,9 @@ final class EffectsHotkeyTap {
             switch Self.decideKey(keyCode: keyCode, flags: event.flags, whipShowing: whipShowing()) {
             case .swallowToggleWhip:
                 DispatchQueue.main.async { [weak self] in self?.onToggleWhip?() }
+                return nil
+            case .swallowTogglePray:
+                DispatchQueue.main.async { [weak self] in self?.onTogglePray?() }
                 return nil
             case .crack:
                 DispatchQueue.main.async { [weak self] in self?.onCrack?() }

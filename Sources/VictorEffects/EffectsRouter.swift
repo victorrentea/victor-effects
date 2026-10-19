@@ -129,6 +129,7 @@ final class EffectsRouter {
         "/test/sketch-arrow": "sketch-arrow",
         "/test/whip": "whip",
         "/test/whip/crack": "whip/crack",
+        "/test/pray": "pray",
     ]
 
     /// `?page=videos` selects the panel's second page; anything else — absent,
