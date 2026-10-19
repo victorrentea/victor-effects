@@ -221,6 +221,10 @@ private final class PrayView: NSView {
     static let beamColor = NSColor(red: 1.0, green: 0.96, blue: 0.78, alpha: 1)
     /// How long the ray takes to come down from the top edge to him.
     static let beamFallMs = 450.0
+    /// The ray comes in from up and to the LEFT, not straight down (Victor,
+    /// 2026-10-20: *"slightly from the left up"*) — this many degrees off
+    /// the vertical, its source sliding left the further he is from the top.
+    static let beamTiltDegrees: CGFloat = 18
     /// The joined hands in `praying-man.png`, in unit coordinates of the
     /// picture (y down): fingertips under his nose, down to the wrists. Traced
     /// on the 265×324 cut-out; a different picture needs a new trace.
@@ -303,7 +307,7 @@ private final class PrayView: NSView {
         ctx.restoreGState()
     }
 
-    /// A ray from the top of the screen down onto him: narrow up there, wider
+    /// A ray from the top of the screen, slanting in from the left, down onto him: narrow up there, wider
     /// than him where it lands, drawn BEHIND him so his outline sits in it.
     /// Three nested passes, the widest the faintest, stand in for a soft edge;
     /// it falls from the top in `beamFallMs` and shimmers slightly while lit.
@@ -318,15 +322,18 @@ private final class PrayView: NSView {
         guard reach > 1 else { return }
         let shimmer = 1 + 0.08 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 0.9))
         let topW = rect.width * 0.4, landW = rect.width * 1.3
+        // The axis: from the top edge, up-left of him, down onto him.
+        let topX = rect.midX - land * tan(Self.beamTiltDegrees * .pi / 180)
+        let reachX = topX + (rect.midX - topX) * (reach / land)
         let space = CGColorSpaceCreateDeviceRGB()
         for (k, a) in [(CGFloat(1.0), CGFloat(0.16)), (0.7, 0.2), (0.4, 0.28)] {
             let tw = topW * k
             let bw = tw + (landW * k - tw) * (reach / land)
             let path = CGMutablePath()
-            path.move(to: CGPoint(x: rect.midX - tw / 2, y: 0))
-            path.addLine(to: CGPoint(x: rect.midX + tw / 2, y: 0))
-            path.addLine(to: CGPoint(x: rect.midX + bw / 2, y: reach))
-            path.addLine(to: CGPoint(x: rect.midX - bw / 2, y: reach))
+            path.move(to: CGPoint(x: topX - tw / 2, y: 0))
+            path.addLine(to: CGPoint(x: topX + tw / 2, y: 0))
+            path.addLine(to: CGPoint(x: reachX + bw / 2, y: reach))
+            path.addLine(to: CGPoint(x: reachX - bw / 2, y: reach))
             path.closeSubpath()
             let alpha = a * g * shimmer
             let colors = [Self.beamColor.withAlphaComponent(alpha * 0.7).cgColor,
@@ -336,7 +343,7 @@ private final class PrayView: NSView {
             ctx.saveGState()
             ctx.addPath(path)
             ctx.clip()
-            ctx.drawLinearGradient(gradient, start: CGPoint(x: rect.midX, y: 0), end: CGPoint(x: rect.midX, y: reach), options: [])
+            ctx.drawLinearGradient(gradient, start: CGPoint(x: topX, y: 0), end: CGPoint(x: reachX, y: reach), options: [])
             ctx.restoreGState()
         }
     }

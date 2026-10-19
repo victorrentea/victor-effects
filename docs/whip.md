@@ -282,7 +282,8 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
 - **A click sings, nothing is typed.** It plays `pray-hymn.mp3` at the tablet's
   level × 0.8; the rest of the man fades in around the hands (`manFadeInMs`,
   0.8 s), and at `lightDelayMs` (1.5 s) a ray of light drops on him from the
-  top of the screen (falls in 0.45 s, shimmers; a halo over his head was the
+  top of the screen, slanting in from the upper left (`beamTiltDegrees`, 18°
+  off the vertical; falls in 0.45 s, shimmers; a halo over his head was the
   first try and went on 2026-10-20) with a golden glow behind him. Man, ray and
   glow fade out together over the last second (`fadeOutMs`) of the clip's 8 s
   (`singMs`), back to hands. A click mid-hymn starts it over; hiding him stops
