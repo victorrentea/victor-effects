@@ -132,6 +132,15 @@ each moved), and `EmojiAnimator.whipLash` makes him jump only if:
   (`lashSampleStep`) so a leg is not stepped over between two links, and the
   hit test takes him where he is drawn: staged for ⌥-scroll, mid-slide, mid-hop.
 
+**And he gasps** (2026-10-20, Victor: *"both Claude Code and Copilot should
+make a scary face or put an O mouth"*): every hop puts a dark **O mouth** on the
+face for 0.75 s, popping in and fading out (`PeekOMouth`). Drawn as a sublayer,
+not a second picture, so it rides the hop and works with any cut-out; the face
+positions were measured off the two PNGs — under Clawd's `> <` eyes, and on
+Copilot's face plate under his pill eyes — and are taken on the bare picture,
+without the rim or the 🎅 hat. `/test/claude-peek/flinch` hops him (and the O)
+without aiming a whip.
+
 One hop per lash (0.35 s cooldown, a lash crosses him over several frames), and
 **a few sparks fly where it hit**: a white flash and twelve short yellow streaks
 thrown out of the contact point, gone in 0.6 s, `1/zoom` under ⌥-scroll. The log

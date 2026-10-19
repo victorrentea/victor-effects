@@ -346,6 +346,8 @@ final class EffectsEngine {
         case "opus/stop":     animator.stopOpus()
         case "claude-peek":   animator.showClaudePeek()
         case "claude-peek/stop": animator.stopClaudePeek()
+        // The hop + 😮 mouth a whip HIT gives him, without having to aim one.
+        case "claude-peek/flinch": animator.whipClaudePeek()
         case "heart":         animator.spawnEmoji("❤️")
         case "confetti":      animator.spawnConfetti()
         case "corner-confetti": animator.spawnCornerConfetti()

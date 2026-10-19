@@ -12771,8 +12771,23 @@ class EmojiAnimator {
             CAMediaTimingFunction(name: .easeIn),
         ]
         layer.add(jump, forKey: "whip-jump")
+        peekGasp(layer)
 
         schedulePeekExit(layer: layer)
+    }
+
+    /// 😮 The O mouth for the hop (`PeekOMouth`), laid on the BARE picture:
+    /// the hatted Clawd is a taller layer, and the rim adds a margin round the
+    /// cut-out, so both are taken off before the face's fractions apply.
+    private func peekGasp(_ layer: CALayer) {
+        let mascot = PeekMascotStore.current()
+        guard let plain = Self.peekFrame(mascot, hat: false, in: hostLayer.bounds),
+              let icon = Self.bundledPNG(mascot.rawValue) else { return }
+        let pad = CGFloat(PeekMascotOutline.ringWidth(forHeight: icon.height))
+        let k = plain.height / (CGFloat(icon.height) + 2 * pad)
+        let picture = plain.insetBy(dx: pad * k, dy: pad * k)
+            .offsetBy(dx: -layer.frame.minX, dy: -layer.frame.minY)
+        PeekOMouth.gasp(on: layer, mascot: mascot, picture: picture)
     }
 
     // MARK: 🔥 Only when the rope actually touches him

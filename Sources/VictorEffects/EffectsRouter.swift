@@ -117,6 +117,7 @@ final class EffectsRouter {
         "/test/opus/stop": "opus/stop",
         "/test/claude-peek": "claude-peek",
         "/test/claude-peek/stop": "claude-peek/stop",
+        "/test/claude-peek/flinch": "claude-peek/flinch",
         "/test/minion": "minion",
         "/test/counter-strike": "counter-strike",
         "/test/chainsaw": "chainsaw",
