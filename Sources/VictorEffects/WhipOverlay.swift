@@ -521,21 +521,36 @@ private final class WhipView: NSView {
         shadow.shadowColor = NSColor.black.withAlphaComponent(0.55 * alpha)
         shadow.shadowBlurRadius = 6
         shadow.shadowOffset = NSSize(width: 0, height: -2)
-        let attrs: [NSAttributedString.Key: Any] = [
+        // Two passes, outline UNDER the fill. A one-pass fill+stroke
+        // (`strokeWidth` < 0) strokes every contour of the glyph, and the heavy
+        // system font is built of overlapping ones — so black seams ran
+        // through the inside of e, a, k, E (2026-10-20, Victor: *"A, K and E
+        // … somehow cut off"*), and a centred stroke ate half the pink. Here
+        // the outline is drawn alone, with round joins (no spikes off A's apex
+        // or K's arms), and the clean fill lands on top of it.
+        let outline = NSAttributedString(string: plea.text, attributes: [
+            .font: font,
+            .strokeColor: NSColor.black.withAlphaComponent(alpha),
+            .strokeWidth: WhipPleas.outlineWidth,   // positive = stroke only
+            .shadow: shadow,
+        ])
+        let fill = NSAttributedString(string: plea.text, attributes: [
             .font: font,
             .foregroundColor: WhipPleas.color.withAlphaComponent(alpha),
-            .strokeColor: NSColor.black.withAlphaComponent(alpha),
-            .strokeWidth: -4.0,   // negative = fill AND stroke
-            .shadow: shadow,
-        ]
-        let str = NSAttributedString(string: plea.text, attributes: attrs)
-        let size = str.size()
+        ])
+        let size = fill.size()
         let center = CGPoint(x: plea.at.x, y: plea.at.y - WhipPleas.riseDistance * t)
         let origin = WhipPleas.clamp(
             CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2,
                    width: size.width, height: size.height),
             into: bounds).origin
-        str.draw(at: origin)
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            ctx.saveGState()
+            ctx.setLineJoin(.round)
+            outline.draw(at: origin)
+            ctx.restoreGState()
+        }
+        fill.draw(at: origin)
     }
 }
 
@@ -550,6 +565,9 @@ enum WhipPleas {
     static let riseDistance: CGFloat = 70
     /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).
     static let fontSize: CGFloat = 41
+    /// The black outline pass, in % of the font size (stroke-only, so half of
+    /// it shows outside the letters: ~3 pt of border at 41 pt).
+    static let outlineWidth: CGFloat = 16
     /// How far past the tip, away from the handle, the word is thrown — at the
     /// tip itself it sat in the rope's own scribble, too close to the pointer
     /// (2026-10-20: *"pop out a bit further away from where the mouse is"*).

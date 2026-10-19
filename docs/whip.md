@@ -89,7 +89,8 @@ compensation delay would only make it late.
 **Every crack throws one polite word off the tip** (2026-10-19, Victor: *"make
 my whip throw please statements … whenever where it cracks"*): *please*,
 *pretty please*, *I beg you*, *with a cherry on top*, … (`WhipPleas.phrases`),
-in heavy pink, 41 pt with a **black** outline (34 pt and white until
+in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
+(one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.3 s before it fades.
 It appears **60 pt past the tip**, on the line from the handle through the tip
 (`WhipPleas.launchPoint`), so it flies off away from the pointer instead of
