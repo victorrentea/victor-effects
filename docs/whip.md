@@ -19,6 +19,12 @@ view's bounds kept at the whole screen (`ZoomedPanel`), and the pointer is
 converted with that same slice — so the physics still runs in whole-screen
 points, which are now glass points. At rest nothing changes.
 
+**Under ⌥⇧ zoom (`ShareZoom`, addons) the panel must stay at `maximumWindow`**,
+above that zoom's `.screenSaver` window. Until 2026-10-19 it was really at
+`.floating` (3): `isFloatingPanel = true`, set after the level, resets it — so
+the rope disappeared the instant the zoom's first frame arrived. The panel no
+longer sets `isFloatingPanel`; `WhipPanelLevelTests` checks the level.
+
 ## Turning it on
 
 **⌃W** toggles it, globally, **swallowed** — the key does not reach the app

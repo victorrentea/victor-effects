@@ -347,7 +347,7 @@ final class WhipController {
 /// Transparent, borderless, always-on-top, non-activating panel. Interactive
 /// (receives clicks) but never becomes key — so keyboard focus stays on the
 /// terminal and the Ctrl+C macro reaches it.
-private final class WhipPanel: NSPanel {
+final class WhipPanel: NSPanel {
     init(screenFrame: NSRect) {
         super.init(
             contentRect: screenFrame,
@@ -358,11 +358,15 @@ private final class WhipPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
-        level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)))
         ignoresMouseEvents = false
         acceptsMouseMovedEvents = false // we poll NSEvent.mouseLocation each frame
-        isFloatingPanel = true
         hidesOnDeactivate = false
+        // NOT `isFloatingPanel = true`: its setter resets `level` to `.floating`
+        // (3), and set after the line below it quietly sank the whip under the
+        // ⌥⇧ zoom's `.screenSaver` window — the rope vanished the moment the
+        // zoom's first frame came in (2026-10-19). Every window of ours sits at
+        // `maximumWindow`; `WhipPanelLevelTests` holds this one to it.
+        level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)))
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
     }
 
