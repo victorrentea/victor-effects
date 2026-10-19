@@ -78,6 +78,29 @@ overlay holds the A2DP link warm with `BluetoothOutput.startContinuousWarm()`
 for exactly this reason, so a crack has zero spin-up lag and adding the
 compensation delay would only make it late.
 
+## It asks nicely — a "please" where it cracks
+
+**Every crack throws one polite word off the tip** (2026-10-19, Victor: *"make
+my whip throw please statements … whenever where it cracks"*): *please*,
+*pretty please*, *I beg you*, *with a cherry on top*, … (`WhipPleas.phrases`),
+in heavy pink with a white outline, popping to 115% and floating 70 pt up over
+1.3 s before it fades. Drawn by `WhipView` itself, so it sits on the rope's
+panel and keeps its size under ⌥-scroll like the rope does, and clamped inside
+the screen so a crack at the bezel does not cut the word in half.
+
+- **Owed, then paid.** `cracked()` (the funnel) only marks a plea owed; `tick`
+  throws it on the frame the physics actually snaps — or when a scripted flick
+  runs out without one. A Return/thumb crack goes through the funnel *before*
+  its flick, while the tip still hangs at the pointer, so throwing it there put
+  the word in the wrong place.
+- **A shuffle-bag, not `random()`** (`WhipPleas.Bag`): every word once per round,
+  never the same one twice in a row, even across the refill (`WhipPleasTests`).
+- Each word dies on its own clock (`lifeMs`, pruned in `tick`), and `hide()`
+  takes them down with the view. Not behind ✓ Subtitles — it is part of the
+  whip, like the sparks on a hit.
+- The *typed* phrases of a click (`WhipMacro.phrases`, "FASTER CLANKER") are a
+  different gesture and still scold — the room sees manners, the agent does not.
+
 ## The mascot flinches — when the rope hits him
 
 **Only a hit counts** (2026-10-16, Victor: *"să sară … doar dacă îi atinge

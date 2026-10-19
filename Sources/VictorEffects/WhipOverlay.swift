@@ -104,7 +104,25 @@ final class WhipController {
     /// remembered at two sites — exactly the divergence this exists to prevent.
     private func cracked() {
         playCrack()
+        pleaOwed = true
         onCrack?()
+    }
+
+    // MARK: - Pleas
+
+    /// A crack owes the room one polite word, thrown off the TIP. It is owed
+    /// rather than thrown here because a Return/thumb crack passes through the
+    /// funnel *before* its scripted flick, while the tip still hangs by the
+    /// pointer — `tick` pays it on the frame the rope actually snaps, or when
+    /// the flick runs out, whichever comes first.
+    private var pleaOwed = false
+    private var pleaBag = WhipPleas.Bag()
+
+    private func throwPlea(now: Double) {
+        pleaOwed = false
+        guard let view, let tip = physics?.points.last else { return }
+        view.pleas.append(WhipView.Plea(
+            text: pleaBag.next(), at: CGPoint(x: tip.x, y: tip.y), bornMs: now))
     }
 
     var isShowing: Bool { panel != nil }
@@ -169,6 +187,7 @@ final class WhipController {
         physics = nil
         screen = nil
         flickQueue = []
+        pleaOwed = false
         if wasShowing { onVisibilityChanged?(false) }
     }
 
@@ -226,6 +245,9 @@ final class WhipController {
         if didCrack && now > suppressNaturalCrackUntilMs {
             cracked()
         }
+        if pleaOwed && (didCrack || flickQueue.isEmpty) { throwPlea(now: now) }
+        view.pleas.removeAll { now - $0.bornMs > WhipPleas.lifeMs }
+        view.nowMs = now
         view.points = physics.points
         view.needsDisplay = true
         if let onRope, let panel { reportRope(physics.points, view: view, panel: panel, to: onRope) }
@@ -357,6 +379,16 @@ private final class WhipView: NSView {
     var points: [WhipPhysics.Point] = []
     var onMouseDown: (() -> Void)?
 
+    /// A polite word thrown off the tip on a crack (`WhipPleas`), in view
+    /// coords. Each one dies on its own clock — `tick` prunes it at `lifeMs`.
+    struct Plea {
+        let text: String
+        let at: CGPoint
+        let bornMs: Double
+    }
+    var pleas: [Plea] = []
+    var nowMs = 0.0
+
     // Visual constants (the non-physics fields of overlay.html's `P`).
     private let lineWidthHandle: CGFloat = 7
     private let lineWidthTip: CGFloat = 5
@@ -451,5 +483,78 @@ private final class WhipView: NSView {
             seg.curve(to: s.end, controlPoint1: s.cp1, controlPoint2: s.cp2)
             seg.stroke()
         }
+
+        for plea in pleas { drawPlea(plea) }
+    }
+
+    /// Pops out of the snap point, floats up and fades: a quick overshoot to
+    /// 115% in the first 12% of its life, then a rise of `riseDistance`, fading
+    /// over the last 40%. White outline + dark shadow so it reads on any
+    /// backdrop, the same trick as the rope's halo.
+    private func drawPlea(_ plea: Plea) {
+        let t = CGFloat(min(1, max(0, (nowMs - plea.bornMs) / WhipPleas.lifeMs)))
+        let pop: CGFloat = t < 0.12 ? lerp(0.5, 1.15, t / 0.12)
+            : t < 0.22 ? lerp(1.15, 1.0, (t - 0.12) / 0.1) : 1.0
+        let alpha: CGFloat = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4
+        let font = NSFont.systemFont(ofSize: WhipPleas.fontSize * pop, weight: .heavy)
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.55 * alpha)
+        shadow.shadowBlurRadius = 6
+        shadow.shadowOffset = NSSize(width: 0, height: -2)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: WhipPleas.color.withAlphaComponent(alpha),
+            .strokeColor: NSColor.white.withAlphaComponent(alpha),
+            .strokeWidth: -4.0,   // negative = fill AND stroke
+            .shadow: shadow,
+        ]
+        let str = NSAttributedString(string: plea.text, attributes: attrs)
+        let size = str.size()
+        let center = CGPoint(x: plea.at.x, y: plea.at.y - WhipPleas.riseDistance * t)
+        let origin = WhipPleas.clamp(
+            CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2,
+                   width: size.width, height: size.height),
+            into: bounds).origin
+        str.draw(at: origin)
+    }
+}
+
+/// The polite words the whip throws where it cracks — the whip asks nicely now.
+enum WhipPleas {
+    static let phrases = [
+        "please", "pretty please", "kindly", "I beg you", "thank you!",
+        "with a cherry on top", "if it's no trouble", "sorry!", "🙏 please",
+        "would you mind?", "much obliged", "pleeease",
+    ]
+    static let lifeMs = 1300.0
+    static let riseDistance: CGFloat = 70
+    static let fontSize: CGFloat = 34
+    static let color = NSColor(red: 1.0, green: 0.36, blue: 0.62, alpha: 1)
+
+    /// A shuffle-bag, not `randomElement()`: a random pick repeats itself often
+    /// enough to be noticed, and this one visits every phrase before any comes
+    /// back — never the same word twice in a row, even across refills.
+    struct Bag {
+        private var queue: [String] = []
+        private var last: String?
+
+        mutating func next() -> String {
+            if queue.isEmpty {
+                queue = phrases.shuffled()
+                if queue.count > 1, queue.first == last { queue.swapAt(0, queue.count - 1) }
+            }
+            let word = queue.removeFirst()
+            last = word
+            return word
+        }
+    }
+
+    /// Slide `rect` inside `bounds` — cracks happen at the screen's edges too,
+    /// and half a "please" off the glass reads as a bug.
+    static func clamp(_ rect: CGRect, into bounds: CGRect) -> CGRect {
+        var r = rect
+        r.origin.x = min(max(r.origin.x, bounds.minX), bounds.maxX - r.width)
+        r.origin.y = min(max(r.origin.y, bounds.minY), bounds.maxY - r.height)
+        return r
     }
 }
