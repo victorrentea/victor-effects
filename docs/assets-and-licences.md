@@ -61,7 +61,8 @@ Plus the ones that were never in the repo: `brother_full.gif`,
 `phoenix-rising.mov`, `phoenix-rising.mp3`, `universal-minions.mp3`,
 `praying-man.png` (a stock illustration, white background flood-filled away)
 and `pray-hymn.mp3` (the first 9.5 s of the soundboard's Ave Maria, faded out —
-both for 🙏 pray, 2026-10-19) and the
+both for 🙏 pray, 2026-10-19; the hymn is only a fallback since 2026-10-20, when
+a CC BY take, `pray-hymn-long.mp3`, started shipping in Resources) and the
 folders `gangnam_frames/`, `skull-boom/`, `universal-minions/`.
 
 ## The soundboard

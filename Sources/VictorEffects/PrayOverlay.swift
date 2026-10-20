@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Foundation
 
 /// 🙏 Pray — the whip's polite sibling (2026-10-19, Victor: *"another feature
@@ -9,11 +10,15 @@ import Foundation
 ///   • only his two hands, joined, follow the cursor where the rope would, and
 ///     the real arrow is hidden (2026-10-20, Victor: *"instead of the man
 ///     praying just … his two hands"*),
-///   • a **click** plays a few seconds of a hymn (`pray-hymn.mp3`): the rest of
-///     the man fades in around the hands, and a beat later a ray of light falls
-///     from the sky onto him, with a golden glow, for as long as it sings; then
-///     he fades back to hands. Nothing is typed — this is the gesture that ASKS
-///     the agent, the whip's click is the one that tells it,
+///   • a **click** leaves a man praying on that spot: the hands stay there, the
+///     rest of him fades in around them, and a beat later a ray of light falls
+///     from the sky onto him, with a golden glow; 9.5 s later he fades away.
+///     The pointer keeps a fresh pair of hands, so more clicks plant more men
+///     (2026-10-20, Victor: *"I can click multiple times to put multiple people
+///     praying"*). ONE Ave Maria sings for all of them — a later click does not
+///     restart it or add a second voice, it only pushes its end out to that
+///     man's end. Nothing is typed — this is the gesture that ASKS the agent,
+///     the whip's click is the one that tells it,
 ///   • Esc, ⌃⇧W again, the menu row or stop-all dismisses it.
 ///
 /// **Exclusive with the whip**: `EffectsEngine.togglePray` puts the whip away
@@ -37,14 +42,26 @@ final class PrayController {
     private var escGlobalMonitor: Any?
     private var escLocalMonitor: Any?
 
+    private var choir = PrayChoir()
+    /// The one hymn all the planted men share. Our own player, not
+    /// `playOverlapping`: a later click has to reach THIS voice to push its
+    /// end out (or take back a fade already under way), and a by-name stop
+    /// would hit any other copy.
+    private var hymnPlayer: AVAudioPlayer?
+    private var hymnFading = false
+
     /// The hymn rides the tablet's volume wedge like the whip's crack, a bit
-    /// under it: it is a punchline, not a concert.
-    static let hymn = "pray-hymn.mp3"
+    /// under it: it is a punchline, not a concert. A long take of the Ave
+    /// Maria (`assetsDir`), so a few clicks in a row only ever stretch it;
+    /// without it the old 9.5 s cut, which then simply ends early.
+    static let hymn = "pray-hymn-long.mp3"
+    static let shortHymn = "pray-hymn.mp3"
     static let hymnVolumeFactor: Float = 0.8
-    /// How long a click lasts — the length of the excerpt in `assetsDir`
-    /// (9.5 s since 2026-10-20, was 8 — Victor: *"prolong a bit the Ave
-    /// Maria … 10–20% more"*; same speed, a longer cut, its own fade-out over
-    /// the last 1.2 s).
+    /// The hymn fades to silence over this long, ending as the last man does.
+    static let hymnFadeMs = 1200.0
+    /// How long one man prays, from his click to gone (9.5 s since
+    /// 2026-10-20, was 8 — Victor: *"prolong a bit the Ave Maria … 10–20%
+    /// more"*).
     static let singMs = 9500.0
     /// The man fades in around his hands over this long after a click…
     static let manFadeInMs = 800.0
@@ -92,9 +109,13 @@ final class PrayController {
         displayTimer?.invalidate()
         displayTimer = nil
         removeEscMonitors()
-        if view?.singingSinceMs != nil {
-            SoundManager.shared.stopOverlapping(Self.hymn, fade: SoundManager.interruptFade)
+        if let player = hymnPlayer {
+            player.setVolume(0, fadeDuration: SoundManager.interruptFade)
+            DispatchQueue.main.asyncAfter(deadline: .now() + SoundManager.interruptFade + 0.05) { player.stop() }
         }
+        hymnPlayer = nil
+        hymnFading = false
+        choir.clear()
         BluetoothOutput.stopContinuousWarm()
         cursorHide?.release()
         cursorHide = nil
@@ -133,7 +154,9 @@ final class PrayController {
         let target = viewPoint(forGlobal: VisibleCursor.location)
         view.at = CGPoint(x: view.at.x + (target.x - view.at.x) * Self.follow,
                           y: view.at.y + (target.y - view.at.y) * Self.follow)
-        if let since = view.singingSinceMs, now - since > Self.singMs { view.singingSinceMs = nil }
+        choir.expire(nowMs: now)
+        view.prayers = choir.prayers
+        steerHymn(now: now)
         view.nowMs = now
         view.needsDisplay = true
     }
@@ -142,17 +165,57 @@ final class PrayController {
 
     // MARK: - Input
 
-    /// A click sings, from the top — a second click mid-hymn starts it over
-    /// (the man stays, the light falls again) rather than stacking a second
-    /// choir on the first. Also
-    /// `/effect/pray/sing`, so the click can be checked without a mouse.
+    /// A click plants a man where the hands are and starts the hymn — or, if
+    /// it is already singing, lets it run on until he is done too (and takes
+    /// back a fade that had begun). Also `/effect/pray/sing`, so the click can
+    /// be checked without a mouse.
     func sing() {
         guard let view else { return }
-        SoundManager.shared.stopOverlapping(Self.hymn)
-        let volume = SoundManager.shared.currentTabletVolume * Self.hymnVolumeFactor
-        SoundManager.shared.playOverlapping(Self.hymn, volume: volume, bluetoothCompensated: false)
-        view.singingSinceMs = nowMs()
-        effectsInfo("🙏 pray — hymn")
+        choir.plant(at: view.at, nowMs: nowMs())
+        view.prayers = choir.prayers
+        let level = max(0, min(1, SoundManager.shared.currentTabletVolume * Self.hymnVolumeFactor))
+        if let player = hymnPlayer, player.isPlaying {
+            if hymnFading {
+                player.setVolume(level, fadeDuration: 0.3)
+                hymnFading = false
+            }
+            effectsInfo("🙏 pray — \(choir.prayers.count) praying, the hymn runs on")
+            return
+        }
+        hymnPlayer?.stop()
+        hymnPlayer = nil
+        hymnFading = false
+        let sounds = SoundManager.shared
+        guard let url = sounds.soundURL(for: Self.hymn) ?? sounds.soundURL(for: Self.shortHymn) else {
+            effectsInfo("🙏 \(Self.hymn) not in assetsDir — the light falls in silence")
+            return
+        }
+        do {
+            let player = try SoundManager.player(contentsOf: url)
+            player.volume = level
+            player.prepareToPlay()
+            player.play()
+            hymnPlayer = player
+            effectsInfo("🙏 pray — hymn (\(url.lastPathComponent))")
+        } catch {
+            overlayError("🙏 hymn failed: \(error)")
+        }
+    }
+
+    /// Every frame: fade the hymn out so it falls silent as the last man
+    /// goes, and let go of it once nobody is left.
+    private func steerHymn(now: Double) {
+        guard let player = hymnPlayer else { return }
+        guard let end = choir.endMs, let fadeAt = choir.fadeStartMs else {
+            player.stop()
+            hymnPlayer = nil
+            hymnFading = false
+            return
+        }
+        if !hymnFading, now >= fadeAt {
+            player.setVolume(0, fadeDuration: max(0.05, (end - now) / 1000))
+            hymnFading = true
+        }
     }
 
     private func installEscMonitors() {
@@ -198,12 +261,47 @@ final class PrayController {
     }
 }
 
+// MARK: - Choir
+
+/// Who is praying where, and until when — pure, so the timing can be tested
+/// without a screen or a speaker. Kept in click order, so the last one is the
+/// one the hymn has to last for.
+struct PrayChoir {
+    struct Prayer: Equatable {
+        /// Where his hands were when clicked, in view points.
+        var at: CGPoint
+        var sinceMs: Double
+    }
+
+    /// More than this and the oldest goes — a punchline, not a congregation.
+    static let maxPrayers = 8
+
+    private(set) var prayers: [Prayer] = []
+
+    mutating func plant(at: CGPoint, nowMs: Double) {
+        prayers.append(Prayer(at: at, sinceMs: nowMs))
+        if prayers.count > Self.maxPrayers { prayers.removeFirst() }
+    }
+
+    mutating func expire(nowMs: Double) {
+        prayers.removeAll { nowMs - $0.sinceMs > PrayController.singMs }
+    }
+
+    mutating func clear() { prayers.removeAll() }
+
+    /// When the last of them is done — when the hymn must be silent.
+    var endMs: Double? { prayers.last.map { $0.sinceMs + PrayController.singMs } }
+    /// When the hymn starts fading so that it reaches silence at `endMs`.
+    var fadeStartMs: Double? { endMs.map { $0 - PrayController.hymnFadeMs } }
+}
+
 // MARK: - View
 
-/// His joined hands, centred on the pointer, breathing slowly. A click fades
-/// the rest of him in around them, then a ray of light falls on him from the
-/// top of the screen with a golden glow behind him, all easing out together
-/// at the end of the hymn. (A halo over his head came first and went on
+/// His joined hands, centred on the pointer, breathing slowly. A click leaves
+/// a man on that spot: the rest of him fades in around the hands, then a ray
+/// of light falls on him from the top of the screen with a golden glow behind
+/// him, and all of him eases out together 9.5 s after his click. Each planted
+/// man runs on his own clock; the pointer's hands are drawn over them all. (A halo over his head came first and went on
 /// 2026-10-20 — Victor: *"a ray of light … falling from the sky, rather than
 /// this angelic circle on top of my head"*.)
 ///
@@ -215,7 +313,7 @@ private final class PrayView: NSView {
     var figure: NSImage?
     var at: CGPoint = .zero
     var nowMs = 0.0
-    var singingSinceMs: Double?
+    var prayers: [PrayChoir.Prayer] = []
     var onMouseDown: (() -> Void)?
 
     static let figureHeight: CGFloat = 200
@@ -247,24 +345,26 @@ private final class PrayView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) { onMouseDown?() }
 
-    /// 0…1 ramp: up over `upMs` from `start` ms into the hymn, down over its
-    /// last `fadeOutMs`, nothing while silent.
-    private func ramp(from start: Double, upMs: Double) -> CGFloat {
-        guard let since = singingSinceMs else { return 0 }
-        let t = nowMs - since
+    /// 0…1 ramp: up over `upMs` from `start` ms after his click, down over
+    /// his last `fadeOutMs`.
+    private func ramp(_ p: PrayChoir.Prayer, from start: Double, upMs: Double) -> CGFloat {
+        let t = nowMs - p.sinceMs
         guard t > start else { return 0 }
-        let up = min(1, (t - start) / upMs)
-        let down = min(1, max(0, (PrayController.singMs - t) / PrayController.fadeOutMs))
-        return CGFloat(min(up, down))
+        return min(CGFloat(min(1, (t - start) / upMs)), fadingOut(p))
+    }
+
+    /// 1 until his last `fadeOutMs`, then down to 0 — all of him, hands too.
+    private func fadingOut(_ p: PrayChoir.Prayer) -> CGFloat {
+        CGFloat(min(1, max(0, (PrayController.singMs - (nowMs - p.sinceMs)) / PrayController.fadeOutMs)))
     }
 
     /// The rest of him, around the hands.
-    private var man: CGFloat { ramp(from: 0, upMs: PrayController.manFadeInMs) }
+    private func man(_ p: PrayChoir.Prayer) -> CGFloat { ramp(p, from: 0, upMs: PrayController.manFadeInMs) }
     /// The ray.
-    private var light: CGFloat { ramp(from: PrayController.lightDelayMs, upMs: 500) }
+    private func light(_ p: PrayChoir.Prayer) -> CGFloat { ramp(p, from: PrayController.lightDelayMs, upMs: 500) }
     /// The glow behind him, after the ray lands.
-    private var glow: CGFloat {
-        ramp(from: PrayController.lightDelayMs + Self.beamFallMs, upMs: Self.glowUpMs)
+    private func glow(_ p: PrayChoir.Prayer) -> CGFloat {
+        ramp(p, from: PrayController.lightDelayMs + Self.beamFallMs, upMs: Self.glowUpMs)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -274,14 +374,20 @@ private final class PrayView: NSView {
         let w = h * aspect
         // Placed by his hands, not his middle: they are what follows the
         // pointer, and they must not move when the rest of him appears.
-        let rect = CGRect(x: at.x - w * Self.handsCentre.x, y: at.y - h * Self.handsCentre.y,
-                          width: w, height: h)
+        func figureRect(at p: CGPoint) -> CGRect {
+            CGRect(x: p.x - w * Self.handsCentre.x, y: p.y - h * Self.handsCentre.y, width: w, height: h)
+        }
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
-        let g = light
-        if g > 0 { drawBeam(ctx, onto: rect, strength: g) }
-        let gl = glow
-        if gl > 0 {
+        // Every ray and every glow first, so no man stands behind another's light.
+        for p in prayers {
+            let g = light(p)
+            if g > 0 { drawBeam(ctx, onto: figureRect(at: p.at), for: p, strength: g) }
+        }
+        for p in prayers {
+            let gl = glow(p)
+            guard gl > 0 else { continue }
+            let rect = figureRect(at: p.at)
             let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
             let radius = h * 0.85 * pulse
             let colors = [Self.glowColor.withAlphaComponent(0.75 * gl).cgColor,
@@ -299,12 +405,25 @@ private final class PrayView: NSView {
             str.draw(at: CGPoint(x: at.x - s.width / 2, y: at.y - s.height / 2))
             return
         }
-        let hints: [NSImageRep.HintKey: Any] = [.interpolation: NSImageInterpolation.high]
-        let m = man
-        if m > 0 {
-            figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: m,
-                        respectFlipped: true, hints: hints)
+        for p in prayers {
+            let rect = figureRect(at: p.at)
+            let m = man(p)
+            if m > 0 { drawFigure(figure, in: rect, fraction: m) }
+            drawHands(figure, ctx, in: rect, fraction: fadingOut(p))
         }
+        drawHands(figure, ctx, in: figureRect(at: at), fraction: 1)
+    }
+
+    private static let hints: [NSImageRep.HintKey: Any] = [.interpolation: NSImageInterpolation.high]
+
+    private func drawFigure(_ figure: NSImage, in rect: CGRect, fraction: CGFloat) {
+        figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: fraction,
+                    respectFlipped: true, hints: Self.hints)
+    }
+
+    /// The figure through `handsOutline` — just the joined hands.
+    private func drawHands(_ figure: NSImage, _ ctx: CGContext, in rect: CGRect, fraction: CGFloat) {
+        guard fraction > 0 else { return }
         let hands = CGMutablePath()
         hands.addLines(between: Self.handsOutline.map {
             CGPoint(x: rect.minX + $0.x * rect.width, y: rect.minY + $0.y * rect.height)
@@ -313,8 +432,7 @@ private final class PrayView: NSView {
         ctx.saveGState()
         ctx.addPath(hands)
         ctx.clip()
-        figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1,
-                    respectFlipped: true, hints: hints)
+        drawFigure(figure, in: rect, fraction: fraction)
         ctx.restoreGState()
     }
 
@@ -322,11 +440,10 @@ private final class PrayView: NSView {
     /// than him where it lands, drawn BEHIND him so his outline sits in it.
     /// Three nested passes, the widest the faintest, stand in for a soft edge;
     /// it falls from the top in `beamFallMs` and shimmers slightly while lit.
-    /// It follows him as he follows the pointer — the light is on him, not on
-    /// a spot of the screen.
-    private func drawBeam(_ ctx: CGContext, onto rect: CGRect, strength g: CGFloat) {
-        guard let since = singingSinceMs, rect.maxY > 0 else { return }
-        let fallen = nowMs - since - PrayController.lightDelayMs
+    /// It is on him wherever he was planted.
+    private func drawBeam(_ ctx: CGContext, onto rect: CGRect, for p: PrayChoir.Prayer, strength g: CGFloat) {
+        guard rect.maxY > 0 else { return }
+        let fallen = nowMs - p.sinceMs - PrayController.lightDelayMs
         let f = CGFloat(min(1, max(0, fallen) / Self.beamFallMs))
         let land = rect.maxY - rect.height * 0.15
         let reach = land * (1 - (1 - f) * (1 - f))          // ease-out

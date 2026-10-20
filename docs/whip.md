@@ -288,21 +288,36 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
   man (200 pt tall) is placed by his hands and grows around those very pixels. Same panel
   (`WhipPanel`, `maximumWindow`) and the same `ZoomedPanel` mapping every frame,
   so ⌥-scroll and the ⌥⇧ zoom treat him exactly as they treat the rope.
-- **A click sings, nothing is typed.** It plays `pray-hymn.mp3` at the tablet's
-  level × 0.8; the rest of the man fades in around the hands (`manFadeInMs`,
+- **A click plants a man, nothing is typed** (2026-10-20, Victor: *"when I
+  click the hands remain there, and the human appears behind those hands … I
+  can click multiple times to put multiple people praying"*). His hands stay
+  on that spot and the pointer keeps a fresh pair, drawn over everyone, so the
+  next click plants another (`PrayChoir`, at most 8 — the oldest makes room).
+  Each one lives on his own clock: the rest of the man fades in around the hands (`manFadeInMs`,
   0.8 s), and at `lightDelayMs` (1.5 s) a ray of light drops on him from the
   top of the screen, slanting in from the upper left (`beamTiltDegrees`, 18°
   off the vertical; falls in 1.35 s, `beamFallMs`, three times the first try;
   shimmers; a halo over his head was the
   first try and went on 2026-10-20) and once it lands a golden glow comes up
-  behind him, slower still (`glowUpMs`, 2 s). Man, ray and glow fade out
-  together over the last second (`fadeOutMs`) of the clip's 9.5 s (`singMs`;
-  8 s until 2026-10-20), back to hands. A click mid-hymn starts it over; hiding him stops
-  it. Return and buttons 6/7 still mean nothing here — they are the whip's.
-- **Both media are drop-ins** (`docs/assets-and-licences.md`): the stock
-  picture with its white background flood-filled away, and the first 9.5 s of the
-  soundboard's Ave Maria with a 1.2 s fade. Without the picture he is a 🙏 glyph;
-  without the hymn the click logs a missing file and only the glow plays.
+  behind him, slower still (`glowUpMs`, 2 s). Man, hands, ray and glow fade out
+  together over the last second (`fadeOutMs`) of his 9.5 s (`singMs`; 8 s until
+  2026-10-20), and he is gone. Rays and glows are all drawn before any man.
+  Planted men are kept in view points, so under the zoom they stay on the
+  desktop spot they were planted on, like a window would.
+- **One Ave Maria for all of them.** The first click starts
+  `pray-hymn-long.mp3` (47 s, shipped, `Resources/CREDITS.md`) at the tablet's
+  level × 0.8; a click while it sings does not restart it or add a voice, it
+  only pushes its end out to that man's end — and takes back a fade already
+  under way (0.3 s back up). It fades to silence over `hymnFadeMs` (1.2 s)
+  ending exactly as the last man goes. Its own `AVAudioPlayer` in
+  `PrayController`, not `playOverlapping`: a later click has to reach that one
+  voice. Hiding him fades it in 0.2 s. Return and buttons 6/7 still mean
+  nothing here — they are the whip's.
+- **The picture is a drop-in** (`docs/assets-and-licences.md`): a stock
+  illustration with its white background flood-filled away; without it he is a
+  🙏 glyph. The hymn ships; if it is ever missing the old 9.5 s drop-in
+  `pray-hymn.mp3` (the soundboard's Ave Maria, faded) stands in and simply
+  ends early under a long choir, and without either the light falls in silence.
 - **⌃⇧ held is also addons' emoji-picker hold**, and this tap eats the W before
   addons sees it, so the hold is never marked as a shortcut: a ⌃⇧ kept down past
   the picker's delay still opens it. A quick chord does not.

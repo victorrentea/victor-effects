@@ -14,5 +14,6 @@ quietly when it is missing — see `docs/assets-and-licences.md`.
 | `espresso_pour.mp3` | Wikimedia Commons, [Espresso machine.ogg](https://commons.wikimedia.org/wiki/File:Espresso_machine.ogg) | Public domain |
 | `coffee_pour.mp3` | Wikimedia Commons, [Boiling water being poured into a mug for tea.ogg](https://commons.wikimedia.org/wiki/File:Boiling_water_being_poured_into_a_mug_for_tea.ogg) | Public domain |
 | `whip_A.mp3` … `whip_E.mp3` | [OpenWhip](https://github.com/GitFrog1111/OpenWhip) `sounds/A–E.mp3`, byte-identical | MIT (OpenWhip `package.json`) |
+| `pray-hymn-long.mp3` | Wikimedia Commons, [Franz Schubert - Ellens dritter Gesang.oga](https://commons.wikimedia.org/wiki/File:Franz_Schubert_-_Ellens_dritter_Gesang.oga) — Schubert's Ave Maria, D. 839, sung by Dorothea Fayne with Uwe Streibel (piano); 47 s from the voice's entry (20.6 s), faded in/out, level-matched | CC BY 3.0 |
 | `confetti.mp3` | Freesound, [partypopper.flac](https://freesound.org/people/Streety/sounds/26349/) by Streety, trimmed | CC0 |
 | `icon_fx.png` | the menu bar's 𝓯𝔁 drawn large by `tools/make-icon.swift` | own work (MIT) |
