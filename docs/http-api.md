@@ -54,8 +54,9 @@ press cannot drift apart.
 | `GET /effect/progress-bar/stop` | `ok` | |
 | `GET /effect/whip`, `GET /effect/whip/crack` | `ok` | `docs/whip.md` |
 | `GET /effect/pray`, `GET /effect/pray/sing` | `ok` | toggles 🙏 pray, the whip's exclusive sibling — `docs/whip.md` |
+| `GET /effect/snap`, `GET /effect/snap/click` | `ok` | toggles 🫰 snap, the third mode; `click` snaps the fingers — `docs/whip.md` |
 | `GET /effect/coffee`, `GET /effect/coffee/pop`, `GET /effect/coffee/storm`, `GET /effect/coffee/won` | `ok` | three cups to pour into; the pop bursts one and fires the webhook below (none after a win); the storm is a salvo of ~8 cups; `won` is what addons sends when a ☕ −1 empties the UNTIL BREAK watch — yee-haw, then big bursts with fireworks (`docs/overlay-effects.md`) |
-| `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip + 🙏 pray |
+| `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip + 🙏 pray + 🫰 snap |
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
 | `GET /tiles` | `tiles.json` **plus** `effect` per tile and a top-level `effectsHash` | **404** `{"error":"no tiles.json in <soundsDir>"}`. See **the ⭐ catalogue** |
 | `GET /tiles/<path>` | image bytes | path resolved under `soundsDir` and **re-checked to still be inside it** — the names come from a JSON file this app does not own |
@@ -146,12 +147,12 @@ nothing.
 ```json
 {"playing":{"asset":"50_gong.mp3","durationMs":8600,"startedAt":1757000000000},
  "activeEffects":["snow"],
- "whipShowing":false,"prayShowing":false,
+ "whipShowing":false,"prayShowing":false,"snapShowing":false,
  "panelMonitor":true,"panelVisible":false,
  "config":{…}}
 ```
 
-`playing` is `null` when nothing is routed. `whipShowing` (and `prayShowing`), `panelMonitor` and
+`playing` is `null` when nothing is routed. `whipShowing` (and `prayShowing`, `snapShowing`), `panelMonitor` and
 `panelVisible` are the three pieces of state that are otherwise only readable
 off the screen — which is the projector. `config` is the live
 `EffectsConfig.asJSON`, including `soundsDirExists`, which is the first thing to

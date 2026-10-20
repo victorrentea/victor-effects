@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBar.isBusy = { [weak self] in self?.engine.isAnythingRunning ?? false }
         menuBar.onWhip = { [weak self] in self?.engine.toggleWhip() }
         menuBar.onPray = { [weak self] in self?.engine.togglePray() }
+        menuBar.onSnap = { [weak self] in self?.engine.toggleSnap() }
         menuBar.onShowPanel = { [weak self] page in self?.panelController.showFromMenu(page: page) }
         // Same shape as `isBusy`: the row asks the keep-alive what it is doing
         // at the moment it is drawn, so a speaker connecting or dropping never
@@ -106,8 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tap = EffectsHotkeyTap()
         hotkeyTap = tap
         tap.whipShowing = { [weak self] in self?.engine.whipIsShowing ?? false }
-        tap.onToggleWhip = { [weak self] in self?.engine.toggleWhip() }
-        tap.onTogglePray = { [weak self] in self?.engine.togglePray() }
+        tap.onCycleMode = { [weak self] in self?.engine.cycleMode() }
         tap.onCrack = { [weak self] in self?.engine.whip?.forceCrack() }
         // The panel is a listener on this tap, never an owner: `onRightCommand`
         // fires on the way past and the event continues to the front app.

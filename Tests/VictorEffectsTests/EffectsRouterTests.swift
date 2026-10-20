@@ -76,6 +76,9 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/test/pray"), .effect("pray"))
         XCTAssertEqual(route("/effect/pray"), .effect("pray"))
         XCTAssertEqual(route("/test/pray/sing"), .effect("pray/sing"))
+        XCTAssertEqual(route("/test/snap"), .effect("snap"))
+        XCTAssertEqual(route("/effect/snap"), .effect("snap"))
+        XCTAssertEqual(route("/test/snap/click"), .effect("snap/click"))
         XCTAssertEqual(route("/test/claude-peek/flinch"), .effect("claude-peek/flinch"))
     }
 

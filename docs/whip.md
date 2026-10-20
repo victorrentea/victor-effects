@@ -27,8 +27,11 @@ longer sets `isFloatingPanel`; `WhipPanelLevelTests` checks the level.
 
 ## Turning it on
 
-**⌃W** toggles it, globally, **swallowed** — the key does not reach the app
-underneath. That is the only rule in `EffectsHotkeyTap` that returns `nil`, and
+**⌃W** shows it, globally, **swallowed** — the key does not reach the app
+underneath. **Pressed again, ⌃W moves on to the next mode**: 🔥 whip → 🙏 pray →
+🫰 snap → 🔥 whip … (`EffectsEngine.cycleMode`, 2026-10-20, Victor: *"let only
+Control W pressed repeatedly cycle through all three and then escape … abort any
+chosen one"*). **Esc is the way out** of whichever is up; ⌃W never turns them off. That is the only rule in `EffectsHotkeyTap` that returns `nil`, and
 the only reason the tap needs **Accessibility** rather than Input Monitoring.
 
 The consequence is deliberate and worth knowing: **⌃W stops deleting the word
@@ -269,17 +272,18 @@ input sequence and writes `Tests/VictorEffectsTests/Resources/whip_golden.json`.
 on the same node positions. Change a constant in `P` and that test tells you the
 rope is no longer OpenWhip's.
 
-## 🙏 Pray — the other mode (⌃⇧W)
+## 🙏 Pray — the second mode (⌃W ×2)
 
 **A praying man in the whip's place** (2026-10-19, Victor: *"another feature
 called pray instead of whip … exclusive to the whip mode … appearing instead of
 the whip. And I click to play some short clip of a religious hymn"*).
-`PrayOverlay.swift`; toggled by **⌃⇧W** (swallowed, like ⌃W: a terminal reads
-it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (`/effect/pray/sing` is the click, for checking it headless).
+`PrayOverlay.swift`; reached by **⌃W** pressed while the whip is up (it was ⌃⇧W
+of its own from 2026-10-19 until ⌃W started cycling, 2026-10-20 — ⌃⇧W is
+nobody's again), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (`/effect/pray/sing` is the click, for checking it headless).
 
-- **Exclusive both ways.** `EffectsEngine.togglePray` hides the whip before
-  showing him, `toggleWhip` hides him before showing the whip — one mode under
-  the pointer at a time. Esc, a second ⌃⇧W and stop-all take him down.
+- **Exclusive.** Every `EffectsEngine.toggle…` (whip, pray, snap) puts the other
+  two away first (`hideModes`) — one mode under the pointer at a time. Esc, the
+  menu row and stop-all take him down; ⌃W moves on to 🫰 snap.
 - **His hands follow the pointer**, only them (2026-10-20, Victor: *"instead
   of the man praying just … his two hands"*), eased (`PrayController.follow`,
   0.35 a frame) so they drift after it, centred on it, breathing ±2%. They are
@@ -328,3 +332,35 @@ it as ⌃W), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (
   bring the arrow back.
 - Counts as running for the 🛑 (`prayIsShowing`), and `GET /state` reports
   `prayShowing`.
+
+## 🫰 Snap — the third mode (⌃W ×3)
+
+**The pointer becomes a hand that snaps its fingers** (2026-10-20, Victor:
+*"another way to whip … a snap of the fingers … an animated transparent GIF …
+on click it actually snaps"*). `SnapOverlay.swift`; reached by ⌃W pressed while
+🙏 pray is up, the `🫰 Snap` menu row, or `GET /effect/snap` (`/effect/snap/click`
+is the click).
+
+- **The hand IS the pointer**: glued, not eased like pray's hands, held by the
+  point where thumb meets middle finger (`SnapView.hotspot`, unit coordinates
+  of the 370×520 cut-out), 170 pt tall. Same `WhipPanel` + `ZoomedPanel`, same
+  `CursorHide`.
+- **A click snaps**: frame 0 of `finger-snap.png` is the hand at rest; a click
+  plays every frame after it once, each for its own delay — a black silhouette
+  (50 ms), a white one (60 ms), the finger down on the palm (450 ms) — then it
+  rests again. A click mid-snap starts it over. A fan of nine short white lines
+  flies off the fingertips (`burstMs`, 320 ms) and one of
+  `finger-snap-1..3.mp3` plays at the tablet's level × 0.8, not Bluetooth
+  compensated (the overlay keeps the link warm, like the whip). Nothing is typed.
+- **The picture is a photo, shipped** (`Resources/CREDITS.md`): Wikimedia
+  Commons' CC0 *Finger snapping impact frame.gif* (a real hand on a grey wall,
+  with two anime-style impact frames), cut out with rembg/BiRefNet, cropped,
+  the wrist faded out, saved as an **APNG** — a GIF has one bit of alpha and
+  the cut-out's soft rim went jagged on a dark desktop. `SnapFrames` reads GIF
+  and APNG alike, the **unclamped** delays (ImageIO clamps the plain key to
+  100 ms, which would slow the 50–60 ms impacts down), so a nicer
+  `finger-snap.gif` dropped into `assetsDir` wins without a build, as long as
+  its frame 0 is the rest pose. Without either it is a 🫰 that pops.
+- Counts as running for the 🛑 (`snapIsShowing`), stop-all takes it down, and
+  `GET /state` reports `snapShowing`. `SnapFramesTests` covers the frame
+  timing and that the corners are transparent.

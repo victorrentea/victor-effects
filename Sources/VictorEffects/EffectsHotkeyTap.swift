@@ -44,11 +44,10 @@ final class EffectsHotkeyTap {
     /// What a key/button event means here. Pure, so the rules can be tested
     /// without an event tap, a permission grant or a window server.
     enum Decision: Equatable {
-        /// ⌃W — toggle the whip and **eat the key** (it must not reach the app
-        /// underneath, where it would delete a word).
-        case swallowToggleWhip
-        /// ⌃⇧W — toggle 🙏 pray, the whip's other mode, eaten the same way.
-        case swallowTogglePray
+        /// ⌃W — the next mode under the pointer (🔥 whip → 🙏 pray → 🫰 snap)
+        /// and **eat the key** (it must not reach the app underneath, where it
+        /// would delete a word).
+        case swallowCycleMode
         /// Crack the whip, and let the event continue on its way.
         case crack
         /// Not ours.
@@ -57,9 +56,10 @@ final class EffectsHotkeyTap {
 
     /// The whole hotkey contract in one function.
     ///
-    /// - ⌃W with no other modifier → toggle the whip, swallowed. ⌘⌃W is left
-    ///   alone on purpose: it belongs to a dictation app, and the `!hasCmd`
-    ///   clause is the only reason both can coexist.
+    /// - ⌃W with no other modifier → the next mode (whip, pray, snap), swallowed.
+    ///   ⌘⌃W is left alone on purpose: it belongs to a dictation app, and the
+    ///   `!hasCmd` clause is the only reason both can coexist. ⌃⇧W toggled 🙏
+    ///   pray for a day (2026-10-19) and is nobody's again since ⌃W cycles.
     /// - While the whip is up, Return / keypad Enter and mouse buttons 6/7 crack
     ///   it and still go through. Return especially: the key that cracks the
     ///   whip is usually also the key submitting the prompt.
@@ -70,15 +70,7 @@ final class EffectsHotkeyTap {
         let hasShift = flags.contains(.maskShift)
 
         if keyCode == VK_W && hasCtrl && !hasCmd && !hasOpt && !hasShift {
-            return .swallowToggleWhip
-        }
-        // ⌃⇧W, the sibling. A terminal cannot tell it from ⌃W, so it is eaten
-        // for the same reason. ⌃⇧ held is also addons' emoji-picker hold, and
-        // this tap eats the W before addons sees it — so the hold is never
-        // marked as a shortcut and a ⌃⇧ kept down past its delay still opens
-        // the picker. Release the chord promptly.
-        if keyCode == VK_W && hasCtrl && hasShift && !hasCmd && !hasOpt {
-            return .swallowTogglePray
+            return .swallowCycleMode
         }
         if whipShowing && (keyCode == VK_RETURN || keyCode == VK_KEYPAD_ENTER) {
             return .crack
@@ -174,8 +166,7 @@ final class EffectsHotkeyTap {
 
     // MARK: - Wiring
 
-    var onToggleWhip: (() -> Void)?
-    var onTogglePray: (() -> Void)?
+    var onCycleMode: (() -> Void)?
     var onCrack: (() -> Void)?
     var whipShowing: () -> Bool = { false }
 
@@ -293,11 +284,8 @@ final class EffectsHotkeyTap {
             }
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
             switch Self.decideKey(keyCode: keyCode, flags: event.flags, whipShowing: whipShowing()) {
-            case .swallowToggleWhip:
-                DispatchQueue.main.async { [weak self] in self?.onToggleWhip?() }
-                return nil
-            case .swallowTogglePray:
-                DispatchQueue.main.async { [weak self] in self?.onTogglePray?() }
+            case .swallowCycleMode:
+                DispatchQueue.main.async { [weak self] in self?.onCycleMode?() }
                 return nil
             case .crack:
                 DispatchQueue.main.async { [weak self] in self?.onCrack?() }

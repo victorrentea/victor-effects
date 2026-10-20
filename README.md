@@ -63,7 +63,7 @@ open "/Applications/Victor Effects.app"
 ```
 
 An `fx` appears in the menu bar. Its menu: `✨ Effects` (Right ⌘), `🎦 Videos`
-(Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃⇧W), `✓ BT Keepalive` and `✓ Subtitles` (switches),
+(Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃W ×2), `🫰 Snap` (⌃W ×3), `✓ BT Keepalive` and `✓ Subtitles` (switches),
 `ⓘ Built <timestamp>` (which binary is running; opens this repo) and `⏻ Quit`
 (⌘Q) — plus `⚠️ Grant Accessibility` while that grant is missing. The gestures
 are drawn as right-aligned **hints**, not as key equivalents, because `NSMenu`
@@ -174,12 +174,14 @@ schema.
 ## 🔥 The whip
 
 ⌃W shows a whip that follows the mouse; flicking it, pressing **Return**, or a
-mouse button 6/7 cracks it. Esc or a second ⌃W dismisses it.
+mouse button 6/7 cracks it. Esc dismisses it.
 
-⌃⇧W puts a praying man under the pointer instead (🙏 pray — the whip and he
-are never out together); a click plays a few seconds of a hymn. His picture
-and the hymn are drop-ins (`praying-man.png`, `pray-hymn.mp3` in `assetsDir`);
-without them he is a 🙏 and the click is silent.
+⌃W again puts a praying man under the pointer instead (🙏 pray — only one mode
+is ever out); a click plants him and sings an Ave Maria. His picture is a
+drop-in (`praying-man.png` in `assetsDir`); without it he is a 🙏.
+
+⌃W a third time makes the pointer a hand (🫰 snap); a click snaps its fingers.
+A fourth goes back to the whip, and Esc ends whichever is up.
 
 **A crack types into whatever app is focused**: it posts ⌃C followed by a short
 phrase and Return, which is the point — it is meant for interrupting a coding

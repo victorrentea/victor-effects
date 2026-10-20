@@ -12,12 +12,12 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
     private let VK_KEYPAD_ENTER: CGKeyCode = 0x4C
     private let VK_A: CGKeyCode = 0x00
 
-    func testControlWTogglesTheWhipAndIsSwallowed() {
+    func testControlWCyclesTheModesAndIsSwallowed() {
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl], whipShowing: false),
-                       .swallowToggleWhip)
-        // Also while it is up: ⌃W is the dismiss gesture too.
+                       .swallowCycleMode)
+        // Also while the whip is up: the next press is 🙏 pray, then 🫰 snap.
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl], whipShowing: true),
-                       .swallowToggleWhip)
+                       .swallowCycleMode)
     }
 
     func testCommandControlWIsLeftAlone() {
@@ -27,14 +27,10 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                        .pass)
     }
 
-    func testControlShiftWTogglesPrayAndIsSwallowed() {
-        // 🙏 pray, the whip's exclusive sibling (2026-10-19). Swallowed for the
-        // same reason as ⌃W: a terminal reads ⌃⇧W as ⌃W and deletes a word.
-        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: false),
-                       .swallowTogglePray)
-        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: true),
-                       .swallowTogglePray)
-        // ⌘⌃⇧W is still nobody's here.
+    func testControlShiftWIsNobodysAgain() {
+        // ⌃⇧W toggled 🙏 pray for a day (2026-10-19); since ⌃W cycles through
+        // all three modes (2026-10-20) it goes back to the front app.
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: false), .pass)
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift, .maskCommand],
                                      whipShowing: false), .pass)
     }
@@ -56,10 +52,10 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
     func testACrackNeverSwallows() {
         // The Return that cracks the whip is usually also the Return submitting
         // the prompt being interrupted. `.crack` means "act AND pass through";
-        // only `.swallowToggleWhip` eats an event.
+        // only `.swallowCycleMode` eats an event.
         for showing in [true, false] {
             let d = Tap.decideKey(keyCode: VK_RETURN, flags: [], whipShowing: showing)
-            XCTAssertNotEqual(d, .swallowToggleWhip)
+            XCTAssertNotEqual(d, .swallowCycleMode)
         }
     }
 

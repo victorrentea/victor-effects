@@ -69,8 +69,9 @@ disarms it through the same `stopAll()` that clears everything else —
 `WhipController.hide()` takes the panel down, drops the Esc monitors and stops
 the Bluetooth warm, after which the tap stops gating. The whip has no deadline
 of its own, so the price is that the status item shows 🛑 for as long as the
-whip is out: `docs/whip.md`. **🙏 Pray** (⌃⇧W, the whip's exclusive sibling)
-is the same kind of mode and counts the same way (`prayIsShowing`).
+whip is out: `docs/whip.md`. **🙏 Pray** and **🫰 Snap** (⌃W ×2 and ×3,
+the whip's exclusive siblings) are the same kind of mode and count the same way
+(`prayIsShowing`, `snapIsShowing`).
 
 The two mechanics worth knowing before editing `MenuBar`:
 

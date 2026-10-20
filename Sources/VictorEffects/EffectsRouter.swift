@@ -132,6 +132,8 @@ final class EffectsRouter {
         "/test/whip/crack": "whip/crack",
         "/test/pray": "pray",
         "/test/pray/sing": "pray/sing",
+        "/test/snap": "snap",
+        "/test/snap/click": "snap/click",
     ]
 
     /// `?page=videos` selects the panel's second page; anything else — absent,

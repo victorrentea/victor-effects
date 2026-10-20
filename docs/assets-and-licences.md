@@ -62,7 +62,10 @@ Plus the ones that were never in the repo: `brother_full.gif`,
 `praying-man.png` (a stock illustration, white background flood-filled away)
 and `pray-hymn.mp3` (the first 9.5 s of the soundboard's Ave Maria, faded out —
 both for 🙏 pray, 2026-10-19; the hymn is only a fallback since 2026-10-20, when
-a CC BY take, `pray-hymn-long.mp3`, started shipping in Resources) and the
+a CC BY take, `pray-hymn-long.mp3`, started shipping in Resources),
+`finger-snap.gif` (optional: a nicer snapping hand for 🫰 snap, which ships its
+own CC0 `finger-snap.png` and uses the GIF only when one is dropped in — frame 0
+must be the rest pose, `docs/whip.md`) and the
 folders `gangnam_frames/`, `skull-boom/`, `universal-minions/`.
 
 ## The soundboard

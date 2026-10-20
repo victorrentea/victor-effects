@@ -19,10 +19,11 @@ import Foundation
 ///     restart it or add a second voice, it only pushes its end out to that
 ///     man's end. Nothing is typed — this is the gesture that ASKS the agent,
 ///     the whip's click is the one that tells it,
-///   • Esc, ⌃⇧W again, the menu row or stop-all dismisses it.
+///   • Esc, the menu row or stop-all dismisses it; ⌃W moves on to 🫰 snap
+///     (it cycles whip → pray → snap since 2026-10-20; ⌃⇧W was his key for a day).
 ///
-/// **Exclusive with the whip**: `EffectsEngine.togglePray` puts the whip away
-/// and `toggleWhip` puts him away — one mode at a time under the pointer.
+/// **Exclusive with the whip and 🫰 snap**: every `EffectsEngine.toggle…` puts
+/// the other modes away — one mode at a time under the pointer.
 ///
 /// The same window and geometry as the whip — `WhipPanel` (the level fix
 /// included), `ZoomedPanel` every frame — so he keeps his size under ⌥-scroll.

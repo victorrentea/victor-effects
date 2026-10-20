@@ -42,9 +42,13 @@ final class EffectsEngine {
     var whip: WhipController? { whipController }
     var whipIsShowing: Bool { whipController?.isShowing ?? false }
 
-    /// 🙏 Pray, the whip's other mode (⌃⇧W) — lazy for the same reason.
+    /// 🙏 Pray, the whip's second mode (⌃W ×2) — lazy for the same reason.
     private var prayController: PrayController?
     var prayIsShowing: Bool { prayController?.isShowing ?? false }
+
+    /// 🫰 Snap, the third (⌃W ×3) — lazy for the same reason.
+    private var snapController: SnapController?
+    var snapIsShowing: Bool { snapController?.isShowing ?? false }
 
     init(overlayPanel: OverlayPanel) {
         self.overlayPanel = overlayPanel
@@ -110,7 +114,7 @@ final class EffectsEngine {
         }
         let effects = animator.activeEffectNames.map { "\"\($0)\"" }.joined(separator: ",")
         return "{\"playing\":\(playingJSON),\"activeEffects\":[\(effects)],"
-            + "\"whipShowing\":\(whipIsShowing),\"prayShowing\":\(prayIsShowing),"
+            + "\"whipShowing\":\(whipIsShowing),\"prayShowing\":\(prayIsShowing),\"snapShowing\":\(snapIsShowing),"
             + "\"panelMonitor\":\(panelMonitor),\"panelVisible\":\(panelVisible),"
             // The two grants, so whoever installed the app (an agent, often)
             // can tell what is still missing without a screen (2026-10-14).
@@ -401,6 +405,10 @@ final class EffectsEngine {
             togglePray()
         case "pray/sing":
             prayController?.sing()
+        case "snap":
+            toggleSnap()
+        case "snap/click":
+            snapController?.snap()
         case "stop-all":
             stopAll()
         default:
@@ -445,6 +453,7 @@ final class EffectsEngine {
             || progressBar.isRunning
             || whipIsShowing
             || prayIsShowing
+            || snapIsShowing
             || animator.isChainsawRunning
             || animator.isFireRunning
     }
@@ -462,23 +471,43 @@ final class EffectsEngine {
         // down too.
         whipController?.hide()
         prayController?.hide()
+        snapController?.hide()
         CaptionOverlay.hide()
     }
 
     // MARK: - Whip
 
-    /// ⌃W is a toggle: a first press shows the whip, a second dismisses it
-    /// through the exact path Esc takes. The show edge never types — the
-    /// Ctrl+C + scold macro only fires on a click while the overlay is up, into
-    /// whatever app has keyboard focus.
+    /// ⌃W walks the three modes under the pointer — 🔥 whip → 🙏 pray → 🫰 snap
+    /// → 🔥 whip … — and Esc is the way out of whichever is up (2026-10-20,
+    /// Victor: *"let only Control W pressed repeatedly cycle through all three
+    /// and then escape … abort any chosen one"*). One key for all three, so
+    /// ⌃⇧W went back to being nobody's. The whip's show edge never types — the
+    /// Ctrl+C + scold macro only fires on a click while it is up.
+    func cycleMode() {
+        if whipIsShowing {
+            togglePray()
+        } else if prayIsShowing {
+            toggleSnap()
+        } else {
+            toggleWhip()
+        }
+    }
+
+    /// One mode under the pointer at a time: drawing one puts the others away.
+    private func hideModes() {
+        whipController?.hide()
+        prayController?.hide()
+        snapController?.hide()
+    }
+
+    /// The whip on or off — the menu row and `/effect/whip`; ⌃W goes through
+    /// `cycleMode`.
     func toggleWhip() {
         if let controller = whipController, controller.isShowing {
             controller.hide()
             return
         }
-        // One mode under the pointer at a time: the whip and 🙏 pray are
-        // exclusive, so drawing one puts the other away.
-        prayController?.hide()
+        hideModes()
         let controller = whipController ?? WhipController()
         whipController = controller
         controller.onEscape = { [weak self] in self?.whipController?.hide() }
@@ -492,17 +521,31 @@ final class EffectsEngine {
         controller.show()
     }
 
-    /// ⌃⇧W: the praying man in the whip's place, a hymn on each click
-    /// (`PrayOverlay.swift`). A toggle, exclusive with the whip both ways.
+    /// ⌃W ×2: the praying man in the whip's place, a hymn on each click
+    /// (`PrayOverlay.swift`). A toggle, exclusive with the other two.
     func togglePray() {
         if let controller = prayController, controller.isShowing {
             controller.hide()
             return
         }
-        whipController?.hide()
+        hideModes()
         let controller = prayController ?? PrayController()
         prayController = controller
         controller.onEscape = { [weak self] in self?.prayController?.hide() }
+        controller.show()
+    }
+
+    /// ⌃W ×3: a hand snapping its fingers on each click (`SnapOverlay.swift`).
+    /// A toggle, exclusive with the other two.
+    func toggleSnap() {
+        if let controller = snapController, controller.isShowing {
+            controller.hide()
+            return
+        }
+        hideModes()
+        let controller = snapController ?? SnapController()
+        snapController = controller
+        controller.onEscape = { [weak self] in self?.snapController?.hide() }
         controller.show()
     }
 
