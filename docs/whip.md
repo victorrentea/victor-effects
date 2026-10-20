@@ -88,7 +88,10 @@ compensation delay would only make it late.
 
 **Every crack throws one polite word off the tip** (2026-10-19, Victor: *"make
 my whip throw please statements … whenever where it cracks"*): *please*,
-*pretty please*, *I beg you*, *with a cherry on top*, … (`WhipPleas.phrases`),
+*pretty please*, *I beg you*, *with a cherry on top*, … plus the polite words the
+whole EU knows (*por favor 💃*, *per favore 🤌*, *bitte schön 🥨*, *s'il vous
+plaît 🥐*, *grazie mille 🍝* — added 2026-10-20) and British manners (*terribly
+sorry ☕*, *chop chop, old bean*, *lovely jubbly*) (`WhipPleas.phrases`),
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.3 s before it fades.

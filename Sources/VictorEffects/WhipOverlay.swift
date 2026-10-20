@@ -579,6 +579,16 @@ enum WhipPleas {
         "please", "pretty please", "kindly", "I beg you", "thank you!",
         "with a cherry on top", "if it's no trouble", "sorry!", "🙏 please",
         "would you mind?", "much obliged", "pleeease",
+        // The room is European: the polite words everyone knows, wherever they flew in from.
+        "por favor 💃", "per favore 🤌", "prego, prego!", "bitte schön 🥨",
+        "s'il vous plaît 🥐", "merci beaucoup 💋", "grazie mille 🍝",
+        "danke! 🍺", "gracias, amigo 🌮", "obrigado 🙏", "proszę 🥟",
+        "mulțumesc! 🍷", "pretty por favor", "bitte bitte bitte 🥺",
+        // ...and the British, who apologise while being whipped.
+        "terribly sorry ☕", "cheers, mate 🍻", "be a dear 🫖", "lovely jubbly",
+        "chop chop, old bean", "jolly good! 🎩", "awfully kind 💂",
+        "fancy a cuppa? ☕", "bloody brilliant", "pip pip! 🇬🇧",
+        "sorry, sorry, sorry", "with a biscuit on top 🍪",
     ]
     static let lifeMs = 1300.0
     static let riseDistance: CGFloat = 70
