@@ -123,18 +123,27 @@ final class WhipController {
     /// tip moved fastest — the lash. A scripted flick often ends without a
     /// snap, and by then the tip has swung back to the pointer, so the word is
     /// thrown from here rather than from wherever the tip happens to be.
-    private var pleaLash: (speed: Double, handle: CGPoint, tip: CGPoint)?
+    private var pleaLash: (speed: Double, handle: CGPoint, tip: CGPoint, heading: CGVector)?
     private var pleaBag = WhipPleas.Bag()
+    /// The handle's last `WhipPleas.headingWindowMs` of positions: where the
+    /// pointer was heading when the rope snapped, which is where the word goes.
+    private var handleTrail: [(ms: Double, at: CGPoint)] = []
+
+    private var heading: CGVector {
+        guard let first = handleTrail.first, let last = handleTrail.last else { return .zero }
+        return CGVector(dx: last.at.x - first.at.x, dy: last.at.y - first.at.y)
+    }
 
     private func throwPlea(now: Double) {
         pleaOwed = false
         let lash = pleaLash
         pleaLash = nil
         guard let view, let handle = physics?.points.first, let tip = physics?.points.last else { return }
-        let from = lash.map { ($0.handle, $0.tip) }
-            ?? (CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y))
+        let from = lash.map { ($0.handle, $0.tip, $0.heading) }
+            ?? (CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y), heading)
         view.pleas.append(WhipView.Plea(
-            text: pleaBag.next(), at: WhipPleas.launchPoint(handle: from.0, tip: from.1), bornMs: now))
+            text: pleaBag.next(), at: WhipPleas.launchPoint(handle: from.0, tip: from.1, heading: from.2),
+            bornMs: now))
     }
 
     var isShowing: Bool { panel != nil }
@@ -204,6 +213,7 @@ final class WhipController {
         flickQueue = []
         pleaOwed = false
         pleaLash = nil
+        handleTrail = []
         if wasShowing { onVisibilityChanged?(false) }
     }
 
@@ -256,6 +266,8 @@ final class WhipController {
         // imitate a fast mouse sweep; otherwise follow the real cursor.
         let m = flickQueue.isEmpty ? viewPoint(forGlobal: VisibleCursor.location) : flickQueue.removeFirst()
         physics.setMouse(Double(m.x), Double(m.y))
+        handleTrail.append((now, m))
+        handleTrail.removeAll { now - $0.ms > WhipPleas.headingWindowMs }
         let didCrack = physics.update(now: now)
         // Announce the natural crack — but not during a scripted flick, whose
         // own forceCrack already announced one (avoid doubling).
@@ -265,7 +277,7 @@ final class WhipController {
         if pleaOwed, let handle = physics.points.first, let tip = physics.points.last {
             let speed = ((tip.x - tip.px) * (tip.x - tip.px) + (tip.y - tip.py) * (tip.y - tip.py)).squareRoot()
             if speed > (pleaLash?.speed ?? -1) {
-                pleaLash = (speed, CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y))
+                pleaLash = (speed, CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y), heading)
             }
         }
         if pleaOwed && (didCrack || flickQueue.isEmpty) { throwPlea(now: now) }
@@ -580,12 +592,29 @@ enum WhipPleas {
     /// (2026-10-20: *"pop out a bit further away from where the mouse is"*).
     static let throwBeyondTip: CGFloat = 60
 
-    /// Where a plea appears: `throwBeyondTip` further along the line from the
-    /// handle (the pointer) through the tip. A tip that has curled back onto
-    /// the handle has no direction worth following, so the word goes up.
-    static func launchPoint(handle: CGPoint, tip: CGPoint) -> CGPoint {
+    /// The pointer's heading is read over this long before the lash.
+    static let headingWindowMs = 200.0
+    /// Less movement than this over the window is no heading at all.
+    static let minHeading: CGFloat = 15
+    /// The word never lands closer to the pointer than this plus `throwBeyondTip`.
+    static let minReach: CGFloat = 100
+
+    /// Where a plea appears: AHEAD of the pointer, the way it was moving when
+    /// the rope snapped, as far out as the tip was plus `throwBeyondTip`
+    /// (2026-10-20, Victor: *"if it was heading … west, then the kind word
+    /// should appear … towards the tip of that whip as it … cracked towards
+    /// the west"*). The line handle→tip alone was wrong on a flick: the tip
+    /// trails BEHIND a pointer swung west until the very end, so the word
+    /// flew east. Without a heading, the line from the handle through the tip
+    /// still decides; a tip curled back onto the handle sends it straight up.
+    static func launchPoint(handle: CGPoint, tip: CGPoint, heading: CGVector = .zero) -> CGPoint {
         let dx = tip.x - handle.x, dy = tip.y - handle.y
         let len = (dx * dx + dy * dy).squareRoot()
+        let hl = (heading.dx * heading.dx + heading.dy * heading.dy).squareRoot()
+        if hl >= minHeading {
+            let reach = max(len, minReach) + throwBeyondTip
+            return CGPoint(x: handle.x + heading.dx / hl * reach, y: handle.y + heading.dy / hl * reach)
+        }
         guard len > 20 else { return CGPoint(x: tip.x, y: tip.y - throwBeyondTip) }
         return CGPoint(x: tip.x + dx / len * throwBeyondTip, y: tip.y + dy / len * throwBeyondTip)
     }

@@ -92,10 +92,16 @@ my whip throw please statements … whenever where it cracks"*): *please*,
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.3 s before it fades.
-It appears **60 pt past the tip**, on the line from the handle through the tip
-(`WhipPleas.launchPoint`), so it flies off away from the pointer instead of
-sitting in the rope's own scribble; a tip curled back onto the handle sends it
-straight up. Drawn by `WhipView` itself, so it sits on the rope's
+It appears **ahead of the pointer, the way it was moving** when the rope
+snapped (2026-10-20, Victor: *"if it was heading … west, then the kind word
+should appear … towards the tip … as it cracked towards the west"*): the
+heading is the handle's travel over the last 200 ms (`headingWindowMs`, from
+`handleTrail`), and the word lands as far out along it as the tip was from the
+pointer (at least `minReach`, 100 pt) plus 60 pt (`throwBeyondTip`)
+(`WhipPleas.launchPoint`). The line from the handle through the tip alone, the
+first rule, threw it backwards on a flick — the tip trails behind a pointer
+swung west until the very end. With no heading (under 15 pt of travel) that
+line still decides; a tip curled back onto the handle sends it straight up. Drawn by `WhipView` itself, so it sits on the rope's
 panel and keeps its size under ⌥-scroll like the rope does, and clamped inside
 the screen so a crack at the bezel does not cut the word in half.
 

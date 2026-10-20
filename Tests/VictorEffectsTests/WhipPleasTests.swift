@@ -30,6 +30,21 @@ final class WhipPleasTests: XCTestCase {
         XCTAssertEqual(curled.y, 302 - WhipPleas.throwBeyondTip, accuracy: 0.001)
     }
 
+    /// Swung west, the word goes west of the pointer, as far out as the tip
+    /// was — even though the tip trails east of the handle at the lash.
+    func testLaunchPointFollowsThePointersHeadingNotTheTrailingTip() {
+        let handle = CGPoint(x: 500, y: 300), trailingTip = CGPoint(x: 700, y: 300)
+        let p = WhipPleas.launchPoint(handle: handle, tip: trailingTip, heading: CGVector(dx: -80, dy: 0))
+        XCTAssertEqual(p.x, 500 - 200 - WhipPleas.throwBeyondTip, accuracy: 0.001)
+        XCTAssertEqual(p.y, 300, accuracy: 0.001)
+        // Tip right on the pointer: still at least `minReach` out.
+        let near = WhipPleas.launchPoint(handle: handle, tip: handle, heading: CGVector(dx: 0, dy: 40))
+        XCTAssertEqual(near.y, 300 + WhipPleas.minReach + WhipPleas.throwBeyondTip, accuracy: 0.001)
+        // A pointer that barely moved has no heading: the tip line decides.
+        let still = WhipPleas.launchPoint(handle: handle, tip: trailingTip, heading: CGVector(dx: -5, dy: 0))
+        XCTAssertEqual(still.x, 700 + WhipPleas.throwBeyondTip, accuracy: 0.001)
+    }
+
     func testClampKeepsTheWordOnTheGlass() {
         let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let offRight = CGRect(x: 1480, y: -20, width: 120, height: 40)
