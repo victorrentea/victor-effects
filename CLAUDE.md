@@ -10,7 +10,7 @@ port.
 | zone | file | you want it for |
 |---|---|---|
 | the effect catalogue | `docs/overlay-effects.md` | what each `/effect/<name>` draws and how long it lives |
-| 🔥 whip | `docs/whip.md` | ⌃W (cycles 🔥 whip → 🙏 pray → 🫰 snap), the crack macro, the OpenWhip parity harness |
+| 🔥 whip | `docs/whip.md` | ⌃W (selected mode on/off), ⌃⇧W (next: 🔥 whip → 🙏 pray → 🫰 snap), the crack macro, the OpenWhip parity harness |
 | sound routing | `docs/sound-routing.md` | `soundsDir`, the manifest, Bluetooth compensation |
 | HTTP contract | `docs/http-api.md` | every route, the webhook, `tiles.json` |
 | thumbnail panel | `docs/thumbnail-panel.md` | the right-⌘ soundboard grid |
@@ -88,12 +88,12 @@ this one only routes.
   `EffectsRouter.dispatch(_:)`. Add a route there, not in the socket code.
   `dispatch` is **main-thread only** (it asserts it); the socket path wraps it in
   `DispatchQueue.main.sync`, the thumbnail panel calls it directly.
-- **One event tap, `EffectsHotkeyTap`.** ⌃W (swallowed; cycles the three modes), the Return/buttons-6-7
+- **One event tap, `EffectsHotkeyTap`.** ⌃W / ⌃⇧W (swallowed; toggle the selected mode / pick the next), the Return/buttons-6-7
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
-  failure to explain. Only ⌃W ever returns `nil`; everything else passes through.
+  failure to explain. Only ⌃W and ⌃⇧W ever return `nil`; everything else passes through.
 - **The ⭐ menu is not a second surface.** Nine rows: `✨ Effects` (Right ⌘),
-  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃W ×2), `🫰 Snap` (⌃W ×3), `✓/x BT Keepalive` (the Bluetooth
+  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃⇧W), `🫰 Snap` (⌃⇧W ×2), `✓/x BT Keepalive` (the Bluetooth
   keep-alive's switch — `docs/sound-routing.md`), `✓/x Subtitles` (soundboard
   captions AND video `.srt` lines, off by default — `docs/overlay-effects.md`), ⓘ Built <stamp> (opens the GitHub repo) and ⏻ Quit
   — plus ⚠️ Accessibility while that grant is missing. **No row carries a

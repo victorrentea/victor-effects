@@ -12,12 +12,12 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
     private let VK_KEYPAD_ENTER: CGKeyCode = 0x4C
     private let VK_A: CGKeyCode = 0x00
 
-    func testControlWCyclesTheModesAndIsSwallowed() {
+    func testControlWTogglesTheSelectedModeAndIsSwallowed() {
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl], whipShowing: false),
-                       .swallowCycleMode)
-        // Also while the whip is up: the next press is 🙏 pray, then 🫰 snap.
+                       .swallowToggleMode)
+        // Also while the whip is up: the same key puts it away.
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl], whipShowing: true),
-                       .swallowCycleMode)
+                       .swallowToggleMode)
     }
 
     func testCommandControlWIsLeftAlone() {
@@ -27,12 +27,23 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                        .pass)
     }
 
-    func testControlShiftWIsNobodysAgain() {
-        // ⌃⇧W toggled 🙏 pray for a day (2026-10-19); since ⌃W cycles through
-        // all three modes (2026-10-20) it goes back to the front app.
-        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: false), .pass)
+    func testControlShiftWPicksTheNextMode() {
+        // ⌃⇧W toggled 🙏 pray for a day (2026-10-19), was nobody's for another
+        // (2026-10-20, when ⌃W cycled), and steps whip → pray → snap since
+        // 2026-10-21. Still swallowed: it is ours now.
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: false),
+                       .swallowNextMode)
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift], whipShowing: true),
+                       .swallowNextMode)
+        // …but ⌘ on top still makes it somebody else's chord.
         XCTAssertEqual(Tap.decideKey(keyCode: VK_W, flags: [.maskControl, .maskShift, .maskCommand],
                                      whipShowing: false), .pass)
+    }
+
+    func testTheModesCycleWhipPraySnap() {
+        XCTAssertEqual(PointerMode.whip.next, .pray)
+        XCTAssertEqual(PointerMode.pray.next, .snap)
+        XCTAssertEqual(PointerMode.snap.next, .whip)
     }
 
     func testOtherModifiersOnWAreLeftAlone() {
@@ -52,10 +63,11 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
     func testACrackNeverSwallows() {
         // The Return that cracks the whip is usually also the Return submitting
         // the prompt being interrupted. `.crack` means "act AND pass through";
-        // only `.swallowCycleMode` eats an event.
+        // only the two `.swallow…Mode` decisions eat an event.
         for showing in [true, false] {
             let d = Tap.decideKey(keyCode: VK_RETURN, flags: [], whipShowing: showing)
-            XCTAssertNotEqual(d, .swallowCycleMode)
+            XCTAssertNotEqual(d, .swallowToggleMode)
+            XCTAssertNotEqual(d, .swallowNextMode)
         }
     }
 

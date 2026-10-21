@@ -44,10 +44,12 @@ final class EffectsHotkeyTap {
     /// What a key/button event means here. Pure, so the rules can be tested
     /// without an event tap, a permission grant or a window server.
     enum Decision: Equatable {
-        /// ⌃W — the next mode under the pointer (🔥 whip → 🙏 pray → 🫰 snap)
-        /// and **eat the key** (it must not reach the app underneath, where it
-        /// would delete a word).
-        case swallowCycleMode
+        /// ⌃W — the selected mode under the pointer on or off, and **eat the
+        /// key** (it must not reach the app underneath, where it would delete a
+        /// word).
+        case swallowToggleMode
+        /// ⌃⇧W — the next mode (🔥 whip → 🙏 pray → 🫰 snap), eaten as well.
+        case swallowNextMode
         /// Crack the whip, and let the event continue on its way.
         case crack
         /// Not ours.
@@ -56,10 +58,11 @@ final class EffectsHotkeyTap {
 
     /// The whole hotkey contract in one function.
     ///
-    /// - ⌃W with no other modifier → the next mode (whip, pray, snap), swallowed.
-    ///   ⌘⌃W is left alone on purpose: it belongs to a dictation app, and the
-    ///   `!hasCmd` clause is the only reason both can coexist. ⌃⇧W toggled 🙏
-    ///   pray for a day (2026-10-19) and is nobody's again since ⌃W cycles.
+    /// - ⌃W with no other modifier → the selected mode on/off, swallowed.
+    /// - ⌃⇧W → the next mode (whip, pray, snap), swallowed (2026-10-21; for a
+    ///   day, 2026-10-20, ⌃W cycled by itself and ⌃⇧W was nobody's).
+    ///   ⌘ on either is left alone on purpose: ⌘⌃W belongs to a dictation app,
+    ///   and the `!hasCmd` clause is the only reason both can coexist.
     /// - While the whip is up, Return / keypad Enter and mouse buttons 6/7 crack
     ///   it and still go through. Return especially: the key that cracks the
     ///   whip is usually also the key submitting the prompt.
@@ -69,8 +72,8 @@ final class EffectsHotkeyTap {
         let hasOpt = flags.contains(.maskAlternate)
         let hasShift = flags.contains(.maskShift)
 
-        if keyCode == VK_W && hasCtrl && !hasCmd && !hasOpt && !hasShift {
-            return .swallowCycleMode
+        if keyCode == VK_W && hasCtrl && !hasCmd && !hasOpt {
+            return hasShift ? .swallowNextMode : .swallowToggleMode
         }
         if whipShowing && (keyCode == VK_RETURN || keyCode == VK_KEYPAD_ENTER) {
             return .crack
@@ -166,7 +169,8 @@ final class EffectsHotkeyTap {
 
     // MARK: - Wiring
 
-    var onCycleMode: (() -> Void)?
+    var onToggleMode: (() -> Void)?
+    var onNextMode: (() -> Void)?
     var onCrack: (() -> Void)?
     var whipShowing: () -> Bool = { false }
 
@@ -227,7 +231,7 @@ final class EffectsHotkeyTap {
         }
         thread.name = "EffectsHotkeyTap"
         thread.start()
-        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, Return/buttons 6-7 crack, right ⌘ panel, right ⌘+⇧ videos)")
+        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, ⌃⇧W next mode, Return/buttons 6-7 crack, right ⌘ panel, right ⌘+⇧ videos)")
         return true
     }
 
@@ -284,8 +288,11 @@ final class EffectsHotkeyTap {
             }
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
             switch Self.decideKey(keyCode: keyCode, flags: event.flags, whipShowing: whipShowing()) {
-            case .swallowCycleMode:
-                DispatchQueue.main.async { [weak self] in self?.onCycleMode?() }
+            case .swallowToggleMode:
+                DispatchQueue.main.async { [weak self] in self?.onToggleMode?() }
+                return nil
+            case .swallowNextMode:
+                DispatchQueue.main.async { [weak self] in self?.onNextMode?() }
                 return nil
             case .crack:
                 DispatchQueue.main.async { [weak self] in self?.onCrack?() }

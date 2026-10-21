@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Oct 20, 16:50"
+    static let BUILD_TIME = "Oct 21, 12:57"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -42,9 +42,9 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// 🔥 Whip — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
     var onWhip: (() -> Void)?
-    /// 🙏 Pray — the whip's second mode (⌃W ×2), exclusive with it.
+    /// 🙏 Pray — the whip's second mode (⌃⇧W), exclusive with it.
     var onPray: (() -> Void)?
-    /// 🫰 Snap — the third (⌃W ×3).
+    /// 🫰 Snap — the third (⌃⇧W ×2).
     var onSnap: (() -> Void)?
     /// The ✅/⚪️/🚫 keep-alive row: what to draw, and what a click means.
     /// Asked at menu-open time (like `isBusy`) rather than pushed, so nothing
@@ -308,18 +308,19 @@ final class MenuBar: NSObject, NSMenuDelegate {
         giveHint("⌃W", to: whipItem)
 
         // 🙏 Pray and 🫰 Snap — the whip's other two modes, right under it:
-        // same reason for a row, same scheme for the hint. ⌃W cycles through
-        // all three (2026-10-20), so the hint says how many presses away each is.
+        // same reason for a row, same scheme for the hint. ⌃⇧W steps through
+        // all three (2026-10-21), so the hint says how many presses away each
+        // is from the whip; ⌃W then brings back whichever was picked last.
         let prayItem = NSMenuItem(title: "🙏 Pray", action: #selector(prayAction), keyEquivalent: "")
         prayItem.target = self
         prayItem.isEnabled = true
         menu.addItem(prayItem)
-        giveHint("⌃W ×2", to: prayItem)
+        giveHint("⌃⇧W", to: prayItem)
         let snapItem = NSMenuItem(title: "🫰 Snap", action: #selector(snapAction), keyEquivalent: "")
         snapItem.target = self
         snapItem.isEnabled = true
         menu.addItem(snapItem)
-        giveHint("⌃W ×3", to: snapItem)
+        giveHint("⌃⇧W ×2", to: snapItem)
 
         // ✓ BT Keepalive — the Bluetooth keep-alive's switch and its only
         // lamp. It belongs in *this* app (moved here with the effects split) for

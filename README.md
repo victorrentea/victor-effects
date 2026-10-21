@@ -63,7 +63,7 @@ open "/Applications/Victor Effects.app"
 ```
 
 An `fx` appears in the menu bar. Its menu: `✨ Effects` (Right ⌘), `🎦 Videos`
-(Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃W ×2), `🫰 Snap` (⌃W ×3), `✓ BT Keepalive` and `✓ Subtitles` (switches),
+(Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃⇧W), `🫰 Snap` (⌃⇧W ×2), `✓ BT Keepalive` and `✓ Subtitles` (switches),
 `ⓘ Built <timestamp>` (which binary is running; opens this repo) and `⏻ Quit`
 (⌘Q) — plus `⚠️ Grant Accessibility` while that grant is missing. The gestures
 are drawn as right-aligned **hints**, not as key equivalents, because `NSMenu`

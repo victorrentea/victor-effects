@@ -42,11 +42,11 @@ final class EffectsEngine {
     var whip: WhipController? { whipController }
     var whipIsShowing: Bool { whipController?.isShowing ?? false }
 
-    /// 🙏 Pray, the whip's second mode (⌃W ×2) — lazy for the same reason.
+    /// 🙏 Pray, the whip's second mode (⌃⇧W) — lazy for the same reason.
     private var prayController: PrayController?
     var prayIsShowing: Bool { prayController?.isShowing ?? false }
 
-    /// 🫰 Snap, the third (⌃W ×3) — lazy for the same reason.
+    /// 🫰 Snap, the third (⌃⇧W ×2) — lazy for the same reason.
     private var snapController: SnapController?
     var snapIsShowing: Bool { snapController?.isShowing ?? false }
 
@@ -477,19 +477,37 @@ final class EffectsEngine {
 
     // MARK: - Whip
 
-    /// ⌃W walks the three modes under the pointer — 🔥 whip → 🙏 pray → 🫰 snap
-    /// → 🔥 whip … — and Esc is the way out of whichever is up (2026-10-20,
-    /// Victor: *"let only Control W pressed repeatedly cycle through all three
-    /// and then escape … abort any chosen one"*). One key for all three, so
-    /// ⌃⇧W went back to being nobody's. The whip's show edge never types — the
-    /// Ctrl+C + scold macro only fires on a click while it is up.
-    func cycleMode() {
-        if whipIsShowing {
-            togglePray()
-        } else if prayIsShowing {
-            toggleSnap()
+    /// ⌃W: the selected mode on or off (`PointerMode`, 2026-10-21). Whatever
+    /// mode is up — even one the menu put there — goes away; with nothing up,
+    /// the remembered selection comes back. The whip's show edge never types —
+    /// the Ctrl+C + scold macro only fires on a click while it is up.
+    func toggleSelectedMode() {
+        if showingMode != nil {
+            hideModes()
         } else {
-            toggleWhip()
+            show(PointerModeStore.selected)
+        }
+    }
+
+    /// ⌃⇧W: the next mode — after the one on screen, or after the selection
+    /// when nothing is — shown at once, so the switch is seen, and remembered.
+    func nextMode() {
+        show((showingMode ?? PointerModeStore.selected).next)
+    }
+
+    private var showingMode: PointerMode? {
+        if whipIsShowing { return .whip }
+        if prayIsShowing { return .pray }
+        if snapIsShowing { return .snap }
+        return nil
+    }
+
+    private func show(_ mode: PointerMode) {
+        guard showingMode != mode else { return }
+        switch mode {
+        case .whip: toggleWhip()
+        case .pray: togglePray()
+        case .snap: toggleSnap()
         }
     }
 
@@ -501,13 +519,14 @@ final class EffectsEngine {
     }
 
     /// The whip on or off — the menu row and `/effect/whip`; ⌃W goes through
-    /// `cycleMode`.
+    /// `toggleSelectedMode`. Showing any mode makes it the selection.
     func toggleWhip() {
         if let controller = whipController, controller.isShowing {
             controller.hide()
             return
         }
         hideModes()
+        PointerModeStore.selected = .whip
         let controller = whipController ?? WhipController()
         whipController = controller
         controller.onEscape = { [weak self] in self?.whipController?.hide() }
@@ -521,7 +540,7 @@ final class EffectsEngine {
         controller.show()
     }
 
-    /// ⌃W ×2: the praying man in the whip's place, a hymn on each click
+    /// 🙏 The praying man in the whip's place, a hymn on each click
     /// (`PrayOverlay.swift`). A toggle, exclusive with the other two.
     func togglePray() {
         if let controller = prayController, controller.isShowing {
@@ -529,13 +548,14 @@ final class EffectsEngine {
             return
         }
         hideModes()
+        PointerModeStore.selected = .pray
         let controller = prayController ?? PrayController()
         prayController = controller
         controller.onEscape = { [weak self] in self?.prayController?.hide() }
         controller.show()
     }
 
-    /// ⌃W ×3: a hand snapping its fingers on each click (`SnapOverlay.swift`).
+    /// 🫰 A hand snapping its fingers on each click (`SnapOverlay.swift`).
     /// A toggle, exclusive with the other two.
     func toggleSnap() {
         if let controller = snapController, controller.isShowing {
@@ -543,6 +563,7 @@ final class EffectsEngine {
             return
         }
         hideModes()
+        PointerModeStore.selected = .snap
         let controller = snapController ?? SnapController()
         snapController = controller
         controller.onEscape = { [weak self] in self?.snapController?.hide() }

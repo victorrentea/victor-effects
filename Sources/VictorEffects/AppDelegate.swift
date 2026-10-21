@@ -107,7 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tap = EffectsHotkeyTap()
         hotkeyTap = tap
         tap.whipShowing = { [weak self] in self?.engine.whipIsShowing ?? false }
-        tap.onCycleMode = { [weak self] in self?.engine.cycleMode() }
+        tap.onToggleMode = { [weak self] in self?.engine.toggleSelectedMode() }
+        tap.onNextMode = { [weak self] in self?.engine.nextMode() }
         tap.onCrack = { [weak self] in self?.engine.whip?.forceCrack() }
         // The panel is a listener on this tap, never an owner: `onRightCommand`
         // fires on the way past and the event continues to the front app.

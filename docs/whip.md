@@ -27,18 +27,26 @@ longer sets `isFloatingPanel`; `WhipPanelLevelTests` checks the level.
 
 ## Turning it on
 
-**⌃W** shows it, globally, **swallowed** — the key does not reach the app
-underneath. **Pressed again, ⌃W moves on to the next mode**: 🔥 whip → 🙏 pray →
-🫰 snap → 🔥 whip … (`EffectsEngine.cycleMode`, 2026-10-20, Victor: *"let only
-Control W pressed repeatedly cycle through all three and then escape … abort any
-chosen one"*). **Esc is the way out** of whichever is up; ⌃W never turns them off. That is the only rule in `EffectsHotkeyTap` that returns `nil`, and
-the only reason the tap needs **Accessibility** rather than Input Monitoring.
+**⌃W** shows the *selected* mode, globally, **swallowed** — the key does not
+reach the app underneath — and **⌃W again puts it away**. **⌃⇧W picks the next
+mode**: 🔥 whip → 🙏 pray → 🫰 snap → 🔥 whip …, shown at once so the switch is
+seen (2026-10-21, Victor: *"Control Shift W should change the way of the whip.
+Control W should toggle it on or off, and it should remember the selection"*;
+for one day before that, ⌃W alone cycled and only Esc got out). The selection is
+`PointerModeStore.selected` in `UserDefaults`, so it survives the restarts of a
+course day, and it is simply **whatever was shown last** — by ⌃⇧W, a menu row
+or `/effect/<name>` — so ⌃W always brings back the mode last seen
+(`EffectsEngine.toggleSelectedMode` / `nextMode`). **Esc** still dismisses
+whichever is up. These two are the only rules in `EffectsHotkeyTap` that return
+`nil`, and the only reason the tap needs **Accessibility** rather than Input
+Monitoring.
 
 The consequence is deliberate and worth knowing: **⌃W stops deleting the word
 backwards** in terminals and editors for as long as this app runs.
 
 **⌘⌃W is not bound** and never will be. The rule is
-`hasCtrl && !hasCmd && !hasOpt && !hasShift` (`EffectsHotkeyTap.decideKey`), and
+`hasCtrl && !hasCmd && !hasOpt` (`EffectsHotkeyTap.decideKey`, ⇧ choosing
+between toggle and next), and
 the `!hasCmd` clause is there so a dictation app that owns ⌘⌃W for "paste
 transcript" keeps it. Both can run at once only because of that one clause.
 
@@ -272,18 +280,17 @@ input sequence and writes `Tests/VictorEffectsTests/Resources/whip_golden.json`.
 on the same node positions. Change a constant in `P` and that test tells you the
 rope is no longer OpenWhip's.
 
-## 🙏 Pray — the second mode (⌃W ×2)
+## 🙏 Pray — the second mode (⌃⇧W)
 
 **A praying man in the whip's place** (2026-10-19, Victor: *"another feature
 called pray instead of whip … exclusive to the whip mode … appearing instead of
 the whip. And I click to play some short clip of a religious hymn"*).
-`PrayOverlay.swift`; reached by **⌃W** pressed while the whip is up (it was ⌃⇧W
-of its own from 2026-10-19 until ⌃W started cycling, 2026-10-20 — ⌃⇧W is
-nobody's again), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (`/effect/pray/sing` is the click, for checking it headless).
+`PrayOverlay.swift`; reached by **⌃⇧W** from the whip (the next mode; ⌃W then
+brings him back until another is picked), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (`/effect/pray/sing` is the click, for checking it headless).
 
 - **Exclusive.** Every `EffectsEngine.toggle…` (whip, pray, snap) puts the other
   two away first (`hideModes`) — one mode under the pointer at a time. Esc, the
-  menu row and stop-all take him down; ⌃W moves on to 🫰 snap.
+  ⌃W, the menu row and stop-all take him down; ⌃⇧W moves on to 🫰 snap.
 - **His hands follow the pointer**, only them (2026-10-20, Victor: *"instead
   of the man praying just … his two hands"*), eased (`PrayController.follow`,
   0.35 a frame) so they drift after it, centred on it, breathing ±2%. They are
@@ -342,11 +349,11 @@ nobody's again), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pra
 - Counts as running for the 🛑 (`prayIsShowing`), and `GET /state` reports
   `prayShowing`.
 
-## 🫰 Snap — the third mode (⌃W ×3)
+## 🫰 Snap — the third mode (⌃⇧W ×2)
 
 **The pointer becomes a hand that snaps its fingers** (2026-10-20, Victor:
 *"another way to whip … a snap of the fingers … an animated transparent GIF …
-on click it actually snaps"*). `SnapOverlay.swift`; reached by ⌃W pressed while
+on click it actually snaps"*). `SnapOverlay.swift`; reached by ⌃⇧W pressed while
 🙏 pray is up, the `🫰 Snap` menu row, or `GET /effect/snap` (`/effect/snap/click`
 is the click).
 

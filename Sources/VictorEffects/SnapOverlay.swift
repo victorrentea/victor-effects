@@ -13,7 +13,7 @@ import ImageIO
 ///     black, then white, then lands with the finger down on the palm), a snap
 ///     is heard, a few short lines fly off the fingertips — and the hand is
 ///     back to ready. Clicking again mid-snap starts it over. Nothing is typed,
-///   • Esc, the menu row or stop-all dismisses it; ⌃W moves on to the whip.
+///   • Esc, ⌃W, the menu row or stop-all dismisses it; ⌃⇧W moves on to the whip.
 ///
 /// The same window and geometry as the whip and 🙏 pray — `WhipPanel`,
 /// `ZoomedPanel` every frame — so it keeps its size under ⌥-scroll.
