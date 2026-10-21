@@ -105,7 +105,8 @@ plaît 🥐*, *grazie mille 🍝* — added 2026-10-20) and British manners (*te
 sorry ☕*, *chop chop, old bean*, *lovely jubbly*) (`WhipPleas.phrases`),
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
-2026-10-20), popping to 115% and floating 70 pt up over 1.3 s before it fades.
+2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,
+Victor: *"stay for fifty percent more time"*).
 It appears **ahead of the pointer, the way it was moving** when the rope
 snapped (2026-10-20, Victor: *"if it was heading … west, then the kind word
 should appear … towards the tip … as it cracked towards the west"*): the
@@ -128,9 +129,15 @@ the screen so a crack at the bezel does not cut the word in half.
   the word in the wrong place.
 - **A shuffle-bag, not `random()`** (`WhipPleas.Bag`): every word once per round,
   never the same one twice in a row, even across the refill (`WhipPleasTests`).
-- Each word dies on its own clock (`lifeMs`, pruned in `tick`), and `hide()`
-  takes them down with the view. Not behind ✓ Subtitles — it is part of the
-  whip, like the sparks on a hit.
+- Each word dies on its own clock (`lifeMs`, pruned in `tick`) — **even after
+  the whip is put away** (2026-10-21, Victor: *"if I cancel the whip, the label
+  should still be there for people to have fun"*). `hide()` takes the rope,
+  the hidden cursor and the click-catching down at once, but leaves the panel
+  up with `ignoresMouseEvents` until its last word is gone; a whip shown again
+  on the same screen carries the words still flying onto its new panel. Only
+  🛑 stop-all (`hide(keepingPleas: false)`) clears them on the spot.
+  `isShowing` means the ROPE (`physics != nil`), not the panel. Not behind
+  ✓ Subtitles — it is part of the whip, like the sparks on a hit.
 - The *typed* phrases of a click (`WhipMacro.phrases`, "FASTER CLANKER") are a
   different gesture and still scold — the room sees manners, the agent does not.
 

@@ -468,8 +468,8 @@ final class EffectsEngine {
         animator.stopAllActiveEffects()
         progressBar.cancel()
         // The whip is an overlay like any other: "silence everything" takes it
-        // down too.
-        whipController?.hide()
+        // down too — and, unlike ⌃W, the words it already threw.
+        whipController?.hide(keepingPleas: false)
         prayController?.hide()
         snapController?.hide()
         CaptionOverlay.hide()

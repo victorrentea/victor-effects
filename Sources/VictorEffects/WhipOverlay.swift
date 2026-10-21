@@ -146,7 +146,9 @@ final class WhipController {
             bornMs: now))
     }
 
-    var isShowing: Bool { panel != nil }
+    /// The ROPE is up. The panel can outlive it for a moment: the words
+    /// already thrown finish their flight on it after `hide()`.
+    var isShowing: Bool { physics != nil }
 
     /// Monotonic milliseconds for deterministic-style timing (grace/cooldown).
     private func nowMs() -> Double { ProcessInfo.processInfo.systemUptime * 1000.0 }
@@ -158,14 +160,19 @@ final class WhipController {
     /// non-activating, so showing it never steals focus and there is no app to
     /// re-activate (and no stale menu-open snapshot to chase).
     func show() {
-        guard panel == nil else { return }
+        guard !isShowing else { return }
 
         let screen = screenUnderMouse()
+        // Words still flying from the last whip keep flying on the new panel —
+        // on the same screen; elsewhere they would jump, so they go.
+        let carried = self.screen == screen ? view?.pleas ?? [] : []
+        tearDownPanel()
         self.screen = screen
         screenFrame = screen.frame
 
         let p = WhipPanel(screenFrame: screenFrame)
         let v = WhipView(frame: NSRect(origin: .zero, size: screenFrame.size))
+        v.pleas = carried
         v.onMouseDown = { [weak self] in self?.handleClick() }
         p.contentView = v
         // Before the first pointer read: the spawn below converts the pointer
@@ -197,24 +204,39 @@ final class WhipController {
         onVisibilityChanged?(true)
     }
 
-    func hide() {
-        let wasShowing = panel != nil
-        displayTimer?.invalidate()
-        displayTimer = nil
+    /// Takes the rope down. The words it already threw stay up to the end of
+    /// their own clock (2026-10-21, Victor: *"if I cancel the whip, the label
+    /// should still be there for people to have fun"*), on a panel that no
+    /// longer catches clicks; `tick` takes the panel away with the last one.
+    /// `keepingPleas: false` is the emergency stop's — 🛑 clears them too.
+    func hide(keepingPleas: Bool = true) {
+        let wasShowing = isShowing
         removeEscMonitors()
         BluetoothOutput.stopContinuousWarm()
         cursorHide?.release()
         cursorHide = nil
-        panel?.orderOut(nil)
-        panel = nil
-        view = nil
         physics = nil
-        screen = nil
         flickQueue = []
         pleaOwed = false
         pleaLash = nil
         handleTrail = []
+        if keepingPleas, let panel, let view, !view.pleas.isEmpty {
+            panel.ignoresMouseEvents = true
+            view.points = []
+            view.needsDisplay = true
+        } else {
+            tearDownPanel()
+        }
         if wasShowing { onVisibilityChanged?(false) }
+    }
+
+    private func tearDownPanel() {
+        displayTimer?.invalidate()
+        displayTimer = nil
+        panel?.orderOut(nil)
+        panel = nil
+        view = nil
+        screen = nil
     }
 
     /// Crack the whip programmatically — driven by the Enter-button (or Return
@@ -258,10 +280,18 @@ final class WhipController {
     }
 
     @objc private func tick() {
-        guard let physics, let view else { return }
+        guard let view else { return }
         if let panel { placeForZoom(panel) }
-        cursorHide?.reassertNearEdge(pointer: VisibleCursor.location, screen: screenFrame)
         let now = nowMs()
+        guard let physics else {
+            // The rope is down; only its last words are still flying.
+            view.pleas.removeAll { now - $0.bornMs > WhipPleas.lifeMs }
+            if view.pleas.isEmpty { tearDownPanel(); return }
+            view.nowMs = now
+            view.needsDisplay = true
+            return
+        }
+        cursorHide?.reassertNearEdge(pointer: VisibleCursor.location, screen: screenFrame)
         // A scripted flick (forceCrack) drives the handle for a few frames to
         // imitate a fast mouse sweep; otherwise follow the real cursor.
         let m = flickQueue.isEmpty ? viewPoint(forGlobal: VisibleCursor.location) : flickQueue.removeFirst()
@@ -476,6 +506,11 @@ private final class WhipView: NSView {
     private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
 
     override func draw(_ dirtyRect: NSRect) {
+        drawRope()
+        for plea in pleas { drawPlea(plea) }
+    }
+
+    private func drawRope() {
         guard points.count >= 2 else { return }
 
         // ── White halo: thin over the whole spline, extra-thick over handle links.
@@ -522,8 +557,6 @@ private final class WhipView: NSView {
             seg.curve(to: s.end, controlPoint1: s.cp1, controlPoint2: s.cp2)
             seg.stroke()
         }
-
-        for plea in pleas { drawPlea(plea) }
     }
 
     /// Pops out of the snap point, floats up and fades: a quick overshoot to
@@ -590,7 +623,9 @@ enum WhipPleas {
         "fancy a cuppa? ☕", "bloody brilliant", "pip pip! 🇬🇧",
         "sorry, sorry, sorry", "with a biscuit on top 🍪",
     ]
-    static let lifeMs = 1300.0
+    /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
+    /// time"*) — the room needs the time to read *chop chop, old bean*.
+    static let lifeMs = 1950.0
     static let riseDistance: CGFloat = 70
     /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).
     static let fontSize: CGFloat = 41
