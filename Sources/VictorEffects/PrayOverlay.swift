@@ -53,8 +53,13 @@ final class PrayController {
 
     /// The hymn rides the tablet's volume wedge like the whip's crack, a bit
     /// under it: it is a punchline, not a concert. A long take of the Ave
-    /// Maria (`assetsDir`), so a few clicks in a row only ever stretch it;
-    /// without it the old 9.5 s cut, which then simply ends early.
+    /// Maria, so a few clicks in a row only ever stretch it. First choice is
+    /// the very recording the tablet's `09_ave_maria.mp3` was cut from
+    /// (2026-10-21, Victor: *"find exactly that melody"*), a drop-in, as it may
+    /// not be published; then the shipped CC BY take — the same Schubert, but
+    /// another singer, and the room hears the difference; then the old 9.5 s
+    /// cut, which simply ends early.
+    static let tabletHymn = "pray-hymn-tablet.mp3"
     static let hymn = "pray-hymn-long.mp3"
     static let shortHymn = "pray-hymn.mp3"
     static let hymnVolumeFactor: Float = 0.8
@@ -187,7 +192,8 @@ final class PrayController {
         hymnPlayer = nil
         hymnFading = false
         let sounds = SoundManager.shared
-        guard let url = sounds.soundURL(for: Self.hymn) ?? sounds.soundURL(for: Self.shortHymn) else {
+        guard let url = sounds.soundURL(for: Self.tabletHymn) ?? sounds.soundURL(for: Self.hymn)
+                ?? sounds.soundURL(for: Self.shortHymn) else {
             effectsInfo("🙏 \(Self.hymn) not in assetsDir — the light falls in silence")
             return
         }

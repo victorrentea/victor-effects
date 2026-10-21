@@ -308,9 +308,18 @@ nobody's again), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pra
   2026-10-20), and he is gone. Rays and glows are all drawn before any man.
   Planted men are kept in view points, so under the zoom they stay on the
   desktop spot they were planted on, like a window would.
-- **One Ave Maria for all of them.** The first click starts
-  `pray-hymn-long.mp3` (47 s, shipped, `Resources/CREDITS.md`) at the tablet's
-  level × 0.8; a click while it sings does not restart it or add a voice, it
+- **One Ave Maria for all of them.** The first click starts the hymn at the
+  tablet's level × 0.8 — `pray-hymn-tablet.mp3` when `assetsDir` has it, else
+  the shipped `pray-hymn-long.mp3` (47 s, `Resources/CREDITS.md`).
+  **They are the same Schubert and still not the same song to the room**
+  (2026-10-21, Victor: *"it's another melody … find exactly the one the tablet
+  snippet was cut from"*): the shipped take is Dorothea Fayne, the tablet's
+  `09_ave_maria.mp3` is Barbara Bonney & Geoffrey Parsons (Warner, 1994) from
+  16.57 s of the track. Shazam named it, a waveform cross-correlation placed
+  it (0.6–0.9 per second), and `pray-hymn-tablet.mp3` is 47 s of that
+  recording from that very point, at the tablet clip's loudness. Commercial,
+  so a drop-in, in the private copyright ledger; it has its own name because
+  the guard fails on a tracked file that shares a name with a ledger entry; a click while it sings does not restart it or add a voice, it
   only pushes its end out to that man's end — and takes back a fade already
   under way (0.3 s back up). It fades to silence over `hymnFadeMs` (1.2 s)
   ending exactly as the last man goes. Its own `AVAudioPlayer` in
