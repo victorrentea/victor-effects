@@ -385,7 +385,7 @@ final class ThumbnailPanelCursorTests: XCTestCase {
     /// own menu-bar icon — the same string `MenuBar.fxIcon` draws, read out of
     /// `MenuBar.swift` so a new icon there cannot leave the tiles behind.
     func testTheFxBadgeIsTheMenuBarIcon() throws {
-        XCTAssertEqual(TileView.fxHeightRatio, 0.12, accuracy: 0.001)
+        XCTAssertEqual(TileView.fxHeightRatio, 0.144, accuracy: 0.001)
         XCTAssertEqual(TileView.fxMarginRatio, 0.05, accuracy: 0.001)
         let menuBar = try code("Sources/VictorEffects/MenuBar.swift")
         XCTAssertTrue(menuBar.contains("idleIcon = \"\(TileView.fxMark)\""),
