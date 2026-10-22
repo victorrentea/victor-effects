@@ -40,8 +40,8 @@ this one only routes.
   (`SKIP_TESTS=1 ./build-app.sh` forces it, for a hotfix mid-workshop). A
   convention held together by string keys is only protected by a test that
   actually runs, and the deploy is the moment the drift would reach the room.
-- **⭐ = "this tile also animates the desktop", and it is a promise, not a
-  label.** One function answers it — `EffectsCatalog.effectName(forAsset:)` —
+- **The FX badge (𝓯𝔁 top-right on a tile, the ⭐ until 2026-10-22) = "this
+  tile also animates the desktop", and it is a promise, not a label.** One function answers it — `EffectsCatalog.effectName(forAsset:)` —
   and `/effects/assets`, `effectsHash` and the `effect` field `GET /tiles` stamps
   on each tile are all views of that one answer. The tablet keeps no list: it
   reads `effect` off the `/tiles` rows it already draws the grid from and

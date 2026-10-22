@@ -114,11 +114,13 @@ It unions the two places a sound can acquire a visual, plus the siren:
 | `SoundEffectMap.playPathVisuals` | the cue sits at a fixed offset INSIDE the clip, so `EffectsEngine.playSound` owns audio and visual together; mapping the press too would double-trigger | `53_rain.mp3` → `money` (`61_dinner.mp3` → `microwave` until 2026-09-25) |
 | `SoundboardPress.sirenAsset` | a toggled overlay via `/alarm/*`, not a self-terminating effect, so it is in neither table | `02_siren.mp3` → `alarm` |
 
-**The ⭐ badge is a promise, not a label**, and the tablet keeps no list of its
+**The badge is a promise, not a label** — an FX mark (this app's menu-bar 𝓯𝔁)
+in the tile's top-right corner on the tablet and on the panel since 2026-10-22,
+a ⭐ before that, which is where this section's name comes from. The tablet keeps no list of its
 own: it reads the `effect` field off the `/tiles` rows it already draws the grid
 from, caches the set together with the hash that produced it, and re-fetches only
 when `effectsHash` moves in a `/ping`. Adding a desktop effect therefore makes
-the star appear with no tablet redeploy.
+the badge appear with no tablet redeploy.
 
 Two test files hold this together, and both are guards rather than copies:
 

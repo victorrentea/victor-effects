@@ -283,19 +283,20 @@ on a layer, versus a redraw loop in a drawing method:
 - **layer B in the bottom-left corner** — see *Layer B: the folded corner* below
   (the `↻` restart badge had that corner until 2026-10-08 and went, as on the
   tablet);
-- **⭐ top-right when the tile also animates the desktop** — the tablet's badge,
-  reproduced: the solid `★` glyph (not the emoji, which arrives as a colour
-  sprite with its own metrics), amber `#FFC400` so it is the only non-white,
-  non-green mark on a tile, a black shadow so it survives a bright thumbnail,
-  right-aligned against a 5 % margin and set at 22 % of the tile — `starSizeRatio`
-  / `starMarginRatio`, the tablet's own `w * 0.22f` and `width * 0.05f`. The
+- **FX top-right when the tile also animates the desktop** (the ⭐ until
+  2026-10-22) — the tablet's badge, reproduced: this app's menu-bar 𝓯𝔁 as an
+  outline, white with a black outline and shadow so it reads clean on any
+  thumbnail, right-aligned against a 5 % margin and 12 % of the tile tall
+  (24 % for its first hours — it fought the picture) — `fxHeightRatio` /
+  `fxMarginRatio` / `fxOutlineRatio`, pinned to the tablet's `FxMark`. The
   corner was the last free one (`#NN` top-left, `↻` bottom-left, the usage dots
   bottom-right on the tablet). **The set is `EffectsCatalog.effectName(forAsset:)`
   answering in process** — the same call `GET /tiles` stamps the tablet's rows
-  with, so the two boards cannot star different tiles. There is no second list
+  with, so the two boards cannot badge different tiles. There is no second list
   here and no HTTP hop to our own port. Until this existed the panel was the one
-  surface drawing the board without the star: same grid, same `tiles.json`, a
-  star on one screen and not on the other;
+  surface drawing the board without the badge: same grid, same `tiles.json`, a
+  badge on one screen and not on the other. `ThumbnailPanelCursorTests` reads
+  `MenuBar.swift` and fails if the menu-bar icon and `TileView.fxMark` part ways;
 - **playing** = a red border whose opacity pulses, `playingBorderWidth` thick;
 - **hover** = the **gutter around the cell filled bright green** (`#39FF14`), and
   **the picture does not move**. The mark reaches one `gap` outwards
@@ -396,29 +397,42 @@ anything.
 
 A tile with an `"under"` row in `tiles.json` (the tablet's layer B — `81b` under
 #81) draws the under tile's picture **folded back into its bottom-left corner**,
-exactly as the tablet does: the bottom-left 2/3 × 2/3 square, clipped to the
-triangle below its diagonal, a soft black shadow and a white crease along the
-fold. **Clicking inside that triangle plays the tile underneath; clicking
-anywhere else on the tile plays the tile itself.** No key, no hold: the tablet
-needs a held finger because a finger has no hover, a mouse does.
+exactly as the tablet does: the bottom-left **0.76 × 0.76** square (2/3 × 2/3
+until 2026-10-22, when the corner got 30 % more area so a plain tap on the
+tablet could reach it), clipped to the triangle below its diagonal, a soft black
+shadow and a white crease along the fold. **Clicking clearly inside that
+triangle plays the tile underneath; clicking clearly outside it plays the tile
+itself; clicking within `peekDeadBandRatio` (0.12 of the tile) of the crease,
+measured across it, plays NOTHING.** No key, no hold: the tablet needs a held
+finger for its second way in because a finger has no hover; a mouse does.
 
-- The hit area is `TileView.isInPeek` (pure, `LayerBTests`) — the same triangle
-  that is drawn, edge included. Decided on mouse-**up**, like every press here.
-- Hovering the corner lights the **crease** green (3× thicker), pressing it red —
-  the gutter's two colours, on the fold — so the hand sees which of the two tiles
-  a click will press before it clicks. The gutter still lights as for any hover.
+- The hit area is `TileView.peekHit` → `.under` / `.top` / `.none` (pure,
+  `LayerBTests`) — the same triangle that is drawn, minus the band along the
+  fold. The band exists for the tablet's fingertip (~2 mm of glass there, the
+  scatter of repeated taps); a mouse would not need it, but one geometry for
+  both boards means a hand that learnt the corner on one finds it on the other.
+- Decided on mouse-**up**, like every press here, and only if the button went
+  **down in the same zone** (`target(of:down:up:side:)`): a press that crosses
+  the crease, or lands on it, presses nothing and logs `panel: click on #N too
+  close to the fold → nothing`.
+- Hovering the corner (clearly inside, not on the band) lights the **crease**
+  green (3× thicker), pressing it red — the gutter's two colours, on the fold —
+  so the hand sees which of the two tiles a click will press before it clicks.
+  The gutter still lights as for any hover.
 - A playing B sound pulses its **host's** red border: the panel has no other place
   that draws B. Re-clicking the corner stops it, as a re-tap does on the tablet.
 - `/press/81b` (and `/test/thumbnail-panel/press/81b`) presses it without a click.
 - The right ⌘ / right ⇧ gestures are untouched: ⌘ held = soundboard, ⇧ added =
   videos.
 - **Anti-drift.** What is under what can't drift: both boards read the same
-  `tiles.json`. The *drawing* could, so the fold's numbers are constants on
-  `TileView` (`peekSideRatio`, `peekShadowRatio`, `peekCreaseRatio`) and two tests
-  pin them to the tablet's `drawPeek`: `LayerBTests.testTheFoldIsTheTabletsFold`
-  here (reads the Kotlin) and `LayerBPeekParityTest` in victor-vibe-board (reads
-  this Swift). Change the corner on one side and the other's build goes red. Both
-  skip when the sibling checkout is missing.
+  `tiles.json`. The *geometry* could, so the corner's numbers are constants on
+  `TileView` (`peekSideRatio`, `peekShadowRatio`, `peekCreaseRatio`,
+  `peekDeadBandRatio`) and two tests pin them to the tablet's `LayerBPeek`:
+  `LayerBTests.testTheFoldIsTheTabletsFold` here (reads the Kotlin) and
+  `LayerBPeekParityTest` in victor-vibe-board (reads this Swift). The FX badge's
+  ratios are pinned the same way (`testTheFxBadgeIsTheTabletsBadge` /
+  `FxMarkParityTest`). Change one side and the other's build goes red. Both skip
+  when the sibling checkout is missing.
 
 ## 🎬 The video page
 
@@ -472,7 +486,7 @@ Mirrored from `MainActivity.renderVideoTiles`, not invented:
 | `padding` / `gap` | 10 / 6 | the same — they are one decision |
 | `#NN` | white bold at 10% of the tile | white bold at 10% of the **sound** tile |
 | label | optional word, centred | **the title**, centred across the picture, at 20% of the tile |
-| ⭐ | top-right when the asset animates the desktop | — (videos are not in the catalogue) |
+| FX badge | top-right when the asset animates the desktop | — (videos are not in the catalogue) |
 | hover / press | green / red fill of the surrounding gutter, out to the neighbours or to the rim of the board — the same mark on both pages, and neither moves the picture ||
 
 - **The badge is scaled off the soundboard tile, never off the video tile it is

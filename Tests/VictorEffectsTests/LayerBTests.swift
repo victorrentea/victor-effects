@@ -26,63 +26,99 @@ final class LayerBTests: XCTestCase {
         XCTAssertNil(try XCTUnwrap(TilesManifest.parse(Data(json.utf8))).tiles[0].under)
     }
 
-    // MARK: - The corner is the triangle under the fold
+    // MARK: - The corner is the triangle under the fold, minus a band along it
 
-    func testTheCornerIsTheTriangleBelowTheFold() {
-        let side: CGFloat = 90                       // fold from (0,60) to (60,0)
-        XCTAssertTrue(TileView.isInPeek(NSPoint(x: 5, y: 5), side: side))
-        XCTAssertTrue(TileView.isInPeek(NSPoint(x: 30, y: 30), side: side))   // on the fold
-        XCTAssertFalse(TileView.isInPeek(NSPoint(x: 31, y: 31), side: side))
-        XCTAssertFalse(TileView.isInPeek(NSPoint(x: 80, y: 80), side: side))
-        XCTAssertFalse(TileView.isInPeek(NSPoint(x: 5, y: 70), side: side))   // top-left = #NN, layer A
+    // side 100: the fold runs from (0,76) to (76,0) — x + y = 76 — and the dead
+    // band reaches 12 pt either side of it, measured across the fold.
+
+    func testDeepInTheCornerIsTheTileUnderneath() {
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 8, y: 8), side: 100), .under)
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 2, y: 40), side: 100), .under)    // up the left edge
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 40, y: 2), side: 100), .under)    // along the bottom
+    }
+
+    func testTheRestOfTheTileIsTheTileItself() {
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 50, y: 50), side: 100), .top)     // centre, the label
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 5, y: 95), side: 100), .top)      // top-left, #NN
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 95, y: 5), side: 100), .top)      // bottom-right
+    }
+
+    func testOnTheCreaseNothingPlays() {
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 38, y: 38), side: 100), .none)    // on the fold
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 32, y: 32), side: 100), .none)    // a little inside
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: 44, y: 44), side: 100), .none)    // a little outside
+        let edge = (76 - 12 * 2.0.squareRoot()) / 2                                  // d exactly 12 inside
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: edge - 0.3, y: edge - 0.3), side: 100), .under)
+        XCTAssertEqual(TileView.peekHit(NSPoint(x: edge + 0.3, y: edge + 0.3), side: 100), .none)
     }
 
     func testAClickOnTheCornerPressesTheTileUnderneath() throws {
         let host = try XCTUnwrap(TilesManifest.parse(Data(sample.utf8))).tiles[0]
-        XCTAssertEqual(TileView.target(of: host, at: NSPoint(x: 5, y: 5), side: 90).asset, "81b_let_go.mp3")
-        XCTAssertEqual(TileView.target(of: host, at: NSPoint(x: 70, y: 70), side: 90).asset, "81_let_it_be.mp3")
+        XCTAssertEqual(TileView.target(of: host, at: NSPoint(x: 5, y: 5), side: 90)?.asset, "81b_let_go.mp3")
+        XCTAssertEqual(TileView.target(of: host, at: NSPoint(x: 70, y: 70), side: 90)?.asset, "81_let_it_be.mp3")
+    }
+
+    func testAClickOnTheCreasePressesNothing() throws {
+        let host = try XCTUnwrap(TilesManifest.parse(Data(sample.utf8))).tiles[0]
+        XCTAssertNil(TileView.target(of: host, at: NSPoint(x: 34, y: 34), side: 90))
+    }
+
+    func testAClickThatCrossesTheCreasePressesNothing() throws {
+        let host = try XCTUnwrap(TilesManifest.parse(Data(sample.utf8))).tiles[0]
+        XCTAssertNil(TileView.target(of: host, down: NSPoint(x: 5, y: 5), up: NSPoint(x: 70, y: 70), side: 90))
+        XCTAssertNil(TileView.target(of: host, down: NSPoint(x: 70, y: 70), up: NSPoint(x: 5, y: 5), side: 90))
     }
 
     func testATileWithNothingUnderneathIsLayerAEverywhere() {
         let plain = Tile(n: 1, asset: "a.mp3", image: "a.jpg")
         XCTAssertEqual(TileView.target(of: plain, at: NSPoint(x: 1, y: 1), side: 90), plain)
+        XCTAssertEqual(TileView.target(of: plain, at: NSPoint(x: 34, y: 34), side: 90), plain)   // no crease to fear
+    }
+
+    func testTheCornerIsThirtyPercentBiggerThanTheOldTwoThirds() {
+        let old = (2.0 / 3.0) * (2.0 / 3.0)
+        XCTAssertEqual(Double(TileView.peekSideRatio * TileView.peekSideRatio) / old, 1.30, accuracy: 0.01)
     }
 
     // MARK: - Anti-drift: the corner has to be the tablet's corner
 
-    /// The tablet's `TileImageView.drawPeek`, read from the sibling checkout.
-    /// Skipped where the tablet repo is not next to this one (CI, a trainee's
-    /// clone); on Victor's Mac it runs on every `build-app.sh`, which is the
-    /// moment a drift would reach the room.
-    private func tabletDrawPeek() throws -> String {
+    /// A file of the tablet repo, read from the sibling checkout. Skipped where
+    /// the tablet repo is not next to this one (CI, a trainee's clone); on
+    /// Victor's Mac it runs on every `build-app.sh`, which is the moment a
+    /// drift would reach the room.
+    private func tabletSource(_ name: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let kt = root.deletingLastPathComponent()
-            .appendingPathComponent("victor-vibe-board/app/src/main/java/ro/victorrentea/helloworld/MainActivity.kt")
+            .appendingPathComponent("victor-vibe-board/app/src/main/java/ro/victorrentea/helloworld/\(name)")
         guard let source = try? String(contentsOf: kt, encoding: .utf8) else {
-            throw XCTSkip("no victor-vibe-board checkout beside this repo")
+            throw XCTSkip("no victor-vibe-board checkout beside this repo (or \(name) moved)")
         }
-        let start = try XCTUnwrap(source.range(of: "private fun drawPeek("),
-                                  "drawPeek is gone from the tablet — the corner moved; follow it here")
-        return String(source[start.lowerBound...].prefix(1800))
+        return source
     }
 
-    private func ratio(_ pattern: String, in body: String) throws -> CGFloat {
-        let re = try NSRegularExpression(pattern: pattern)
-        let m = try XCTUnwrap(re.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)),
-                              "tablet drawPeek no longer matches /\(pattern)/")
-        return CGFloat(Double(body[Range(m.range(at: 1), in: body)!])!)
+    private func kotlinConst(_ name: String, in source: String) throws -> CGFloat {
+        let re = try NSRegularExpression(pattern: "const val \(name) = ([0-9.]+)f")
+        let m = try XCTUnwrap(re.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
+                              "the tablet no longer declares \(name) — the corner moved; follow it here")
+        return CGFloat(Double(source[Range(m.range(at: 1), in: source)!])!)
     }
 
     func testTheFoldIsTheTabletsFold() throws {
-        let body = try tabletDrawPeek()
-        let num = try ratio(#"val side = width \* ([0-9.]+)f / 3f"#, in: body)
-        XCTAssertEqual(num / 3, TileView.peekSideRatio, accuracy: 1e-6)
-        XCTAssertEqual(try ratio(#"peekShadowPaint\.strokeWidth = width \* ([0-9.]+)f"#, in: body),
-                       TileView.peekShadowRatio, accuracy: 1e-6)
-        XCTAssertEqual(try ratio(#"peekCreasePaint\.strokeWidth = width \* ([0-9.]+)f"#, in: body),
-                       TileView.peekCreaseRatio, accuracy: 1e-6)
-        XCTAssertTrue(body.contains("width * \(TileView.peekCreaseRatio)f"),
-                      "the shadow's offset is the crease width on the tablet too")
+        let peek = try tabletSource("LayerBPeek.kt")
+        XCTAssertEqual(try kotlinConst("SIDE_RATIO", in: peek), TileView.peekSideRatio, accuracy: 1e-6)
+        XCTAssertEqual(try kotlinConst("SHADOW_RATIO", in: peek), TileView.peekShadowRatio, accuracy: 1e-6)
+        XCTAssertEqual(try kotlinConst("CREASE_RATIO", in: peek), TileView.peekCreaseRatio, accuracy: 1e-6)
+        XCTAssertEqual(try kotlinConst("DEAD_BAND_RATIO", in: peek), TileView.peekDeadBandRatio, accuracy: 1e-6)
+    }
+
+    func testTheFxBadgeIsTheTabletsBadge() throws {
+        let fx = try tabletSource("FxMark.kt")
+        XCTAssertEqual(try kotlinConst("HEIGHT_RATIO", in: fx), TileView.fxHeightRatio, accuracy: 1e-6)
+        XCTAssertEqual(try kotlinConst("MARGIN_RATIO", in: fx), TileView.fxMarginRatio, accuracy: 1e-6)
+        XCTAssertEqual(try kotlinConst("OUTLINE_RATIO", in: fx), TileView.fxOutlineRatio, accuracy: 1e-6)
+        let outline = try tabletSource("FxMarkOutline.kt")
+        XCTAssertTrue(outline.contains("The outline of \"\(TileView.fxMark)\""),
+                      "the tablet's FX outline was generated from another mark — run its tools/make-fx-mark.swift")
     }
 }

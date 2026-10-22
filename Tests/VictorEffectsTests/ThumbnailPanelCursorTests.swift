@@ -381,16 +381,21 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         XCTAssertEqual(starred, stamped, "the panel stars a different set than GET /tiles hands the tablet")
     }
 
-    /// The star is drawn at the tablet's own fractions (`w * 0.22f` of type, a
-    /// `w * 0.05f` margin), because the panel's cell is whatever 13 columns
-    /// leave on the screen it opens on and the two boards have to look like one.
-    func testTheStarKeepsTheTabletsProportions() throws {
-        XCTAssertEqual(TileView.starSizeRatio, 0.22, accuracy: 0.001)
-        XCTAssertEqual(TileView.starMarginRatio, 0.05, accuracy: 0.001)
+    /// The FX badge is drawn at the tablet's own fractions and is this app's
+    /// own menu-bar icon — the same string `MenuBar.fxIcon` draws, read out of
+    /// `MenuBar.swift` so a new icon there cannot leave the tiles behind.
+    func testTheFxBadgeIsTheMenuBarIcon() throws {
+        XCTAssertEqual(TileView.fxHeightRatio, 0.12, accuracy: 0.001)
+        XCTAssertEqual(TileView.fxMarginRatio, 0.05, accuracy: 0.001)
+        let menuBar = try code("Sources/VictorEffects/MenuBar.swift")
+        XCTAssertTrue(menuBar.contains("idleIcon = \"\(TileView.fxMark)\""),
+                      "the tiles' FX badge is no longer the menu-bar icon")
+        let box = TileView.fxUnitPath.boundingBoxOfPath
+        XCTAssertEqual(box.height, 1, accuracy: 1e-6, "the outline is one ink-height tall")
+        XCTAssertEqual(box.width, 1.32, accuracy: 0.05, "𝓯𝔁 is about a third wider than tall")
         let swift = try code("Sources/VictorEffects/TileView.swift")
-        XCTAssertTrue(swift.contains("\u{2605}"), "the badge is the solid star glyph, as on the tablet")
-        XCTAssertTrue(swift.contains("side * Self.starSizeRatio"),
-                      "the star must scale off the tile width, never a fixed point size")
+        XCTAssertTrue(swift.contains("side * Self.fxHeightRatio"),
+                      "the badge must scale off the tile width, never a fixed point size")
     }
 
     /// The video title was half the tablet's: `textSize = 48f` on a TextView is

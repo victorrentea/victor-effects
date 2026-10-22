@@ -67,7 +67,7 @@ final class TileView: NSView {
     private let borderLayer = CALayer()
     private let numberLayer = CATextLayer()
     private var labelLayer: CATextLayer?
-    private var starLayer: CATextLayer?
+    private var fxLayer: CAShapeLayer?
     /// Layer B, drawn the tablet's way (`TileImageView.drawPeek`): the under
     /// tile's picture in a folded-back corner, a soft shadow and a white crease
     /// along the fold. Sublayers of `imageLayer`, so its rounded corner clips
@@ -82,6 +82,9 @@ final class TileView: NSView {
     /// under this one.
     private var isCornerHovered = false
     private var pressedCorner = false
+    /// Where the button went down, in tile coordinates: a click presses only
+    /// when it comes up in the same zone (`target(of:down:up:side:)`).
+    private var pressDown: NSPoint?
 
     /// Set by the grid, which is the only thing that knows whether this cell has
     /// a neighbour on a given side or the rim of the board — see
@@ -141,7 +144,7 @@ final class TileView: NSView {
             right:  col == cols - 1 ? min(g, bounds.maxX - cell.maxX) : g)
     }
     /// Hover: bright, saturated green — nothing else on the board is this
-    /// colour (the usage dots are a darker green, the star amber, the playing
+    /// colour (the usage dots are a darker green, the FX badge amber, the playing
     /// border red), so it cannot be read as a state the tile is *in*.
     static let hoverColor = NSColor(srgbRed: 0.224, green: 1.0, blue: 0.078, alpha: 1)   // #39FF14
     /// Mouse-down: the same shape in red. The press used to be a 0.95 scale —
@@ -155,38 +158,107 @@ final class TileView: NSView {
     /// underneath for it to cover.
     static let playingBorderWidth: CGFloat = 7
 
-    /// The ⭐'s type size and corner margin **as fractions of the tile**, taken
-    /// straight off the tablet (`starPaint.textSize = w * 0.22f`,
-    /// `margin = width * 0.05f` in `TileImageView.onDraw`). Fractions and not
-    /// points because the panel's cell is whatever 13 columns leave on the
-    /// screen it opens on, and the two boards have to look like one board.
-    static let starSizeRatio: CGFloat = 0.22
-    static let starMarginRatio: CGFloat = 0.05
+    /// The FX badge: this app's own menu-bar icon (`MenuBar.idleIcon`, the
+    /// `fxIcon` glyphs) on every tile that also animates the desktop. It
+    /// replaced the ⭐ on 2026-10-22, on this panel and on the tablet at once.
+    /// `ThumbnailPanelCursorTests` checks the string against `MenuBar.swift`.
+    static let fxMark = "𝓯𝔁"
+    /// The badge's ink height and corner margin **as fractions of the tile** —
+    /// the tablet's `FxMark.HEIGHT_RATIO` / `MARGIN_RATIO`, pinned by
+    /// `LayerBTests.testTheFxBadgeIsTheTabletsBadge` and its mirror there.
+    /// Fractions and not points because the panel's cell is whatever 13 columns
+    /// leave on the screen it opens on, and the two boards have to look like one.
+    /// Halved on 2026-10-22 (was 0.24): a quarter of the tile fought the picture.
+    static let fxHeightRatio: CGFloat = 0.12
+    static let fxMarginRatio: CGFloat = 0.05
+    /// The black outline around the white mark, stroked at twice this under
+    /// the fill, so this much shows outside the ink — the tablet's `OUTLINE_RATIO`.
+    static let fxOutlineRatio: CGFloat = 0.012
+
+    /// The mark's outline, ink box at the origin, one ink-height tall — laid
+    /// out by CoreText from the system font exactly as `MenuBar.fxIcon` draws
+    /// it (macOS sets these code points in STIX Two Math). The tablet's
+    /// `FxMarkOutline.kt` is generated from the same glyphs.
+    static let fxUnitPath: CGPath = {
+        let text = NSAttributedString(string: fxMark, attributes: [.font: NSFont.systemFont(ofSize: 100)])
+        let line = CTLineCreateWithAttributedString(text)
+        let outline = CGMutablePath()
+        for run in CTLineGetGlyphRuns(line) as! [CTRun] {
+            let attrs = CTRunGetAttributes(run) as NSDictionary
+            let font = attrs[kCTFontAttributeName] as! CTFont
+            let n = CTRunGetGlyphCount(run)
+            var glyphs = [CGGlyph](repeating: 0, count: n)
+            var positions = [CGPoint](repeating: .zero, count: n)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: n), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: n), &positions)
+            for i in 0..<n {
+                guard let p = CTFontCreatePathForGlyph(font, glyphs[i], nil) else { continue }
+                outline.addPath(p, transform: CGAffineTransform(translationX: positions[i].x, y: positions[i].y))
+            }
+        }
+        let box = outline.boundingBoxOfPath
+        let k = 1 / max(box.height, 1)
+        var t = CGAffineTransform(scaleX: k, y: k).translatedBy(x: -box.minX, y: -box.minY)
+        return outline.copy(using: &t) ?? outline
+    }()
 
     /// **Layer B's corner, as fractions of the tile — the tablet's own numbers**
-    /// (`TileImageView.drawPeek`: `side = width * 2f / 3f`, shadow stroke
-    /// `width * 0.035f` offset by `width * 0.012f`, crease stroke
-    /// `width * 0.012f`). The fold is the diagonal of the bottom-left 2/3 × 2/3
-    /// square; everything below it is the tile underneath.
-    /// `LayerBParityTests` reads the Kotlin and fails the build if the two drift.
-    static let peekSideRatio: CGFloat = 2.0 / 3.0
+    /// (`LayerBPeek` in victor-vibe-board: the folded square's side, the shadow
+    /// stroke, offset by the crease width, and the crease stroke). The fold is
+    /// the diagonal of the bottom-left 0.76 × 0.76 square; everything below it
+    /// is the tile underneath. 2/3 until 2026-10-22, when the tablet learnt to
+    /// press B with a plain tap on the corner and Victor asked for 30 % more of
+    /// it (0.76² / (2/3)² = 1.30).
+    /// `LayerBTests.testTheFoldIsTheTabletsFold` reads the Kotlin and fails the
+    /// build if the two drift.
+    static let peekSideRatio: CGFloat = 0.76
     static let peekShadowRatio: CGFloat = 0.035
     static let peekCreaseRatio: CGFloat = 0.012
+    /// Half-width of the **dead band** along the fold, as a fraction of the
+    /// tile, measured across the crease: a click that close to it presses
+    /// NOTHING — neither the tile nor the one under it. On the tablet it is
+    /// ~2 mm of glass, the scatter of a fingertip; a mouse is more precise, but
+    /// the two boards keep one geometry, so a hand that learnt where the corner
+    /// is on one finds the same corner on the other.
+    static let peekDeadBandRatio: CGFloat = 0.12
     /// The tablet's `Color.argb(150, 0, 0, 0)`.
     static let peekShadowAlpha: CGFloat = 150.0 / 255.0
 
-    /// True when `point` (tile coordinates, origin bottom-left, as AppKit has
-    /// it) lies on the folded corner: inside the triangle under the fold, edge
-    /// included. Pure, so the hit area is a test and not a hope.
-    static func isInPeek(_ point: NSPoint, side: CGFloat) -> Bool {
-        point.x >= 0 && point.y >= 0 && point.x + point.y <= side * peekSideRatio
+    /// Where a point lands on a tile with a folded corner.
+    enum PeekHit { case top, under, none }
+
+    /// `point` in tile coordinates (origin bottom-left, as AppKit has it):
+    /// **clearly inside** the triangle under the fold is the tile underneath,
+    /// **clearly outside** it the tile itself, and within `peekDeadBandRatio`
+    /// of the fold, measured across it, neither. The tablet's `LayerBPeek.hit`
+    /// with y flipped. Pure, so the hit area is a test and not a hope.
+    static func peekHit(_ point: NSPoint, side: CGFloat) -> PeekHit {
+        let d = (side * peekSideRatio - (point.x + point.y)) / 2.0.squareRoot()
+        let band = side * peekDeadBandRatio
+        if d >= band { return .under }
+        if d <= -band { return .top }
+        return .none
     }
 
-    /// What a click at `point` presses: the tile under this one when it lands on
-    /// the fold, this one everywhere else (and everywhere, on a tile with no B).
-    static func target(of tile: Tile, at point: NSPoint, side: CGFloat) -> Tile {
-        if let under = tile.under, isInPeek(point, side: side) { return under }
-        return tile
+    /// What a click presses, from where the button went down and came up: the
+    /// tile under this one when both ends are clearly on the corner, this one
+    /// when both are clearly off it, and NOTHING when either end is on the
+    /// crease or the two disagree. A tile with nothing under it is itself,
+    /// everywhere.
+    static func target(of tile: Tile, down: NSPoint, up: NSPoint, side: CGFloat) -> Tile? {
+        guard let under = tile.under else { return tile }
+        let hit = peekHit(down, side: side)
+        guard hit == peekHit(up, side: side) else { return nil }
+        switch hit {
+        case .under: return under
+        case .top: return tile
+        case .none: return nil
+        }
+    }
+
+    /// A click that went down and came up on the same point.
+    static func target(of tile: Tile, at point: NSPoint, side: CGFloat) -> Tile? {
+        target(of: tile, down: point, up: point, side: side)
     }
 
     var isPlaying = false {
@@ -343,23 +415,22 @@ final class TileView: NSView {
         }
 
         if hasDesktopEffect {
-            // ⭐ TOP-RIGHT, the tablet's badge reproduced glyph for glyph: the
-            // solid star "★" (not the emoji, which would arrive as a colour
-            // sprite in a different metric), amber `#FFC400` so it is the only
-            // non-white/green mark on a tile, a black shadow so it survives a
-            // bright thumbnail, and right-aligned against a 5 % margin. The
-            // corner is the last free one — `#NN` top-left, the layer-B peek
-            // bottom-left, the usage dots bottom-right.
-            let star = CATextLayer()
-            star.string = "★"
-            star.foregroundColor = NSColor(srgbRed: 1, green: 0.769, blue: 0, alpha: 1).cgColor
-            star.alignmentMode = .right
-            star.shadowColor = NSColor.black.cgColor
-            star.shadowOpacity = 0.9
-            star.shadowRadius = 2
-            star.shadowOffset = CGSize(width: 1, height: -1)
-            layer?.addSublayer(star)
-            starLayer = star
+            // FX TOP-RIGHT, the tablet's badge reproduced shape for shape: this
+            // app's menu-bar 𝓯𝔁 as an outline (`fxUnitPath`), white with a
+            // black outline and shadow so it reads clean on any thumbnail,
+            // right-aligned against a 5 % margin. The corner is the last free
+            // one — `#NN` top-left, the layer-B peek bottom-left, the usage
+            // dots bottom-right.
+            let fx = CAShapeLayer()
+            fx.fillColor = NSColor.white.cgColor
+            fx.strokeColor = NSColor.black.cgColor
+            fx.lineJoin = .round
+            fx.shadowColor = NSColor.black.cgColor
+            fx.shadowOpacity = 0.9
+            fx.shadowRadius = 2
+            fx.shadowOffset = CGSize(width: 1, height: -1)
+            layer?.addSublayer(fx)
+            fxLayer = fx
         }
 
         // **Last, and again in `layout()`.** `NSView.clipsToBounds` arrived in
@@ -438,17 +509,17 @@ final class TileView: NSView {
             crease.path = fold
             updateCrease()
         }
-        if let star = starLayer {
-            // Right edge at the tablet's `width - margin`, top at its `margin`.
-            // The glyph is laid out from the TOP of a text layer, so the box is
-            // pinned by its top and given a line's worth of height.
-            let size = max(9, side * Self.starSizeRatio)
-            let margin = side * Self.starMarginRatio
-            star.fontSize = size
-            star.font = NSFont.boldSystemFont(ofSize: size)
-            star.frame = NSRect(x: margin, y: bounds.height - margin - size * 1.3,
-                                width: bounds.width - margin * 2, height: size * 1.3)
-            star.contentsScale = window?.backingScaleFactor ?? 2
+        if let fx = fxLayer {
+            // Ink box's right edge at the tablet's `width - margin`, its top at
+            // `margin` (AppKit's y runs up, so the top is `height - margin`).
+            let h = side * Self.fxHeightRatio
+            let margin = side * Self.fxMarginRatio
+            let w = h * Self.fxUnitPath.boundingBoxOfPath.width
+            fx.frame = bounds
+            var t = CGAffineTransform(translationX: bounds.width - margin - w, y: bounds.height - margin - h)
+                .scaledBy(x: h, y: h)
+            fx.path = Self.fxUnitPath.copy(using: &t)
+            fx.lineWidth = 2 * side * Self.fxOutlineRatio
         }
         CATransaction.commit()
 
@@ -527,7 +598,7 @@ final class TileView: NSView {
     /// which of the two tiles a click will press before it clicks.
     func setHovered(at local: NSPoint?) {
         setHovered(local != nil)
-        let corner = local.map { tile.under != nil && Self.isInPeek($0, side: bounds.width) } ?? false
+        let corner = local.map { tile.under != nil && Self.peekHit($0, side: bounds.width) == .under } ?? false
         guard corner != isCornerHovered else { return }
         isCornerHovered = corner
         updateCrease()
@@ -576,21 +647,29 @@ final class TileView: NSView {
     override func mouseDown(with event: NSEvent) {
         isPressed = true
         let local = convert(event.locationInWindow, from: nil)
-        pressedCorner = tile.under != nil && Self.isInPeek(local, side: bounds.width)
+        pressDown = local
+        pressedCorner = tile.under != nil && Self.peekHit(local, side: bounds.width) == .under
         updateHighlight()
         updateCrease()
     }
 
-    /// The corner presses layer B, the rest of the tile layer A — decided where
-    /// the button comes UP, like the press itself.
+    /// The corner presses layer B, the rest of the tile layer A, the crease
+    /// between them nothing — decided where the button comes UP, and only if it
+    /// went down in the same zone.
     override func mouseUp(with event: NSEvent) {
         isPressed = false
         pressedCorner = false
         updateHighlight()
         updateCrease()
         let local = convert(event.locationInWindow, from: nil)
+        let down = pressDown ?? local
+        pressDown = nil
         guard bounds.contains(local) else { return }
-        onPress?(Self.target(of: tile, at: local, side: bounds.width))
+        guard let target = Self.target(of: tile, down: down, up: local, side: bounds.width) else {
+            effectsInfo("panel: click on #\(tile.n) too close to the fold → nothing")
+            return
+        }
+        onPress?(target)
     }
 
     private func updatePlayingBorder() {
