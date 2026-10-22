@@ -43,6 +43,11 @@ struct EffectsConfigValues: Equatable {
     /// repo, and a file rewritten on every press has no business being in it.
     var usageFile: String = "~/.victor-effects/usage.json"
 
+    /// Append-only JSONL of every press (`PressLog`), one line each, for
+    /// whoever wants to know *when* a clip was fired. Env
+    /// `VICTOR_EFFECTS_PRESS_LOG` overrides it.
+    var pressLogFile: String = "~/.victor-effects/presses.jsonl"
+
     /// Pure parser — the tests drive this with literal JSON and a literal
     /// environment, so no test ever depends on what is on this machine.
     static func parse(jsonData: Data?, env: [String: String] = [:]) -> EffectsConfigValues {
@@ -59,6 +64,7 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["overlayScreen"] as? String, !s.isEmpty { v.overlayScreen = s }
             if let a = obj["chargeEmoji"] as? [String], !a.isEmpty { v.chargeEmoji = a }
             if let s = obj["usageFile"] as? String, !s.isEmpty { v.usageFile = s }
+            if let s = obj["pressLogFile"] as? String, !s.isEmpty { v.pressLogFile = s }
             if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
         }
         // Env wins over the file: it is how you start a second copy on another
@@ -68,6 +74,7 @@ struct EffectsConfigValues: Equatable {
         }
         if let s = env["VICTOR_EFFECTS_SOUNDS_DIR"], !s.isEmpty { v.soundsDir = s }
         if let s = env["VICTOR_EFFECTS_ADDONS_URL"] { v.addonsBaseURL = s }
+        if let s = env["VICTOR_EFFECTS_PRESS_LOG"], !s.isEmpty { v.pressLogFile = s }
         return v
     }
 }

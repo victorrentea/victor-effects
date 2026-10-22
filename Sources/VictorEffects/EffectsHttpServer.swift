@@ -63,7 +63,7 @@ final class EffectsHttpServer {
     func respond(path: String) -> EffectsResponse {
         var result = EffectsResponse.notFound
         DispatchQueue.main.sync {
-            result = router.dispatch(path)
+            result = router.dispatch(path, source: .tablet)
         }
         return result
     }

@@ -59,6 +59,7 @@ press cannot drift apart.
 | `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip + 🙏 pray + 🫰 snap |
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
 | `GET /tiles` | `tiles.json` **plus** `effect` per tile and a top-level `effectsHash` | **404** `{"error":"no tiles.json in <soundsDir>"}`. See **the ⭐ catalogue** |
+| `GET /sounds/captions` | `{"<asset>":{"durationSeconds":12.4,"cues":[{"start":0.0,"end":6.0,"text":"♪ … ♪"}]},…}` | Every asset in `tiles.json`, layer A and `under` B. Built from `SoundCaptions.schedule(for:clipSeconds:)` with the clip's real length, so it is exactly what the Mac shows; a cue's `end` is `start` + the seconds the caption stays up. A silent asset has `"cues":[]`. Cached by `soundsHash`+`tilesHash` (durations open every mp3) — `CaptionsExport` |
 | `GET /tiles/<path>` | image bytes | path resolved under `soundsDir` and **re-checked to still be inside it** — the names come from a JSON file this app does not own |
 | `GET /test/thumbnail-panel[/hide\|/press/<n>]` | panel JSON | `/press/<n>b` (and `/press/<n>b` outside `/test`) presses the tile under #n, layer B. `?page=videos` on the show and the press picks the panel's 🎬 second page (default `effects`; an unknown value falls back to it rather than 404). **503** `{"ok":false,"reason":"no-panel"}` when no panel is wired |
 | `GET /state` | diagnostics, below | |
@@ -173,6 +174,23 @@ later: `sound-started`, `sound-ended`, `effect-ended`.
 
 A missed pop is a missed payoff, never a stuck effect — the ☕ dissolve does not
 wait for the delivery.
+
+## The press log (`pressLogFile`)
+
+Wherever `UsageCounts` counts a press (`/sound/pressed/<file>`, `/alarm/start`,
+panel presses), `PressLog` also appends one JSON line to `pressLogFile`
+(default `~/.victor-effects/presses.jsonl`; env `VICTOR_EFFECTS_PRESS_LOG`):
+
+```json
+{"ts":"2026-10-22T17:32:01.123+03:00","file":"53b_7_rings.mp3","n":53,"layer":"b","source":"tablet"}
+```
+
+`ts` is ISO-8601 with local offset; `n`/`layer` (`"a"`|`"b"`) are resolved from
+`tiles.json` (an `under` tile shares its host's `n`), both `null` for a file not
+on the grid. `source`: `tablet` = a press that arrived over HTTP, `panel` = the
+in-process panel, `other` = a `/press/<n>` link fired over HTTP (script, daemon).
+Append-only and best-effort: written on a utility queue, a failure is logged and
+never reaches the press.
 
 ## `tiles.json` — the tile manifest
 

@@ -61,6 +61,8 @@ final class EffectsRouter {
         case progressBar(seconds: Int, rider: String?)
         case progressBarStop
         case tiles
+        /// `GET /sounds/captions` — every grid asset's captions as the Mac shows them.
+        case soundsCaptions
         case tileImage(String)
         /// Hook points for the thumbnail panel (WI-4). Parsed here so the route
         /// table is complete and testable before the panel exists.
@@ -120,7 +122,6 @@ final class EffectsRouter {
         "/test/claude-peek": "claude-peek",
         "/test/claude-peek/stop": "claude-peek/stop",
         "/test/claude-peek/flinch": "claude-peek/flinch",
-        "/test/minion": "minion",
         "/test/counter-strike": "counter-strike",
         "/test/chainsaw": "chainsaw",
         "/test/chainsaw/stop": "chainsaw/stop",
@@ -160,6 +161,7 @@ final class EffectsRouter {
         case "/alarm/start":        return .alarmStart
         case "/alarm/stop":         return .alarmStop
         case "/tiles":              return .tiles
+        case "/sounds/captions":    return .soundsCaptions
         case "/usage":              return .usage
         case "/usage/reset":        return .usageReset
         case "/usage/import":
@@ -265,11 +267,36 @@ final class EffectsRouter {
     }
 
     /// Run one request. **Main thread only** — every handler touches AppKit.
+    ///
+    /// `source` says who is asking, for the press log: the HTTP listener passes
+    /// `.tablet`; an in-process caller (the panel) passes nothing and a nested
+    /// dispatch inherits the outer one's answer, falling back to `.panel`.
+    /// A `/press/<n>` that arrives over HTTP is `.other` — it is neither the
+    /// tablet nor a click on the panel.
+    @discardableResult
+    func dispatch(_ pathAndQuery: String, source: PressSource?) -> EffectsResponse {
+        assert(Thread.isMainThread, "EffectsRouter.dispatch must run on the main thread")
+        let route = Self.route(forPath: pathAndQuery)
+        let previous = activeSource
+        if let source {
+            switch route {
+            case .panelPress, .panelPressUnder: activeSource = source == .tablet ? .other : source
+            default: activeSource = source
+            }
+        }
+        defer { activeSource = previous }
+        return run(route)
+    }
+
+    /// In-process caller (the panel): no source of its own.
     @discardableResult
     func dispatch(_ pathAndQuery: String) -> EffectsResponse {
-        assert(Thread.isMainThread, "EffectsRouter.dispatch must run on the main thread")
-        return run(Self.route(forPath: pathAndQuery))
+        dispatch(pathAndQuery, source: nil)
     }
+
+    /// Who the outermost in-flight `dispatch` came from; nil = in-process.
+    private var activeSource: PressSource?
+    private var pressSource: PressSource { activeSource ?? .panel }
 
     private func run(_ route: Route) -> EffectsResponse {
         switch route {
@@ -302,6 +329,7 @@ final class EffectsRouter {
             // This is also the one place both surfaces meet — the tablet's HTTP
             // press and the panel's in-process dispatch land here alike.
             UsageCounts.record(file)
+            PressLog.append(file: file, source: pressSource)
             // Captioned for the same reason it is counted: every press, visual
             // or not, and wherever the audio ends up playing.
             engine.showCaption(for: file)
@@ -329,6 +357,7 @@ final class EffectsRouter {
             // /sound/pressed, so without this line it would be the one tile
             // whose dots never move.
             UsageCounts.record(SoundboardPress.sirenAsset)
+            PressLog.append(file: SoundboardPress.sirenAsset, source: pressSource)
             engine.showCaption(for: SoundboardPress.sirenAsset)
             engine.startAlarm()
             return .ok()
@@ -358,6 +387,9 @@ final class EffectsRouter {
                 return .json("{\"error\":\"no tiles.json in \(EffectsConfig.shared.soundsDir.path)\"}", status: 404)
             }
             return .json(json)
+
+        case .soundsCaptions:
+            return .json(CaptionsExport.cachedJSON())
 
         case .tileImage(let rel):
             guard let img = TilesManifest.image(relativePath: rel) else { return .notFound }
