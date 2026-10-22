@@ -95,14 +95,17 @@ overlay holds the A2DP link warm with `BluetoothOutput.startContinuousWarm()`
 for exactly this reason, so a crack has zero spin-up lag and adding the
 compensation delay would only make it late.
 
-## It asks nicely — a "please" where it cracks
+## It says thank you — a "merci" where it cracks
 
-**Every crack throws one polite word off the tip** (2026-10-19, Victor: *"make
-my whip throw please statements … whenever where it cracks"*): *please*,
-*pretty please*, *I beg you*, *with a cherry on top*, … plus the polite words the
-whole EU knows (*por favor 💃*, *per favore 🤌*, *bitte schön 🥨*, *s'il vous
-plaît 🥐*, *grazie mille 🍝* — added 2026-10-20) and British manners (*terribly
-sorry ☕*, *chop chop, old bean*, *lovely jubbly*) (`WhipPleas.phrases`),
+**Every crack throws one thank-you off the tip** (2026-10-19 it threw
+*please*es, Victor: *"make my whip throw please statements … whenever where it
+cracks"*; since 2026-10-22 only thanks, never an apology — Victor: *"nu vreau
+să îți cer scuze … vreau să spui mulțumesc în cât mai amuzante moduri
+multiculturale din Europa"*): *merci mille fois 🥐*, *grazie, mamma mia 🤌*,
+*danke, Schatzi 🍺*, *tack så mycket 🫎*, *ευχαριστώ 🏛️*, *go raibh maith
+agat ☘️*, *mersi, dragă 🧛*, British *ta muchly 🫖*, and Victor's own
+*mulțumesc, te rog frumos 🙏* (`WhipPleas.phrases`). No *sorry* anywhere,
+`WhipPleasTests` keeps it that way.
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,

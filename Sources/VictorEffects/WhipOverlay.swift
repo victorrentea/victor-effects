@@ -606,25 +606,30 @@ private final class WhipView: NSView {
     }
 }
 
-/// The polite words the whip throws where it cracks — the whip asks nicely now.
+/// The thank-yous the whip throws where it cracks — it never apologises, it
+/// thanks (2026-10-22, Victor: *"nu vreau să îți cer scuze … vreau să spui
+/// mulțumesc în cât mai amuzante moduri multiculturale din Europa"*).
 enum WhipPleas {
     static let phrases = [
-        "please", "pretty please", "kindly", "I beg you", "thank you!",
-        "with a cherry on top", "if it's no trouble", "sorry!", "🙏 please",
-        "would you mind?", "much obliged", "pleeease",
-        // The room is European: the polite words everyone knows, wherever they flew in from.
-        "por favor 💃", "per favore 🤌", "prego, prego!", "bitte schön 🥨",
-        "s'il vous plaît 🥐", "merci beaucoup 💋", "grazie mille 🍝",
-        "danke! 🍺", "gracias, amigo 🌮", "obrigado 🙏", "proszę 🥟",
-        "mulțumesc! 🍷", "pretty por favor", "bitte bitte bitte 🥺",
-        // ...and the British, who apologise while being whipped.
-        "terribly sorry ☕", "cheers, mate 🍻", "be a dear 🫖", "lovely jubbly",
-        "chop chop, old bean", "jolly good! 🎩", "awfully kind 💂",
-        "fancy a cuppa? ☕", "bloody brilliant", "pip pip! 🇬🇧",
-        "sorry, sorry, sorry", "with a biscuit on top 🍪",
+        // The room is European: thanks from wherever they flew in from.
+        "merci beaucoup 💋", "merci mille fois 🥐", "grazie mille 🍝",
+        "grazie, mamma mia 🤌", "danke schön 🥨", "danke, Schatzi 🍺",
+        "merci vielmal 🧀", "gracias, amigo 💃", "moltes gràcies 🏖️",
+        "eskerrik asko 🏔️", "obrigadíssimo! 🐓", "dank je wel 🌷",
+        "tack så mycket 🫎", "tusen takk ❄️", "mange tak 🧱", "kiitos 🧖",
+        "takk fyrir 🌋", "aitäh 💾", "paldies 🌲", "ačiū 🏀",
+        "dziękuję 🥟", "děkuji 🍺", "ďakujem ⛰️", "köszönöm 🌶️",
+        "hvala lijepa 🍇", "благодаря 🌹", "ευχαριστώ 🏛️", "grazzi 🌞",
+        "faleminderit 🦅", "go raibh maith agat ☘️", "diolch 🐑",
+        "mulțumesc frumos 🍷", "mersi, dragă 🧛",
+        // ...and the British, who now thank instead of apologising.
+        "cheers, love 🍻", "ta muchly 🫖", "much obliged, guv'nor 🎩",
+        "thanks a million 🍀", "jolly good, thanks 💂",
+        // Victor's own, as dictated: no sorry, sorry, sorry.
+        "danke, danke, danke 🥺", "mulțumesc, te rog frumos 🙏",
     ]
     /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
-    /// time"*) — the room needs the time to read *chop chop, old bean*.
+    /// time"*) — the room needs the time to read *go raibh maith agat ☘️*.
     static let lifeMs = 1950.0
     static let riseDistance: CGFloat = 70
     /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).

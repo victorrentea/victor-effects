@@ -19,6 +19,16 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
+    /// The whip thanks, it never apologises (2026-10-22).
+    func testNoPhraseApologises() {
+        let apologies = ["sorry", "pardon", "scuze", "entschuldig", "perdón", "scusa", "excuse"]
+        for phrase in WhipPleas.phrases {
+            for word in apologies {
+                XCTAssertFalse(phrase.lowercased().contains(word), "\(phrase) apologises")
+            }
+        }
+    }
+
     /// The word lands past the tip, on the far side from the pointer.
     func testLaunchPointIsBeyondTheTipAwayFromTheHandle() {
         let handle = CGPoint(x: 100, y: 300), tip = CGPoint(x: 400, y: 300)
