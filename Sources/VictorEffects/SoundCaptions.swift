@@ -144,9 +144,10 @@ enum SoundCaptions {
                                    (3.5, "I dream my life away")],
         "46_michael_buble.mp3":   [(0, "It's beginning to look a lot like Christmas"),
                                    (3.6, "Everywhere you go")],
+        // The clip ends at 17.1 s (2.5 s fade-out from 14.6 s, 2026-10-22): the
+        // loud final climax that began at 17.25 s was cut off — no line after 13.3.
         "61_hallelujah.mp3":      [(0, "Hallelujah! Hallelujah!"),
-                                   (13.3, "Hallelujah! Hallelujah!"),
-                                   (20.5, "Hallelujah! Hallelujah!")],
+                                   (13.3, "Hallelujah! Hallelujah!")],
         "62_lionel_richie.mp3":   [(0, "Hello…"),
                                    (1.8, "Is it me you're looking for?")],
         "71_one_more_time.mp3":   [(0, "One more try…"),

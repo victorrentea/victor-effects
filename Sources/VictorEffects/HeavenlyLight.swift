@@ -29,8 +29,8 @@ enum HeavenlyLight {
 
     static let soundName = "61_hallelujah.mp3"
 
-    /// Measured 18.05 s. Only used when `soundsDir` has no copy to ask.
-    static let fallbackDuration: Double = 18.05
+    /// Measured 17.1 s (the clip ends in a 2.5 s fade-out, before the final climax). Only used when `soundsDir` has no copy to ask.
+    static let fallbackDuration: Double = 17.1
 
     // MARK: - Timeline
 

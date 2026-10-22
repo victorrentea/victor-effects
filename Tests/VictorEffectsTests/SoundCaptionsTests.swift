@@ -62,7 +62,7 @@ final class SoundCaptionsTests: XCTestCase {
     }
 
     func testAnInstrumentalGapGoesBlank() {
-        let track = SoundCaptions.schedule(for: "61_hallelujah.mp3", clipSeconds: 24.75)
+        let track = SoundCaptions.schedule(for: "61_hallelujah.mp3", clipSeconds: 17.1)
         XCTAssertEqual(track[0].seconds, SoundCaptions.maxSeconds,
                        "seven silent seconds do not keep the last Hallelujah on the slide")
     }
