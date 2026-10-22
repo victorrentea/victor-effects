@@ -2,7 +2,7 @@ import XCTest
 @testable import VictorEffects
 
 /// The press caption. What is worth pinning is the promise to the person who
-/// cannot hear: every audible tile says *something*, a silent one says nothing,
+/// cannot hear: every tile says *something*,
 /// and the line never outstays a subtitle's welcome.
 final class SoundCaptionsTests: XCTestCase {
 
@@ -10,11 +10,6 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.caption(for: "62_lionel_richie.mp3"),
                        "♪ Hello, is it me you're looking for? ♪")
         XCTAssertEqual(SoundCaptions.caption(for: "04_wolf.mp3"), "[wolf howling]")
-    }
-
-    func testSilentTileHasNoCaption() {
-        XCTAssertNil(SoundCaptions.caption(for: "80_badumtss.mp3"),
-                     "the minion crowd is silent — a caption would describe a noise nobody made")
     }
 
     func testUnknownTileFallsBackToItsFilename() {
@@ -37,7 +32,6 @@ final class SoundCaptionsTests: XCTestCase {
     func testANoiseIsATrackOfOneLine() {
         XCTAssertEqual(SoundCaptions.schedule(for: "04_wolf.mp3", clipSeconds: 4),
                        [CaptionLine(at: 0, text: "[wolf howling]", seconds: 4)])
-        XCTAssertEqual(SoundCaptions.schedule(for: "80_badumtss.mp3", clipSeconds: 2), [])
     }
 
     /// The point of the track: the words go up as they are sung, each line
@@ -92,7 +86,7 @@ final class SoundCaptionsTests: XCTestCase {
             [("#\(tile.n)", tile.asset)] + (tile.under.map { [("#\(tile.n)b", $0.asset)] } ?? [])
         }
         XCTAssertTrue(pressable.contains { $0.0.hasSuffix("b") }, "no layer-B tile seen — is `under` still parsed?")
-        for (n, asset) in pressable where !SoundCaptions.silent.contains(asset) {
+        for (n, asset) in pressable {
             XCTAssertNotNil(SoundCaptions.table[asset], "\(n) \(asset) has no line in SoundCaptions.table")
         }
     }

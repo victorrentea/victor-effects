@@ -93,7 +93,7 @@ which sound, which picture, in what order) at runtime, and hashes it so a client
 such as a tablet can tell whether its own copy matches.
 
 **Out of the box it uses the starter pack** (`starter-pack/`, bundled in the
-app): 43 short sounds — CC0 and public-domain recordings plus a few synthesized
+app): 42 short sounds — CC0 and public-domain recordings plus a few synthesized
 here — each with a Noto Emoji tile and a credit line in
 `starter-pack/CREDITS.md`. Sounds named like the starter pack's
 (`03_explosion.mp3`, `50_gong.mp3`, …) also fire their desktop effect; the map is

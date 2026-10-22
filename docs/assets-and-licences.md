@@ -51,7 +51,7 @@ shipped or listed here):
 `confetti.mp3` `copilot-icon.png` `counter-strike.png` `death-star.png`
 `drum.gif` `ecg_line.png` `explosion.gif` `falling-bomb.png` `fire-alarm.gif`
 `fire-frames.png` `fireball-sun.png` `game-over.png` `gong.gif`
-`heartbeat-dog.png` `leg.png` `microwave.gif` `minion.gif` `phoenix.mp3`
+`heartbeat-dog.png` `leg.png` `microwave.gif` `phoenix.mp3`
 `phoenix.png` `red-phone.png` `santa-hat.png` `wasnt-me.gif` `wolf-howl.gif`
 `zorro_fire.gif`
 

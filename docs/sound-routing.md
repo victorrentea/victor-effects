@@ -51,8 +51,8 @@ Seven files are **not** plain playback (`EffectsEngine.playSound`): their visual
 has to start from the same call as their audio, because the cue sits at a fixed
 offset *inside* the clip and a separately-clocked visual slides off it — the
 radar, the microwave's bing, the heartbeat's onsets, the FBI bangs, Beethoven's
-six hits, the money round, the clipped applause. Two more (`34_phoenix.mp3`,
-`80_badumtss.mp3`) are silent placeholders on the client whose reported duration
+six hits, the money round, the clipped applause. One more (`34_phoenix.mp3`)
+is a silent placeholder on the client whose reported duration
 is the *on-screen* life of the effect, so a non-restartable tile stays
 "playing" for as long as the visual runs.
 

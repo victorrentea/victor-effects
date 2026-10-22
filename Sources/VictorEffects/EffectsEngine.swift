@@ -342,7 +342,6 @@ final class EffectsEngine {
         // rehearsed without sitting through the picture and the clip first.
         case "crt-shutdown":  animator.showCrtShutdown()
         case "skull-boom":    _ = animator.showSkullBoom(playSound: false)
-        case "minion":        animator.showMinion()
         case "wolf-howl":     animator.showWolfHowl()
         case "elephant":      animator.showElephant()
         case "elephant/stop": animator.stopElephant()
@@ -682,11 +681,6 @@ final class EffectsEngine {
         // ended that window instantly.
         if name == "34_phoenix.mp3" {
             return remember(Int(EmojiAnimator.phoenixDuration * 1000))
-        }
-        // Tile #80 (🍌 badumtss → the looping minion crowd): silent by design,
-        // driven by the press path. Same duration reasoning as the phoenix.
-        if name == "80_badumtss.mp3" {
-            return remember(Int(EmojiAnimator.minionDuration * 1000))
         }
         // Tile #22 (🔫 minigun → the Counter-Strike AK-47): SILENT on the
         // press since 2026-09-23. The gun comes up at rest and the noise is the

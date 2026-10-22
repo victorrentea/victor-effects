@@ -178,7 +178,12 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   then corrected only where Whisper misheard a known lyric — a caption that disagrees with the audio is worse than
   none. A tile with no line yet gets its filename (`92_door_open.mp3` →
   `[door open]`); `SoundCaptionsTests` fails while any tile in `tiles.json`
-  relies on that fallback. `80_badumtss.mp3` (silent placeholder) gets none.
+  relies on that fallback. **A new clip always gets a caption**: tiles are added
+  in victor-vibe-board, where this test does not run, so vibe-board has its own
+  `SoundCaptionsParityTest` that parses this file's keys (when this checkout sits
+  beside it) and fails on any `tiles.json` asset (A or B) with no entry here. Adding a tile =
+  JSON entry + image + a line in `SoundCaptions.swift` (Whisper the clip for lyrics).
+  No tile is silent any more (the `silent` set went with the minion crowd of #80).
 
 ### 🔍 When the screen is zoomed, the edges move
 
@@ -304,7 +309,7 @@ ones. Two tools now cover them:
   container now add it there; their layout code, built on `hostLayer.bounds`,
   never learns about the zoom (the stage has the same bounds). Re-added to the
   top of `hostLayer` on every use, so a new effect still draws over older ones.
-  On it: zorro, fireworks, sepia, confetti (both), money, iris, applause, minion,
+  On it: zorro, fireworks, sepia, confetti (both), money, iris, applause,
   wolf, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
   Star Wars, snow, fire alarm, cavalry, wasn't-me, microwave, universal minions,
   rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda, opus,

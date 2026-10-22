@@ -625,22 +625,6 @@
   "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
  },
  {
-  "file": "80_badumtss.mp3",
-  "title": "Musical, Percussion, Drums, Ba-Dum-Tss",
-  "author": "Vein_Adams",
-  "source": "https://freesound.org/people/Vein_Adams/sounds/713649/",
-  "license": "CC0-1.0",
-  "attribution": ""
- },
- {
-  "file": "tiles/sfx_80_badumtss.jpg",
-  "title": "tile for 80_badumtss",
-  "author": "Google (Noto Emoji U+1F602), composed for this project",
-  "source": "https://github.com/googlefonts/noto-emoji/blob/main/2D/png/512/emoji_u1f602.png",
-  "license": "Apache-2.0",
-  "attribution": "Noto Emoji, Copyright 2013 Google LLC, Apache License 2.0"
- },
- {
   "file": "86_doorbell.mp3",
   "title": "DoorBell Shortened",
   "author": "jwheeler91",

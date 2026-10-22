@@ -63,7 +63,6 @@ final class EffectsCatalogTests: XCTestCase {
         "73_counter_strike.mp3": "counter-strike",
         "76_sfx_118.mp3":        "wasnt-me",
         "78_projector.mp3":      "sepia",
-        "80_badumtss.mp3":       "minion",
         "89_fireworks.mp3":      "fireworks",
         "90_breaking-glass.mp3": "broken-glass",
     ]

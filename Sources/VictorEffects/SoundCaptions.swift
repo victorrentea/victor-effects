@@ -79,7 +79,6 @@ enum SoundCaptions {
         "51_beethoven.mp3":           "♪ Da-da-da-DUM ♪",
         "52_saw.mp3":                 "[sawing]",
         "53_rain.mp3":                "[money raining]",
-        "53b_7_rings.mp3":            "♪ I want it, I got it ♪",
         "54_piano.mp3":               "[piano music]",
         "55_star_wars.mp3":           "♪ Star Wars theme ♪",
         "56_door_open.mp3":           "[door creaking open]",
@@ -106,6 +105,7 @@ enum SoundCaptions {
         "77_maui.mp3":                "♪ You're welcome! ♪",
         "78_projector.mp3":           "[film projector whirring]",
         "79_door.mp3":                "[door slams]",
+        "80_7_rings.mp3":             "♪ I want it, I got it ♪",
         "81_let_it_be.mp3":           "♪ Let it be ♪",
         "81b_let_go.mp3":             "♪ Let go ♪",
         "82_over_and_out.mp3":        "\"Over and out.\"",
@@ -177,16 +177,11 @@ enum SoundCaptions {
                                    (4.6, "That yummy-yummy")],
     ]
 
-    /// Tiles that make no sound of their own (the minion crowd is a silent
-    /// placeholder on the client) — a caption there would describe nothing.
-    static let silent: Set<String> = ["80_badumtss.mp3"]
-
-    /// The caption for a press, or nil for a silent tile. A tile added to
+    /// The caption for a press. A tile added to
     /// `tiles.json` before anyone wrote its line still gets one, made from its
     /// filename (`56_door_open.mp3` → `[door open]`): a vague caption beats a
     /// silent one for someone who cannot hear the room.
     static func caption(for asset: String) -> String? {
-        if silent.contains(asset) { return nil }
         if let line = table[asset] { return line }
         return fallback(for: asset)
     }

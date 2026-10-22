@@ -197,11 +197,6 @@
    "image": "tiles/sfx_70_cavalry.jpg"
   },
   {
-   "n": 80,
-   "asset": "80_badumtss.mp3",
-   "image": "tiles/sfx_80_badumtss.jpg"
-  },
-  {
    "n": 86,
    "asset": "86_doorbell.mp3",
    "image": "tiles/sfx_86_doorbell.jpg"

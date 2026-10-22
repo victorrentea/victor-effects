@@ -118,12 +118,6 @@ enum SoundEffectMap {
         // which is why it stays out of onSoundPlay's special cases (no
         // double-trigger).
         "31_tarzan.mp3":         "iris",
-        // Tile 80 (🍌 badumtss): 🟡 animated minion CROWD, SILENT. The press path
-        // drives the looping crowd; onSoundPlay neutralizes the routed clip (plays
-        // nothing) and returns the effect's duration so the NON-restartable tile
-        // stays "playing" — a re-tap within that window fires /effect/stop-all,
-        // which stops the tracked minion layer (stop-on-re-tap).
-        "80_badumtss.mp3":       "minion",
         // Tile 7 (☎️ animated phone) is intentionally absent for the saw's
         // reason, and it took a whole effect with it: the 🔴 big red button that
         // grew out of the pointer and waited to be PRESSED was removed on

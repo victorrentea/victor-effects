@@ -51,7 +51,6 @@ a release with an uncredited file.
 | `68_pig.mp3` | [Pig Oink](https://freesound.org/people/qubodup/sounds/442906/) | qubodup | CC0-1.0 |
 | `69_scream_ghost.mp3` | [Ghost wails](https://freesound.org/people/colorsCrimsonTears/sounds/556419/) | colorsCrimsonTears | CC0-1.0 |
 | `70_cavalry.mp3` | [Charge - Concert Band - United States Air Force Heritage of America Band](https://commons.wikimedia.org/wiki/File:Charge_-_Concert_Band_-_United_States_Air_Force_Heritage_of_America_Band.mp3) | US Air Force Heritage of America Band (Ceremonial Music, 2005) | PD |
-| `80_badumtss.mp3` | [Musical, Percussion, Drums, Ba-Dum-Tss](https://freesound.org/people/Vein_Adams/sounds/713649/) | Vein_Adams | CC0-1.0 |
 | `86_doorbell.mp3` | [DoorBell Shortened](https://freesound.org/people/jwheeler91/sounds/442280/) | jwheeler91 | CC0-1.0 |
 | `89_fireworks.mp3` | [Fireworks.flac](https://freesound.org/people/SyntaxSeed/sounds/244770/) | SyntaxSeed | CC0-1.0 |
 | `90_breaking-glass.mp3` | [Glass Break](https://freesound.org/people/unfa/sounds/221528/) | unfa | CC0-1.0 |
