@@ -168,8 +168,8 @@ final class TileView: NSView {
     /// `LayerBTests.testTheFxBadgeIsTheTabletsBadge` and its mirror there.
     /// Fractions and not points because the panel's cell is whatever 13 columns
     /// leave on the screen it opens on, and the two boards have to look like one.
-    /// Halved on 2026-10-22 (was 0.24): a quarter of the tile fought the picture.
-    static let fxHeightRatio: CGFloat = 0.12
+    /// 0.24 → 0.12 → 0.144 on 2026-10-22: a quarter of the tile fought the picture.
+    static let fxHeightRatio: CGFloat = 0.144
     static let fxMarginRatio: CGFloat = 0.05
     /// The black outline around the white mark, stroked at twice this under
     /// the fill, so this much shows outside the ink — the tablet's `OUTLINE_RATIO`.

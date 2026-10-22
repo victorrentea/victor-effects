@@ -286,7 +286,7 @@ on a layer, versus a redraw loop in a drawing method:
 - **FX top-right when the tile also animates the desktop** (the ⭐ until
   2026-10-22) — the tablet's badge, reproduced: this app's menu-bar 𝓯𝔁 as an
   outline, white with a black outline and shadow so it reads clean on any
-  thumbnail, right-aligned against a 5 % margin and 12 % of the tile tall
+  thumbnail, right-aligned against a 5 % margin and 14.4 % of the tile tall
   (24 % for its first hours — it fought the picture) — `fxHeightRatio` /
   `fxMarginRatio` / `fxOutlineRatio`, pinned to the tablet's `FxMark`. The
   corner was the last free one (`#NN` top-left, `↻` bottom-left, the usage dots
