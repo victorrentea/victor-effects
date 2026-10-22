@@ -40,6 +40,15 @@ this one only routes.
   (`SKIP_TESTS=1 ./build-app.sh` forces it, for a hotfix mid-workshop). A
   convention held together by string keys is only protected by a test that
   actually runs, and the deploy is the moment the drift would reach the room.
+- **🎬 Every Video Snippet is on YouTube, in its current version — a rule, guarded by the build.**
+  Adding or changing a snippet (the tablet's page 2: `victor-macos-addons/videos/videos.json`,
+  its mp4 or its `.srt`) is not done until it is published:
+  `cd ../victor-vibe-board/tools/youtube-publish && python3 -m ytpub publish --upload`
+  (the played window with its subtitles, public unless the copyright check blocks it everywhere;
+  the workshop summary links each played snippet through that upload). `VideoSnippetsOnYouTubeTests`
+  asks the publisher (`ytpub status`) and fails on any snippet new or changed since its upload, so
+  `build-app.sh` refuses to deploy until it is; skipped where those sibling checkouts are absent.
+  No cron or LaunchAgent does it behind your back (Victor, 2026-10-22: a rule, not a job).
 - **The FX badge (𝓯𝔁 top-right on a tile, the ⭐ until 2026-10-22) = "this
   tile also animates the desktop", and it is a promise, not a label.** One function answers it — `EffectsCatalog.effectName(forAsset:)` —
   and `/effects/assets`, `effectsHash` and the `effect` field `GET /tiles` stamps
