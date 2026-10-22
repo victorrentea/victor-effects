@@ -99,6 +99,12 @@ enum SoundEffectMap {
         // way the desktop still storms when the tablet plays the clip through
         // its own speaker and the Mac never sees a /sound/play.
         "20_storm.mp3":          "storm",
+        // Tile 61 (Bocelli's Hallelujah, since 2026-09-25; plain until
+        // 2026-10-22): light comes down from heaven — a warm glow and god-rays
+        // over the top edge, golden motes, three 👼 — see-through, for the
+        // length of the clip. (The ⏲️ microwave that used to be #61 is still an
+        // effect, /effect/microwave, just no longer a tile's.)
+        "61_hallelujah.mp3":     "heaven",
         // Tile 34: a phoenix rises up the desktop with its cry. The tablet's
         // paired `34_phoenix.mp3` is silent; the real sound (`phoenix.mp3`) is a
         // Mac-owned resource played inside showPhoenix and faded out in unison
@@ -130,10 +136,6 @@ enum SoundEffectMap {
         // plays normally on the routed /sound/play path (it was never special-cased
         // in onSoundPlay), so dropping the press→visual mapping here keeps the
         // sound but fires no overlay.
-        // Tile #61 has no effect since 2026-09-25: it became Bocelli's
-        // Hallelujah (61_hallelujah.mp3) and Victor wants it plain for now. The
-        // ⏲️ microwave is still an effect (/effect/microwave, /test/microwave),
-        // just no longer a tile's.
         // 13_heartbeat.mp3 is NOT here either. The zoom has to peak ON each
         // thump, and the press path cannot know when the thump happens: it is a
         // different HTTP request from the one that starts the audio, and the
@@ -187,6 +189,7 @@ enum SoundEffectMap {
         "59_game_over.mp3":      "game-over/stop",
         "46_michael_buble.mp3":  "snow/stop",
         "20_storm.mp3":          "storm/stop",
+        "61_hallelujah.mp3":     "heaven/stop",
     ]
 
     /// Sounds whose desktop visual is driven from the routed `/sound/play` path

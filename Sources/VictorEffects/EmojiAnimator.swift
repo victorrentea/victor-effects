@@ -8919,6 +8919,257 @@ class EmojiAnimator {
         }
     }
 
+    // MARK: - 😇 Heaven (tile #61, Bocelli's Hallelujah)
+
+    /// The light's self-stop and the angels' departure, kept so an explicit
+    /// stop can cancel the ones that have not fired yet — for the storm's
+    /// reason: a late one would clear the key out from under the next press.
+    private var heavenPending: [DispatchWorkItem] = []
+    /// Releases the golden motes. A timer flying each mote between two POINTS,
+    /// not a `CAEmitterLayer` — see `stormRainTimer` for what the emitter's
+    /// `emissionLongitude` did on this layer.
+    private var heavenMoteTimer: Timer?
+
+    /// 😇 Light comes down from heaven for as long as the Hallelujah sings: a
+    /// warm glow and a fan of god-rays slide down over the top edge, golden
+    /// motes drift through them, three 👼 glide down into the light and rise
+    /// back as the song ends. All of it see-through (`HeavenlyLight`).
+    func showHeaven() {
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+
+        // Re-press: start over rather than stacking two heavens.
+        clearHeaven(fadeDuration: 0)
+
+        var clip = HeavenlyLight.fallbackDuration
+        if let url = SoundManager.shared.soundURL(for: HeavenlyLight.soundName) {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric { clip = CMTimeGetSeconds(d) }
+        }
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        let now = CACurrentMediaTime()
+        let c = HeavenlyLight.lightColor
+
+        // On the stage, like the snow: laid out over the whole display and
+        // re-fitted to the glass under ⌥-scroll.
+        let container = CALayer()
+        container.frame = bounds
+        stageLayer.addSublayer(container)
+        activeEffects["heaven"] = container
+
+        // 1+2. The glow and the rays, as ONE piece that slides down from above
+        // the top edge while it fades in — the light coming down.
+        let light = CALayer()
+        light.frame = bounds
+        container.addSublayer(light)
+
+        let glow = CAGradientLayer()
+        glow.frame = bounds
+        // Unflipped layer: (0.5, 1) is the top edge.
+        glow.startPoint = CGPoint(x: 0.5, y: 1)
+        glow.endPoint = CGPoint(x: 0.5, y: 0)
+        let top = HeavenlyLight.glowTopAlpha
+        glow.colors = [NSColor(calibratedRed: c.r, green: c.g, blue: c.b, alpha: top).cgColor,
+                       NSColor(calibratedRed: c.r, green: c.g * 0.97, blue: c.b * 0.85, alpha: top * 0.38).cgColor,
+                       NSColor(calibratedRed: c.r, green: c.g, blue: c.b, alpha: 0).cgColor]
+        glow.locations = [0, 0.32, 0.78]
+        light.addSublayer(glow)
+
+        if let ray = HeavenlyLight.raySprite() {
+            let source = HeavenlyLight.source(in: bounds)
+            for (i, r) in HeavenlyLight.rays(in: bounds).enumerated() {
+                let beam = CALayer()
+                beam.bounds = CGRect(x: 0, y: 0, width: r.width, height: r.length)
+                // Hung by its top end from the source, so a rotation fans it.
+                beam.anchorPoint = CGPoint(x: 0.5, y: 1)
+                beam.position = source
+                beam.contents = ray
+                beam.contentsGravity = .resize
+                beam.opacity = r.opacity
+                beam.transform = CATransform3DMakeRotation(r.angle, 0, 0, 1)
+                light.addSublayer(beam)
+
+                let breath = CABasicAnimation(keyPath: "opacity")
+                breath.fromValue = r.opacity
+                breath.toValue = r.opacity * 0.45
+                breath.duration = r.breathSeconds
+                breath.beginTime = now + Double(i) * 0.37
+                breath.autoreverses = true
+                breath.repeatCount = .greatestFiniteMagnitude
+                breath.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                beam.add(breath, forKey: "heavenBreath")
+
+                // Additive on top of the resting angle, so it can never fight it.
+                let sway = CABasicAnimation(keyPath: "transform.rotation.z")
+                sway.fromValue = -r.sway
+                sway.toValue = r.sway
+                sway.duration = r.swaySeconds
+                sway.autoreverses = true
+                sway.repeatCount = .greatestFiniteMagnitude
+                sway.isAdditive = true
+                sway.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                beam.add(sway, forKey: "heavenSway")
+            }
+        }
+
+        let descend = CABasicAnimation(keyPath: "position.y")
+        descend.fromValue = light.position.y + bounds.height * HeavenlyLight.descendFrom
+        descend.toValue = light.position.y
+        descend.duration = HeavenlyLight.descendSeconds
+        descend.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        light.add(descend, forKey: "heavenDescend")
+        let dawn = CABasicAnimation(keyPath: "opacity")
+        dawn.fromValue = 0
+        dawn.toValue = 1
+        dawn.duration = HeavenlyLight.descendSeconds * 0.8
+        light.add(dawn, forKey: "heavenDawn")
+
+        // 3. Golden motes drifting down through the light.
+        let motes = CALayer()
+        motes.frame = bounds
+        container.addSublayer(motes)
+        if let mote = HeavenlyLight.moteSprite() {
+            let timer = Timer.scheduledTimer(withTimeInterval: 1 / 8.0, repeats: true) { [weak self, weak motes] timer in
+                guard let self, let motes, self.activeEffects["heaven"] === container else {
+                    timer.invalidate()
+                    return
+                }
+                self.spawnHeavenMote(into: motes, bounds: bounds, image: mote)
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            heavenMoteTimer = timer
+        }
+
+        // 4. The angels, each in its own halo.
+        var angelLayers: [CALayer] = []
+        for angel in HeavenlyLight.angels(in: bounds) {
+            guard let sprite = HeavenlyLight.angelSprite(points: angel.size, scale: scale) else { continue }
+            let holder = CALayer()
+            holder.bounds = CGRect(x: 0, y: 0, width: angel.size * 2.4, height: angel.size * 2.4)
+            holder.position = angel.rest
+            holder.opacity = HeavenlyLight.angelOpacity
+            container.addSublayer(holder)
+
+            let halo = CALayer()
+            halo.frame = holder.bounds
+            halo.contents = HeavenlyLight.haloSprite()
+            halo.contentsGravity = .resize
+            halo.opacity = 0.7
+            holder.addSublayer(halo)
+
+            let body = CALayer()
+            body.bounds = CGRect(x: 0, y: 0, width: angel.size, height: angel.size)
+            body.position = CGPoint(x: holder.bounds.midX, y: holder.bounds.midY)
+            body.contents = sprite
+            body.contentsScale = scale
+            holder.addSublayer(body)
+
+            let glide = CABasicAnimation(keyPath: "position.y")
+            glide.fromValue = bounds.maxY + angel.size * 1.5
+            glide.toValue = angel.rest.y
+            glide.duration = HeavenlyLight.angelSlideSeconds
+            glide.beginTime = now + angel.delay
+            glide.fillMode = .backwards      // parked above the top until its turn
+            glide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            holder.add(glide, forKey: "heavenGlide")
+
+            let bob = CABasicAnimation(keyPath: "position.y")
+            bob.fromValue = 0
+            bob.toValue = angel.bob
+            bob.duration = angel.bobSeconds
+            bob.beginTime = now + angel.delay + HeavenlyLight.angelSlideSeconds
+            bob.autoreverses = true
+            bob.repeatCount = .greatestFiniteMagnitude
+            bob.isAdditive = true
+            bob.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            holder.add(bob, forKey: "heavenBob")
+            angelLayers.append(holder)
+        }
+
+        overlayInfo(String(format: "😇 heaven: %d rays, %d angels, %.1fs clip",
+                           HeavenlyLight.rayCount, angelLayers.count, clip))
+
+        // The angels go back up while the last Hallelujah still sounds.
+        let ascend = DispatchWorkItem { [weak self] in
+            guard let self, self.activeEffects["heaven"] === container else { return }
+            for holder in angelLayers {
+                let rise = CABasicAnimation(keyPath: "position.y")
+                rise.fromValue = holder.position.y
+                rise.toValue = bounds.maxY + holder.bounds.height
+                rise.duration = HeavenlyLight.ascendLead + HeavenlyLight.fadeOutSeconds
+                rise.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                rise.fillMode = .forwards
+                rise.isRemovedOnCompletion = false
+                holder.removeAnimation(forKey: "heavenBob")
+                holder.add(rise, forKey: "heavenRise")
+            }
+        }
+        // The authoritative end (self-termination rule): the tablet's
+        // `/sound/stopped` → `heaven/stop` is only the polite one.
+        let selfStop = DispatchWorkItem { [weak self] in
+            guard let self, self.activeEffects["heaven"] === container else { return }
+            self.clearHeaven(fadeDuration: HeavenlyLight.fadeOutSeconds)
+        }
+        heavenPending = [ascend, selfStop]
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, clip - HeavenlyLight.ascendLead), execute: ascend)
+        DispatchQueue.main.asyncAfter(deadline: .now() + clip, execute: selfStop)
+    }
+
+    /// One mote, drifting down and a little sideways, twinkling in and out.
+    private func spawnHeavenMote(into container: CALayer, bounds: CGRect, image: CGImage) {
+        // 10…28 pt: a mote is watched from the back of a room, like the snow.
+        let size = CGFloat.random(in: 10...28)
+        let x = bounds.minX + bounds.width * CGFloat.random(in: 0.08...0.92)
+        let start = CGPoint(x: x, y: bounds.maxY + size)
+        let end = CGPoint(x: x + CGFloat.random(in: -90...90),
+                          y: bounds.maxY - bounds.height * CGFloat.random(in: 0.45...0.95))
+        let seconds = Double.random(in: 6...10)
+
+        let layer = CALayer()
+        layer.bounds = CGRect(x: 0, y: 0, width: size, height: size)
+        layer.position = end
+        layer.contents = image
+        layer.opacity = 0
+        container.addSublayer(layer)
+
+        let drift = CABasicAnimation(keyPath: "position")
+        drift.fromValue = NSValue(point: start)
+        drift.toValue = NSValue(point: end)
+        let twinkle = CAKeyframeAnimation(keyPath: "opacity")
+        twinkle.values = [0, 0.95, 0.5, 0.9, 0]
+        twinkle.keyTimes = [0, 0.2, 0.5, 0.75, 1]
+        let group = CAAnimationGroup()
+        group.animations = [drift, twinkle]
+        group.duration = seconds
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak layer] in layer?.removeFromSuperlayer() }
+        layer.add(group, forKey: "heavenMote")
+        CATransaction.commit()
+    }
+
+    /// Wired to `heaven/stop` — the clip stopped on the tablet.
+    func stopHeaven() {
+        clearHeaven(fadeDuration: HeavenlyLight.fadeOutSeconds)
+    }
+
+    private func clearHeaven(fadeDuration: CFTimeInterval) {
+        heavenPending.forEach { $0.cancel() }
+        heavenPending = []
+        heavenMoteTimer?.invalidate()
+        heavenMoteTimer = nil
+        guard let container = activeEffects["heaven"] else { return }
+        activeEffects.removeValue(forKey: "heaven")
+        guard fadeDuration > 0 else { container.removeFromSuperlayer(); return }
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(fadeDuration)
+        container.opacity = 0
+        CATransaction.commit()
+        DispatchQueue.main.asyncAfter(deadline: .now() + fadeDuration) { [weak container] in
+            container?.removeFromSuperlayer()
+        }
+    }
+
     /// Current mouse position expressed in hostLayer-local coordinates,
     /// clamped to the built-in screen (reuses the heartbeat anchor mapping).
     /// 🔍 A sprite drawn AT the pointer (the 🔥 fireball), sized for the glass:
@@ -13103,6 +13354,9 @@ class EmojiAnimator {
         // but the pending self-stop would fire afterwards and clear the "storm"
         // key out from under whatever the next press put there.
         clearStorm(fadeDuration: 0)
+        // 😇 And the heaven, for the storm's reason (its mote timer, its
+        // pending ascent and self-stop).
+        clearHeaven(fadeDuration: 0)
         // The minigun session also lives OUTSIDE activeEffects (its own tick,
         // hidden cursor and a tap eating every click), so tear it down
         // explicitly or it would keep aiming — and swallowing clicks — forever.

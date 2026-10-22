@@ -810,6 +810,29 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 
   The clip itself is **public domain**: *Rain and thunder* by David Öhlin (2006),
   Wikimedia Commons, normalised to −14.6 LUFS / −1.2 dBTP like the rest of the board.
+- **😇 Heaven** (tile #61 `61_hallelujah.mp3`, Bocelli's Hallelujah → `heaven` /
+  `heaven/stop`, `showHeaven`, layout and sprites in `HeavenlyLight.swift`; added
+  2026-10-22 — Victor: *"să se coboare lumină pe ecran, să văd încă translucent,
+  dar să fie emoție de îngerească"*). Light comes down from heaven for exactly the
+  clip, and **everything is see-through** — the slide under it is the demo being
+  blessed and has to stay readable:
+  - a warm gold **glow** from the top edge (alpha 0.42 there, gone by ~78% down) and a
+    fan of **9 god-rays** out of a point above the screen, each breathing and
+    swaying on its own clock. Glow and rays arrive as ONE layer that **slides down
+    from above** (3.6 s, ease-out) while it fades in — that slide is the "light
+    coming down". A reveal mask would look the same but costs an offscreen pass
+    every frame over swaying rays; the slide costs nothing.
+  - the rays are one cached 64×256 sprite (gaussian across × falloff along)
+    stretched per beam, hung from its top end so a rotation fans it; no masks, no
+    shadows — ~3 ms a frame at 4K (`EffectsRenderCostTests.testHeavenRenderCost`).
+  - **golden motes** (10–28 pt, 8 a second) drift down and twinkle — a timer flying
+    each between two points, not a `CAEmitterLayer`, for the storm's reason.
+  - **three 👼** in soft halos glide down into the top third (the middle one higher
+    and larger, staggered 0.8 / 1.4 / 2.0 s), bob gently, and **rise back up**
+    2.4 s before the clip ends, while the last Hallelujah is still sounding.
+  - On white the glow almost vanishes (light on white), on a dark editor it reads
+    as light; the room usually sees the dark one. The tablet's stop fades it out
+    (1.6 s); the clip's length is the guaranteed end.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
   **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its
@@ -882,7 +905,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     covered in 6.5 s instead of 8, so the thing moves **three times** as fast as it did.
     Twice was the ask; at exactly twice, the longer journey would need 9.8 s and no
     longer fit under the clip.
-- **⏲️ Microwave** (**no tile since 2026-09-25**: #61 became Bocelli's Hallelujah, with no effect for now; fire it with `/effect/microwave`. Was tile #61, repurposed from "dinner"): a **kitchen timer ticks and
+- **⏲️ Microwave** (**no tile since 2026-09-25**: #61 became Bocelli's Hallelujah — 😇 heaven since 2026-10-22; fire it with `/effect/microwave`. Was tile #61, repurposed from "dinner"): a **kitchen timer ticks and
   the microwave's door swings open on the BING**. `61_dinner.mp3` is now a few
   seconds of ticking followed by a bell (the ticking was lifted +12 dB against the
   bell so it survives a room PA; the bell keeps its full dynamic punch), and
