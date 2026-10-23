@@ -106,6 +106,12 @@ multiculturale din Europa"*): *merci mille fois 🥐*, *grazie, mamma mia 🤌*,
 agat ☘️*, *mersi, dragă 🧛*, British *ta muchly 🫖*, and Victor's own
 *mulțumesc, te rog frumos 🙏* (`WhipPleas.phrases`). No *sorry* anywhere,
 `WhipPleasTests` keeps it that way.
+**Each one flies under its country's flag**, first, so the room reads where
+before it reads what (2026-10-23, Victor: *"să pui și steagul țării din care e
+acea mulțumire … să învățăm cultură"*): *🇨🇭 merci vielmal*, *🇦🇹 danke,
+Schatzi*, *🇮🇪 thanks a million*, and Wales by its own tag-sequence flag
+(🏴󠁧󠁢󠁷󠁬󠁳󠁿 *diolch*). Catalan and Basque go under 🇪🇸 — emoji have no flag
+for either. A phrase without a flag fails `WhipPleasTests`.
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,

@@ -29,6 +29,19 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
+    /// Every thank-you opens with its country's flag (2026-10-23): two
+    /// regional indicators (🇫🇷), or a black flag with subdivision tags (Wales).
+    func testEveryPhraseOpensWithAFlag() {
+        let indicators: ClosedRange<UInt32> = 0x1F1E6...0x1F1FF
+        for phrase in WhipPleas.phrases {
+            let scalars = Array(phrase.unicodeScalars.prefix(2)).map(\.value)
+            let isCountry = scalars.count == 2 && scalars.allSatisfy(indicators.contains)
+            let isSubdivision = scalars.first == 0x1F3F4 && (0xE0020...0xE007F).contains(scalars.last ?? 0)
+            XCTAssertTrue(isCountry || isSubdivision, "\(phrase) has no flag")
+            XCTAssertTrue(phrase.first!.unicodeScalars.count >= 2, "\(phrase): the flag is not one glyph")
+        }
+    }
+
     /// The word lands past the tip, on the far side from the pointer.
     func testLaunchPointIsBeyondTheTipAwayFromTheHandle() {
         let handle = CGPoint(x: 100, y: 300), tip = CGPoint(x: 400, y: 300)

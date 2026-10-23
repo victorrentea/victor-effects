@@ -610,23 +610,27 @@ private final class WhipView: NSView {
 /// thanks (2026-10-22, Victor: *"nu vreau să îți cer scuze … vreau să spui
 /// mulțumesc în cât mai amuzante moduri multiculturale din Europa"*).
 enum WhipPleas {
+    /// Each thank-you flies under the flag of the country it comes from
+    /// (2026-10-23, Victor: *"să pui și steagul țării din care e acea
+    /// mulțumire … să învățăm cultură"*) — first, so the room reads where
+    /// before it reads what.
     static let phrases = [
         // The room is European: thanks from wherever they flew in from.
-        "merci beaucoup 💋", "merci mille fois 🥐", "grazie mille 🍝",
-        "grazie, mamma mia 🤌", "danke schön 🥨", "danke, Schatzi 🍺",
-        "merci vielmal 🧀", "gracias, amigo 💃", "moltes gràcies 🏖️",
-        "eskerrik asko 🏔️", "obrigadíssimo! 🐓", "dank je wel 🌷",
-        "tack så mycket 🫎", "tusen takk ❄️", "mange tak 🧱", "kiitos 🧖",
-        "takk fyrir 🌋", "aitäh 💾", "paldies 🌲", "ačiū 🏀",
-        "dziękuję 🥟", "děkuji 🍺", "ďakujem ⛰️", "köszönöm 🌶️",
-        "hvala lijepa 🍇", "благодаря 🌹", "ευχαριστώ 🏛️", "grazzi 🌞",
-        "faleminderit 🦅", "go raibh maith agat ☘️", "diolch 🐑",
-        "mulțumesc frumos 🍷", "mersi, dragă 🧛",
+        "🇫🇷 merci beaucoup 💋", "🇫🇷 merci mille fois 🥐", "🇮🇹 grazie mille 🍝",
+        "🇮🇹 grazie, mamma mia 🤌", "🇩🇪 danke schön 🥨", "🇦🇹 danke, Schatzi 🍺",
+        "🇨🇭 merci vielmal 🧀", "🇪🇸 gracias, amigo 💃", "🇪🇸 moltes gràcies 🏖️",
+        "🇪🇸 eskerrik asko 🏔️", "🇵🇹 obrigadíssimo! 🐓", "🇳🇱 dank je wel 🌷",
+        "🇸🇪 tack så mycket 🫎", "🇳🇴 tusen takk ❄️", "🇩🇰 mange tak 🧱", "🇫🇮 kiitos 🧖",
+        "🇮🇸 takk fyrir 🌋", "🇪🇪 aitäh 💾", "🇱🇻 paldies 🌲", "🇱🇹 ačiū 🏀",
+        "🇵🇱 dziękuję 🥟", "🇨🇿 děkuji 🍺", "🇸🇰 ďakujem ⛰️", "🇭🇺 köszönöm 🌶️",
+        "🇭🇷 hvala lijepa 🍇", "🇧🇬 благодаря 🌹", "🇬🇷 ευχαριστώ 🏛️", "🇲🇹 grazzi 🌞",
+        "🇦🇱 faleminderit 🦅", "🇮🇪 go raibh maith agat ☘️", "🏴\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F} diolch 🐑",
+        "🇷🇴 mulțumesc frumos 🍷", "🇷🇴 mersi, dragă 🧛",
         // ...and the British, who now thank instead of apologising.
-        "cheers, love 🍻", "ta muchly 🫖", "much obliged, guv'nor 🎩",
-        "thanks a million 🍀", "jolly good, thanks 💂",
+        "🇬🇧 cheers, love 🍻", "🇬🇧 ta muchly 🫖", "🇬🇧 much obliged, guv'nor 🎩",
+        "🇮🇪 thanks a million 🍀", "🇬🇧 jolly good, thanks 💂",
         // Victor's own, as dictated: no sorry, sorry, sorry.
-        "danke, danke, danke 🥺", "mulțumesc, te rog frumos 🙏",
+        "🇩🇪 danke, danke, danke 🥺", "🇷🇴 mulțumesc, te rog frumos 🙏",
     ]
     /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
     /// time"*) — the room needs the time to read *go raibh maith agat ☘️*.
