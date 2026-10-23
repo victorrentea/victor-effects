@@ -12534,7 +12534,8 @@ class EmojiAnimator {
     /// 🤖 The rusty robot head with the orange beacon appears in the middle of
     /// the screen. **No entrance and no exit**: the elephant and the panda walk,
     /// this one is a cut — it is there, then it is not, like a slide change. The
-    /// key again removes it; `opusLifetime` is only the backstop.
+    /// key again removes it; `opusLifetime` is only the backstop. The one thing
+    /// that moves is the claw rake, a beat after the cut (`rakeOpusCaption`).
     func showOpus() {
         if activeEffects["opus"] != nil { stopOpus(); return }
 
@@ -12564,6 +12565,7 @@ class EmojiAnimator {
         caption.contents = Self.opusCaptionImage(size: captionFrame.size, scale: scale)
         caption.contentsGravity = .resize
         caption.contentsScale = scale
+        Self.rakeOpusCaption(caption, after: Self.opusClawDelay)
         layer.addSublayer(caption)
         layer.addSublayer(head)
         stageLayer.addSublayer(layer)
@@ -12596,13 +12598,14 @@ class EmojiAnimator {
         return CTFontCreateWithFontDescriptor(d, size, nil) as NSFont
     }
 
-    /// "OPUS / SOL" and "…or worse" in fresh blood on a smear of old, nearly
-    /// black blood that drips off its bottom edge, with four claw marks raked
-    /// through it all (Victor, 2026-10-23: the room should wonder what on earth
-    /// we are talking about; the first cut, in Herculanum and bone-white, read
-    /// "like a church"). **Still** — the neon flicker it first had was dropped
-    /// the same day. Drawn once per showing; the random walk is seeded, so it
-    /// is the same smear every time.
+    /// "OPUS / SOL" in fresh blood on a smear of old, nearly black blood that
+    /// drips off its bottom edge (Victor, 2026-10-23: the room should wonder
+    /// what on earth we are talking about; the first cut, in Herculanum and
+    /// bone-white, read "like a church"). **Still** — the neon flicker it first
+    /// had was dropped the same day. The "…or worse" under the title went on
+    /// 2026-10-24, and the claw marks left the bitmap for `rakeOpusCaption`,
+    /// which tears them in a beat later. Drawn once per showing; the random
+    /// walk is seeded, so it is the same smear every time.
     static func opusCaptionImage(size: CGSize, scale: CGFloat) -> CGImage? {
         let pw = Int(size.width * scale), ph = Int(size.height * scale)
         guard pw > 0, ph > 0,
@@ -12681,7 +12684,7 @@ class EmojiAnimator {
         }
         ctx.restoreGState()
 
-        // The words, in fresh blood: Nosifer drips off every letter, Eater is gnawed.
+        // The words, in fresh blood: Nosifer drips off every letter.
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
         let red = NSColor(calibratedRed: 0.86, green: 0.03, blue: 0.04, alpha: 1)
@@ -12709,40 +12712,95 @@ class EmojiAnimator {
             return Self.opusFont(name, min(maxH, 100 * maxW / max(tw, 1))) ?? probe
         }
         let title = fitted("Nosifer-Regular", "OPUS / SOL", maxW: rx * 1.55, maxH: ry * 0.85)
-        let sub = fitted("Eater-Regular", "…or worse", maxW: rx * 1.15, maxH: ry * 0.7)
-        draw("OPUS / SOL", font: title, centreY: centre.y + ry * 0.30, tilt: -0.025)
-        draw("…or worse", font: sub, centreY: centre.y - ry * 0.50, tilt: 0.04)
+        draw("OPUS / SOL", font: title, centreY: centre.y, tilt: -0.025)
         NSGraphicsContext.restoreGraphicsState()
 
-        // Four claw marks raked through everything, cut clean out of the picture.
+        return ctx.makeImage()
+    }
+
+    /// The rake waits this long after the head cuts in, so the room has read
+    /// the head before something tears through the words under it.
+    static let opusClawDelay: Double = 0.7
+
+    /// The three gashes as one path in the caption's own points (y up), each
+    /// torn `progress[i]` of its way down from its top end: 0 is nothing yet,
+    /// 1 is the whole sliver. Seeded, so the claws land in the same place at
+    /// every showing and every frame of the tear lies on the finished mark.
+    static func opusClawPath(size: CGSize, progress: [CGFloat]) -> CGPath {
+        let w = size.width, h = size.height
+        let centre = CGPoint(x: w / 2, y: h * 0.62)   // the smear's, see opusCaptionImage
+        let rx = w * 0.47, ry = h * 0.33
+        var seed: UInt64 = 0xC1A5
+        func rnd() -> CGFloat {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            return CGFloat(seed >> 33) / CGFloat(1 << 31)
+        }
         let rake = CGMutablePath()
         let slant: CGFloat = 0.55   // a downward stroke from upper right to lower left
-        for i in 0..<4 {
-            let off = CGFloat(i) * rx * 0.10 + (rnd() - 0.5) * rx * 0.02
-            let top = CGPoint(x: centre.x - rx * 0.02 + off, y: centre.y + ry * 0.95 - CGFloat(i) * ry * 0.06)
-            let len = ry * (1.7 + rnd() * 0.3)
+        let nx = 1 / sqrt(1 + slant * slant), ny = -slant / sqrt(1 + slant * slant)
+        for i in 0..<3 {
+            let off = CGFloat(i) * rx * 0.13 + (rnd() - 0.5) * rx * 0.02
+            let top = CGPoint(x: centre.x - rx * 0.06 + off, y: centre.y + ry * 0.95 - CGFloat(i) * ry * 0.06)
+            let len = ry * (1.7 + rnd() * 0.3) * min(max(i < progress.count ? progress[i] : 1, 0), 1)
+            let thick = (4.5 + rnd() * 3) * len / (ry * 1.85)
             let bot = CGPoint(x: top.x - len * slant, y: top.y - len)
-            let bend = CGPoint(x: (top.x + bot.x) / 2 + rx * 0.03, y: (top.y + bot.y) / 2)
-            let thick = 4.5 + rnd() * 3
+            let bend = CGPoint(x: (top.x + bot.x) / 2 + rx * 0.03 * len / (ry * 1.85), y: (top.y + bot.y) / 2)
             // A sliver: pointed at both ends, widest a third of the way down.
-            let nx = 1 / sqrt(1 + slant * slant), ny = -slant / sqrt(1 + slant * slant)
             let fat = CGPoint(x: top.x + (bot.x - top.x) * 0.35, y: top.y + (bot.y - top.y) * 0.35)
             rake.move(to: top)
             rake.addQuadCurve(to: bot, control: CGPoint(x: bend.x + nx * thick * 2, y: bend.y + ny * thick * 2))
             rake.addQuadCurve(to: top, control: CGPoint(x: fat.x - nx * thick * 2, y: fat.y - ny * thick * 2))
         }
-        ctx.saveGState()
-        ctx.setBlendMode(.clear)
-        ctx.addPath(rake); ctx.fillPath()
-        ctx.restoreGState()
-        // A raw red lip along each gash.
-        ctx.saveGState()
-        ctx.setStrokeColor(CGColor(red: 0.75, green: 0.02, blue: 0.03, alpha: 0.9))
-        ctx.setLineWidth(1.2)
-        ctx.addPath(rake); ctx.strokePath()
-        ctx.restoreGState()
+        return rake
+    }
 
-        return ctx.makeImage()
+    /// Three claw marks tear through the caption `delay` seconds after it
+    /// appears, one after the other like a paw swiping down, and stay. They are
+    /// real cuts — the screen shows through — so they are a hole in the
+    /// caption's mask (even-odd: the whole frame, minus the slivers), with a
+    /// raw red lip drawn along each gash. Both are one keyframed path, so the
+    /// whole tear runs on Core Animation's clock with no timer to cancel.
+    static func rakeOpusCaption(_ caption: CALayer, after delay: Double) {
+        let size = caption.bounds.size
+        let frames = 24, tear = 0.42, stagger = 0.09
+        func progress(_ t: Double) -> [CGFloat] {
+            (0..<3).map { i in
+                let p = min(max((t - Double(i) * stagger) / (tear - 2 * stagger), 0), 1)
+                return CGFloat(1 - pow(1 - p, 3))   // fast in, slowing as it bites
+            }
+        }
+        let gashes = (0...frames).map { opusClawPath(size: size, progress: progress(tear * Double($0) / Double(frames))) }
+        let holes: [CGPath] = gashes.map { g in
+            let p = CGMutablePath()
+            p.addRect(CGRect(origin: .zero, size: size))
+            p.addPath(g)
+            return p
+        }
+
+        let mask = CAShapeLayer()
+        mask.frame = caption.bounds
+        mask.fillRule = .evenOdd
+        mask.path = holes.last
+        caption.mask = mask
+
+        let lip = CAShapeLayer()
+        lip.frame = caption.bounds
+        lip.fillColor = nil
+        lip.strokeColor = CGColor(red: 0.75, green: 0.02, blue: 0.03, alpha: 0.9)
+        lip.lineWidth = 1.2
+        lip.path = gashes.last
+        caption.addSublayer(lip)
+
+        let start = caption.convertTime(CACurrentMediaTime(), from: nil) + delay
+        for (layer, values) in [(mask, holes), (lip, gashes)] {
+            let anim = CAKeyframeAnimation(keyPath: "path")
+            anim.values = values
+            anim.calculationMode = .linear
+            anim.duration = tear
+            anim.beginTime = start
+            anim.fillMode = .backwards   // untouched until the paw comes down
+            layer.add(anim, forKey: "rake")
+        }
     }
 
     // MARK: - 🤖 Claude leans in from the left (⌘⌃Q)

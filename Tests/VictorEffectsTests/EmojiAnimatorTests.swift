@@ -15,6 +15,15 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertNotNil(EmojiAnimator.opusCaptionImage(size: caption.size, scale: 2))
     }
 
+    func testOpusClawsStartAsNothingAndEndInsideTheCaption() {
+        let size = CGSize(width: 900, height: 300)
+        let none = EmojiAnimator.opusClawPath(size: size, progress: [0, 0, 0])
+        let full = EmojiAnimator.opusClawPath(size: size, progress: [1, 1, 1])
+        XCTAssertLessThan(none.boundingBoxOfPath.height, size.height * 0.1)   // only the three tops
+        XCTAssertGreaterThan(full.boundingBoxOfPath.height, size.height * 0.4)
+        XCTAssertTrue(CGRect(origin: .zero, size: size).contains(full.boundingBoxOfPath))
+    }
+
     // NOTE: `testMonitorEmojiUsesBreakingGlassSound` and `testHeartEmojiHasNoSoundEffect`
     // were removed — they referenced `EmojiAnimator.soundEffect(for:)`, which no longer
     // exists (the emoji→sound mapping was refactored into the show* effect methods,
