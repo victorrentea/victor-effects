@@ -258,7 +258,7 @@ extension SoundCaptions {
 
     // MARK: the karaoke fill (Victor, 2026-10-23: "TikTok style, yellow on
     // white, word by word as it is said" — and, an hour later, "only colour a
-    // word at the moment it is pronounced")
+    // word at the moment it is pronounced"; then "left to right, progressively")
 
     /// Where each word of `text` ends, in UTF-16 offsets — a word being a
     /// whitespace-separated token with a letter or digit in it, so ♪ and a
@@ -274,11 +274,36 @@ extension SoundCaptions {
         return ends
     }
 
-    /// How much of `text` is yellow once `lit` words have been said.
-    static func litLength(_ text: String, lit: Int) -> Int {
+    /// A word sweeps until the next one is heard — a held note fills slowly,
+    /// as it is sung — but no longer than this: a longer gap is a pause, and
+    /// the word should be full before it, not crawl through the silence.
+    static let maxWordSweep: TimeInterval = 2
+    /// The last word has no next one to run to.
+    static let lastWordSweep: TimeInterval = 0.6
+
+    /// The karaoke's path through `text`: how far the yellow has reached (a
+    /// UTF-16 offset) at each moment, in seconds after the line goes up, to be
+    /// joined by straight lines. Every word WIPES left to right over the time
+    /// it is said (Victor, 2026-10-23: "progressively, syllable by syllable,
+    /// not all at once") — from the end of the previous word, so the space and
+    /// the opening ♪ go with the first word and the closing ♪ with the last.
+    static func fill(_ text: String, words: [TimeInterval], seconds: TimeInterval) -> [(t: TimeInterval, offset: Int)] {
         let ends = wordEnds(text)
-        guard lit > 0, !ends.isEmpty else { return 0 }
-        return lit >= ends.count ? text.utf16.count : ends[lit - 1]
+        guard !words.isEmpty, words.count == ends.count else { return [] }
+        var path: [(t: TimeInterval, offset: Int)] = [(0, 0)]
+        func add(_ t: TimeInterval, _ offset: Int) {
+            let t = max(t, path.last!.t)
+            if t == path.last!.t { path.removeLast() }
+            path.append((t, offset))
+        }
+        for (i, at) in words.enumerated() {
+            let last = i == words.count - 1
+            let sweep = last ? min(lastWordSweep, max(0.1, seconds - at))
+                             : min(maxWordSweep, max(0, words[i + 1] - at))
+            if at > path.last!.t { add(at, path.last!.offset) }
+            add(max(0, at) + sweep, last ? text.utf16.count : ends[i])
+        }
+        return path
     }
 
     /// The words of a line, timed as they were reviewed on the voice
@@ -388,8 +413,6 @@ enum CaptionOverlay {
     /// could barely see them turn yellow"). A line with no timing (a noise,
     /// a title) is never dimmed: it is plain white throughout.
     static let upcomingColor = NSColor(white: 1, alpha: 0.55)
-    /// A word lights up in this long rather than blinking.
-    static let lightUpSeconds: TimeInterval = 0.08
 
     private static var panel: CaptionPanel?
     private static var generation = 0
@@ -443,17 +466,61 @@ enum CaptionOverlay {
         }
     }
 
-    /// The line with its first `lit` words in yellow and the rest dimmed; nil
-    /// `lit` = an untimed line, all white. Colour only, so the layout measured
-    /// on the first step holds for every later one.
-    static func label(_ text: String, lit: Int?) -> NSAttributedString {
-        let label = NSMutableAttributedString(string: text, attributes: [
+    /// The line in one colour. A timed line is drawn twice, the same layout in
+    /// both: dimmed (`upcomingColor`) underneath, yellow on top behind the
+    /// sweeping mask (`sweep`); an untimed one once, in white.
+    static func label(_ text: String, color: NSColor) -> NSAttributedString {
+        let centred = NSMutableParagraphStyle()
+        centred.alignment = .center
+        return NSAttributedString(string: text, attributes: [
             .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
-            .foregroundColor: lit == nil ? NSColor.white : upcomingColor,
+            .foregroundColor: color,
+            .paragraphStyle: centred,
         ])
-        let length = SoundCaptions.litLength(text, lit: lit ?? 0)
-        if length > 0 { label.addAttribute(.foregroundColor, value: litColor, range: NSRange(location: 0, length: length)) }
-        return label
+    }
+
+    /// The mask that uncovers the yellow copy: one band per wrapped line, its
+    /// width following `SoundCaptions.fill` — the x of each offset measured
+    /// with CoreText on the same string in the same box CATextLayer draws in,
+    /// so the edge of the yellow sits on the letters, mid-word.
+    private static func sweep(_ label: NSAttributedString, in size: CGSize,
+                              path: [(t: TimeInterval, offset: Int)]) -> CALayer {
+        let mask = CALayer()
+        mask.frame = CGRect(origin: .zero, size: size)
+        let frame = CTFramesetterCreateFrame(CTFramesetterCreateWithAttributedString(label),
+                                             CFRange(location: 0, length: 0),
+                                             CGPath(rect: CGRect(origin: .zero, size: size), transform: nil), nil)
+        let lines = CTFrameGetLines(frame) as! [CTLine]
+        var origins = [CGPoint](repeating: .zero, count: lines.count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+        let total = path.last?.t ?? 0
+        for (k, line) in lines.enumerated() {
+            let range = CTLineGetStringRange(line)
+            let x = { (offset: Int) in CTLineGetOffsetForStringIndex(line, offset, nil) }
+            let left = x(range.location), right = x(range.location + range.length)
+            let widths = path.map { min(max(x(min(max($0.offset, range.location), range.location + range.length)) - left, 0), right - left) }
+            // Bands meet halfway between baselines, so a descender or an
+            // accent is never cut off by its neighbour's band.
+            let top = k == 0 ? size.height : (origins[k - 1].y + origins[k].y) / 2
+            let bottom = k == lines.count - 1 ? 0 : (origins[k].y + origins[k + 1].y) / 2
+            let band = CALayer()
+            band.backgroundColor = NSColor.black.cgColor
+            band.anchorPoint = .zero
+            band.position = CGPoint(x: origins[k].x + left, y: bottom)
+            band.bounds = CGRect(x: 0, y: 0, width: widths.last ?? 0, height: top - bottom)
+            if total > 0 {
+                let grow = CAKeyframeAnimation(keyPath: "bounds.size.width")
+                grow.values = widths
+                grow.keyTimes = path.map { NSNumber(value: $0.t / total) }
+                grow.duration = total
+                grow.beginTime = CACurrentMediaTime()
+                grow.fillMode = .both
+                grow.isRemovedOnCompletion = false
+                band.add(grow, forKey: "sweep")
+            }
+            mask.addSublayer(band)
+        }
+        return mask
     }
 
     static func show(_ text: String, seconds: TimeInterval, words: [TimeInterval] = [], on screen: NSScreen) {
@@ -461,7 +528,7 @@ enum CaptionOverlay {
         let gen = generation
 
         // Laid out once at the rest size; the zoom only ever scales it.
-        let label = Self.label(text, lit: words.isEmpty ? nil : words.filter { $0 <= 0 }.count)
+        let label = Self.label(text, color: words.isEmpty ? .white : upcomingColor)
         let maxTextWidth = screen.frame.width * 0.8
         let textSize = label.boundingRect(
             with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
@@ -492,6 +559,17 @@ enum CaptionOverlay {
         textLayer.contentsScale = screen.backingScaleFactor
         textLayer.frame = CGRect(x: padH, y: padV, width: ceil(textSize.width), height: ceil(textSize.height))
         box.addSublayer(textLayer)
+        let path = SoundCaptions.fill(text, words: words, seconds: seconds)
+        if !path.isEmpty {
+            let lit = CATextLayer()
+            lit.string = Self.label(text, color: litColor)
+            lit.alignmentMode = .center
+            lit.isWrapped = true
+            lit.contentsScale = screen.backingScaleFactor
+            lit.frame = textLayer.frame
+            lit.mask = sweep(lit.string as! NSAttributedString, in: lit.frame.size, path: path)
+            box.addSublayer(lit)
+        }
         layer.addSublayer(box)
 
         // A fresh view per caption, so a fade still running on the previous
@@ -510,18 +588,6 @@ enum CaptionOverlay {
         panel.orderFrontRegardless()
         setOnGlass(CGWindowID(panel.windowNumber))
         startFollowing(screen)
-
-        // Each word lights up when it is said; a newer caption (or a hide)
-        // moves the generation and the rest stay unlit with their line.
-        for (i, at) in words.enumerated() where at > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + at) {
-                guard gen == generation else { return }
-                CATransaction.begin()
-                CATransaction.setAnimationDuration(lightUpSeconds)
-                textLayer.string = Self.label(text, lit: i + 1)
-                CATransaction.commit()
-            }
-        }
 
         let fadeOut = fadeOutSeconds
         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, seconds - fadeOut)) {

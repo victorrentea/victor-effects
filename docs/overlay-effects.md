@@ -178,11 +178,18 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
 - **Karaoke fill, word by word** (Victor, 2026-10-23: "TikTok style, yellow on
   white, as it is said" — and "only colour a word at the moment it is
   pronounced"). A sung or spoken line goes up dimmed (`upcomingColor`, white
-  at 55 %) and every word turns a saturated, opaque yellow (`litColor`, 80 ms
-  light-up) at the moment it starts being said; the opening ♪ / quote lights
-  with the first word, the closing one with the last, so a line ends all
-  yellow. Dim → yellow is a step in brightness *and* colour: white → yellow
-  alone was invisible on the room's screen.
+  at 55 %) and the saturated, opaque yellow (`litColor`) **wipes across it left
+  to right** (2026-10-23, the same afternoon: "progressively, as if syllable by
+  syllable — not a whole word at once"). Each word sweeps from the moment it
+  starts being said until the next word is heard, so a held note fills slowly,
+  capped at `SoundCaptions.maxWordSweep` (2 s — a longer gap is a pause, and the
+  word is full before it); the last word sweeps in `lastWordSweep` (0.6 s). The
+  opening ♪ / quote goes with the first word, the closing one with the last, so
+  a line ends all yellow. Drawn as two CATextLayers of the same string — dimmed
+  under, yellow over — the yellow one masked by one band per wrapped line whose
+  width follows `SoundCaptions.fill` (offsets → x by CoreText on the same box),
+  so the edge of the yellow stands mid-letter. Dim → yellow is a step in
+  brightness *and* colour: white → yellow alone was invisible on the room's screen.
   - **Nothing is said, nothing fills.** A [noise], an instrumental title (Pink
     Panther, Ode to Joy) or a song's intro title has no timing and stays plain
     white. The first version filled those at an even pace, and it read as the

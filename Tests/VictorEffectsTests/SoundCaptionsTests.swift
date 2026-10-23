@@ -97,15 +97,31 @@ final class SoundCaptionsTests: XCTestCase {
 
     // MARK: the karaoke fill
 
-    /// ♪ and a lone dash are not words: the opening ♪ lights with the first
+    /// ♪ and a lone dash are not words: the opening ♪ fills with the first
     /// word, the closing one with the last, so the line ends all yellow.
     func testWordsAreTokensWithALetter() {
         let text = "♪ Oops, I did it again ♪"
         XCTAssertEqual(SoundCaptions.wordEnds(text).count, 5)
-        XCTAssertEqual(SoundCaptions.litLength(text, lit: 0), 0)
-        XCTAssertEqual((text as NSString).substring(to: SoundCaptions.litLength(text, lit: 1)), "♪ Oops,")
-        XCTAssertEqual(SoundCaptions.litLength(text, lit: 5), text.utf16.count)
+        XCTAssertEqual((text as NSString).substring(to: SoundCaptions.wordEnds(text)[0]), "♪ Oops,")
         XCTAssertEqual(SoundCaptions.wordEnds("[wolf howling]").count, 2)
+    }
+
+    /// Each word WIPES from left to right while it is said — up to the next
+    /// word's start, so a held note fills slowly — never jumps in whole.
+    func testEachWordSweepsUntilTheNextIsHeard() {
+        let text = "♪ Let it be ♪"   // ends: 5 ("♪ Let"), 8, 11
+        let path = SoundCaptions.fill(text, words: [0.5, 1.0, 1.2], seconds: 4)
+        XCTAssertEqual(path.map(\.t), [0, 0.5, 1.0, 1.2, 1.2 + SoundCaptions.lastWordSweep])
+        XCTAssertEqual(path.map(\.offset), [0, 0, 5, 8, text.utf16.count])
+    }
+
+    /// A long gap is a pause, not a held note: the word is full before it.
+    func testAWordDoesNotCrawlThroughAPause() {
+        let path = SoundCaptions.fill("♪ Hello is it me ♪", words: [0, 4, 4.3, 4.6], seconds: 6)
+        XCTAssertEqual(path[1].t, SoundCaptions.maxWordSweep)
+        XCTAssertEqual(path[1].offset, 7, "\"♪ Hello\" is full")
+        XCTAssertEqual(path[2].t, 4, "and waits for \"is\"")
+        XCTAssertEqual(path.map(\.t), path.map(\.t).sorted())
     }
 
     /// A sung line lights up as the review placed it, relative to the line.
@@ -142,13 +158,12 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.schedule(for: "06_copyright_cartoon.mp3", clipSeconds: 4)[0].words, [])
     }
 
-    /// An untimed line is plain white; a timed one starts dimmed, so its
-    /// yellow is a step up in brightness, not just a tint of the white.
-    func testUntimedIsWhiteAndUpcomingIsDimmed() {
-        let colour = { (s: NSAttributedString) in s.attribute(.foregroundColor, at: s.length - 1, effectiveRange: nil) as? NSColor }
-        XCTAssertEqual(colour(CaptionOverlay.label("[wolf howling]", lit: nil)), .white)
-        XCTAssertEqual(colour(CaptionOverlay.label("♪ Let it be ♪", lit: 1)), CaptionOverlay.upcomingColor)
-        XCTAssertEqual(colour(CaptionOverlay.label("♪ Let it be ♪", lit: 3)), CaptionOverlay.litColor)
+    /// An untimed line has no path, so it stays plain white; a timed one is
+    /// drawn dimmed under its yellow copy.
+    func testUntimedHasNoFill() {
+        XCTAssertTrue(SoundCaptions.fill("[wolf howling]", words: [], seconds: 3).isEmpty)
+        let colour = { (s: NSAttributedString) in s.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor }
+        XCTAssertEqual(colour(CaptionOverlay.label("♪ Let it be ♪", color: CaptionOverlay.upcomingColor)), CaptionOverlay.upcomingColor)
     }
 
     /// The generated table only fires on a cue with the same start AND word
