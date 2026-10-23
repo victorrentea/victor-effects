@@ -29,17 +29,23 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
-    /// Every thank-you opens with its country's flag (2026-10-23): two
-    /// regional indicators (🇫🇷), or a black flag with subdivision tags (Wales).
-    func testEveryPhraseOpensWithAFlag() {
-        let indicators: ClosedRange<UInt32> = 0x1F1E6...0x1F1FF
+    /// Every thank-you opens with its country's flag (2026-10-23), one
+    /// glyph of two regional indicators, from a Schengen or euro country.
+    func testEveryPhraseOpensWithAnAllowedFlag() {
         for phrase in WhipPleas.phrases {
-            let scalars = Array(phrase.unicodeScalars.prefix(2)).map(\.value)
-            let isCountry = scalars.count == 2 && scalars.allSatisfy(indicators.contains)
-            let isSubdivision = scalars.first == 0x1F3F4 && (0xE0020...0xE007F).contains(scalars.last ?? 0)
-            XCTAssertTrue(isCountry || isSubdivision, "\(phrase) has no flag")
-            XCTAssertTrue(phrase.first!.unicodeScalars.count >= 2, "\(phrase): the flag is not one glyph")
+            let (flag, iso, _) = WhipPleas.flagged(phrase)
+            XCTAssertEqual(flag.unicodeScalars.count, 2, "\(phrase) has no flag")
+            XCTAssertEqual(iso.count, 2, "\(phrase) has no flag")
+            XCTAssertTrue(WhipPleas.allowedCountries.contains(iso), "\(phrase): \(iso) is neither Schengen nor euro")
         }
+    }
+
+    /// The ISO code is read off the flag itself — no second table to drift.
+    func testFlaggedReadsTheIsoCodeOffTheFlag() {
+        let (flag, iso, words) = WhipPleas.flagged("🇫🇷 merci beaucoup 💋")
+        XCTAssertEqual(flag, "🇫🇷")
+        XCTAssertEqual(iso, "FR")
+        XCTAssertEqual(words, " merci beaucoup 💋")
     }
 
     /// The word lands past the tip, on the far side from the pointer.

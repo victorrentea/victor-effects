@@ -580,14 +580,12 @@ private final class WhipView: NSView {
         // … somehow cut off"*), and a centred stroke ate half the pink. Here
         // the outline is drawn alone, with round joins (no spikes off A's apex
         // or K's arms), and the clean fill lands on top of it.
-        let outline = NSAttributedString(string: plea.text, attributes: [
-            .font: font,
+        let outline = WhipPleas.attributed(plea.text, font: font, [
             .strokeColor: NSColor.black.withAlphaComponent(alpha),
             .strokeWidth: WhipPleas.outlineWidth,   // positive = stroke only
             .shadow: shadow,
         ])
-        let fill = NSAttributedString(string: plea.text, attributes: [
-            .font: font,
+        let fill = WhipPleas.attributed(plea.text, font: font, [
             .foregroundColor: WhipPleas.color.withAlphaComponent(alpha),
         ])
         let size = fill.size()
@@ -613,9 +611,10 @@ enum WhipPleas {
     /// Each thank-you flies under the flag of the country it comes from
     /// (2026-10-23, Victor: *"să pui și steagul țării din care e acea
     /// mulțumire … să învățăm cultură"*) — first, so the room reads where
-    /// before it reads what.
+    /// before it reads what. Only Schengen or euro countries (same day:
+    /// *"nu pune chiar toate țările … din toate colțurile"*), so Albania,
+    /// Wales and the British went; Ireland stays on the euro.
     static let phrases = [
-        // The room is European: thanks from wherever they flew in from.
         "🇫🇷 merci beaucoup 💋", "🇫🇷 merci mille fois 🥐", "🇮🇹 grazie mille 🍝",
         "🇮🇹 grazie, mamma mia 🤌", "🇩🇪 danke schön 🥨", "🇦🇹 danke, Schatzi 🍺",
         "🇨🇭 merci vielmal 🧀", "🇪🇸 gracias, amigo 💃", "🇪🇸 moltes gràcies 🏖️",
@@ -624,14 +623,43 @@ enum WhipPleas {
         "🇮🇸 takk fyrir 🌋", "🇪🇪 aitäh 💾", "🇱🇻 paldies 🌲", "🇱🇹 ačiū 🏀",
         "🇵🇱 dziękuję 🥟", "🇨🇿 děkuji 🍺", "🇸🇰 ďakujem ⛰️", "🇭🇺 köszönöm 🌶️",
         "🇭🇷 hvala lijepa 🍇", "🇧🇬 благодаря 🌹", "🇬🇷 ευχαριστώ 🏛️", "🇲🇹 grazzi 🌞",
-        "🇦🇱 faleminderit 🦅", "🇮🇪 go raibh maith agat ☘️", "🏴\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F} diolch 🐑",
+        "🇮🇪 go raibh maith agat ☘️", "🇮🇪 thanks a million 🍀",
         "🇷🇴 mulțumesc frumos 🍷", "🇷🇴 mersi, dragă 🧛",
-        // ...and the British, who now thank instead of apologising.
-        "🇬🇧 cheers, love 🍻", "🇬🇧 ta muchly 🫖", "🇬🇧 much obliged, guv'nor 🎩",
-        "🇮🇪 thanks a million 🍀", "🇬🇧 jolly good, thanks 💂",
         // Victor's own, as dictated: no sorry, sorry, sorry.
         "🇩🇪 danke, danke, danke 🥺", "🇷🇴 mulțumesc, te rog frumos 🙏",
     ]
+    /// Schengen ∪ euro area, as of 2026 — the only flags a thank-you may fly.
+    static let allowedCountries: Set<String> = [
+        "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+        "HU", "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL",
+        "PT", "RO", "SK", "SI", "ES", "SE", "CH",
+    ]
+    /// The flag's ISO code sits right after it, small and below the baseline
+    /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),
+    /// so a flag nobody recognises still says where it is from.
+    static let isoScale: CGFloat = 0.5
+    static let isoDrop: CGFloat = 0.12
+
+    /// The phrase split around its flag: the flag, its ISO 3166 code read
+    /// back off the two regional indicators (🇫🇷 → "FR"), and the words after.
+    static func flagged(_ phrase: String) -> (flag: String, iso: String, words: String) {
+        guard let flag = phrase.first else { return ("", "", phrase) }
+        let iso = String(String.UnicodeScalarView(flag.unicodeScalars.compactMap {
+            (0x1F1E6...0x1F1FF).contains($0.value) ? UnicodeScalar($0.value - 0x1F1E6 + 65) : nil
+        }))
+        return (String(flag), iso, String(phrase.dropFirst()))
+    }
+    /// `phrase` in `font`, with its flag's ISO code dropped in as a subscript.
+    static func attributed(_ phrase: String, font: NSFont,
+                           _ attrs: [NSAttributedString.Key: Any]) -> NSAttributedString {
+        let (flag, iso, words) = flagged(phrase)
+        let small = NSFont.systemFont(ofSize: font.pointSize * isoScale, weight: .heavy)
+        let s = NSMutableAttributedString(string: flag, attributes: attrs.merging([.font: font]) { $1 })
+        s.append(NSAttributedString(string: iso, attributes: attrs.merging(
+            [.font: small, .baselineOffset: -font.pointSize * isoDrop]) { $1 }))
+        s.append(NSAttributedString(string: words, attributes: attrs.merging([.font: font]) { $1 }))
+        return s
+    }
     /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
     /// time"*) — the room needs the time to read *go raibh maith agat ☘️*.
     static let lifeMs = 1950.0
