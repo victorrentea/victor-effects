@@ -480,9 +480,9 @@ Mirrored from `MainActivity.renderVideoTiles`, not invented:
 
 | | page 1 (sounds) | page 2 (videos) |
 |---|---|---|
-| columns | 13 (`tiles.json`) | **6** (`SNIPPETS_PER_ROW`; 5 until 2026-10-23) |
+| columns | 13 (`tiles.json`) | **7** (`SNIPPETS_PER_ROW`; 5 until 2026-10-23, 6 until 2026-10-24) |
 | shape | square | **16:9** |
-| width vs a sound tile | 1× | **2.17×** (13 ÷ 6) |
+| width vs a sound tile | 1× | **1.86×** (13 ÷ 7) |
 | `padding` / `gap` | 10 / 6 | the same — they are one decision |
 | `#NN` | white bold at 10% of the tile | white bold at 10% of the **sound** tile |
 | label | optional word, centred | **the title**, centred across the picture, at 20% of the tile |
@@ -507,9 +507,9 @@ Mirrored from `MainActivity.renderVideoTiles`, not invented:
   (density override 200, i.e. 1.25, times Victor's 1.3 font scale) that is ≈ 78 px
   of type on a cell of (2000 − 2×13 − 4×15) ÷ 5 ≈ 382 px. The panel had been
   drawing the titles at half the size of the ones in the room. Since the sixth
-  column (2026-10-23) the tablet sets `240 ÷ SNIPPETS_PER_ROW` sp — the same 20 %,
+  column (2026-10-23; a seventh on 2026-10-24) the tablet sets `240 ÷ SNIPPETS_PER_ROW` sp — the same 20 %,
   so this ratio did not move. A ratio and never
-  a point size, for the same reason as the `#NN` badge: the cell is whatever six
+  a point size, for the same reason as the `#NN` badge: the cell is whatever seven
   across leaves on the screen the panel opens on.
 - **Tile widths are whole multiples of 16** (`widthQuantum`). Not tidiness — it is
   what makes hugging *stable*: the panel measures the grid, shortens its frame to
