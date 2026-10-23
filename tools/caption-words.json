@@ -372,23 +372,35 @@
  "61_hallelujah.mp3": [
   {
    "at": 0,
-   "text": "♪ Hallelujah! Hallelujah! ♪",
+   "text": "♪ Hal­le­lu­jah! Hal­le­lu­jah! ♪",
    "words": [
     0.25,
-    4.35
+    0.9,
+    1.52,
+    2.28,
+    4.35,
+    4.9,
+    5.27,
+    6.48
    ],
    "confidence": "high",
-   "note": "Each ~3.5 s choral phrase is ONE slow 'Hal-le-lu-jah' (4 syllables, 'jah' held); phrases start 0.25, 4.35, 8.58, 12.86. Cue end 6 cuts phrase 2 (sung to 7.7)."
+   "note": "By syllable, on the vocal stem's pitch (pyin) and loudness (2026-10-23, Victor: 'split into syllables, the second one fills too fast'). Phrase 1 rises E3 'Hal' 0.25, G3 'le' 0.9, A3 'lu' 1.52, the 'j' dip at 2.28 then 'jah' held on A3 to 3.7. Phrase 2 falls: A3 'Hal' 4.35, G3 'le' 4.9 (l-dip 4.97), dip + E3 'lu' 5.27, dip 6.46-6.55 then 'jah' to 7.7."
   },
   {
    "at": 8.5,
-   "text": "♪ Hallelujah! Hallelujah! ♪",
+   "text": "♪ Hal­le­lu­jah! Hal­le­lu­jah! ♪",
    "words": [
     8.58,
-    12.86
+    9.3,
+    9.95,
+    10.82,
+    12.86,
+    13.4,
+    13.79,
+    15.9
    ],
    "confidence": "medium",
-   "note": "Phrases 3 and 4 begin at 8.58 and 12.86 — the cue moved from 13.3, where no Hallelujah begins. Only ONE Hallelujah is sung after 13.3 (it starts 12.86). The two for this cue are phrases 3 and 4: real onsets 8.58 and 12.86 -> suggest at=8.5 with words [8.58, 12.86]; onsets clamped to 13.3 here per rule."
+   "note": "Phrase 3 like phrase 1: 'Hal' 8.58, G3 'le' 9.3, A3 'lu' 9.95, j-dip 10.82, 'jah' held to 12.2. Phrase 4: G3/A3 'Hal' 12.86, back to G3 'le' 13.4, dip + E3 'lu' 13.79 held as a melisma to 15.9, dip 15.93 then 'jah' on D3 to ~16.8 (medium: the lu/jah boundary rests on that one dip)."
   }
  ],
  "62_lionel_richie.mp3": [

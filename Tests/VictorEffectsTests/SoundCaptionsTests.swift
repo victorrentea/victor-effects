@@ -106,6 +106,18 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.wordEnds("[wolf howling]").count, 2)
     }
 
+    /// A soft hyphen times a long sung word by the syllable, and the room
+    /// never sees it: the line is as wide as without it.
+    func testASoftHyphenSplitsSyllablesAndDrawsNothing() {
+        let text = "♪ Hal\u{AD}le\u{AD}lu\u{AD}jah! ♪"
+        XCTAssertEqual(SoundCaptions.wordEnds(text).map { (text as NSString).substring(to: $0) },
+                       ["♪ Hal", "♪ Hal\u{AD}le", "♪ Hal\u{AD}le\u{AD}lu", "♪ Hal\u{AD}le\u{AD}lu\u{AD}jah!"])
+        func width(_ s: String) -> CGFloat {
+            CTLineGetTypographicBounds(CTLineCreateWithAttributedString(CaptionOverlay.label(s, color: .white)), nil, nil, nil)
+        }
+        XCTAssertEqual(width(text), width("♪ Hallelujah! ♪"), accuracy: 0.01)
+    }
+
     /// Each word WIPES from left to right while it is said — up to the next
     /// word's start, so a held note fills slowly — never jumps in whole.
     func testEachWordSweepsUntilTheNextIsHeard() {

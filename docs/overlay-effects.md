@@ -185,7 +185,12 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   capped at `SoundCaptions.maxWordSweep` (2 s — a longer gap is a pause, and the
   word is full before it); the last word sweeps in `lastWordSweep` (0.6 s). The
   opening ♪ / quote goes with the first word, the closing one with the last, so
-  a line ends all yellow. Drawn as two CATextLayers of the same string — dimmed
+  a line ends all yellow. **A word sung over seconds is timed by the syllable**
+  (2026-10-23, Hallelujah: "split it into syllables, the second one fills too
+  fast" — it was the line's last word, so it got `lastWordSweep` for a 3.4 s
+  phrase): a soft hyphen (U+00AD, `SoundCaptions.syllable`) in the lyric splits
+  the word into units `wordEnds` counts, one onset each in `caption-words.json`;
+  it draws nothing, so the room reads "Hallelujah!". Drawn as two CATextLayers of the same string — dimmed
   under, yellow over — the yellow one masked by one band per wrapped line whose
   width follows `SoundCaptions.fill` (offsets → x by CoreText on the same box),
   so the edge of the yellow stands mid-letter. Dim → yellow is a step in

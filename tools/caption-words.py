@@ -25,7 +25,7 @@ OUT = os.path.join(HERE, "..", "Sources", "VictorEffects", "SoundCaptionWords.sw
 
 def words_of(text):
     """The caption's words, exactly as `SoundCaptions.wordEnds` counts them."""
-    return [t for t in text.split() if any(c.isalnum() for c in t)]
+    return [t for t in text.replace("\u00ad", " ").split() if any(c.isalnum() for c in t)]
 
 
 def main():

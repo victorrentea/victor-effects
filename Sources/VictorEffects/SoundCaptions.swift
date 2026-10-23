@@ -149,8 +149,9 @@ enum SoundCaptions {
         // The clip ends at 17.1 s (2.5 s fade-out from 14.6 s, 2026-10-22): the
         // loud final climax that began at 17.25 s was cut off. Four slow
         // phrases, at 0.25, 4.35, 8.58 and 12.86 (2026-10-23 review).
-        "61_hallelujah.mp3":      [(0, "Hallelujah! Hallelujah!"),
-                                   (8.5, "Hallelujah! Hallelujah!")],
+        // Sung by the syllable, 'jah' held, so each one is timed (U+00AD).
+        "61_hallelujah.mp3":      [(0, "Hal\u{AD}le\u{AD}lu\u{AD}jah! Hal\u{AD}le\u{AD}lu\u{AD}jah!"),
+                                   (8.5, "Hal\u{AD}le\u{AD}lu\u{AD}jah! Hal\u{AD}le\u{AD}lu\u{AD}jah!")],
         "62_lionel_richie.mp3":   [(0, "Hello…"),
                                    (4.4, "Is it me you're looking for?")],
         "71_one_more_time.mp3":   [(0, "One more try…"),
@@ -263,16 +264,24 @@ extension SoundCaptions {
     /// Where each word of `text` ends, in UTF-16 offsets — a word being a
     /// whitespace-separated token with a letter or digit in it, so ♪ and a
     /// lone dash are not words: the opening ♪ lights up with the first word,
-    /// the closing one with the last (`litLength`).
+    /// the closing one with the last (`litLength`). A soft hyphen (U+00AD,
+    /// `syllable`) splits a word into syllables timed one by one — a word sung
+    /// over seconds (Victor, 2026-10-23: "split Hallelujah into syllables") —
+    /// and draws nothing.
     static func wordEnds(_ text: String) -> [Int] {
         var ends: [Int] = [], offset = 0
         for token in text.split(separator: " ", omittingEmptySubsequences: false) {
-            offset += token.utf16.count
-            if token.contains(where: { $0.isLetter || $0.isNumber }) { ends.append(offset) }
-            offset += 1
+            for piece in token.split(separator: syllable, omittingEmptySubsequences: false) {
+                offset += piece.utf16.count
+                if piece.contains(where: { $0.isLetter || $0.isNumber }) { ends.append(offset) }
+                offset += 1
+            }
         }
         return ends
     }
+
+    /// The soft hyphen: a syllable break inside a word, invisible on the glass.
+    static let syllable: Character = "\u{00AD}"
 
     /// A word sweeps until the next one is heard — a held note fills slowly,
     /// as it is sung — but no longer than this: a longer gap is a pause, and
