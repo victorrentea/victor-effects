@@ -173,6 +173,21 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   `hide()` (stop-all, the 🛑, a newer press, Subtitles off) cancels the ones
   still queued. Songs whose lines would all read the same (Who let the dogs
   out, Can't touch this) stay one line.
+- **Karaoke fill, word by word** (Victor, 2026-10-23: "TikTok style, yellow on
+  white, as it is said"). Each line goes up white and every word turns yellow
+  (`CaptionOverlay.litColor`, 80 ms light-up) at the moment it is heard; the
+  opening ♪ / quote lights with the first word, the closing one with the last,
+  so a line ends all yellow. *When* comes from `SoundCaptions.wordTimes`,
+  **generated** by `tools/caption-words.py` (Whisper large-v3 word timestamps
+  over `soundsDir`, fuzzy-aligned to the cues `GET /sounds/captions` serves, so
+  "Shady's" still finds Whisper's "Shaney's"; a word of ≤ 3 letters is pulled
+  to ≤ 0.6 s before the next one, because Whisper starts it where the previous
+  held note ended). A cue with fewer than half its words heard is left out and
+  fills at an even pace over 80 % of its life — every [noise], the
+  instrumental titles (Pink Panther, Ode to Joy) and a song's intro title. **Edit
+  a caption or a lyric line → rerun the script**: `SoundCaptionsTests`
+  (`testEveryHeardCueStillMatchesItsLine`) fails on a table row whose cue moved
+  or changed word count, since that line would quietly lose its timing.
 - **Lyrics came from the clips**, by a Whisper pass over `soundsDir` (word timestamps
   for the timed lines, `mlx_whisper` large-v3), not from memory of the song —
   then corrected only where Whisper misheard a known lyric — a caption that disagrees with the audio is worse than

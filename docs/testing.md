@@ -14,6 +14,7 @@ screen — what is playing, which effects are active, `whipShowing`,
 
 ## Effects
 
+- `GET /test/caption/<asset>` — the press caption for `<asset>` alone (e.g. `62_lionel_richie.mp3`): no sound, no effect, no press counted — to watch the karaoke fill in silence. Still needs ✓ Subtitles on.
 - `GET /test/sonar` — fire the 🛰️ Sonar overlay now (visual + synced `23_radar.mp3`); same as `/effect/sonar`. The tablet drives it by routing `GET /sound/play/23_radar.mp3` to the Mac (handled in `EffectsEngine.playSound`)
 - `GET /test/beethoven` — fire the 🎼 Beethoven zoom now (visual + `51_beethoven.mp3`); same as `/effect/beethoven`. **Not silent**: the whole effect is the screen lunging on the motif, so the test path plays the clip. The tablet drives it by routing `GET /sound/play/51_beethoven.mp3` to the Mac (`EffectsEngine.playSound`)
 - `GET /test/money` — fire one round of the 💸 Money rising-dollars overlay now; same as `/effect/money`. The tablet drives it by routing `GET /sound/play/53_rain.mp3` to the Mac (handled in `EffectsEngine.playSound`), which also plays the #57 checkmark "ching"

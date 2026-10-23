@@ -30,8 +30,10 @@ final class SoundCaptionsTests: XCTestCase {
     }
 
     func testANoiseIsATrackOfOneLine() {
-        XCTAssertEqual(SoundCaptions.schedule(for: "04_wolf.mp3", clipSeconds: 4),
-                       [CaptionLine(at: 0, text: "[wolf howling]", seconds: 4)])
+        let track = SoundCaptions.schedule(for: "04_wolf.mp3", clipSeconds: 4)
+        XCTAssertEqual(track.map(\.text), ["[wolf howling]"])
+        XCTAssertEqual(track.map(\.at), [0])
+        XCTAssertEqual(track.map(\.seconds), [4])
     }
 
     /// The point of the track: the words go up as they are sung, each line
@@ -50,8 +52,9 @@ final class SoundCaptionsTests: XCTestCase {
 
     func testASongWithAnIntroOpensOnItsTitle() {
         let track = SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2)
-        XCTAssertEqual(track.first, CaptionLine(at: 0, text: "♪ Let it be ♪",
-                                                seconds: 2.3 + SoundCaptions.handover))
+        XCTAssertEqual(track.first?.text, "♪ Let it be ♪")
+        XCTAssertEqual(track.first?.at, 0)
+        XCTAssertEqual(track.first!.seconds, 2.3 + SoundCaptions.handover, accuracy: 0.001)
         XCTAssertEqual(track[1].text, "♪ When I find myself in times of trouble ♪")
     }
 
@@ -88,6 +91,54 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertTrue(pressable.contains { $0.0.hasSuffix("b") }, "no layer-B tile seen — is `under` still parsed?")
         for (n, asset) in pressable {
             XCTAssertNotNil(SoundCaptions.table[asset], "\(n) \(asset) has no line in SoundCaptions.table")
+        }
+    }
+
+    // MARK: the karaoke fill
+
+    /// ♪ and a lone dash are not words: the opening ♪ lights with the first
+    /// word, the closing one with the last, so the line ends all yellow.
+    func testWordsAreTokensWithALetter() {
+        let text = "♪ Oops, I did it again ♪"
+        XCTAssertEqual(SoundCaptions.wordEnds(text).count, 5)
+        XCTAssertEqual(SoundCaptions.litLength(text, lit: 0), 0)
+        XCTAssertEqual((text as NSString).substring(to: SoundCaptions.litLength(text, lit: 1)), "♪ Oops,")
+        XCTAssertEqual(SoundCaptions.litLength(text, lit: 5), text.utf16.count)
+        XCTAssertEqual(SoundCaptions.wordEnds("[wolf howling]").count, 2)
+    }
+
+    /// A sung line lights up as Whisper heard it, relative to the line.
+    func testASungLineFillsAsItIsSung() {
+        let track = SoundCaptions.schedule(for: "62_lionel_richie.mp3", clipSeconds: 7)
+        let line = track[1]
+        XCTAssertEqual(line.words.count, 6)
+        XCTAssertEqual(line.words.first!, 3.98 - line.at, accuracy: 0.001,
+                       "\"Is\" waits for the end of the held Hello")
+        XCTAssertEqual(line.words, line.words.sorted())
+    }
+
+    /// A noise has no words to hear: it fills evenly, and done before it fades.
+    func testANoiseFillsAtAnEvenPace() {
+        let line = SoundCaptions.schedule(for: "04_wolf.mp3", clipSeconds: 4)[0]
+        XCTAssertEqual(line.words.count, 2)
+        XCTAssertGreaterThan(line.words[0], 0, "the first word is seen white before it lights")
+        XCTAssertLessThan(line.words.last!, line.seconds - CaptionOverlay.fadeOutSeconds)
+    }
+
+    /// The generated table only fires on a cue with the same start AND word
+    /// count; edit a lyric without rerunning `tools/caption-words.py` and that
+    /// line silently goes back to the even pace. This says which one.
+    func testEveryHeardCueStillMatchesItsLine() {
+        for (asset, cues) in SoundCaptions.wordTimes {
+            let track = SoundCaptions.schedule(for: asset, clipSeconds: 30)
+            for cue in cues {
+                let line = track.first { abs($0.at - cue.at) < 0.01 }
+                XCTAssertNotNil(line, "\(asset) @\(cue.at): no such line — rerun tools/caption-words.py")
+                if let line {
+                    XCTAssertEqual(SoundCaptions.wordEnds(line.text).count, cue.words.count,
+                                   "\(asset) \"\(line.text)\": word count drifted — rerun tools/caption-words.py")
+                }
+            }
         }
     }
 }

@@ -40,6 +40,9 @@ final class EffectsRouter {
         /// A client reports a sound started; the Mac owns the sound→effect map.
         case soundPressed(String)
         case soundStopped(String)
+        /// `/test/caption/<asset>` — the press caption alone: no sound, no
+        /// effect, not counted, so its karaoke fill can be watched in silence.
+        case testCaption(String)
         /// `GET /usage` — the press counts behind the tablet's green dots.
         case usage
         /// `GET /usage/import?counts=<asset>:<n>,…` — a client's historical
@@ -213,6 +216,10 @@ final class EffectsRouter {
             let name = String(pathOnly.dropFirst("/sound/pressed/".count))
             if !name.isEmpty { return .soundPressed(name) }
         }
+        if pathOnly.hasPrefix("/test/caption/") {
+            let name = String(pathOnly.dropFirst("/test/caption/".count))
+            if !name.isEmpty { return .testCaption(name) }
+        }
         if pathOnly.hasPrefix("/sound/stopped/") {
             let name = String(pathOnly.dropFirst("/sound/stopped/".count))
             if !name.isEmpty { return .soundStopped(name) }
@@ -335,6 +342,10 @@ final class EffectsRouter {
             engine.showCaption(for: file)
             guard let effect = SoundEffectMap.pressEffect(for: file) else { return .ok("no-effect") }
             engine.runEffect(effect)
+            return .ok()
+
+        case .testCaption(let file):
+            engine.showCaption(for: file)
             return .ok()
 
         case .soundStopped(let file):

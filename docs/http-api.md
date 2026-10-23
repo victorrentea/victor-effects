@@ -58,6 +58,7 @@ press cannot drift apart.
 | `GET /effect/coffee`, `GET /effect/coffee/pop`, `GET /effect/coffee/storm`, `GET /effect/coffee/won` | `ok` | three cups to pour into; the pop bursts one and fires the webhook below (none after a win); the storm is a salvo of ~8 cups; `won` is what addons sends when a ☕ −1 empties the UNTIL BREAK watch — yee-haw, then big bursts with fireworks (`docs/overlay-effects.md`) |
 | `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip + 🙏 pray + 🫰 snap |
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
+| `GET /test/caption/<asset>` | `ok` | the press caption alone — no sound, no effect, no press counted; nothing while Subtitles is off |
 | `GET /tiles` | `tiles.json` **plus** `effect` per tile and a top-level `effectsHash` | **404** `{"error":"no tiles.json in <soundsDir>"}`. See **the ⭐ catalogue** |
 | `GET /sounds/captions` | `{"<asset>":{"durationSeconds":12.4,"cues":[{"start":0.0,"end":6.0,"text":"♪ … ♪"}]},…}` | Every asset in `tiles.json`, layer A and `under` B. Built from `SoundCaptions.schedule(for:clipSeconds:)` with the clip's real length, so it is exactly what the Mac shows; a cue's `end` is `start` + the seconds the caption stays up. A silent asset has `"cues":[]`. Cached by `soundsHash`+`tilesHash` (durations open every mp3) — `CaptionsExport` |
 | `GET /tiles/<path>` | image bytes | path resolved under `soundsDir` and **re-checked to still be inside it** — the names come from a JSON file this app does not own |
