@@ -84,24 +84,24 @@ final class VideoPageTests: XCTestCase {
 
     private typealias Grid = VideoGridView
 
-    func testFiveToARowAtSixteenByNine() {
+    func testSixToARowAtSixteenByNine() {
         // The tablet's `SNIPPETS_PER_ROW` and `cellWidth * 9 / 16`. Same numbers
         // because it is the same board — a snippet the room was shown from the
         // tablet has to be in the same place here.
-        XCTAssertEqual(Grid.columns, 5)
+        XCTAssertEqual(Grid.columns, 6)
         let m = Grid.metrics(fitting: NSSize(width: 1152, height: 719), count: 18)
-        XCTAssertEqual(m.rows, 4)
+        XCTAssertEqual(m.rows, 3)
         XCTAssertEqual(m.cellHeight, (m.cellWidth * 9 / 16).rounded(.down))
     }
 
-    func testAVideoTileIsAboutThreeTimesASoundTile() {
-        // 13 sound columns against 5 video columns — the RATIO is what has to
+    func testAVideoTileIsAboutTwiceASoundTile() {
+        // 13 sound columns against 6 video columns — the RATIO is what has to
         // match, not a pixel count: both grids are read from the same distance
         // and the eye has already learned one of them.
         let size = NSSize(width: 1152, height: 719)
         let sound = ThumbnailGridView.metrics(fitting: size, count: 91, columns: 13).cell
         let video = Grid.metrics(fitting: size, count: 18).cellWidth
-        XCTAssertEqual(video / sound, 13.0 / 5.0, accuracy: 0.15)
+        XCTAssertEqual(video / sound, 13.0 / 6.0, accuracy: 0.15)
     }
 
     func testTheGridHugsItsOwnHeight() {

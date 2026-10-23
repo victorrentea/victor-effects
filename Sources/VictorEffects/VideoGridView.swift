@@ -26,9 +26,9 @@ final class VideoThumbCache {
 
 /// The panel's **second page**: the tablet's 🎬 video snippets, on the Mac.
 ///
-/// It is the same board, so it is the same arithmetic: **five tiles to a row**
+/// It is the same board, so it is the same arithmetic: **six tiles to a row**
 /// at **16:9** (`MainActivity.renderVideoTiles`, `SNIPPETS_PER_ROW`), which
-/// against the soundboard's 13 columns makes a video tile **2.6× the width of a
+/// against the soundboard's 13 columns makes a video tile **2.17× the width of a
 /// sound tile** — the ratio, not a number, is what has to match, because the two
 /// grids are read from the same distance and the eye has learned one of them.
 ///
@@ -43,7 +43,7 @@ final class VideoGridView: NSView {
     var onPress: ((VideoTile) -> Void)?
 
     /// The tablet's `SNIPPETS_PER_ROW`.
-    static let columns = 5
+    static let columns = 6
     /// The tablet's `cellWidth * 9 / 16`.
     static let aspect: CGFloat = 9.0 / 16.0
     static var padding: CGFloat { ThumbnailGridView.padding }
@@ -74,7 +74,7 @@ final class VideoGridView: NSView {
     }
 
     /// Fits **both ways**, like the square cells of page 1: the width binds in
-    /// the normal case (five across a wide panel), but three rows of 16:9 down a
+    /// the normal case (six across a wide panel), but three rows of 16:9 down a
     /// short frame binds on height instead, and a tile that overflowed the panel
     /// would be a tile the gesture can never reach.
     static func metrics(fitting size: NSSize, count: Int, columns: Int = VideoGridView.columns) -> Metrics {
@@ -401,7 +401,7 @@ final class VideoTileView: NSView {
         // `TileNumberBadge`: text at 10% of the SOUNDBOARD tile, 4% of it in from
         // the left. The fallback keeps the badge sane on a Mac with no
         // `tiles.json` at all, where there is no soundboard to scale against.
-        let unit = badgeUnit > 0 ? badgeUnit : bounds.width / 2.6
+        let unit = badgeUnit > 0 ? badgeUnit : bounds.width / (13.0 / 6)
         let numberSize = max(9, unit * 0.10)
         numberLayer.fontSize = numberSize
         numberLayer.font = NSFont.boldSystemFont(ofSize: numberSize)

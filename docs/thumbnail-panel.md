@@ -308,7 +308,7 @@ on a layer, versus a redraw loop in a drawing method:
   For one build an edge cell reached all the way to the rim so that no black
   survived beside it; that reads fine while the leftover margin is a few points
   and absurd when it is not. Once the panel filled a whole 1080 pt screen, page 2's
-  five 16:9 rows left a deep band above and below the grid, and hovering the top or
+  five 16:9 rows (at five across) left a deep band above and below the grid, and hovering the top or
   bottom row painted that entire band green. The cap still takes a *thin* margin
   whole — where there is less than a gap between the cell and the board's edge,
   the reach is that margin and no black hairline survives. It is painted by
@@ -480,9 +480,9 @@ Mirrored from `MainActivity.renderVideoTiles`, not invented:
 
 | | page 1 (sounds) | page 2 (videos) |
 |---|---|---|
-| columns | 13 (`tiles.json`) | **5** (`SNIPPETS_PER_ROW`) |
+| columns | 13 (`tiles.json`) | **6** (`SNIPPETS_PER_ROW`; 5 until 2026-10-23) |
 | shape | square | **16:9** |
-| width vs a sound tile | 1× | **2.6×** (13 ÷ 5) |
+| width vs a sound tile | 1× | **2.17×** (13 ÷ 6) |
 | `padding` / `gap` | 10 / 6 | the same — they are one decision |
 | `#NN` | white bold at 10% of the tile | white bold at 10% of the **sound** tile |
 | label | optional word, centred | **the title**, centred across the picture, at 20% of the tile |
@@ -506,8 +506,10 @@ Mirrored from `MainActivity.renderVideoTiles`, not invented:
   `textSize = 48f` on a Kotlin `TextView` is **sp, not px**, and on the board
   (density override 200, i.e. 1.25, times Victor's 1.3 font scale) that is ≈ 78 px
   of type on a cell of (2000 − 2×13 − 4×15) ÷ 5 ≈ 382 px. The panel had been
-  drawing the titles at half the size of the ones in the room. A ratio and never
-  a point size, for the same reason as the `#NN` badge: the cell is whatever five
+  drawing the titles at half the size of the ones in the room. Since the sixth
+  column (2026-10-23) the tablet sets `240 ÷ SNIPPETS_PER_ROW` sp — the same 20 %,
+  so this ratio did not move. A ratio and never
+  a point size, for the same reason as the `#NN` badge: the cell is whatever six
   across leaves on the screen the panel opens on.
 - **Tile widths are whole multiples of 16** (`widthQuantum`). Not tidiness — it is
   what makes hugging *stable*: the panel measures the grid, shortens its frame to
