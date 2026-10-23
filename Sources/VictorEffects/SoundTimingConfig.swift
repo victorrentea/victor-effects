@@ -51,6 +51,7 @@ final class SoundTimingConfig {
             .appendingPathComponent("sound-timing.json")
 
         var comp: TimeInterval = 0.55
+        var outputLatency: TimeInterval = 0.55
         var leads: [String: TimeInterval] = ["67_sfx_109.mp3": 0.32]
 
         if let data = try? Data(contentsOf: url),
@@ -63,6 +64,9 @@ final class SoundTimingConfig {
             // present; the tablet ignores this key.
             if let ms = obj["macBluetoothCompensationMs"] as? NSNumber {
                 comp = ms.doubleValue / 1000.0
+            }
+            if let ms = obj["macBluetoothOutputLatencyMs"] as? NSNumber {
+                outputLatency = ms.doubleValue / 1000.0
             }
             if let sounds = obj["sounds"] as? [String: Any] {
                 var parsed: [String: TimeInterval] = [:]
@@ -80,6 +84,7 @@ final class SoundTimingConfig {
         }
 
         bluetoothCompensationSeconds = comp
+        bluetoothOutputLatencySeconds = outputLatency
         animationLeads = leads
     }
 
@@ -106,5 +111,19 @@ final class SoundTimingConfig {
     /// current default output is Bluetooth, otherwise 0.
     var currentBluetoothCompensation: TimeInterval {
         BluetoothOutput.isDefaultOutputBluetooth ? effectiveBluetoothCompensationSeconds : 0
+    }
+
+    /// How long the Bluetooth speaker takes to turn a sample into sound in the
+    /// room, AFTER the silence above: measured with the laptop mic on the JBL Go
+    /// 4 (2026-10-23, two clips through `/sound/play`, mic calibrated on the
+    /// built-in speaker): heard 1.33 s and 1.38 s after the request = 0.8 s of
+    /// silence + ~0.55 s. CoreAudio reports 123 ms for the same device, so it
+    /// is measured, not asked for. `macBluetoothOutputLatencyMs` overrides it.
+    let bluetoothOutputLatencySeconds: TimeInterval
+
+    /// The speaker's own latency **right now**: 0 off Bluetooth (the built-in
+    /// speaker reports ~28 ms, well under a frame of karaoke).
+    var currentOutputLatency: TimeInterval {
+        BluetoothOutput.isDefaultOutputBluetooth ? bluetoothOutputLatencySeconds : 0
     }
 }

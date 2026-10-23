@@ -34,6 +34,11 @@ final class EffectsEngine {
     /// What `/state` reports about the current sound.
     private(set) var playing: (asset: String, durationMs: Int, startedAt: Date)?
 
+    /// The last `/sound/play` this Mac took, by the asset the client ASKED for
+    /// (before `AlternatingSounds`): the press that follows it is captioned in
+    /// step with audio that is only heard ~1.3 s later on the JBL.
+    private var routedPlay: (asset: String, at: Date)?
+
     // MARK: whip
 
     /// Lazy: the whip allocates a panel and decodes five crack sounds, and most
@@ -192,7 +197,19 @@ final class EffectsEngine {
         guard !lines.isEmpty else { return }
         if isSuspended { effectsInfo("⏸️ suspended — dropping caption for \(asset)"); return }
         guard let screen = Screens.overlayScreen() else { return }
-        CaptionOverlay.play(lines, on: screen)
+        // The words are timed into the CLIP; a clip routed here is heard only
+        // after its Bluetooth silence and the speaker's own latency, so the
+        // track waits for that (2026-10-23: it led the voice by ~1.3 s).
+        var delay: TimeInterval = 0
+        if let routed = routedPlay, routed.asset == asset {
+            let timing = SoundTimingConfig.shared
+            delay = SoundCaptions.audibleDelay(playedAt: routed.at, now: Date(),
+                                               lead: timing.animationLead(for: asset),
+                                               bluetoothCompensation: timing.currentBluetoothCompensation,
+                                               outputLatency: timing.currentOutputLatency)
+        }
+        if delay > 0 { effectsInfo(String(format: "💬 caption %@ in %.0f ms (heard then)", asset, delay * 1000)) }
+        CaptionOverlay.play(lines, on: screen, after: delay)
     }
 
     /// Run one effect by its route name, with the Bluetooth visual delay that
@@ -593,8 +610,11 @@ final class EffectsEngine {
 
         let volume = volumePct.map { Float($0) / 100 }
 
+        // A 404 hands the clip back to the client: its press is not ours to delay.
+        routedPlay = nil
         func remember(_ ms: Int) -> String {
             playing = (name, ms, Date())
+            routedPlay = (requested, Date())
             return "{\"ok\":true,\"durationMs\":\(ms)}"
         }
 

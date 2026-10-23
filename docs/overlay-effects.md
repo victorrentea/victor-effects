@@ -196,6 +196,20 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
     word on that evidence into **`tools/caption-words.json`**, the source of
     truth. `tools/caption-words.py` turns it into `SoundCaptionWords.swift`
     and refuses a cue the running app no longer serves.
+  - **The clock is the room's ear, not the press** (2026-10-23, "still not in
+    sync with the laptop"). The word times are seconds into the *clip*, but a
+    clip routed to this Mac is heard well after its `/sound/pressed`: the
+    Bluetooth silence (`macBluetoothCompensationMs`, 800 ms) and then the JBL's
+    own latency, **~0.55 s, measured** — the laptop mic, calibrated on the
+    built-in speaker (+163 ms, twice), heard two clips 1.33 s and 1.38 s after
+    their `/sound/play`; CoreAudio claims 123 ms for the same device, so it is
+    not asked. The karaoke had been lighting every word ~1.3 s early.
+    `EffectsEngine.showCaption` now waits `SoundCaptions.audibleDelay` (lead +
+    silence + `SoundTimingConfig.currentOutputLatency`, counted from the play)
+    when the press follows a play of the same asset within 1.5 s, and logs
+    `💬 caption <asset> in N ms`. A press whose clip the tablet plays itself
+    (no play here, or a 404) is captioned at once, as before. Retune with
+    `macBluetoothOutputLatencyMs` in `sound-timing.json` if the speaker changes.
   - **Edit a caption or a lyric line → re-review that clip** and rerun the
     script: `SoundCaptionsTests` (`testEveryHeardCueStillMatchesItsLine`)
     fails on a row whose cue moved or changed word count, since that line

@@ -173,6 +173,13 @@ and `setBluetoothCompensation(seconds:)` stores a runtime override clamped to
 resets to the file default on restart. `GET /bt-compensation` reads it back as
 `{"ms":…,"maxMs":1200}`.
 
+**The silence is not the whole wait.** After it, the speaker itself adds its
+A2DP latency — ~0.55 s on the JBL Go 4, measured with the laptop mic
+(2026-10-23; CoreAudio reports only 123 ms). `SoundTimingConfig.currentOutputLatency`
+holds it (`macBluetoothOutputLatencyMs` overrides). Only the karaoke captions
+use it so far (`docs/overlay-effects.md`); the paired visuals still wait for
+the silence alone, which means they land ~0.5 s ahead of the sound.
+
 `green-flash` is the one effect that takes `currentBluetoothCompensation`
 directly rather than consuming a pending one: it is the visual half of an
 audible "the link works" tap, and firing it immediately lit the border up to

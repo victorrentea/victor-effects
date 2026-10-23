@@ -294,6 +294,21 @@ extension SoundCaptions {
         }
         return timed
     }
+
+    /// How long from `now` until the room hears a clip this Mac started at
+    /// `playedAt`: its paired lead, the Bluetooth silence, then the speaker's
+    /// own latency (`SoundTimingConfig`). The word times are seconds into the
+    /// CLIP, so the track waits for this before its zero. A play older than
+    /// `routedWindow` is not this press's (the client played it itself): 0.
+    static func audibleDelay(playedAt: Date, now: Date, lead: TimeInterval,
+                             bluetoothCompensation: TimeInterval, outputLatency: TimeInterval) -> TimeInterval {
+        guard now.timeIntervalSince(playedAt) < routedWindow else { return 0 }
+        return max(0, playedAt.addingTimeInterval(lead + bluetoothCompensation + outputLatency).timeIntervalSince(now))
+    }
+
+    /// The press follows its `/sound/play` within milliseconds, on both the
+    /// tablet and the panel; the visual's compensation hand-off uses the same.
+    static let routedWindow: TimeInterval = 1.5
 }
 
 /// The ✓ Subtitles row in the menu: ONE switch for every subtitle on the
@@ -411,15 +426,17 @@ enum CaptionOverlay {
         return (frame, k)
     }
 
-    /// Plays a caption track: the first line now, each later one at its
-    /// second. Only the lines are scheduled here — each `show` still ends
-    /// itself, so a track nobody stops dies with its last line.
-    static func play(_ lines: [CaptionLine], on screen: NSScreen) {
+    /// Plays a caption track: each line at its second into the clip, counted
+    /// from `delay` from now — when the clip is first heard. Only the lines
+    /// are scheduled here — each `show` still ends itself, so a track nobody
+    /// stops dies with its last line.
+    static func play(_ lines: [CaptionLine], on screen: NSScreen, after delay: TimeInterval = 0) {
         track += 1
         let current = track
+        let start = DispatchTime.now() + delay
         for line in lines {
-            guard line.at > 0 else { show(line.text, seconds: line.seconds, words: line.words, on: screen); continue }
-            DispatchQueue.main.asyncAfter(deadline: .now() + line.at) {
+            guard line.at + delay > 0 else { show(line.text, seconds: line.seconds, words: line.words, on: screen); continue }
+            DispatchQueue.main.asyncAfter(deadline: start + line.at) {
                 guard current == track, SubtitlesSwitch.isOn else { return }
                 show(line.text, seconds: line.seconds, words: line.words, on: screen)
             }

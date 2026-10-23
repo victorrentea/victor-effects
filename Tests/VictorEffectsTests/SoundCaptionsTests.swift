@@ -118,6 +118,23 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(line.words, line.words.sorted())
     }
 
+    /// The words are timed into the clip, so the track waits until the clip is
+    /// HEARD: lead + Bluetooth silence + the speaker's latency, counted from
+    /// the play, not from the press. A stale play is the client's own: no wait.
+    func testTheTrackWaitsUntilTheClipIsHeard() {
+        let played = Date(timeIntervalSince1970: 1000)
+        let delay = { (now: TimeInterval) in
+            SoundCaptions.audibleDelay(playedAt: played, now: played.addingTimeInterval(now), lead: 0.32,
+                                       bluetoothCompensation: 0.8, outputLatency: 0.55)
+        }
+        XCTAssertEqual(delay(0), 1.67, accuracy: 0.001)
+        XCTAssertEqual(delay(0.02), 1.65, accuracy: 0.001, "the press lands after the play")
+        XCTAssertEqual(delay(SoundCaptions.routedWindow + 0.1), 0, "not this press's play")
+        XCTAssertEqual(SoundCaptions.audibleDelay(playedAt: played, now: played, lead: 0,
+                                                  bluetoothCompensation: 0, outputLatency: 0), 0,
+                       "off Bluetooth the caption starts with the sound")
+    }
+
     /// Nothing is said in a noise or an instrumental title, so nothing lights
     /// up: an even-paced fill read as the karaoke being out of sync.
     func testAnUntimedLineNeverFills() {
