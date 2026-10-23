@@ -12512,11 +12512,23 @@ class EmojiAnimator {
 
     /// Centred on the screen at 60% of its height — the size the head has on
     /// the slide it was cut out of, which is the look this key reproduces.
+    /// Since 2026-10-23 it sits a tenth of the screen above centre, so the
+    /// bloody caption fits underneath without covering the beard.
     static func opusFrame(in bounds: CGRect, aspect: CGFloat) -> CGRect {
         var h = bounds.height * 0.6
         var w = h * aspect
         if w > bounds.width * 0.9 { w = bounds.width * 0.9; h = w / max(aspect, 0.01) }
-        return CGRect(x: bounds.midX - w / 2, y: bounds.midY - h / 2, width: w, height: h)
+        return CGRect(x: bounds.midX - w / 2, y: bounds.midY + bounds.height * 0.1 - h / 2, width: w, height: h)
+    }
+
+    /// The caption under the head: as wide as the head and a half, from just
+    /// under the chin (its PNG has ~8% of empty margin at the bottom) down to
+    /// near the screen's edge.
+    static func opusCaptionFrame(in bounds: CGRect, head: CGRect) -> CGRect {
+        let top = head.minY + head.height * 0.06
+        let bottom = bounds.minY + bounds.height * 0.02
+        let w = min(bounds.width * 0.8, head.width * 1.5)
+        return CGRect(x: bounds.midX - w / 2, y: bottom, width: w, height: max(top - bottom, 1))
     }
 
     /// 🤖 The rusty robot head with the orange beacon appears in the middle of
@@ -12533,15 +12545,28 @@ class EmojiAnimator {
             return
         }
 
-        let frame = Self.opusFrame(in: hostLayer.bounds, aspect: CGFloat(image.width) / CGFloat(image.height))
+        let bounds = hostLayer.bounds
+        let frame = Self.opusFrame(in: bounds, aspect: CGFloat(image.width) / CGFloat(image.height))
+        let captionFrame = Self.opusCaptionFrame(in: bounds, head: frame)
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)   // no implicit fade-in: a cut
         let layer = CALayer()
-        layer.frame = frame
-        layer.contents = image
-        layer.contentsGravity = .resizeAspect
-        layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        layer.frame = bounds
+        let head = CALayer()
+        head.frame = frame
+        head.contents = image
+        head.contentsGravity = .resizeAspect
+        head.contentsScale = scale
+        let caption = CALayer()
+        caption.frame = captionFrame
+        caption.contents = Self.opusCaptionImage(size: captionFrame.size, scale: scale)
+        caption.contentsGravity = .resize
+        caption.contentsScale = scale
+        caption.add(Self.opusCaptionFlicker(), forKey: "flicker")
+        layer.addSublayer(caption)
+        layer.addSublayer(head)
         stageLayer.addSublayer(layer)
         CATransaction.commit()
         activeEffects["opus"] = layer
@@ -12560,6 +12585,133 @@ class EmojiAnimator {
         CATransaction.setDisableActions(true)
         layer.removeFromSuperlayer()
         CATransaction.commit()
+    }
+
+    /// A dying neon tube: mostly on, two uneven stutters per cycle, and a
+    /// cycle length that is not a round number so it never feels like a beat.
+    static func opusCaptionFlicker() -> CAKeyframeAnimation {
+        let flicker = CAKeyframeAnimation(keyPath: "opacity")
+        flicker.values = [1, 1, 0.25, 1, 0.8, 1, 1, 0.4, 0.9, 0.15, 1, 1]
+        flicker.keyTimes = [0, 0.38, 0.40, 0.42, 0.55, 0.57, 0.80, 0.81, 0.83, 0.85, 0.87, 1]
+        flicker.calculationMode = .discrete
+        flicker.duration = 4.3
+        flicker.repeatCount = .infinity
+        return flicker
+    }
+
+    /// "OPUS / SOL" and "…or worse" in bone-white, scratched onto a smear of
+    /// clotted blood that drips off its bottom edge (Victor, 2026-10-23: the
+    /// room should wonder what on earth we are talking about). Drawn once per
+    /// showing; the random walk is seeded, so it is the same smear every time.
+    static func opusCaptionImage(size: CGSize, scale: CGFloat) -> CGImage? {
+        let pw = Int(size.width * scale), ph = Int(size.height * scale)
+        guard pw > 0, ph > 0,
+              let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.scaleBy(x: scale, y: scale)
+        let w = size.width, h = size.height
+        var seed: UInt64 = 0x0B05_501
+        func rnd() -> CGFloat {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            return CGFloat(seed >> 33) / CGFloat(1 << 31)
+        }
+
+        // The smear: a lumpy ellipse in the upper two thirds, leaving room for the drips.
+        let centre = CGPoint(x: w / 2, y: h * 0.62)
+        let rx = w * 0.47, ry = h * 0.33
+        let n = 48
+        let pts: [CGPoint] = (0..<n).map { i in
+            let a = CGFloat(i) / CGFloat(n) * 2 * .pi
+            let k = 0.82 + 0.3 * rnd()
+            return CGPoint(x: centre.x + cos(a) * rx * k, y: centre.y + sin(a) * ry * k)
+        }
+        let smear = CGMutablePath()
+        smear.move(to: CGPoint(x: (pts[n - 1].x + pts[0].x) / 2, y: (pts[n - 1].y + pts[0].y) / 2))
+        for i in 0..<n {
+            let p = pts[i], q = pts[(i + 1) % n]
+            smear.addQuadCurve(to: CGPoint(x: (p.x + q.x) / 2, y: (p.y + q.y) / 2), control: p)
+        }
+
+        // Drips hang from the lower edge of the smear, each ending in a bead.
+        let drips = CGMutablePath()
+        for _ in 0..<11 {
+            let x = centre.x + (rnd() * 2 - 1) * rx * 0.8
+            let edge = centre.y - ry * 0.8 * sqrt(max(0, 1 - pow((x - centre.x) / rx, 2)))
+            let dw = 3 + rnd() * 9
+            let len = h * (0.08 + rnd() * 0.42)
+            let end = max(edge - len, dw)
+            drips.addRoundedRect(in: CGRect(x: x - dw / 2, y: end, width: dw, height: edge - end + ry * 0.2),
+                                 cornerWidth: dw / 2, cornerHeight: dw / 2)
+            drips.addEllipse(in: CGRect(x: x - dw * 0.8, y: end - dw * 0.5, width: dw * 1.6, height: dw * 1.9))
+        }
+        // Spatter around the smear.
+        for _ in 0..<40 {
+            let a = rnd() * 2 * .pi
+            let d = 1.0 + rnd() * 0.35
+            let r = 1 + rnd() * 5
+            drips.addEllipse(in: CGRect(x: centre.x + cos(a) * rx * d - r, y: centre.y + sin(a) * ry * d - r,
+                                        width: r * 2, height: r * 2))
+        }
+
+        let blood = CGColor(red: 0.42, green: 0.0, blue: 0.02, alpha: 0.93)
+        ctx.saveGState()
+        ctx.setShadow(offset: .zero, blur: 18, color: CGColor(red: 0.25, green: 0, blue: 0, alpha: 0.9))
+        ctx.setFillColor(blood)
+        ctx.addPath(smear); ctx.fillPath()
+        ctx.addPath(drips); ctx.fillPath()
+        ctx.restoreGState()
+
+        // Fresher, wetter red in the middle of the clot, darker crust at the rim.
+        ctx.saveGState()
+        ctx.addPath(smear); ctx.clip()
+        let wet = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                             colors: [CGColor(red: 0.62, green: 0.02, blue: 0.04, alpha: 0.9),
+                                      CGColor(red: 0.30, green: 0.0, blue: 0.0, alpha: 0.6),
+                                      CGColor(red: 0.12, green: 0.0, blue: 0.0, alpha: 0.85)] as CFArray,
+                             locations: [0, 0.6, 1])!
+        ctx.drawRadialGradient(wet, startCenter: centre, startRadius: 0, endCenter: centre, endRadius: rx,
+                               options: [])
+        // A few black clots.
+        ctx.setFillColor(CGColor(red: 0.08, green: 0, blue: 0, alpha: 0.55))
+        for _ in 0..<9 {
+            let r = 4 + rnd() * 16
+            ctx.fillEllipse(in: CGRect(x: centre.x + (rnd() * 2 - 1) * rx * 0.85 - r,
+                                       y: centre.y + (rnd() * 2 - 1) * ry * 0.8 - r,
+                                       width: r * 2.4, height: r * 1.6))
+        }
+        ctx.restoreGState()
+
+        // The words: scratched in bone, a little crooked, with a dark halo.
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+        let bone = NSColor(calibratedRed: 0.90, green: 0.85, blue: 0.72, alpha: 1)
+        let halo = NSShadow()
+        halo.shadowColor = NSColor(calibratedRed: 0.05, green: 0, blue: 0, alpha: 1)
+        halo.shadowBlurRadius = 10
+        halo.shadowOffset = NSSize(width: 0, height: -2)
+        func draw(_ text: String, font: NSFont, centreY: CGFloat, tilt: CGFloat) {
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font, .foregroundColor: bone, .shadow: halo,
+                .strokeColor: NSColor(calibratedRed: 0.2, green: 0, blue: 0, alpha: 1), .strokeWidth: -2.5,
+                .kern: font.pointSize * 0.06,
+            ]
+            let str = NSAttributedString(string: text, attributes: attrs)
+            let sz = str.size()
+            ctx.saveGState()
+            ctx.translateBy(x: centre.x, y: centreY)
+            ctx.rotate(by: tilt)
+            str.draw(at: CGPoint(x: -sz.width / 2, y: -sz.height / 2))
+            ctx.restoreGState()
+        }
+        let big = min(ry * 0.95, w * 0.12)
+        let title = NSFont(name: "Herculanum", size: big) ?? .boldSystemFont(ofSize: big)
+        let sub = NSFont(name: "Trattatello", size: big * 0.72) ?? .systemFont(ofSize: big * 0.72)
+        draw("OPUS / SOL", font: title, centreY: centre.y + ry * 0.28, tilt: -0.025)
+        draw("…or worse", font: sub, centreY: centre.y - ry * 0.48, tilt: 0.04)
+        NSGraphicsContext.restoreGraphicsState()
+
+        return ctx.makeImage()
     }
 
     // MARK: - 🤖 Claude leans in from the left (⌘⌃Q)

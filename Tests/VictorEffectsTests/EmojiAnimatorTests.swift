@@ -4,6 +4,17 @@ import QuartzCore
 @testable import VictorEffects
 
 final class EmojiAnimatorTests: XCTestCase {
+    func testOpusCaptionHangsUnderTheHeadInsideTheScreen() throws {
+        let bounds = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let head = EmojiAnimator.opusFrame(in: bounds, aspect: 1)
+        let caption = EmojiAnimator.opusCaptionFrame(in: bounds, head: head)
+        XCTAssertGreaterThan(head.midY, bounds.midY)
+        XCTAssertLessThan(caption.maxY, head.midY)
+        XCTAssertTrue(bounds.contains(caption))
+        XCTAssertGreaterThan(caption.height, bounds.height * 0.15)
+        XCTAssertNotNil(EmojiAnimator.opusCaptionImage(size: caption.size, scale: 2))
+    }
+
     // NOTE: `testMonitorEmojiUsesBreakingGlassSound` and `testHeartEmojiHasNoSoundEffect`
     // were removed — they referenced `EmojiAnimator.soundEffect(for:)`, which no longer
     // exists (the emoji→sound mapping was refactored into the show* effect methods,
