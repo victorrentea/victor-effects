@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import VictorEffects
 
@@ -107,22 +108,30 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.wordEnds("[wolf howling]").count, 2)
     }
 
-    /// A sung line lights up as Whisper heard it, relative to the line.
+    /// A sung line lights up as the review placed it, relative to the line.
     func testASungLineFillsAsItIsSung() {
-        let track = SoundCaptions.schedule(for: "62_lionel_richie.mp3", clipSeconds: 7)
+        let track = SoundCaptions.schedule(for: "62_lionel_richie.mp3", clipSeconds: 8.6)
         let line = track[1]
         XCTAssertEqual(line.words.count, 6)
-        XCTAssertEqual(line.words.first!, 3.98 - line.at, accuracy: 0.001,
-                       "\"Is\" waits for the end of the held Hello")
+        XCTAssertEqual(line.words.first!, 4.53 - line.at, accuracy: 0.001,
+                       "\"Is\" waits for the silence after the held Hello")
         XCTAssertEqual(line.words, line.words.sorted())
     }
 
-    /// A noise has no words to hear: it fills evenly, and done before it fades.
-    func testANoiseFillsAtAnEvenPace() {
-        let line = SoundCaptions.schedule(for: "04_wolf.mp3", clipSeconds: 4)[0]
-        XCTAssertEqual(line.words.count, 2)
-        XCTAssertGreaterThan(line.words[0], 0, "the first word is seen white before it lights")
-        XCTAssertLessThan(line.words.last!, line.seconds - CaptionOverlay.fadeOutSeconds)
+    /// Nothing is said in a noise or an instrumental title, so nothing lights
+    /// up: an even-paced fill read as the karaoke being out of sync.
+    func testAnUntimedLineNeverFills() {
+        XCTAssertEqual(SoundCaptions.schedule(for: "04_wolf.mp3", clipSeconds: 4)[0].words, [])
+        XCTAssertEqual(SoundCaptions.schedule(for: "06_copyright_cartoon.mp3", clipSeconds: 4)[0].words, [])
+    }
+
+    /// An untimed line is plain white; a timed one starts dimmed, so its
+    /// yellow is a step up in brightness, not just a tint of the white.
+    func testUntimedIsWhiteAndUpcomingIsDimmed() {
+        let colour = { (s: NSAttributedString) in s.attribute(.foregroundColor, at: s.length - 1, effectiveRange: nil) as? NSColor }
+        XCTAssertEqual(colour(CaptionOverlay.label("[wolf howling]", lit: nil)), .white)
+        XCTAssertEqual(colour(CaptionOverlay.label("♪ Let it be ♪", lit: 1)), CaptionOverlay.upcomingColor)
+        XCTAssertEqual(colour(CaptionOverlay.label("♪ Let it be ♪", lit: 3)), CaptionOverlay.litColor)
     }
 
     /// The generated table only fires on a cue with the same start AND word

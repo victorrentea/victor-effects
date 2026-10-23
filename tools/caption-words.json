@@ -1,0 +1,872 @@
+{
+ "05_guess_whos_back.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Guess who's back, back again ♪",
+   "words": [
+    0.02,
+    0.24,
+    0.49,
+    2.07,
+    2.36
+   ],
+   "confidence": "high",
+   "note": "3 bursts 0.02/0.24/0.49, then two quiet echo 'back's (1.03, 1.60, delay effect, not the lyric), then 'back a-gain' at 2.07/2.36/2.62. Truncation: [2.0,3.2] -> 'Back again'."
+  },
+  {
+   "at": 4,
+   "text": "♪ Shady's back, tell a friend ♪",
+   "words": [
+    4.14,
+    4.77,
+    6.31,
+    6.63,
+    6.83
+   ],
+   "confidence": "high",
+   "note": "Sha 4.14, back 4.77; quiet echoes at 5.30/5.85; tell 6.31, 'a' = formant change 6.63, fr- 6.83 (cut at 6.8 still heard as 'Free'). MMS 'tell' 6.53 was late."
+  },
+  {
+   "at": 7.9,
+   "text": "♪ Guess who's back, guess who's back ♪",
+   "words": [
+    8.47,
+    8.68,
+    9.01,
+    9.55,
+    9.83,
+    10.13
+   ],
+   "confidence": "high",
+   "note": "Chant repeats every ~1.07 s (8.47, 9.55, 10.65, 11.69, 12.9...); took the first two reps after the cue start. MMS had grabbed reps 3-4 (10.64...). 7.45/8.0 bursts are echoes of 'friend'. The cue window holds 4 reps, caption shows 2."
+  }
+ ],
+ "07_animated_phone.mp3": [
+  {
+   "at": 0,
+   "text": "\"What does this button do?\"",
+   "words": [
+    1.8,
+    2.08,
+    2.58,
+    3.0,
+    3.47
+   ],
+   "confidence": "high",
+   "note": "0-1.7 is the 'Ooooh' (not in caption). Clean syllable attacks; truncation: [1,2.97] has 'this' but no 'button', [3.42,4] = 'Do'. MMS put 'button' at 6.73 (the later 'push the button')."
+  }
+ ],
+ "09_ave_maria.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Ave Maria ♪",
+   "words": [
+    1.33,
+    4.05
+   ],
+   "confidence": "medium",
+   "note": "Moved from the 5.6 cue: Ave Maria is sung once, from 1.33 (A) — M hum at 4.05; from 5.6 on it is the held Maria."
+  },
+  {
+   "at": 12.6,
+   "text": "♪ Jungfrau mild ♪",
+   "words": [
+    12.66,
+    17.12
+   ],
+   "confidence": "medium",
+   "note": "'Jung' starts 12.66 (before the cue), held with nasal 'ng' from 15.1; 'frau' f-noise 15.87; 'mild' m at 17.12 (harmonics drop, then bright 'i' formants from 17.3). [12.4,17.2] -> only 'Jungfrau'."
+  }
+ ],
+ "17_my_precious.mp3": [
+  {
+   "at": 0,
+   "text": "\"My precious…\"",
+   "words": [
+    0.4,
+    1.98
+   ],
+   "confidence": "medium",
+   "note": "Breathy Gollum. 'Mmm' nasal murmur from ~0.40 (cut at 0.60 still 'My', at 0.65 -> 'I'm'); 'pr' plosive = sharp broadband onset at 1.98, drawled 'r' to 2.4, 'e' 2.45. [0,2.7] -> 'My dream'. MMS 2.29 is mid-'r'."
+  }
+ ],
+ "21_sfx_41.mp3": [
+  {
+   "at": 0,
+   "text": "\"Isn't that cute? BUT IT'S WRONG!\"",
+   "words": [
+    1.27,
+    1.64,
+    2.21,
+    3.42,
+    3.68,
+    3.97
+   ],
+   "confidence": "high",
+   "note": "Laugh 0.2-0.9 s is uncaptioned. Onsets from zoomed spectrogram (vowel 'Is' 1.27, 'that' 1.64 after the n, k-burst 2.21, b 3.42, 'it's' after the t-dip 3.68, w-glide 3.97); Whisper truncation agrees (from 1.65 hears 'NAD CUE', from 1.70 loses the n/th; from 3.45 still 'But it's wrong', from 3.6 'but' gone, from 3.7 still '-t's'). MMS ~0.05-0.15 s late. Full-clip Whisper heard 'BUT THAT'S', windowed runs hear 'But it's' - text OK."
+  }
+ ],
+ "24_this_is_sparta.mp3": [
+  {
+   "at": 0,
+   "text": "\"THIS IS SPARTA!\"",
+   "words": [
+    3.62,
+    4.26,
+    4.8
+   ],
+   "confidence": "high",
+   "note": "Clip opens with an uncaptioned 'Madness?' (~0.9-1.6 s), then music; 'THIS' only at 3.62, so the line could go up ~3.4. Truncation: from 3.65 still 'This', from 4.2 'I'm Sparta', from 4.3 'is' gone (onset 4.26); [3.0,4.9] has no 'Sp', from 4.8 still 'Sparta', from 4.9 'Batter' -> s-onset ~4.80. MMS agrees within 0.05-0.1 (late)."
+  }
+ ],
+ "28_who_let_dogs_out.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Who let the dogs out? ♪",
+   "words": [
+    0.03,
+    0.24,
+    0.52,
+    0.77,
+    1.28
+   ],
+   "confidence": "high",
+   "note": "First repetition (0-1.95 s). 'Who let' share the first voiced burst (0.03-0.45, t-closure 0.45-0.52): Whisper on [0,0.2] hears 'Ho', [0,0.3] 'Hooray'; from 0.3 still 'Let...', from 0.4 'And...' -> let ~0.24 (MMS 0.26, formant shift ~0.22). 'the' after the t-gap 0.52 ([0,0.5] has no 'the'), d of dogs 0.77 (from 0.78 'Dogs out'), out 1.28 ([0,1.2] ends at 'dog?', [0,1.4] has 'out'). MMS's 'out' at 3.6 grabbed the next repetition. 'let' medium, rest high."
+  }
+ ],
+ "29_gangnam_style.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Oppa Gangnam Style ♪",
+   "words": [
+    0.92,
+    1.39,
+    1.89
+   ],
+   "confidence": "high",
+   "note": "Voice enters 0.92 ('O-', p-closure 1.08-1.20, '-pa' 1.20). Gang: from 1.30/1.45 Whisper still hears 'Gundam', from 1.6 only 'Num', [0,1.5] already ends '-ga', g-burst visible ~1.39 (MMS 1.45). Style: from 1.88 'Style', from 1.95 'Tile' -> s ~1.89 (MMS 1.89). 0-0.9 is the beat only."
+  }
+ ],
+ "33_yee_har.mp3": [
+  {
+   "at": 0,
+   "text": "\"Yee-haw!\"",
+   "words": [
+    0.02
+   ],
+   "confidence": "high",
+   "note": "One word: held 'Yeee' from 0.02 to 1.17 (voice energy rises 0.01-0.03), gap, 'haw' 1.25-2.0. Lit at the first syllable; Whisper agrees ('Yee' 0.0). MMS 0.83 was stretched over the held note."
+  }
+ ],
+ "35_cant_touch_this.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Can't touch this ♪",
+   "words": [
+    0.06,
+    0.27,
+    0.47
+   ],
+   "confidence": "high",
+   "note": "Timed on the first repetition (0-0.8 s, spoken before the beat drops at 0.78); MMS had grabbed the second one (3.71/3.91/4.17), a third is at ~7.3. k-burst 0.06 in the mix; t-burst 0.26-0.29 (Whisper: [0,0.30] no 'touch', [0,0.35] 'can't tell', from 0.30 still 'Touch'); th 0.47 ([0,0.45] ends 'touch', [0,0.52] 'touch that', from 0.48 'Yes')."
+  }
+ ],
+ "36_bad_habits.mp3": [
+  {
+   "at": 0,
+   "text": "♪ My bad habits lead to late nights endin' alone ♪",
+   "words": [
+    0.3,
+    0.52,
+    1.08,
+    1.53,
+    1.72,
+    1.82,
+    2.42,
+    2.96,
+    3.38
+   ],
+   "confidence": "high",
+   "note": "Burst-per-syllable on RMS + sibilants (habit-S 1.40, nights-TS 2.85) + truncation: [0,1.2]='bad hair', [1.86,4]='Late nights'. 'alone' = schwa after endin' (between 3.38 and 3.47 by truncation). Whisper hears 'and then' for endin'."
+  },
+  {
+   "at": 3.6,
+   "text": "♪ Conversations with a stranger I barely know ♪",
+   "words": [
+    4.33,
+    5.33,
+    5.5,
+    5.55,
+    6.76,
+    6.94,
+    7.28
+   ],
+   "confidence": "medium",
+   "note": "Conversations = K release 4.33; 'a' is a tiny schwa between 'with' and the S of stranger (5.55). 'I' is the short pitch jump to D4 right before the B closure (6.87–6.93); truncation [3.6,6.85] has no 'I', [3.6,7.0] does. MMS put 'I' at 6.52–6.91 with ~0 score; 'know' on the N dip ~7.28 (±0.1)."
+  },
+  {
+   "at": 7.5,
+   "text": "♪ Swearin' this will be the last, but it probably won't ♪",
+   "words": [
+    8.07,
+    8.63,
+    8.88,
+    9.1,
+    9.34,
+    9.53,
+    10.07,
+    10.3,
+    10.51,
+    11.24
+   ],
+   "confidence": "high",
+   "note": "S of Swearin' 8.07 (7.7–8.05 is a breath); 'this' TH dip 8.63, its S 8.72–8.87, 'will' 8.88; MMS on tight windows (voice+mix) agree on the/last 9.34/9.53; 'last' S 9.85, 'but' B release 10.07; won't ±0.1."
+  }
+ ],
+ "37_rainbow.mp3": [
+  {
+   "at": 2.8,
+   "text": "♪ Somewhere over the rainbow ♪",
+   "words": [
+    2.84,
+    5.77,
+    6.84,
+    7.24
+   ],
+   "confidence": "high",
+   "note": "0.5–2.8 is a wordless 'Ooh' (Whisper: 'Oh') not in the caption; 'Somewhere' starts at the sharp S burst 2.83 (truncation: [2.9,9]='Somewhere over...', [4.4,9]='Well, over'); o/ver/the/rain/bow syllables at 5.77/6.40/6.84/7.24/7.84 match the melody B-G-A-B-C. Line can go up at ~2.8."
+  },
+  {
+   "at": 10.0,
+   "text": "♪ Way up high ♪",
+   "words": [
+    10.08,
+    11.0,
+    11.44
+   ],
+   "confidence": "high",
+   "note": "Three bursts after the 8.6–10.05 silence: Way 10.08 (low note), up 11.00 (pitch jumps up), high 11.44 (H dip). Truncation: [8,10.98]='Wait', [8,11.1]='We are', [11.4,]='I'. First word ~1.9 s after the cue start."
+  }
+ ],
+ "38_imagine.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Imagine all the people ♪",
+   "words": [
+    0.1,
+    0.89,
+    1.88,
+    2.25
+   ],
+   "confidence": "high",
+   "note": "Voice starts 0.10; 'all' held 0.89–1.85; 'the' at the dip 1.88; 'people' P release after the 2.13–2.26 closure. Truncation [0,1.0]='Imagine all', [0,2.0]='...all the', [0,2.4]='...the people' agree; MMS within 0.05–0.1."
+  },
+  {
+   "at": 5.7,
+   "text": "♪ Living for today ♪",
+   "words": [
+    5.89,
+    7.41,
+    8.3
+   ],
+   "confidence": "high",
+   "note": "Silence 3.5–5.85, then 'Li-ving' 5.89 (ving held 6.27–7.35), F of 'for' 7.41, T of 'today' 8.30 ('day' held from 8.70). Truncation [5.5,7.45]='Living', [7.45,10]='For today', [5.5,8.4]='Living for the'. Cue goes up 3.3 s before the voice — suggest ~5.7."
+  }
+ ],
+ "38b_dreamer.mp3": [
+  {
+   "at": 0,
+   "text": "♪ I'm just a dreamer ♪",
+   "words": [
+    0.81,
+    1.19,
+    1.61,
+    1.86
+   ],
+   "confidence": "high",
+   "note": "Voice enters 0.81 (silence before). 'just' j at the 1.19 formant change (Whisper head-cut: absent at 1.1, present at 1.3); 'a' after the 'st' gap 1.50-1.60; 'dreamer' d burst after 1.82-1.88 closure."
+  },
+  {
+   "at": 3.5,
+   "text": "♪ I dream my life away ♪",
+   "words": [
+    4.57,
+    4.95,
+    5.64,
+    6.05,
+    6.93
+   ],
+   "confidence": "medium",
+   "note": "'I' 4.57 after silence; 'dream' after dr dip ~4.95; 'my' = start of m (merged with dream's m) ~5.64; 'life' l dip ~6.05 (head-cut has 'life' by 6.2); 'away' vowel after the f gap 6.82-6.92 (head-cut has 'a(way)' by 7.1). MMS 'away' 7.29 was mid-word."
+  }
+ ],
+ "45_the_mask.mp3": [
+  {
+   "at": 0,
+   "text": "\"Somebody stop me!\"",
+   "words": [
+    1.39,
+    2.57,
+    3.16
+   ],
+   "confidence": "high",
+   "note": "Clip opens with an uncaptioned 'Ooooh' (0-1.25). 'Somebody' starts with a long hissed S 1.39-1.95 (clear broadband noise); 'stop' s noise 2.57-2.80, t burst 2.85; 'me' m after p closure at 3.16. MMS 1.88 was the 'o' vowel, Whisper 0.94 was in the Ooooh."
+  }
+ ],
+ "46_michael_buble.mp3": [
+  {
+   "at": 0,
+   "text": "♪ It's beginning to look a lot like Christmas ♪",
+   "words": [
+    0.07,
+    0.46,
+    1.13,
+    1.21,
+    1.58,
+    1.87,
+    2.18,
+    3.27
+   ],
+   "confidence": "high",
+   "note": "Head/tail Whisper cuts bound 'look' to 1.20-1.30 and 'like' <2.30; 'a' after k burst 1.55; 'lot' ~1.87 (MMS agrees, weakest one, ±0.08); 'like' l attack after the t gap 2.12-2.18 (MMS 2.46 = vowel); 'Christmas' k burst 3.27. 'Christmas' is held to ~5.6."
+  },
+  {
+   "at": 5.8,
+   "text": "♪ Everywhere you go ♪",
+   "words": [
+    6.33,
+    7.85,
+    8.29
+   ],
+   "confidence": "high",
+   "note": "Line goes up at 3.6 while cue 1's 'Christmas' is still held (to ~5.6); 'Everywhere' starts 6.33 after silence, so suggest ~5.8. 'you' small dip 7.80-7.85 (head-cut: absent at 7.8); 'go' g burst 8.29."
+  }
+ ],
+ "46b_my_way.mp3": [
+  {
+   "at": 0,
+   "text": "♪ I did it my way ♪",
+   "words": [
+    0.83,
+    1.45,
+    1.74,
+    2.7,
+    5.48
+   ],
+   "confidence": "medium",
+   "note": "I/did/it/my high (head-cuts: did in (1.30,1.55], it in (1.72,1.85], my in (2.6,2.9]); the 1.9-2.6 hum is reverb of 'it'. 'my' is held 2.70-~5.3; 'way' = w glide (formants drop) ~5.45-5.6, vowel at 5.62 — onset 5.48 ±0.1. Whisper 'way' 2.92 was wrong."
+  }
+ ],
+ "59_game_over.mp3": [
+  {
+   "at": 0,
+   "text": "\"Game over\"",
+   "words": [
+    0.04,
+    0.75
+   ],
+   "confidence": "high",
+   "note": "Voicing of G from 0.04 (burst 0.09); clean silence 0.64-0.74, 'over' vowel attacks sharply at 0.75. Whisper's 0.38 for 'over' was wrong."
+  }
+ ],
+ "61_hallelujah.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Hallelujah! Hallelujah! ♪",
+   "words": [
+    0.25,
+    4.35
+   ],
+   "confidence": "high",
+   "note": "Each ~3.5 s choral phrase is ONE slow 'Hal-le-lu-jah' (4 syllables, 'jah' held); phrases start 0.25, 4.35, 8.58, 12.86. Cue end 6 cuts phrase 2 (sung to 7.7)."
+  },
+  {
+   "at": 8.5,
+   "text": "♪ Hallelujah! Hallelujah! ♪",
+   "words": [
+    8.58,
+    12.86
+   ],
+   "confidence": "medium",
+   "note": "Phrases 3 and 4 begin at 8.58 and 12.86 — the cue moved from 13.3, where no Hallelujah begins. Only ONE Hallelujah is sung after 13.3 (it starts 12.86). The two for this cue are phrases 3 and 4: real onsets 8.58 and 12.86 -> suggest at=8.5 with words [8.58, 12.86]; onsets clamped to 13.3 here per rule."
+  }
+ ],
+ "62_lionel_richie.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Hello… ♪",
+   "words": [
+    1.1
+   ],
+   "confidence": "high",
+   "note": "Breathy 'h' from ~1.09, voiced 'he' 1.21, 'llo' ~1.42. Note held to ~3.4 (fades), silence 3.5-4.5."
+  },
+  {
+   "at": 4.4,
+   "text": "♪ Is it me you're looking for? ♪",
+   "words": [
+    4.53,
+    4.79,
+    4.97,
+    5.54,
+    6.22,
+    6.71
+   ],
+   "confidence": "high",
+   "note": "Line starts 4.53, 2.7 s after at=1.8 (silence 3.5-4.5) -> suggest 4.4. 'it' after z-dip 4.75-4.79; 'me' = nasal murmur 4.97 after t-gap (vowel 5.08); truncation tests confirm you're<5.7, looking<6.3, for 6.45-6.8."
+  }
+ ],
+ "64_fbi.mp3": [
+  {
+   "at": 0,
+   "text": "\"FBI! Open up!\"",
+   "words": [
+    0.66,
+    1.28,
+    1.56
+   ],
+   "confidence": "medium",
+   "note": "Silence until 0.66 ('Eff'); B 0.89, I ~1.18. Whisper truncation: [0,1.3]='FBI!', [1.25,end]='Open up!' -> Open ~1.28 (MMS o 1.30); 'up' linked to 'pen' (o-pe-nup), [0,1.6] already has UP, [1.62,end] nothing -> ~1.56."
+  }
+ ],
+ "67_sfx_109.mp3": [
+  {
+   "at": 0,
+   "text": "\"Eww, brother, eww!\"",
+   "words": [
+    0.04,
+    2.87,
+    3.24
+   ],
+   "confidence": "high",
+   "note": "Eww 0.04-0.8; b-voicing 2.87 (burst 2.935, MMS b 2.92); second 'eww' sharp attack 3.24 after a 3.17-3.24 gap. Audio goes on with uncaptioned 'What's that?' (5.5) and 'What's that, brother?' (8.7)."
+  }
+ ],
+ "69_scream_ghost.mp3": [
+  {
+   "at": 0,
+   "text": "\"Wazzuuup!\"",
+   "words": [
+    0.37
+   ],
+   "confidence": "medium",
+   "note": "Breathy/noisy lead-in 0.06-0.36 (no clear formants), voiced 'Wa' glide attacks at 0.37, 'zzuuup' from 0.79 held to the end. Whisper on [0.30,end] and [0.38,end] both = 'WHAT'S UP'. Use 0.06 if the breath counts as part of the scream."
+  }
+ ],
+ "71_one_more_time.mp3": [
+  {
+   "at": 0,
+   "text": "♪ One more try… ♪",
+   "words": [
+    0.89,
+    1.35,
+    1.72
+   ],
+   "confidence": "high",
+   "note": "Voice starts 0.89 (silence before); 'more' = formant change ~1.35-1.38 (MMS 1.35, truncation: cut at 1.3 still hears the m); 'try' = t-burst at 1.72."
+  },
+  {
+   "at": 2.3,
+   "text": "♪ I didn't know how much I loved you ♪",
+   "words": [
+    2.84,
+    3.0,
+    3.38,
+    3.73,
+    3.97,
+    4.8,
+    4.99,
+    5.23
+   ],
+   "confidence": "medium",
+   "note": "First 'I' is a soft breathy pickup 2.84-2.96: Whisper on [2.75,3.17] hears 'I didn't', every cut from 2.97 hears only 'Didn't'. 'know' after 3.32 ([2.97,3.32] = 'Didn't' only). Second 'I' = new note B3 at 4.80 ([4.78,6] 'I loved you', [4.95,6] 'Loved you'); 4.45-4.76 is reverb tail of 'much' on its pitch. 'you' = y-glide + A3 at 5.23."
+  },
+  {
+   "at": 6.4,
+   "text": "♪ One more try… ♪",
+   "words": [
+    7.33,
+    7.76,
+    8.12
+   ],
+   "confidence": "high",
+   "note": "Same shape as cue 1 (offsets +0.44/+0.81 vs +0.46/+0.83): voice from silence at 7.33, 'more' formant change ~7.76, 't' burst 8.12."
+  },
+  {
+   "at": 8.7,
+   "text": "♪ Let me put my arms around you ♪",
+   "words": [
+    9.33,
+    9.55,
+    9.8,
+    10.06,
+    10.85,
+    11.27,
+    11.73
+   ],
+   "confidence": "high",
+   "note": "9.0-9.25 is the tail of 'try' (same C#4); 'Let' glide starts 9.33. p-closure dip 9.70-9.79 -> 'put' 9.80; t-dip -> 'my' 10.06; 'arms' vowel 10.85 after dip; 'z' of arms 11.22 then 'around' 11.27 (pitch drops to A#3); 'you' 11.73 (cuts: 11.7 -> 'you', 11.8 -> nothing)."
+  }
+ ],
+ "72_if_tomorrow.mp3": [
+  {
+   "at": 0,
+   "text": "♪ If tomorrow never comes ♪",
+   "words": [
+    0.44,
+    0.83,
+    2.25,
+    2.94
+   ],
+   "confidence": "high",
+   "note": "Voice from silence at 0.44 ('If', long vowel; cut 0.5 still 'If', 0.75 not). 't' burst 0.83. 'never' = n-nasal from ~2.22-2.25 (vowel 2.38, MMS 2.37); Whisper's 1.12 is wrong - 'tomorrow' is held 0.83-2.2. 'comes' k-burst 2.94."
+  },
+  {
+   "at": 5.8,
+   "text": "♪ Will she know how much I loved her? ♪",
+   "words": [
+    6.8,
+    7.0,
+    7.25,
+    7.65,
+    8.04,
+    8.28,
+    8.68,
+    9.8
+   ],
+   "confidence": "high",
+   "note": "'Will' from silence 6.80; 'sh' noise from ~7.0 (cut 7.05 loses Will); know 7.25 (MMS 7.23-7.27), how h at 7.65, much 8.04 (cut 8.0 keeps 'Much', 8.12 not), 'ch' 8.17-8.27 then I 8.28, 'loved' l-dip 8.68 (cut 8.6 keeps, 8.75 not); 'loved' held to 9.77, then breathy h 9.80 before voiced 'er' at 10.0. Lyric correct ('loved her', Whisper says 'love')."
+  }
+ ],
+ "73_counter_strike.mp3": [
+  {
+   "at": 0,
+   "text": "\"Go, go, go!\"",
+   "words": [
+    0.15,
+    0.5,
+    0.8
+   ],
+   "confidence": "high",
+   "note": "The clip is the CS radio call Go, go, go! — three falling syllables; Counter-Terrorists win is never said (caption corrected)."
+  }
+ ],
+ "74_oops.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Oh baby, baby ♪",
+   "words": [
+    0.04,
+    0.49,
+    1.13
+   ],
+   "confidence": "high",
+   "note": "Syllable bursts Oh 0.04 | ba 0.49-0.8 by 0.83 | gap | ba 1.13 by 1.47. MMS put the 2nd 'baby' on its '-by' (1.46); head-truncation: [0,1.45]='Oh, baby', [0,1.7]='Oh baby, baby'."
+  },
+  {
+   "at": 1.3,
+   "text": "♪ Oops, I did it again ♪",
+   "words": [
+    1.76,
+    2.39,
+    3.04,
+    3.39,
+    3.68
+   ],
+   "confidence": "high",
+   "note": "Tail-truncation: from 1.76 still 'Oops', from 2.1 starts 'I'; from 3.0 'Did', from 3.6 'And again', from 3.75 'Again'. 'a-' at 3.68 (dip), '-gain' attack 3.98 held to ~5.0. MMS was ~1 s early on Oops/I/did/it."
+  },
+  {
+   "at": 4.1,
+   "text": "♪ I played with your heart ♪",
+   "words": [
+    5.1,
+    5.53,
+    5.87,
+    6.18,
+    6.49
+   ],
+   "confidence": "high",
+   "note": "'gain' is held 3.98-5.0, so 'I' only comes at 5.10 (tail from 5.0='I play', from 5.45='Play'); MMS agrees on played/with/your/heart (5.53/5.95/6.19/6.54). Line goes up 1.0 s before its first word, during the held 'again'."
+  },
+  {
+   "at": 6.8,
+   "text": "♪ Got lost in the game ♪",
+   "words": [
+    7.78,
+    8.08,
+    8.42,
+    8.73,
+    9.03
+   ],
+   "confidence": "medium",
+   "note": "'heart' held to ~7.45. Got=G burst 7.78; head [0,8.1] has no 'lost', [0,8.25]='Got a lo..' -> lost ~8.08 (formant shift/dip); tail 8.3='Spin', 8.45='In' -> in 8.42; tail 8.76='This game' -> the 8.73 (dip); game g-release 9.03. Even ~0.32 s spacing mirrors 'I played with your heart'."
+  }
+ ],
+ "75_sfx_117.mp3": [
+  {
+   "at": 0,
+   "text": "\"May I have your attention, please?\"",
+   "words": [
+    0.04,
+    0.3,
+    0.37,
+    0.65,
+    0.84,
+    1.37
+   ],
+   "confidence": "high",
+   "note": "The clip says the line TWICE: a slow deep version 0.04-1.7 and a normal one 3.08-4.75 (then an uncaptioned 'We're gonna have a problem here' 4.88-5.8). Timed the first, right after at=0 (MMS had grabbed the 2nd: 3.11...). Tail on [t,2.2]: 0.3='I have', 0.37='Have', 0.62='Your', 0.86='..tention', 1.38='Please'; MMS on [0,2] gives 0.06/0.34/0.40/0.69/0.83/1.35."
+  }
+ ],
+ "76_sfx_118.mp3": [
+  {
+   "at": 0,
+   "text": "♪ It wasn't me ♪",
+   "words": [
+    0.25,
+    0.36,
+    0.66
+   ],
+   "confidence": "medium",
+   "note": "Low voice 0.25-0.9. 'It' barely audible: only the soft rising onset 0.25-0.36 (MMS score 0.03, Whisper hears 'Wasn't me'); lit at the voice onset. Tail: 0.4='Wasn't me', 0.6='To me', 0.68='Hey' -> me ~0.66 (MMS 0.66-0.68)."
+  },
+  {
+   "at": 0.7,
+   "text": "♪ Heard the words that I told her ♪",
+   "words": [
+    1.02,
+    1.17,
+    1.31,
+    1.62,
+    1.79,
+    1.96,
+    2.28
+   ],
+   "confidence": "high",
+   "note": "MMS (1.03/1.17/1.33/1.63/1.86/1.96/2.32) matches the dips. Window [0.95,t]: 1.72='..that', 1.79='..that I', 2.27='..told you', 2.45='..told her' -> I ~1.79, her 2.28 (h dip). Tail from 1.55='That', 2.05='Don't hurt'."
+  },
+  {
+   "at": 2.4,
+   "text": "♪ It wasn't me ♪",
+   "words": [
+    2.77,
+    2.88,
+    3.19
+   ],
+   "confidence": "medium",
+   "note": "Same pattern as line 1: soft onset 2.77 ('It', barely audible), 'w' step at 2.88 (MMS 2.87-2.89; tail from 2.9 still 'Wasn't', from 3.0 not), me 3.19 (tail 3.1='To me', 3.2='you'; MMS 3.19-3.21)."
+  },
+  {
+   "at": 3.3,
+   "text": "♪ Heard the screams getting louder ♪",
+   "words": [
+    3.55,
+    3.69,
+    3.79,
+    4.19,
+    4.49
+   ],
+   "confidence": "high",
+   "note": "Voice onset 3.55 after silence; dips at 3.70 (th), 3.79 (s), 4.2 (g), 4.5 (l). Tail: 3.75='screen's', 3.85='It's getting', 4.4='Louder', 4.55='Out of' -> louder 4.49. Voice-only MMS put 'louder' late at 4.68 (mix MMS 4.46)."
+  },
+  {
+   "at": 4.7,
+   "text": "♪ It wasn't me ♪",
+   "words": [
+    5.32,
+    5.43,
+    5.79
+   ],
+   "confidence": "medium",
+   "note": "Here 'It' is audible: weak step 5.32 then 'w' 5.43 (tail from 5.25='It wasn't me', from 5.35='Wasn't me'; MMS 5.43-5.45). 'me' 5.79 from a small dip + MMS (score low; Whisper silent on the tail). A new uncaptioned phrase starts ~6.1."
+  }
+ ],
+ "77_maui.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Well, anyway, let me say you're welcome ♪",
+   "words": [
+    0.38,
+    0.72,
+    1.56,
+    1.7,
+    1.88,
+    2.64,
+    2.88
+   ],
+   "confidence": "high",
+   "note": "Voice from 0.38. 'let' at the formant/RMS step 1.56, t-closure 1.65-1.70 then 'me'; the 's' of 'say' is visible as 4-10 kHz noise from 1.88 (Whisper's 1.78 is early). Truncation [0,3.25] already has the whole line."
+  },
+  {
+   "at": 3.3,
+   "text": "♪ For the wonderful world you know ♪",
+   "words": [
+    3.33,
+    4.19,
+    4.36,
+    5.28,
+    5.89,
+    6.01
+   ],
+   "confidence": "medium",
+   "note": "Whisper truncation: [3.6,..] starts 'For the wonderful', [3.3,6.05] lacks 'you', [5.92,..] cuts into it -> you≈5.89, know 6.01. 'world' set at the deep dip 5.28 after the 'f' burst of '-ful' (5.13); Whisper says ~5.1, MMS 5.57 (MMS scores <0.4 here, unreliable). A backing echo over 3.33-4.05 makes Whisper sometimes hear 'You're welcome' instead of 'For'."
+  },
+  {
+   "at": 6.5,
+   "text": "♪ Hey, it's okay ♪",
+   "words": [
+    7.47,
+    7.7,
+    7.98
+   ],
+   "confidence": "high",
+   "note": "Hey 7.47 (rise from silence); formant change into 'it's' at 7.70; 'ts' noise 7.88-7.98 then 'o' at 7.98. 'okay' is cut by the clip end at 8.26."
+  }
+ ],
+ "80_7_rings.mp3": [
+  {
+   "at": 0,
+   "text": "♪ I want it, I got it ♪",
+   "words": [
+    0.03,
+    0.25,
+    0.46,
+    0.88,
+    1.11,
+    1.32
+   ],
+   "confidence": "medium",
+   "note": "First of four repetitions. Dense stacked vocal, so I fitted the 140-BPM 8th-note grid (beats at 0.245/0.675/1.105/1.535 from the kick+clap in the mix): I . want . it ... I . got . it. MMS (want 0.24-0.26, got 1.11-1.13, it 1.33) and librosa onsets (0.05, 0.28, 0.77, 1.14) agree; the next bar repeats exactly 1.71 s later (onsets 1.76, 2.0, 2.6, 2.81). Whisper's want 0.08 is early."
+  }
+ ],
+ "81_let_it_be.mp3": [
+  {
+   "at": 2.3,
+   "text": "♪ When I find myself in times of trouble ♪",
+   "words": [
+    3.01,
+    3.24,
+    3.38,
+    3.85,
+    4.46,
+    4.77,
+    5.44,
+    5.82
+   ],
+   "confidence": "high",
+   "note": "Voice from 3.01. Whisper truncations bracket each word: [2.8,3.36] hears two syllables ('Buenas' = When-I), [2.8,3.84] lacks 'myself' / [3.84,..] starts with it, [2.8,4.45] lacks 'in', [2.8,5.42] lacks 'of'. 'find'/'times'/'trouble' at the f-dip 3.38, t-burst 4.77, t-burst after the closure 5.82; MMS agrees within ~0.05 except 'I' (3.35, end of the n→I glide)."
+  },
+  {
+   "at": 6.3,
+   "text": "♪ Mother Mary comes to me ♪",
+   "words": [
+    6.61,
+    7.01,
+    8.1,
+    8.47,
+    8.68
+   ],
+   "confidence": "high",
+   "note": "Mother at the m-onset 6.61 (MMS 6.71 is the vowel); [6.95,..] and [7.05,..] both still hear 'Mary' -> its m ~7.0; comes at the k burst 8.10, to at the t burst 8.47 after the 's', me 8.68 (MMS 8.72, score 1.0)."
+  },
+  {
+   "at": 9,
+   "text": "♪ Speaking words of wisdom ♪",
+   "words": [
+    9.76,
+    10.64,
+    11.18,
+    11.39
+   ],
+   "confidence": "medium",
+   "note": "s-noise of 'Speaking' from 9.76 (MMS 9.81); w-dip before 'words' at 10.64; 'ds' noise 11.12-11.16 then 'of' 11.18; w of 'wisdom' at the dip 11.39 (MMS 11.46, onset 11.40). Whisper's 9.04 for 'Speaking' is in silence."
+  },
+  {
+   "at": 11.9,
+   "text": "♪ Let it be ♪",
+   "words": [
+    12.53,
+    12.77,
+    12.96
+   ],
+   "confidence": "high",
+   "note": "Voice rises out of silence at 12.53 (MMS 12.61 is the vowel); t-flap notch at 12.75 then 'it'; b closure 12.88-12.96 then 'be' 12.96 (MMS 12.97)."
+  }
+ ],
+ "81b_let_go.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Let go ♪",
+   "words": [
+    1.63,
+    2.03
+   ],
+   "confidence": "high",
+   "note": "Voice starts at 1.63 (silence before). 'Let' is sung over two notes (1.63, 1.82); Whisper on [1.4,2.04] hears no 'go', on [2.04,..] nothing, so 'go' starts at the g closure ~2.0-2.05. Whisper hears 'Let go of me' on 2.1-2.9 (melisma or extra words not in the caption)."
+  }
+ ],
+ "82_over_and_out.mp3": [
+  {
+   "at": 0,
+   "text": "\"Over and out.\"",
+   "words": [
+    0.05,
+    0.33,
+    0.45
+   ],
+   "confidence": "medium",
+   "note": "Whole clip is 0.77 s of one shouted phrase. Voice starts 0.04-0.08; pitch break at ~0.28 ends 'Over'; Whisper truncation: [0,0.45]='Over', [0,0.5]='Over and out', [0.4,end]='Now'(n+out), [0.45,end]='Out'; F2 of /aU/ falls from ~0.45."
+  }
+ ],
+ "83_yummy.mp3": [
+  {
+   "at": 0,
+   "text": "♪ Yeah, you got that yummy-yum ♪",
+   "words": [
+    0.98,
+    1.2,
+    1.39,
+    1.6,
+    1.84
+   ],
+   "confidence": "high",
+   "note": "Clean syllable gaps + pitch steps (A->C at 1.21, 'g' at 1.39, voiceless gap 1.58-1.62, 't' gap 1.80-1.85). MMS on tight window agrees within 0.03 except yummy (1.87). Whisper runs ~0.15 s early here."
+  },
+  {
+   "at": 2.9,
+   "text": "♪ That yummy-yum ♪",
+   "words": [
+    3.19,
+    3.46
+   ],
+   "confidence": "medium",
+   "note": "2.45-3.17 is the held 'yum' of line 1. 'That' = the F note after the dip at 3.19 (MMS 3.23; Whisper 3.00 but Whisper is ~0.15-0.2 early on this clip); 'yum' after the gap at 3.45, same G->A->G shape as line 1's yummy-yum."
+  },
+  {
+   "at": 4.6,
+   "text": "♪ That yummy-yummy ♪",
+   "words": [
+    4.86,
+    5.13
+   ],
+   "confidence": "medium",
+   "note": "4.1-4.85 is the held 'yum' of line 2. 'That' = F note after dip at 4.85-4.89 (Whisper 4.68, ~0.2 early); 'yummy-yummy' after the 't' gap 5.09-5.13 (MMS 5.13); 2nd 'yummy' at ~5.73."
+  }
+ ],
+ "88_all_you_need_is_love.mp3": [
+  {
+   "at": 0,
+   "text": "♪ All you need is love ♪",
+   "words": [
+    1.04,
+    1.4,
+    1.63,
+    2.04,
+    2.56
+   ],
+   "confidence": "high",
+   "note": "Sung on one pitch; boundaries from formants: /j/ F2 rise ~1.40, nasal dip 1.55-1.65 then /i:/ (MMS 'need' 1.65, score 0.9), 'd' closure gap 2.00-2.03, 's' fricative 2.37-2.53 then 'love' (MMS 2.59). Line is sung a 2nd time at 5.76-7.6, no cue covers it (cue ends 6.0)."
+  }
+ ]
+}

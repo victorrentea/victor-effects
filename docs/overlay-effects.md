@@ -126,8 +126,10 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   where the tablet's presses and the panel's meet — so a sound the tablet plays
   on its own speaker is captioned too. `/sound/play` is not hooked: it would
   miss the tablet's local plays and caption every panel press twice.
-- **50 % opacity**, pill and text together: readable, but the slide under it
-  stays visible. 36 pt semibold white on a black pill (20 % up from 30 pt on
+- **A see-through pill, opaque letters** (2026-10-23): the pill is 55 % black
+  so the slide shows through it, the text is drawn at full strength. Until then
+  pill and text sat at 50 % together, and the karaoke yellow washed out to a
+  cream nobody could tell from the white. 36 pt semibold on the pill (20 % up from 30 pt on
   2026-10-09), centred, 5 % of the visible height above the bottom edge, wrapped at
   80 % of the width, placed in the zoomed slice when ⌥-scroll is on — and
   shrunk by the zoom factor there (font, padding, corners; 2026-10-14), since
@@ -174,20 +176,30 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   still queued. Songs whose lines would all read the same (Who let the dogs
   out, Can't touch this) stay one line.
 - **Karaoke fill, word by word** (Victor, 2026-10-23: "TikTok style, yellow on
-  white, as it is said"). Each line goes up white and every word turns yellow
-  (`CaptionOverlay.litColor`, 80 ms light-up) at the moment it is heard; the
-  opening ♪ / quote lights with the first word, the closing one with the last,
-  so a line ends all yellow. *When* comes from `SoundCaptions.wordTimes`,
-  **generated** by `tools/caption-words.py` (Whisper large-v3 word timestamps
-  over `soundsDir`, fuzzy-aligned to the cues `GET /sounds/captions` serves, so
-  "Shady's" still finds Whisper's "Shaney's"; a word of ≤ 3 letters is pulled
-  to ≤ 0.6 s before the next one, because Whisper starts it where the previous
-  held note ended). A cue with fewer than half its words heard is left out and
-  fills at an even pace over 80 % of its life — every [noise], the
-  instrumental titles (Pink Panther, Ode to Joy) and a song's intro title. **Edit
-  a caption or a lyric line → rerun the script**: `SoundCaptionsTests`
-  (`testEveryHeardCueStillMatchesItsLine`) fails on a table row whose cue moved
-  or changed word count, since that line would quietly lose its timing.
+  white, as it is said" — and "only colour a word at the moment it is
+  pronounced"). A sung or spoken line goes up dimmed (`upcomingColor`, white
+  at 55 %) and every word turns a saturated, opaque yellow (`litColor`, 80 ms
+  light-up) at the moment it starts being said; the opening ♪ / quote lights
+  with the first word, the closing one with the last, so a line ends all
+  yellow. Dim → yellow is a step in brightness *and* colour: white → yellow
+  alone was invisible on the room's screen.
+  - **Nothing is said, nothing fills.** A [noise], an instrumental title (Pink
+    Panther, Ode to Joy) or a song's intro title has no timing and stays plain
+    white. The first version filled those at an even pace, and it read as the
+    karaoke being out of sync.
+  - **Timings are reviewed, not guessed.** The first pass took Whisper's word
+    timestamps on the mix and lit "back again" 0.8 s into a silence. Now
+    `tools/caption-align.py` drafts every clip — Demucs isolates the voice,
+    the MMS wav2vec2 aligner places the *known* words on it, Whisper and a
+    vocal-onset detector give second opinions, and a spectrogram shows them
+    all — and a reviewer (one agent per few clips, on 2026-10-23) settles each
+    word on that evidence into **`tools/caption-words.json`**, the source of
+    truth. `tools/caption-words.py` turns it into `SoundCaptionWords.swift`
+    and refuses a cue the running app no longer serves.
+  - **Edit a caption or a lyric line → re-review that clip** and rerun the
+    script: `SoundCaptionsTests` (`testEveryHeardCueStillMatchesItsLine`)
+    fails on a row whose cue moved or changed word count, since that line
+    would quietly lose its timing.
 - **Lyrics came from the clips**, by a Whisper pass over `soundsDir` (word timestamps
   for the timed lines, `mlx_whisper` large-v3), not from memory of the song —
   then corrected only where Whisper misheard a known lyric — a caption that disagrees with the audio is worse than
