@@ -12564,7 +12564,6 @@ class EmojiAnimator {
         caption.contents = Self.opusCaptionImage(size: captionFrame.size, scale: scale)
         caption.contentsGravity = .resize
         caption.contentsScale = scale
-        caption.add(Self.opusCaptionFlicker(), forKey: "flicker")
         layer.addSublayer(caption)
         layer.addSublayer(head)
         stageLayer.addSublayer(layer)
@@ -12587,22 +12586,23 @@ class EmojiAnimator {
         CATransaction.commit()
     }
 
-    /// A dying neon tube: mostly on, two uneven stutters per cycle, and a
-    /// cycle length that is not a round number so it never feels like a beat.
-    static func opusCaptionFlicker() -> CAKeyframeAnimation {
-        let flicker = CAKeyframeAnimation(keyPath: "opacity")
-        flicker.values = [1, 1, 0.25, 1, 0.8, 1, 1, 0.4, 0.9, 0.15, 1, 1]
-        flicker.keyTimes = [0, 0.38, 0.40, 0.42, 0.55, 0.57, 0.80, 0.81, 0.83, 0.85, 0.87, 1]
-        flicker.calculationMode = .discrete
-        flicker.duration = 4.3
-        flicker.repeatCount = .infinity
-        return flicker
+    /// The two horror faces ship in Resources (OFL, `CREDITS.md`) and are made
+    /// straight from the file — no registration, so they never show up in the
+    /// system's font menus.
+    static func opusFont(_ name: String, _ size: CGFloat) -> NSFont? {
+        guard let url = EffectsResources.url(name, "ttf"),
+              let d = (CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor])?.first
+        else { return nil }
+        return CTFontCreateWithFontDescriptor(d, size, nil) as NSFont
     }
 
-    /// "OPUS / SOL" and "…or worse" in bone-white, scratched onto a smear of
-    /// clotted blood that drips off its bottom edge (Victor, 2026-10-23: the
-    /// room should wonder what on earth we are talking about). Drawn once per
-    /// showing; the random walk is seeded, so it is the same smear every time.
+    /// "OPUS / SOL" and "…or worse" in fresh blood on a smear of old, nearly
+    /// black blood that drips off its bottom edge, with four claw marks raked
+    /// through it all (Victor, 2026-10-23: the room should wonder what on earth
+    /// we are talking about; the first cut, in Herculanum and bone-white, read
+    /// "like a church"). **Still** — the neon flicker it first had was dropped
+    /// the same day. Drawn once per showing; the random walk is seeded, so it
+    /// is the same smear every time.
     static func opusCaptionImage(size: CGSize, scale: CGFloat) -> CGImage? {
         let pw = Int(size.width * scale), ph = Int(size.height * scale)
         guard pw > 0, ph > 0,
@@ -12654,26 +12654,25 @@ class EmojiAnimator {
                                         width: r * 2, height: r * 2))
         }
 
-        let blood = CGColor(red: 0.42, green: 0.0, blue: 0.02, alpha: 0.93)
+        // Old, dried blood — nearly black — so the fresh red of the words stands out on it.
+        let crust = CGColor(red: 0.17, green: 0.0, blue: 0.01, alpha: 0.95)
         ctx.saveGState()
-        ctx.setShadow(offset: .zero, blur: 18, color: CGColor(red: 0.25, green: 0, blue: 0, alpha: 0.9))
-        ctx.setFillColor(blood)
+        ctx.setShadow(offset: .zero, blur: 18, color: CGColor(red: 0.1, green: 0, blue: 0, alpha: 0.9))
+        ctx.setFillColor(crust)
         ctx.addPath(smear); ctx.fillPath()
         ctx.addPath(drips); ctx.fillPath()
         ctx.restoreGState()
 
-        // Fresher, wetter red in the middle of the clot, darker crust at the rim.
         ctx.saveGState()
         ctx.addPath(smear); ctx.clip()
         let wet = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                             colors: [CGColor(red: 0.62, green: 0.02, blue: 0.04, alpha: 0.9),
-                                      CGColor(red: 0.30, green: 0.0, blue: 0.0, alpha: 0.6),
-                                      CGColor(red: 0.12, green: 0.0, blue: 0.0, alpha: 0.85)] as CFArray,
+                             colors: [CGColor(red: 0.30, green: 0.01, blue: 0.02, alpha: 0.9),
+                                      CGColor(red: 0.14, green: 0.0, blue: 0.0, alpha: 0.6),
+                                      CGColor(red: 0.05, green: 0.0, blue: 0.0, alpha: 0.85)] as CFArray,
                              locations: [0, 0.6, 1])!
         ctx.drawRadialGradient(wet, startCenter: centre, startRadius: 0, endCenter: centre, endRadius: rx,
                                options: [])
-        // A few black clots.
-        ctx.setFillColor(CGColor(red: 0.08, green: 0, blue: 0, alpha: 0.55))
+        ctx.setFillColor(CGColor(red: 0.03, green: 0, blue: 0, alpha: 0.55))
         for _ in 0..<9 {
             let r = 4 + rnd() * 16
             ctx.fillEllipse(in: CGRect(x: centre.x + (rnd() * 2 - 1) * rx * 0.85 - r,
@@ -12682,19 +12681,18 @@ class EmojiAnimator {
         }
         ctx.restoreGState()
 
-        // The words: scratched in bone, a little crooked, with a dark halo.
+        // The words, in fresh blood: Nosifer drips off every letter, Eater is gnawed.
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-        let bone = NSColor(calibratedRed: 0.90, green: 0.85, blue: 0.72, alpha: 1)
-        let halo = NSShadow()
-        halo.shadowColor = NSColor(calibratedRed: 0.05, green: 0, blue: 0, alpha: 1)
-        halo.shadowBlurRadius = 10
-        halo.shadowOffset = NSSize(width: 0, height: -2)
+        let red = NSColor(calibratedRed: 0.86, green: 0.03, blue: 0.04, alpha: 1)
+        let glow = NSShadow()
+        glow.shadowColor = NSColor(calibratedRed: 1, green: 0.05, blue: 0.0, alpha: 0.55)
+        glow.shadowBlurRadius = 14
+        glow.shadowOffset = .zero
         func draw(_ text: String, font: NSFont, centreY: CGFloat, tilt: CGFloat) {
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: font, .foregroundColor: bone, .shadow: halo,
-                .strokeColor: NSColor(calibratedRed: 0.2, green: 0, blue: 0, alpha: 1), .strokeWidth: -2.5,
-                .kern: font.pointSize * 0.06,
+                .font: font, .foregroundColor: red, .shadow: glow,
+                .strokeColor: NSColor(calibratedRed: 0.04, green: 0, blue: 0, alpha: 1), .strokeWidth: -3,
             ]
             let str = NSAttributedString(string: text, attributes: attrs)
             let sz = str.size()
@@ -12704,12 +12702,45 @@ class EmojiAnimator {
             str.draw(at: CGPoint(x: -sz.width / 2, y: -sz.height / 2))
             ctx.restoreGState()
         }
-        let big = min(ry * 0.95, w * 0.12)
-        let title = NSFont(name: "Herculanum", size: big) ?? .boldSystemFont(ofSize: big)
-        let sub = NSFont(name: "Trattatello", size: big * 0.72) ?? .systemFont(ofSize: big * 0.72)
-        draw("OPUS / SOL", font: title, centreY: centre.y + ry * 0.28, tilt: -0.025)
-        draw("…or worse", font: sub, centreY: centre.y - ry * 0.48, tilt: 0.04)
+        // Sized to fit: Nosifer is very wide, so the width decides, not the height.
+        func fitted(_ name: String, _ text: String, maxW: CGFloat, maxH: CGFloat) -> NSFont {
+            guard let probe = Self.opusFont(name, 100) else { return .boldSystemFont(ofSize: maxH) }
+            let tw = NSAttributedString(string: text, attributes: [.font: probe]).size().width
+            return Self.opusFont(name, min(maxH, 100 * maxW / max(tw, 1))) ?? probe
+        }
+        let title = fitted("Nosifer-Regular", "OPUS / SOL", maxW: rx * 1.55, maxH: ry * 0.85)
+        let sub = fitted("Eater-Regular", "…or worse", maxW: rx * 1.15, maxH: ry * 0.7)
+        draw("OPUS / SOL", font: title, centreY: centre.y + ry * 0.30, tilt: -0.025)
+        draw("…or worse", font: sub, centreY: centre.y - ry * 0.50, tilt: 0.04)
         NSGraphicsContext.restoreGraphicsState()
+
+        // Four claw marks raked through everything, cut clean out of the picture.
+        let rake = CGMutablePath()
+        let slant: CGFloat = 0.55   // a downward stroke from upper right to lower left
+        for i in 0..<4 {
+            let off = CGFloat(i) * rx * 0.10 + (rnd() - 0.5) * rx * 0.02
+            let top = CGPoint(x: centre.x - rx * 0.02 + off, y: centre.y + ry * 0.95 - CGFloat(i) * ry * 0.06)
+            let len = ry * (1.7 + rnd() * 0.3)
+            let bot = CGPoint(x: top.x - len * slant, y: top.y - len)
+            let bend = CGPoint(x: (top.x + bot.x) / 2 + rx * 0.03, y: (top.y + bot.y) / 2)
+            let thick = 4.5 + rnd() * 3
+            // A sliver: pointed at both ends, widest a third of the way down.
+            let nx = 1 / sqrt(1 + slant * slant), ny = -slant / sqrt(1 + slant * slant)
+            let fat = CGPoint(x: top.x + (bot.x - top.x) * 0.35, y: top.y + (bot.y - top.y) * 0.35)
+            rake.move(to: top)
+            rake.addQuadCurve(to: bot, control: CGPoint(x: bend.x + nx * thick * 2, y: bend.y + ny * thick * 2))
+            rake.addQuadCurve(to: top, control: CGPoint(x: fat.x - nx * thick * 2, y: fat.y - ny * thick * 2))
+        }
+        ctx.saveGState()
+        ctx.setBlendMode(.clear)
+        ctx.addPath(rake); ctx.fillPath()
+        ctx.restoreGState()
+        // A raw red lip along each gash.
+        ctx.saveGState()
+        ctx.setStrokeColor(CGColor(red: 0.75, green: 0.02, blue: 0.03, alpha: 0.9))
+        ctx.setLineWidth(1.2)
+        ctx.addPath(rake); ctx.strokePath()
+        ctx.restoreGState()
 
         return ctx.makeImage()
     }

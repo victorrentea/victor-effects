@@ -9,6 +9,7 @@ quietly when it is missing — see `docs/assets-and-licences.md`.
 |---|---|---|
 | `click.wav` | a generated 1800 Hz tap | own work (MIT, with the code) |
 | `elephant.png`, `panda.png`, `opus.png` | generated for this project (image tools), cut out locally | own work (MIT) |
+| `Nosifer-Regular.ttf`, `Eater-Regular.ttf` | [Google Fonts](https://github.com/google/fonts/tree/main/ofl) — Nosifer by Typomondo, Eater by Typomondo; the 🤖 Opus caption | SIL OFL 1.1 (`OFL-Nosifer.txt`, `OFL-Eater.txt`) |
 | `heartbeat_beats.json` | measured from a recording | own work (MIT) |
 | `clouds/*.png` | two public-domain / CC0 photographs — `clouds/CREDITS.md` | PD / CC0 |
 | `espresso_pour.mp3` | Wikimedia Commons, [Espresso machine.ogg](https://commons.wikimedia.org/wiki/File:Espresso_machine.ogg) | Public domain |
