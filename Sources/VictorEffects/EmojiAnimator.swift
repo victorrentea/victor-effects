@@ -12700,56 +12700,42 @@ class EmojiAnimator {
         }
         ctx.restoreGState()
 
-        // The words, in fresh blood, in Swamp Death (or Nosifer, see opusTitleFont).
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-        let red = NSColor(calibratedRed: 0.86, green: 0.03, blue: 0.04, alpha: 1)
-        let glow = NSShadow()
-        glow.shadowColor = NSColor(calibratedRed: 1, green: 0.05, blue: 0.0, alpha: 0.55)
-        glow.shadowBlurRadius = 14
-        glow.shadowOffset = .zero
-        func draw(_ text: String, font: NSFont, centreY: CGFloat, tilt: CGFloat) {
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font, .foregroundColor: red, .shadow: glow,
-                .strokeColor: NSColor(calibratedRed: 0.04, green: 0, blue: 0, alpha: 1), .strokeWidth: -3,
-            ]
-            let str = NSAttributedString(string: text, attributes: attrs)
-            let sz = str.size()
+        // The words, in fresh blood, in Swamp Death (or Nosifer, see opusTitleFont),
+        // with the gap between them the claws tear into.
+        if let title = Self.opusTitleLayout(size: size) {
+            let red = CGColor(red: 0.86, green: 0.03, blue: 0.04, alpha: 1)
+            let ink = CGColor(red: 0.04, green: 0, blue: 0, alpha: 1)
+            let glow = CGColor(red: 1, green: 0.05, blue: 0, alpha: 0.55)
+            let swamp = title.font.fontName.hasPrefix("SwampDeath")
             ctx.saveGState()
-            ctx.translateBy(x: centre.x, y: centreY)
-            ctx.rotate(by: tilt)
-            str.draw(at: CGPoint(x: -sz.width / 2, y: -sz.height / 2))
+            ctx.concatenate(title.tilt)
+            for (word, x) in [("OPUS", title.opusX), ("SOL", title.solX)] {
+                let paths = Self.opusLetterPaths(word, font: title.font)
+                ctx.saveGState()
+                ctx.translateBy(x: x, y: title.baseline)
+                ctx.setShadow(offset: .zero, blur: 14, color: glow)
+                ctx.setFillColor(red)
+                if swamp {
+                    // Swamp Death is hatched ink with no body: letters drawn as
+                    // holes read as dim red scribbles on the dark smear. Its own
+                    // preview is black ink on white paper, so the paper becomes
+                    // fresh blood — each letter's outer contour, filled — and the
+                    // ink goes on top.
+                    ctx.addPath(paths.flesh); ctx.fillPath()
+                    ctx.setShadow(offset: .zero, blur: 0, color: nil)
+                    ctx.setFillColor(ink)
+                    ctx.addPath(paths.ink); ctx.fillPath()
+                } else {
+                    ctx.addPath(paths.ink); ctx.fillPath()
+                    ctx.setShadow(offset: .zero, blur: 0, color: nil)
+                    ctx.setStrokeColor(ink)
+                    ctx.setLineWidth(title.font.pointSize * 0.03)
+                    ctx.addPath(paths.ink); ctx.strokePath()
+                }
+                ctx.restoreGState()
+            }
             ctx.restoreGState()
         }
-        // Sized to fit: both faces are wide, so the width decides, not the height.
-        func fitted(_ text: String, maxW: CGFloat, maxH: CGFloat) -> NSFont {
-            guard let probe = Self.opusTitleFont(100) else { return .boldSystemFont(ofSize: maxH) }
-            let tw = NSAttributedString(string: text, attributes: [.font: probe]).size().width
-            return Self.opusTitleFont(min(maxH, 100 * maxW / max(tw, 1))) ?? probe
-        }
-        let title = fitted("OPUS / SOL", maxW: rx * 1.55, maxH: ry * 0.85)
-        if title.fontName.hasPrefix("SwampDeath") {
-            // Swamp Death is hatched ink with no body: letters drawn as holes
-            // read as dim red scribbles on the dark smear. Its own preview is
-            // black ink on white paper, so the paper becomes fresh blood —
-            // each letter's outer contour, filled — and the ink goes on top.
-            let (ink, flesh) = Self.opusLetterPaths("OPUS / SOL", font: title)
-            let box = ink.boundingBoxOfPath
-            ctx.saveGState()
-            ctx.translateBy(x: centre.x, y: centre.y)
-            ctx.rotate(by: -0.025)
-            ctx.translateBy(x: -box.midX, y: -box.midY)
-            ctx.setShadow(offset: .zero, blur: 14, color: CGColor(red: 1, green: 0.05, blue: 0, alpha: 0.55))
-            ctx.setFillColor(red.cgColor)
-            ctx.addPath(flesh); ctx.fillPath()
-            ctx.setShadow(offset: .zero, blur: 0, color: nil)
-            ctx.setFillColor(CGColor(red: 0.04, green: 0, blue: 0, alpha: 1))
-            ctx.addPath(ink); ctx.fillPath()
-            ctx.restoreGState()
-        } else {
-            draw("OPUS / SOL", font: title, centreY: centre.y, tilt: -0.025)
-        }
-        NSGraphicsContext.restoreGraphicsState()
 
         return ctx.makeImage()
     }
@@ -12795,14 +12781,53 @@ class EmojiAnimator {
     /// the head before something tears through the words under it.
     static let opusClawDelay: Double = 0.7
 
-    /// The three gashes as one path in the caption's own points (y up), each
-    /// torn `progress[i]` of its way down from its top end: 0 is nothing yet,
-    /// 1 is the whole sliver. Seeded, so the claws land in the same place at
-    /// every showing and every frame of the tear lies on the finished mark.
-    static func opusClawPath(size: CGSize, progress: [CGFloat]) -> CGPath {
+    /// Where the title goes in the caption's points (y up): "OPUS" and "SOL"
+    /// as two words around a gap one and a half letters high, which the three
+    /// claws fill — a slash, tripled (Victor, 2026-10-25; the typed "/" went).
+    /// The caption image and the rake both read it, so the claws land in the
+    /// gap whatever the screen and whichever face loaded.
+    struct OpusTitleLayout {
+        let font: NSFont
+        let opusX: CGFloat, solX: CGFloat, baseline: CGFloat
+        /// The gap between the words, as tall as the letters.
+        let slot: CGRect
+        /// The title's slight downhill tilt, about the smear's centre.
+        let tilt: CGAffineTransform
+    }
+
+    static func opusTitleLayout(size: CGSize) -> OpusTitleLayout? {
         let w = size.width, h = size.height
         let centre = CGPoint(x: w / 2, y: h * 0.62)   // the smear's, see opusCaptionImage
         let rx = w * 0.47, ry = h * 0.33
+        guard w > 0, h > 0, let probe = opusTitleFont(100) else { return nil }
+        let o = opusLetterPaths("OPUS", font: probe).ink.boundingBoxOfPath
+        let l = opusLetterPaths("SOL", font: probe).ink.boundingBoxOfPath
+        let bottom = min(o.minY, l.minY), cap = max(o.maxY, l.maxY) - bottom
+        let gap = cap * 1.5
+        // Sized to fit: the words are wide, so the width usually decides.
+        let k = min(ry * 0.85 / 100, rx * 1.55 / (o.width + gap + l.width))
+        guard let font = opusTitleFont(100 * k) else { return nil }
+        let left = centre.x - (o.width + gap + l.width) * k / 2
+        let baseline = centre.y - (bottom + cap / 2) * k
+        let tilt = CGAffineTransform(translationX: centre.x, y: centre.y).rotated(by: -0.025)
+            .translatedBy(x: -centre.x, y: -centre.y)
+        return OpusTitleLayout(font: font,
+                               opusX: left - o.minX * k,
+                               solX: left + (o.width + gap) * k - l.minX * k,
+                               baseline: baseline,
+                               slot: CGRect(x: left + o.width * k, y: baseline + bottom * k,
+                                            width: gap * k, height: cap * k),
+                               tilt: tilt)
+    }
+
+    /// The three gashes as one path in the caption's own points (y up), each
+    /// torn `progress[i]` of its way down from its top end: 0 is nothing yet,
+    /// 1 is the whole sliver. Three slashes side by side in the title's gap,
+    /// reaching a quarter of a letter above and below the words. Seeded, so
+    /// the claws land in the same place at every showing and every frame of
+    /// the tear lies on the finished mark.
+    static func opusClawPath(_ title: OpusTitleLayout, progress: [CGFloat]) -> CGPath {
+        let slot = title.slot, h = slot.height
         var seed: UInt64 = 0xC1A5
         func rnd() -> CGFloat {
             seed = seed &* 6364136223846793005 &+ 1442695040888963407
@@ -12812,19 +12837,23 @@ class EmojiAnimator {
         let slant: CGFloat = 0.55   // a downward stroke from upper right to lower left
         let nx = 1 / sqrt(1 + slant * slant), ny = -slant / sqrt(1 + slant * slant)
         for i in 0..<3 {
-            let off = CGFloat(i) * rx * 0.13 + (rnd() - 0.5) * rx * 0.02
-            let top = CGPoint(x: centre.x - rx * 0.06 + off, y: centre.y + ry * 0.95 - CGFloat(i) * ry * 0.06)
-            let len = ry * (1.7 + rnd() * 0.3) * min(max(i < progress.count ? progress[i] : 1, 0), 1)
-            let thick = (4.5 + rnd() * 3) * len / (ry * 1.85)
+            let mid = CGPoint(x: slot.midX + CGFloat(i - 1) * h * 0.36 + (rnd() - 0.5) * h * 0.04,
+                              y: slot.midY + CGFloat(1 - i) * h * 0.04)
+            let full = h * (1.4 + rnd() * 0.1)
+            let top = CGPoint(x: mid.x + full / 2 * slant, y: mid.y + full / 2)
+            let p = min(max(i < progress.count ? progress[i] : 1, 0), 1)
+            let len = full * p
+            let thick = h * (0.05 + rnd() * 0.03) * p
             let bot = CGPoint(x: top.x - len * slant, y: top.y - len)
-            let bend = CGPoint(x: (top.x + bot.x) / 2 + rx * 0.03 * len / (ry * 1.85), y: (top.y + bot.y) / 2)
+            let bend = CGPoint(x: (top.x + bot.x) / 2 + h * 0.03 * p, y: (top.y + bot.y) / 2)
             // A sliver: pointed at both ends, widest a third of the way down.
             let fat = CGPoint(x: top.x + (bot.x - top.x) * 0.35, y: top.y + (bot.y - top.y) * 0.35)
             rake.move(to: top)
             rake.addQuadCurve(to: bot, control: CGPoint(x: bend.x + nx * thick * 2, y: bend.y + ny * thick * 2))
             rake.addQuadCurve(to: top, control: CGPoint(x: fat.x - nx * thick * 2, y: fat.y - ny * thick * 2))
         }
-        return rake
+        var tilt = title.tilt
+        return rake.copy(using: &tilt) ?? rake
     }
 
     /// Three claw marks tear through the caption `delay` seconds after it
@@ -12835,6 +12864,7 @@ class EmojiAnimator {
     /// whole tear runs on Core Animation's clock with no timer to cancel.
     static func rakeOpusCaption(_ caption: CALayer, after delay: Double) {
         let size = caption.bounds.size
+        guard let title = opusTitleLayout(size: size) else { return }
         let frames = 24, tear = 0.42, stagger = 0.09
         func progress(_ t: Double) -> [CGFloat] {
             (0..<3).map { i in
@@ -12842,7 +12872,7 @@ class EmojiAnimator {
                 return CGFloat(1 - pow(1 - p, 3))   // fast in, slowing as it bites
             }
         }
-        let gashes = (0...frames).map { opusClawPath(size: size, progress: progress(tear * Double($0) / Double(frames))) }
+        let gashes = (0...frames).map { opusClawPath(title, progress: progress(tear * Double($0) / Double(frames))) }
         let holes: [CGPath] = gashes.map { g in
             let p = CGMutablePath()
             p.addRect(CGRect(origin: .zero, size: size))

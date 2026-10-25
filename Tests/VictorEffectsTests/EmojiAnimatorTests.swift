@@ -15,13 +15,17 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertNotNil(EmojiAnimator.opusCaptionImage(size: caption.size, scale: 2))
     }
 
-    func testOpusClawsStartAsNothingAndEndInsideTheCaption() {
+    func testOpusClawsStartAsNothingAndEndInTheGapBetweenTheWords() throws {
         let size = CGSize(width: 900, height: 300)
-        let none = EmojiAnimator.opusClawPath(size: size, progress: [0, 0, 0])
-        let full = EmojiAnimator.opusClawPath(size: size, progress: [1, 1, 1])
-        XCTAssertLessThan(none.boundingBoxOfPath.height, size.height * 0.1)   // only the three tops
-        XCTAssertGreaterThan(full.boundingBoxOfPath.height, size.height * 0.4)
-        XCTAssertTrue(CGRect(origin: .zero, size: size).contains(full.boundingBoxOfPath))
+        let title = try XCTUnwrap(EmojiAnimator.opusTitleLayout(size: size))
+        let none = EmojiAnimator.opusClawPath(title, progress: [0, 0, 0])
+        let full = EmojiAnimator.opusClawPath(title, progress: [1, 1, 1]).boundingBoxOfPath
+        XCTAssertLessThan(none.boundingBoxOfPath.height, title.slot.height * 0.2)   // only the three tops
+        XCTAssertGreaterThan(full.height, title.slot.height)
+        XCTAssertEqual(full.midX, title.slot.midX, accuracy: title.slot.width * 0.1)
+        XCTAssertLessThan(title.opusX, title.slot.minX)
+        XCTAssertGreaterThan(title.solX, title.slot.minX)
+        XCTAssertTrue(CGRect(origin: .zero, size: size).contains(full))
     }
 
     // NOTE: `testMonitorEmojiUsesBreakingGlassSound` and `testHeartEmojiHasNoSoundEffect`
