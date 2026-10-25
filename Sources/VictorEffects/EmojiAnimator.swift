@@ -12592,13 +12592,29 @@ class EmojiAnimator {
     /// straight from the file — no registration, so they never show up in the
     /// system's font menus.
     static func opusFont(_ name: String, _ size: CGFloat) -> NSFont? {
-        guard let url = EffectsResources.url(name, "ttf"),
-              let d = (CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor])?.first
+        guard let url = EffectsResources.url(name, "ttf") else { return nil }
+        return opusFont(at: url, size)
+    }
+
+    static func opusFont(at url: URL, _ size: CGFloat) -> NSFont? {
+        guard let d = (CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor])?.first
         else { return nil }
         return CTFontCreateWithFontDescriptor(d, size, nil) as NSFont
     }
 
-    /// "OPUS / SOL" in fresh blood on a smear of old, nearly black blood that
+    /// The title's face since 2026-10-25: imagex's Swamp Death (dafont), the
+    /// hatched swamp-creature letters Victor picked. It is free for personal
+    /// use only, so it is NOT in this public repo — it lives in `assetsDir`
+    /// like the fail stamp, and without it the title falls back to Nosifer.
+    static let opusTitleFontFile = "swamp-death.ttf"
+
+    static func opusTitleFont(_ size: CGFloat) -> NSFont? {
+        let url = EffectsConfig.shared.assetsDir.appendingPathComponent(opusTitleFontFile)
+        if FileManager.default.fileExists(atPath: url.path), let f = opusFont(at: url, size) { return f }
+        return opusFont("Nosifer-Regular", size)
+    }
+
+    /// "OPUS / SOL" in fresh blood (`opusTitleFont`) on a smear of old, nearly black blood that
     /// drips off its bottom edge (Victor, 2026-10-23: the room should wonder
     /// what on earth we are talking about; the first cut, in Herculanum and
     /// bone-white, read "like a church"). **Still** — the neon flicker it first
@@ -12684,7 +12700,7 @@ class EmojiAnimator {
         }
         ctx.restoreGState()
 
-        // The words, in fresh blood: Nosifer drips off every letter.
+        // The words, in fresh blood, in Swamp Death (or Nosifer, see opusTitleFont).
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
         let red = NSColor(calibratedRed: 0.86, green: 0.03, blue: 0.04, alpha: 1)
@@ -12705,17 +12721,74 @@ class EmojiAnimator {
             str.draw(at: CGPoint(x: -sz.width / 2, y: -sz.height / 2))
             ctx.restoreGState()
         }
-        // Sized to fit: Nosifer is very wide, so the width decides, not the height.
-        func fitted(_ name: String, _ text: String, maxW: CGFloat, maxH: CGFloat) -> NSFont {
-            guard let probe = Self.opusFont(name, 100) else { return .boldSystemFont(ofSize: maxH) }
+        // Sized to fit: both faces are wide, so the width decides, not the height.
+        func fitted(_ text: String, maxW: CGFloat, maxH: CGFloat) -> NSFont {
+            guard let probe = Self.opusTitleFont(100) else { return .boldSystemFont(ofSize: maxH) }
             let tw = NSAttributedString(string: text, attributes: [.font: probe]).size().width
-            return Self.opusFont(name, min(maxH, 100 * maxW / max(tw, 1))) ?? probe
+            return Self.opusTitleFont(min(maxH, 100 * maxW / max(tw, 1))) ?? probe
         }
-        let title = fitted("Nosifer-Regular", "OPUS / SOL", maxW: rx * 1.55, maxH: ry * 0.85)
-        draw("OPUS / SOL", font: title, centreY: centre.y, tilt: -0.025)
+        let title = fitted("OPUS / SOL", maxW: rx * 1.55, maxH: ry * 0.85)
+        if title.fontName.hasPrefix("SwampDeath") {
+            // Swamp Death is hatched ink with no body: letters drawn as holes
+            // read as dim red scribbles on the dark smear. Its own preview is
+            // black ink on white paper, so the paper becomes fresh blood —
+            // each letter's outer contour, filled — and the ink goes on top.
+            let (ink, flesh) = Self.opusLetterPaths("OPUS / SOL", font: title)
+            let box = ink.boundingBoxOfPath
+            ctx.saveGState()
+            ctx.translateBy(x: centre.x, y: centre.y)
+            ctx.rotate(by: -0.025)
+            ctx.translateBy(x: -box.midX, y: -box.midY)
+            ctx.setShadow(offset: .zero, blur: 14, color: CGColor(red: 1, green: 0.05, blue: 0, alpha: 0.55))
+            ctx.setFillColor(red.cgColor)
+            ctx.addPath(flesh); ctx.fillPath()
+            ctx.setShadow(offset: .zero, blur: 0, color: nil)
+            ctx.setFillColor(CGColor(red: 0.04, green: 0, blue: 0, alpha: 1))
+            ctx.addPath(ink); ctx.fillPath()
+            ctx.restoreGState()
+        } else {
+            draw("OPUS / SOL", font: title, centreY: centre.y, tilt: -0.025)
+        }
         NSGraphicsContext.restoreGraphicsState()
 
         return ctx.makeImage()
+    }
+
+    /// The title as two paths on one baseline: `ink`, every glyph as drawn,
+    /// and `flesh`, only each glyph's outermost contour (the subpath with the
+    /// biggest box) — the letter's silhouette with its hatching and counters
+    /// filled in, to lay colour under the ink.
+    static func opusLetterPaths(_ text: String, font: NSFont) -> (ink: CGPath, flesh: CGPath) {
+        let ink = CGMutablePath(), flesh = CGMutablePath()
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
+        for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+            let n = CTRunGetGlyphCount(run)
+            var glyphs = [CGGlyph](repeating: 0, count: n), at = [CGPoint](repeating: .zero, count: n)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: n), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: n), &at)
+            for (g, p) in zip(glyphs, at) {
+                var move = CGAffineTransform(translationX: p.x, y: p.y)
+                guard let path = CTFontCreatePathForGlyph(font, g, &move) else { continue }
+                ink.addPath(path)
+                var subpaths: [CGMutablePath] = []
+                path.applyWithBlock { e in
+                    let pts = e.pointee.points
+                    switch e.pointee.type {
+                    case .moveToPoint: subpaths.append(CGMutablePath()); subpaths[subpaths.count - 1].move(to: pts[0])
+                    case .addLineToPoint: subpaths.last?.addLine(to: pts[0])
+                    case .addQuadCurveToPoint: subpaths.last?.addQuadCurve(to: pts[1], control: pts[0])
+                    case .addCurveToPoint: subpaths.last?.addCurve(to: pts[2], control1: pts[0], control2: pts[1])
+                    case .closeSubpath: subpaths.last?.closeSubpath()
+                    @unknown default: break
+                    }
+                }
+                func area(_ r: CGRect) -> CGFloat { r.width * r.height }
+                if let outer = subpaths.max(by: { area($0.boundingBoxOfPath) < area($1.boundingBoxOfPath) }) {
+                    flesh.addPath(outer)
+                }
+            }
+        }
+        return (ink, flesh)
     }
 
     /// The rake waits this long after the head cuts in, so the room has read
