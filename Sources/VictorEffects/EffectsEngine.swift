@@ -366,7 +366,12 @@ final class EffectsEngine {
         case "panda/stop":    animator.stopPanda()
         case "opus":          animator.showOpus()
         case "opus/stop":     animator.stopOpus()
-        case "claude-peek":   animator.showClaudePeek()
+        case "claude-peek":
+            animator.showClaudePeek()
+            // 🦀 He says hello in his entrance mood, then notices what is in
+            // the pointer's hand (`ClawdMood`).
+            if whipIsShowing { animator.clawdFeel(.scared, after: 1.3) }
+            if prayIsShowing { animator.clawdFeel(.hopeful, after: 1.3) }
         case "claude-peek/stop": animator.stopClaudePeek()
         // The hop + 😮 mouth a whip HIT gives him, without having to aim one.
         case "claude-peek/flinch": animator.whipClaudePeek()
@@ -430,6 +435,12 @@ final class EffectsEngine {
         case "stop-all":
             stopAll()
         default:
+            // 🦀 `/effect/claude-peek/feel/<mood>`: a mood without its trigger.
+            if name.hasPrefix("claude-peek/feel/"),
+               let mood = ClawdMood(rawValue: String(name.dropFirst("claude-peek/feel/".count))) {
+                animator.clawdFeel(mood)
+                return
+            }
             effectsInfo("unknown effect '\(name)'")
         }
     }
@@ -556,6 +567,8 @@ final class EffectsEngine {
             self?.animator.whipLash(points: points, speeds: speeds)
         }
         controller.show()
+        // 🦀 The whip is out: Clawd, if he is on screen, is scared of it.
+        animator.clawdFeel(.scared)
     }
 
     /// 🙏 The praying man in the whip's place, a hymn on each click
@@ -570,7 +583,11 @@ final class EffectsEngine {
         let controller = prayController ?? PrayController()
         prayController = controller
         controller.onEscape = { [weak self] in self?.prayController?.hide() }
+        // 🦀 The praying man gives Clawd hope — when he shows, and each time
+        // one is planted and starts to pray.
+        controller.onSing = { [weak self] in self?.animator.clawdFeel(.hopeful) }
         controller.show()
+        animator.clawdFeel(.hopeful)
     }
 
     /// 🫰 A hand snapping its fingers on each click (`SnapOverlay.swift`).
@@ -585,6 +602,8 @@ final class EffectsEngine {
         let controller = snapController ?? SnapController()
         snapController = controller
         controller.onEscape = { [weak self] in self?.snapController?.hide() }
+        // 🦀 A finger snap and Clawd is cool again.
+        controller.onSnap = { [weak self] in self?.animator.clawdFeel(.cool) }
         controller.show()
     }
 

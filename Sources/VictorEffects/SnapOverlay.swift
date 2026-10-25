@@ -21,6 +21,8 @@ final class SnapController {
 
     /// Called when the user presses Esc.
     var onEscape: (() -> Void)?
+    /// Every snap: 🦀 Clawd turns cool.
+    var onSnap: (() -> Void)?
 
     private var panel: WhipPanel?
     private var view: SnapView?
@@ -115,6 +117,7 @@ final class SnapController {
         guard let view else { return }
         view.snappedAtMs = nowMs()
         view.needsDisplay = true
+        onSnap?()
         guard let sound = Self.sounds.randomElement() else { return }
         SoundManager.shared.playOverlapping(
             sound, volume: SoundManager.shared.currentTabletVolume * Self.volumeFactor,

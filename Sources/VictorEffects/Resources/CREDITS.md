@@ -19,4 +19,5 @@ quietly when it is missing — see `docs/assets-and-licences.md`.
 | `finger-snap.png` | Wikimedia Commons, [Finger snapping impact frame.gif](https://commons.wikimedia.org/wiki/File:Finger_snapping_impact_frame.gif) by Boing747Ha — the hand cut out of its background (rembg, BiRefNet), cropped, wrist faded, re-saved as an animated PNG (rest pose, the two impact frames, snapped pose) | CC0 |
 | `finger-snap-1.mp3` … `finger-snap-3.mp3` | Wikimedia Commons, [Finger clicks.ogg](https://commons.wikimedia.org/wiki/File:Finger_clicks.ogg) by cori — three single clicks (at 2.49, 3.75, 6.38 s), 0.35 s each, faded, loudness-normalised | Public domain |
 | `confetti.mp3` | Freesound, [partypopper.flac](https://freesound.org/people/Streety/sounds/26349/) by Streety, trimmed | CC0 |
+| Clawd's moods (drawn in code, `ClawdMood.swift`) | faces, colours and emotes ported from John Heibel's [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) model sheet | MIT, © 2026 John Heibel |
 | `icon_fx.png` | the menu bar's 𝓯𝔁 drawn large by `tools/make-icon.swift` | own work (MIT) |

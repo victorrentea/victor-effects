@@ -6,10 +6,10 @@ import QuartzCore
 ///
 /// Drawn, not a second picture: a dark oval laid on the face as a sublayer of
 /// the mascot, so it rides the hop and the slide-in for free and works with
-/// whatever cut-out sits in `assetsDir`. Where the face is was measured off
-/// the two PNGs (`claude-icon.png` 461×363: the `> <` eyes end at 41% of the
-/// height, the body at 74%; `copilot-icon.png` 455×362: the eyes end at 78%,
-/// the face plate at 93%), as fractions of the picture from its top-left.
+/// whatever picture is on duty. Clawd is drawn now (`ClawdArt`), so his mouth
+/// comes from there; Copilot's was measured off `copilot-icon.png` (455×362:
+/// the eyes end at 78%, the face plate at 93%), as fractions of the picture
+/// from its top-left.
 enum PeekOMouth {
     static let layerName = "o-mouth"
     /// Up for this long after a hit — the hop (`peekWhipDuration`, 0.42 s) and
@@ -20,7 +20,7 @@ enum PeekOMouth {
     /// Centre x/y and size, as fractions of the bare picture, y from the top.
     static func face(_ mascot: PeekMascot) -> (cx: CGFloat, cy: CGFloat, w: CGFloat, h: CGFloat) {
         switch mascot {
-        case .claude: return (0.5, 0.575, 0.10, 0.16)
+        case .claude: return (ClawdArt.mouthFraction.x, ClawdArt.mouthFraction.y, 0.10, 0.16)
         case .copilot: return (0.5, 0.865, 0.095, 0.10)
         }
     }

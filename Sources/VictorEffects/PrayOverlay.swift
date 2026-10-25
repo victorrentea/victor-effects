@@ -31,6 +31,8 @@ final class PrayController {
 
     /// Called when the user presses Esc.
     var onEscape: (() -> Void)?
+    /// A man was planted and starts to pray (`sing()`): 🦀 Clawd turns hopeful.
+    var onSing: (() -> Void)?
 
     private var panel: WhipPanel?
     private var view: PrayView?
@@ -179,6 +181,7 @@ final class PrayController {
         guard let view else { return }
         choir.plant(at: view.at, nowMs: nowMs())
         view.prayers = choir.prayers
+        onSing?()
         let level = max(0, min(1, SoundManager.shared.currentTabletVolume * Self.hymnVolumeFactor))
         if let player = hymnPlayer, player.isPlaying {
             if hymnFading {

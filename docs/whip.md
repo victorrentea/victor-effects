@@ -184,6 +184,17 @@ Copilot's face plate under his pill eyes — and are taken on the bare picture,
 without the rim or the 🎅 hat. `/test/claude-peek/flinch` hops him (and the O)
 without aiming a whip.
 
+**Clawd's moods follow the pointer modes** (2026-10-25, `ClawdMood.swift`):
+turning the 🔥 whip on makes him 😨 scared (sweat drops, a shiver — and if he
+walks in while it is already out, he notices it 1.3 s after his hello), a hit
+leaves him 😵 dizzy (swirl eyes, stars circling his head), 🙏 pray on — and every
+man planted — makes him 🥺 hopeful, every 🫰 snap makes him 😎 cool. The faces
+are a CoreGraphics port of John Heibel's MIT-licensed
+[ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) model
+sheet, drawn on the canvas of the old `claude-icon.png` (461×363) so the frame,
+the 🎅 hat and this hit-mask did not move; the O mouth now sits on the drawn
+mouth (`ClawdArt.mouthFraction`). Copilot has no moods.
+
 One hop per lash (0.35 s cooldown, a lash crosses him over several frames), and
 **a few sparks fly where it hit**: a white flash and twelve short yellow streaks
 thrown out of the contact point, gone in 0.6 s, `1/zoom` under ⌥-scroll. The log

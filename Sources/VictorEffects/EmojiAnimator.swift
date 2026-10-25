@@ -12936,7 +12936,11 @@ class EmojiAnimator {
         // do not take a turn.
         peekWearsHat = mascot == .claude && PeekSantaHatStore.takeTurn()
         let hat = peekWearsHat
-        guard let image = Self.peekImage(mascot, hat: hat),
+        // 🦀 He walks in cool, happy or excited — never the same twice running.
+        peekMood = ClawdMood.entrance(after: lastEntranceMood, roll: Int.random(in: 0..<1000))
+        lastEntranceMood = peekMood
+        peekEntrance += 1
+        guard let image = Self.peekImage(mascot, hat: hat, mood: peekMood),
               let frame = Self.peekFrame(mascot, hat: hat, in: hostLayer.bounds) else {
             overlayError("\(mascot.rawValue).png is not in the bundle")
             return
@@ -12965,6 +12969,7 @@ class EmojiAnimator {
         wiggle.beginTime = CACurrentMediaTime() + slideIn.duration
         wiggle.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         layer.add(wiggle, forKey: "wiggle")
+        if mascot == .claude { applyClawdLook(layer) }
 
         // The click target goes up at the LANDED frame, not the sliding one: a
         // rectangle chasing the icon through the slide-in would be a target
@@ -12988,14 +12993,24 @@ class EmojiAnimator {
     /// entrance; a click that swaps to Copilot and back finds it still on.
     private var peekWearsHat = false
 
+    /// 🦀 How Clawd feels right now (`ClawdMood`). Kept while Copilot is on
+    /// duty too, so a click back to Clawd finds him in the mood he left in.
+    private var peekMood: ClawdMood = .happy
+    /// What he walked in as last time, so the next entrance is a different one.
+    private var lastEntranceMood: ClawdMood?
+    /// Bumped per entrance: a delayed `clawdFeel` belongs to one appearance.
+    private var peekEntrance = 0
+
     /// Load a mascot's cut-out PNG out of the bundle, wearing its white rim
     /// (`PeekMascotOutline` — why a cut-out alone is not enough on a dark
     /// screen). If the rim cannot be built the bare cut-out still shows: a
     /// mascot that is hard to see beats no mascot at all.
-    private static func peekImage(_ mascot: PeekMascot, hat: Bool = false) -> CGImage? {
+    private static func peekImage(_ mascot: PeekMascot, hat: Bool = false,
+                                  mood: ClawdMood = .happy, boil: Int = 0) -> CGImage? {
         let key = mascot.rawValue + (hat ? "+santa" : "")
+            + (mascot == .claude ? "+\(mood.rawValue)#\(boil)" : "")
         if let cached = peekImageCache[key] { return cached }
-        guard let image = bundledPNG(mascot.rawValue) else { return nil }
+        guard let image = mascotPicture(mascot, mood: mood, boil: boil) else { return nil }
         var stroked = PeekMascotOutline.outlined(image) ?? image
         if hat, let hatImage = bundledPNG(PeekSantaHat.resource),
            let both = PeekSantaHat.composite(icon: image, hat: hatImage) {
@@ -13005,6 +13020,13 @@ class EmojiAnimator {
         }
         peekImageCache[key] = stroked
         return stroked
+    }
+
+    /// The bare picture of a mascot: Clawd is DRAWN, in a mood (`ClawdArt`, on
+    /// the canvas of the `claude-icon.png` he replaced); Copilot is still the
+    /// cut-out from `assetsDir`.
+    private static func mascotPicture(_ mascot: PeekMascot, mood: ClawdMood = .happy, boil: Int = 0) -> CGImage? {
+        mascot == .claude ? ClawdArt.picture(mood, boil: boil) : bundledPNG(mascot.rawValue)
     }
 
     static func bundledPNG(_ name: String) -> CGImage? {
@@ -13019,7 +13041,7 @@ class EmojiAnimator {
     private static func peekFrame(_ mascot: PeekMascot, hat: Bool, in bounds: CGRect) -> CGRect? {
         guard let plain = peekImage(mascot) else { return nil }
         let frame = claudePeekFrame(in: bounds, aspect: CGFloat(plain.width) / CGFloat(plain.height))
-        guard hat, let icon = bundledPNG(mascot.rawValue),
+        guard hat, let icon = mascotPicture(mascot),
               let hatImage = bundledPNG(PeekSantaHat.resource) else { return frame }
         return PeekSantaHat.frame(
             plainFrame: frame,
@@ -13129,13 +13151,100 @@ class EmojiAnimator {
     /// cut-out, so both are taken off before the face's fractions apply.
     private func peekGasp(_ layer: CALayer) {
         let mascot = PeekMascotStore.current()
+        guard let picture = peekPictureRect(layer, mascot: mascot) else { return }
+        PeekOMouth.gasp(on: layer, mascot: mascot, picture: picture)
+    }
+
+    /// Where the BARE picture sits inside the mascot's layer (its own y-up
+    /// coordinates): the hatted Clawd is a taller layer, and the rim adds a
+    /// margin round the cut-out, so both are taken off.
+    private func peekPictureRect(_ layer: CALayer, mascot: PeekMascot) -> CGRect? {
         guard let plain = Self.peekFrame(mascot, hat: false, in: hostLayer.bounds),
-              let icon = Self.bundledPNG(mascot.rawValue) else { return }
+              let icon = Self.mascotPicture(mascot) else { return nil }
         let pad = CGFloat(PeekMascotOutline.ringWidth(forHeight: icon.height))
         let k = plain.height / (CGFloat(icon.height) + 2 * pad)
-        let picture = plain.insetBy(dx: pad * k, dy: pad * k)
+        return plain.insetBy(dx: pad * k, dy: pad * k)
             .offsetBy(dx: -layer.frame.minX, dy: -layer.frame.minY)
-        PeekOMouth.gasp(on: layer, mascot: mascot, picture: picture)
+    }
+
+    // MARK: 🦀 Clawd's moods
+
+    /// 🦀 Clawd changes how he feels, if he is on screen: whip on → scared, a
+    /// hit → dizzy, the praying man → hopeful, a snap → cool (the triggers are
+    /// in `EffectsEngine` and `whipLash`). The face cross-fades like a costume
+    /// change, the body does a little take, and the five seconds start over —
+    /// something just happened to him, as with the whip's hop.
+    ///
+    /// `after` delays it, tied to the current entrance: used to let him say
+    /// hello in his entrance mood before he notices the whip already in hand.
+    /// A no-op when nothing is showing — no trigger ever puts him on screen —
+    /// and while Copilot is on duty it is only remembered.
+    func clawdFeel(_ mood: ClawdMood, after delay: Double = 0) {
+        if delay > 0 {
+            let entrance = peekEntrance
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.peekEntrance == entrance else { return }
+                self.clawdFeel(mood)
+            }
+            return
+        }
+        guard let layer = activeEffects["claude-peek"], mood != peekMood else { return }
+        peekMood = mood
+        guard PeekMascotStore.current() == .claude,
+              let image = Self.peekImage(.claude, hat: peekWearsHat, mood: mood) else { return }
+        effectsInfo("🦀 clawd feels \(mood.rawValue)")
+        let fade = CATransition()
+        fade.type = .fade
+        fade.duration = 0.18
+        layer.add(fade, forKey: "costume-change")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.contents = image
+        CATransaction.commit()
+        applyClawdLook(layer)
+        clawdTake(layer)
+        schedulePeekExit(layer: layer)
+    }
+
+    /// The current mood on `layer`: its boiling line, its emote, its motion.
+    private func applyClawdLook(_ layer: CALayer) {
+        clearClawdLook(layer)
+        let mood = peekMood
+        let frames = (0..<ClawdArt.boilFrames).compactMap {
+            Self.peekImage(.claude, hat: peekWearsHat, mood: mood, boil: $0)
+        }
+        if frames.count > 1 {
+            let boil = CAKeyframeAnimation(keyPath: "contents")
+            boil.values = frames
+            boil.calculationMode = .discrete
+            boil.duration = ClawdArt.boilInterval * Double(frames.count)
+            boil.repeatCount = .infinity
+            layer.add(boil, forKey: "boil")
+        }
+        guard let picture = peekPictureRect(layer, mascot: .claude) else { return }
+        let k = picture.width / ClawdArt.canvas.width
+        ClawdMotion.addMotion(mood, to: layer, unit: ClawdArt.u * k)
+        if let emote = mood.emote {
+            ClawdMotion.addEmote(emote, to: layer, picture: picture, scale: k, leftCorner: peekWearsHat)
+        }
+    }
+
+    /// Copilot has no moods: everything `applyClawdLook` put on comes off.
+    private func clearClawdLook(_ layer: CALayer) {
+        for key in ["boil", ClawdMotion.motionKey, ClawdMotion.swayKey] { layer.removeAnimation(forKey: key) }
+        layer.sublayers?.filter { $0.name == ClawdMotion.emoteName }.forEach { $0.removeFromSuperlayer() }
+    }
+
+    /// The sheet's "take": a squash-and-stretch as a new feeling lands.
+    private func clawdTake(_ layer: CALayer) {
+        for (path, values) in [("transform.scale.x", [1, 1.08, 0.97, 1]), ("transform.scale.y", [1, 0.9, 1.04, 1])] {
+            let take = CAKeyframeAnimation(keyPath: path)
+            take.values = values
+            take.keyTimes = [0, 0.3, 0.65, 1]
+            take.duration = 0.35
+            take.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            layer.add(take, forKey: "take-" + path)
+        }
     }
 
     // MARK: 🔥 Only when the rope actually touches him
@@ -13166,6 +13275,8 @@ class EmojiAnimator {
         effectsInfo("🔥 whip hit claude-peek at \(Int(hit.x)),\(Int(hit.y))")
         whipClaudePeek()
         spawnWhipSparks(at: CGPoint(x: hit.x - origin.x, y: hit.y - origin.y))
+        // 🦀 …and the hit leaves him seeing stars.
+        clawdFeel(.dizzy)
     }
 
     /// Below this a link is draped over him or carried by the hand, not
@@ -13408,7 +13519,7 @@ class EmojiAnimator {
         guard let layer = activeEffects["claude-peek"] else { return }
         let mascot = PeekMascotStore.flip()
         let hat = mascot == .claude && peekWearsHat
-        guard let image = Self.peekImage(mascot, hat: hat),
+        guard let image = Self.peekImage(mascot, hat: hat, mood: peekMood),
               let frame = Self.peekFrame(mascot, hat: hat, in: hostLayer.bounds) else {
             overlayError("\(mascot.rawValue).png is not in the bundle")
             return
@@ -13434,6 +13545,7 @@ class EmojiAnimator {
         wiggle.duration = 0.85
         wiggle.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         layer.add(wiggle, forKey: "wiggle")
+        if mascot == .claude { applyClawdLook(layer) } else { clearClawdLook(layer) }
 
         schedulePeekExit(layer: layer)
     }
