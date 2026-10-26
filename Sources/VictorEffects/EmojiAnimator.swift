@@ -6511,11 +6511,23 @@ class EmojiAnimator {
             let bodyH = ceil(textSize.height) + 2 * padY
             // Local coords (y-up): tail tip at (0,0), body above-right of it.
             let body = CGRect(x: 14, y: tailH, width: bodyW, height: bodyH)
+            // ONE outline, body and tail together: a rounded rect with the tail
+            // as a separate subpath got its bottom edge stroked straight across
+            // the tail's base. Here the bottom edge just opens into the tail.
+            let corner: CGFloat = 22
+            let tailL = body.minX + corner + 4, tailR = body.minX + corner + 38
             let shape = CGMutablePath()
-            shape.addRoundedRect(in: body, cornerWidth: 22, cornerHeight: 22)
-            shape.move(to: CGPoint(x: body.minX + 18, y: body.minY + 2))
+            shape.move(to: CGPoint(x: tailR, y: body.minY))
+            shape.addArc(tangent1End: CGPoint(x: body.maxX, y: body.minY),
+                         tangent2End: CGPoint(x: body.maxX, y: body.maxY), radius: corner)
+            shape.addArc(tangent1End: CGPoint(x: body.maxX, y: body.maxY),
+                         tangent2End: CGPoint(x: body.minX, y: body.maxY), radius: corner)
+            shape.addArc(tangent1End: CGPoint(x: body.minX, y: body.maxY),
+                         tangent2End: CGPoint(x: body.minX, y: body.minY), radius: corner)
+            shape.addArc(tangent1End: CGPoint(x: body.minX, y: body.minY),
+                         tangent2End: CGPoint(x: tailL, y: body.minY), radius: corner)
+            shape.addLine(to: CGPoint(x: tailL, y: body.minY))
             shape.addLine(to: .zero)
-            shape.addLine(to: CGPoint(x: body.minX + 54, y: body.minY + 2))
             shape.closeSubpath()
 
             let bubble = CALayer()
