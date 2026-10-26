@@ -21,7 +21,7 @@ enum SoundEffectMap {
         // one howl lasting exactly the clip. Self-terminating and non-looping,
         // so no onStop entry.
         "04_wolf.mp3":           "wolf-howl",
-        // Tile 44 (🐕 small dog): a dog barks in the bottom-right corner, its
+        // Tile 44 (🐕 small dog): a dog barks in the bottom-left corner, its
         // mouth re-timed to the clip's ten barks; three dogs take turns, one
         // per press (`SmallDogBark`). Self-terminating, so no onStop entry.
         "44_small_dog.mp3":      "small-dog",

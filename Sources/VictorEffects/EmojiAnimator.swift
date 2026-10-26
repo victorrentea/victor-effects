@@ -2884,7 +2884,7 @@ class EmojiAnimator {
 
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — three dogs bark in turn)
 
-    /// Tile #44 — a dog barks in the bottom-right corner, mouth opening on each
+    /// Tile #44 — a dog barks in the bottom-left corner, mouth opening on each
     /// of the clip's ten barks. Three dogs take turns, one per press
     /// (`SmallDogBark`). Played once with the GIF's own delays — they ARE the
     /// sync, re-timed to the clip — then gone. The clip plays down the ordinary

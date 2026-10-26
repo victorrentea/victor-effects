@@ -28,16 +28,19 @@ enum SmallDogBark {
     /// screen (1072 of 2234 px), the same 48 % the 🐺 wolf stands in.
     static let heightFraction: CGFloat = 0.48
 
-    /// Gap between the dog and the right edge, as a share of the width.
-    static let rightInsetFraction: CGFloat = 0.04
+    /// Gap between the dog and the left edge, as a share of the width — the
+    /// wolf's 4 %. Bottom-LEFT (Victor, 2026-10-26, after a first try on the
+    /// right): all three dogs face right, so from this corner they bark into
+    /// the desktop instead of at the screen's edge.
+    static let leftInsetFraction: CGFloat = 0.04
 
     /// The dog's frame in overlay coordinates (bottom-origin, y up): feet on
-    /// the bottom edge, right side 4 % in from the right edge, the GIF's own
+    /// the bottom edge, left side 4 % in from the left edge, the GIF's own
     /// aspect (the three are cropped flush around the dog, so they differ).
     static func frame(imageSize: CGSize, in bounds: CGRect) -> CGRect {
         let h = bounds.height * heightFraction
         let w = imageSize.height > 0 ? h * imageSize.width / imageSize.height : h
-        return CGRect(x: bounds.maxX - bounds.width * rightInsetFraction - w,
+        return CGRect(x: bounds.minX + bounds.width * leftInsetFraction,
                       y: bounds.minY, width: w, height: h)
     }
 }
