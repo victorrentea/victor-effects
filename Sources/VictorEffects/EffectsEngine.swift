@@ -360,7 +360,7 @@ final class EffectsEngine {
         case "crt-shutdown":  animator.showCrtShutdown()
         case "skull-boom":    _ = animator.showSkullBoom(playSound: false)
         case "wolf-howl":     animator.showWolfHowl()
-        case "small-dog":     animator.showSmallDog()
+        case "small-dog":     animator.showSmallDog(playSound: false)
         case "elephant":      animator.showElephant()
         case "elephant/stop": animator.stopElephant()
         case "panda":         animator.showPanda()
@@ -695,6 +695,14 @@ final class EffectsEngine {
         // 0.5 s into the clip — the visual owns the audio, the FBI knock's way.
         if name == "39_skull_boom.mp3" {
             let duration = animator.showSkullBoom(playSound: true, volume: volume)
+            guard duration > 0 else { return nil }
+            return remember(Int(duration * 1000))
+        }
+        // Tile #44 (🐕 small dog): the mouth and the jump are cut to the clip's
+        // ten barks, the first 0.22 s in — pressed from the panel, the dog came
+        // up behind the bark on the press path, so the visual owns the audio.
+        if name == "44_small_dog.mp3" {
+            let duration = animator.showSmallDog(playSound: true, volume: volume)
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }

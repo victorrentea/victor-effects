@@ -45,7 +45,7 @@ final class EffectsCatalogTests: XCTestCase {
         "40_joker.mp3":          "blood-drip",
         "41_love_hearts.mp3":    "love-hands",
         "42_saxophone.mp3":      "spiral-hearts",
-        "44_small_dog.mp3":      "small-dog",      // 🐕 Basti barks and jumps on the clip's barks
+        "44_small_dog.mp3":      "small-dog",      // 🐕 in-clip cue: Basti barks and jumps on the clip's barks
         "46_michael_buble.mp3":  "snow",
         "49_wrong.mp3":          "wrong-x",
         "50_gong.mp3":           "gong",

@@ -97,6 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.global(qos: .utility).async { _ = TilesManifest.tilesHash }
         // Same for the brother GIF, whose decode is long enough to be visible.
         EmojiAnimator.warmBrotherCache()
+        // And the 🐕 small dog, whose clip starts in the same call as its frames.
+        EmojiAnimator.warmSmallDogCache()
 
         effectsInfo("Victor Effects ready — build \(MenuBar.BUILD_TIME), port \(EffectsConfig.shared.port)")
     }

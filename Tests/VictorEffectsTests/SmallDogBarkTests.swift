@@ -5,17 +5,36 @@ final class SmallDogBarkTests: XCTestCase {
 
     func testTheDogStandsOnTheBottomEdgeFourPercentInFromTheLeft() {
         let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
-        let f = SmallDogBark.frame(imageSize: CGSize(width: 407, height: 605), in: screen)
+        let f = SmallDogBark.frame(imageSize: CGSize(width: 407, height: 540), in: screen)
         XCTAssertEqual(f.minY, 0)
         XCTAssertEqual(f.minX, 1728 * 0.04, accuracy: 0.001)
-        XCTAssertEqual(f.width / f.height, 407.0 / 605.0, accuracy: 0.001)
+        XCTAssertEqual(f.height, 1117 * 0.48, accuracy: 0.001)
+        XCTAssertEqual(f.width / f.height, 407.0 / 540.0, accuracy: 0.001)
     }
 
-    /// The headroom is for the jump, not a smaller dog: at rest he is still
-    /// 48 % of the screen's height.
-    func testTheDogAtRestKeepsItsHeightUnderTheJumpHeadroom() {
-        let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
-        let f = SmallDogBark.frame(imageSize: CGSize(width: 407, height: 605), in: screen)
-        XCTAssertEqual(f.height / (1 + SmallDogBark.jumpHeadroom), 1117 * 0.48, accuracy: 0.001)
+    /// He is on the ground between barks and in the air during each one —
+    /// highest on the loudest — and back down before the clip ends.
+    func testTheJumpFollowsTheBarks() {
+        let curve = SmallDogBark.jumpCurve(duration: 5.06)
+        func lift(at t: Double) -> Double {
+            curve.lift[curve.times.firstIndex { $0 >= t - 1e-9 }!]
+        }
+        XCTAssertEqual(curve.times.count, curve.lift.count)
+        XCTAssertEqual(curve.times.last!, 5.06, accuracy: 1e-9)
+        XCTAssertEqual(lift(at: 0), 0)
+        XCTAssertEqual(lift(at: 2.0), 0, "silence between 1.24 s and 2.62 s")
+        XCTAssertEqual(curve.lift.last!, 0)
+        for bark in SmallDogBark.barks {
+            XCTAssertGreaterThan(lift(at: (bark.start + bark.end) / 2), 0, "airborne on the bark at \(bark.start)")
+        }
+        XCTAssertEqual(curve.lift.max()!, 1.0, accuracy: 0.05, "the loudest bark is the full jump")
+        XCTAssertLessThanOrEqual(curve.lift.max()!, 1.0)
+    }
+
+    func testBarksAreInOrderInsideTheClip() {
+        let barks = SmallDogBark.barks
+        XCTAssertEqual(barks.count, 10)
+        XCTAssertEqual(barks.map(\.start), barks.map(\.start).sorted())
+        XCTAssertTrue(barks.allSatisfy { $0.start < $0.end && $0.end < 5.05 && $0.strength <= 1 })
     }
 }

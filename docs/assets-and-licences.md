@@ -64,7 +64,7 @@ and `pray-hymn.mp3` (the first 9.5 s of the soundboard's Ave Maria, faded out �
 both for 🙏 pray, 2026-10-19; the hymn is only a fallback since 2026-10-20, when
 a CC BY take, `pray-hymn-long.mp3`, started shipping in Resources),
 `small-dog.gif` (🐕 #44, 2026-10-26: Maresch&Sturm's Dribbble shot "Basti is barking",
-BiRefNet-matted and re-timed to bark and jump on the clip, `docs/overlay-effects.md`),
+BiRefNet-matted and re-timed to bark on the clip, `docs/overlay-effects.md`),
 `pray-hymn-tablet.mp3` (47 s of the commercial recording the tablet's Ave
 Maria was cut from — preferred over the shipped take, 2026-10-21, `docs/whip.md`),
 `finger-snap.gif` (optional: a nicer snapping hand for 🫰 snap, which ships its

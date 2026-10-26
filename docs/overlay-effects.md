@@ -526,23 +526,29 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 - **🐕 Small dog** (tile #44 `44_small_dog.mp3` → `small-dog`, `showSmallDog`,
   2026-10-26): Maresch&Sturm's "Basti is barking" (Dribbble) barks in the
   **bottom-left corner** — feet on the bottom edge, 48 % of the screen's height
-  at rest (the box Victor marked), 4 % of the width in from the left, where the
-  wolf stands (right first; moved left the same day — he faces right, so he
-  barks into the desktop). His whites (chest, paws, muzzle, the rim along his
-  back) touch the white backdrop, so a colour flood ate them: the alpha is a
-  BiRefNet matte per frame (`rembg -m birefnet-general`). **The GIF is re-timed
-  to the clip, not looped**: the clip's RMS on a 20 ms grid finds its ten barks,
-  the mouth-open frames cover each bark, the source's wind-up/recovery frames go
-  either side where there is room, its idle frames fill the rest — 5.06 s, the
-  clip's length — and on each bark he **jumps**: a half-sine from one step
-  before the bark to 40 ms after it, up to 12 % of his height on the loudest
-  (√ of the bark's peak RMS for the quieter ones). The GIF carries that 12 % as
-  empty room above him (`SmallDogBark.jumpHeadroom`), so the frame is drawn that
-  much taller and the dog itself keeps its 48 %. The GIF's delays are the sync:
-  played once, never stretched. Press path, self-terminating, no onStop entry;
-  the clip plays down the ordinary routed path. (The first version rotated three
-  dogs per press — a Codex-drawn dachshund and Hugo Puente's "Barking dog" too;
-  Victor kept only Basti.)
+  (the box Victor marked), 4 % of the width in from the left, where the wolf
+  stands (right first; moved left the same day — he faces right, so he barks
+  into the desktop). His whites (chest, paws, muzzle, the rim along his back)
+  touch the white backdrop, so a colour flood ate them: the alpha is a BiRefNet
+  matte per frame (`rembg -m birefnet-general`). **The GIF is re-timed to the
+  clip, not looped**: the clip's RMS on a 20 ms grid finds its ten barks
+  (`SmallDogBark.barks`), the mouth-open frames cover each bark, the source's
+  wind-up/recovery frames go either side where there is room, its idle frames
+  fill the rest — 5.06 s, the clip's length; the GIF's delays are the sync,
+  played once, never stretched. On each bark he **jumps**: a
+  `transform.translation.y` keyframe animation (`SmallDogBark.jumpCurve`), a
+  half-sine from a step before the bark to a step after it, up to 12 % of his
+  height on the loudest (√ of the bark's peak RMS for the quieter ones). The
+  jump was baked into the GIF first — every frame then a different picture,
+  ~170 MB decoded — so it moved out to Core Animation, on the frames' clock.
+  **A play-path visual that owns its audio**, the skull boom's way: pressed from
+  the retina panel, the clip started on `/sound/play` and the dog only on the
+  `/sound/pressed` after it, behind a 13 MB GIF read, and the bark came before
+  the dog. Now `playSound` starts clip, frames and jump in one call, shifted
+  together by the Bluetooth lead, from frames decoded at launch
+  (`warmSmallDogCache`, deduplicated: 133 GIF frames, 49 pictures, ~45 MB).
+  (The first version rotated three dogs per press — a Codex-drawn dachshund and
+  Hugo Puente's "Barking dog" too; Victor kept only Basti.)
 - **🩸 Blood drip** (sfx #40 `40_joker.mp3` → `blood-drip`): `blood-drip.gif`
   (white bg made transparent via ImageMagick `-coalesce -fuzz 20% -transparent`,
   full-canvas frames) shown as a blood band pinned to the **top of the screen**

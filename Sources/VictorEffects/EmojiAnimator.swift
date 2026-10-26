@@ -2884,32 +2884,84 @@ class EmojiAnimator {
 
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)
 
-    /// Tile #44 — a dog barks in the bottom-left corner, mouth opening and a
-    /// little jump on each of the clip's ten barks (`SmallDogBark`). Played once
-    /// with the GIF's own delays — they ARE the sync, re-timed to the clip —
-    /// then gone. The clip plays down the ordinary routed path; this is the
-    /// press-path visual only.
-    func showSmallDog() {
-        if cancelIfRunning("small-dog") { return }
+    static let smallDogSound = "44_small_dog.mp3"
+    private static var smallDogCache: (frames: [CGImage], delays: [Double], modDate: Date?)?
+    private static let smallDogDecodeQueue = DispatchQueue(label: "small-dog-gif-decode", qos: .userInitiated)
 
-        guard let url = EffectsResources.url("small-dog", "gif"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-            overlayError("small-dog.gif not found")
-            return
-        }
+    /// Decodes the dog at launch, off the main thread: a press must not wait
+    /// for 13 MB of GIF — the clip starts in the same call (`showSmallDog`).
+    static func warmSmallDogCache() {
+        smallDogDecodeQueue.async { _ = decodedSmallDogFrames() }
+    }
 
-        var images: [CGImage] = []
+    /// Every GIF frame as a bitmap-backed CGImage, the brother's way, but
+    /// **deduplicated**: the re-timed GIF holds 133 frames and only 49 distinct
+    /// pictures (a pose held across a bark is several GIF frames), so identical
+    /// bitmaps share one image — ~45 MB decoded instead of ~120. Cached by file
+    /// mod date. Must run on smallDogDecodeQueue.
+    private static func decodedSmallDogFrames() -> (frames: [CGImage], delays: [Double])? {
+        guard let url = EffectsResources.url("small-dog", "gif") else { return nil }
+        let modDate = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
+        if let cache = smallDogCache, cache.modDate == modDate { return (cache.frames, cache.delays) }
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+
+        var frames: [CGImage] = []
         var delays: [Double] = []
+        var seen: [Int: CGImage] = [:]
         for i in 0..<CGImageSourceGetCount(source) {
-            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
-            images.append(cg)
+            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil),
+                  let ctx = CGContext(data: nil, width: cg.width, height: cg.height,
+                                      bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue),
+                  let data = ctx.data else { continue }
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+            var hasher = Hasher()
+            hasher.combine(bytes: UnsafeRawBufferPointer(start: data, count: ctx.bytesPerRow * ctx.height))
+            let key = hasher.finalize()
+            if seen[key] == nil { seen[key] = ctx.makeImage() ?? cg }
+            frames.append(seen[key]!)
             let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [String: Any]
             let gif  = props?[kCGImagePropertyGIFDictionary as String] as? [String: Any]
             delays.append(gif?[kCGImagePropertyGIFUnclampedDelayTime as String] as? Double
                           ?? gif?[kCGImagePropertyGIFDelayTime as String] as? Double ?? 0.04)
         }
-        let total = delays.reduce(0, +)
-        guard let first = images.first, total > 0 else { return }
+        guard !frames.isEmpty else { return nil }
+        smallDogCache = (frames, delays, modDate)
+        return (frames, delays)
+    }
+
+    /// Tile #44 — Basti barks in the bottom-left corner, mouth opening and a
+    /// little jump on each of the clip's ten barks (`SmallDogBark`).
+    ///
+    /// **Owns the audio** (2026-10-26), the skull boom's way: pressed from the
+    /// retina panel, the clip started on `/sound/play` and the dog only on the
+    /// `/sound/pressed` after it, behind a 13 MB GIF read — Victor heard the
+    /// bark before the dog was there. Now the clip, the frames and the jump
+    /// start in one call, on one clock (`playTabletSound`'s Bluetooth lead
+    /// shifts the picture with it), from frames decoded at launch. Silent
+    /// (`/effect/small-dog`), the picture starts at once.
+    /// Returns the tile's length (0 = nothing started).
+    @discardableResult
+    func showSmallDog(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
+        _ = cancelIfRunning("small-dog", sound: playSound ? Self.smallDogSound : nil)
+
+        guard let decoded = Self.smallDogDecodeQueue.sync(execute: { Self.decodedSmallDogFrames() }),
+              let first = decoded.frames.first else {
+            overlayError("small-dog.gif not in \(EffectsConfig.shared.assetsDir.path)")
+            if playSound, let d = SoundManager.shared.playTabletSound(Self.smallDogSound, volume: volume) { return d }
+            return 0
+        }
+        let total = decoded.delays.reduce(0, +)
+
+        // Sound first, then the clock — nothing slow between them.
+        var lead: Double = 0
+        var clipLength: Double = 0
+        if playSound {
+            lead = SoundTimingConfig.shared.currentBluetoothCompensation
+            clipLength = SoundManager.shared.playTabletSound(Self.smallDogSound, volume: volume) ?? 0
+        }
+        let begin = CACurrentMediaTime() + lead
 
         let gifLayer = CALayer()
         gifLayer.frame = SmallDogBark.frame(imageSize: CGSize(width: first.width, height: first.height),
@@ -2920,34 +2972,39 @@ class EmojiAnimator {
 
         var keyTimes: [NSNumber] = []
         var t = 0.0
-        for d in delays { keyTimes.append(NSNumber(value: t / total)); t += d }
-        let anim = CAKeyframeAnimation(keyPath: "contents")
-        anim.values = images
-        anim.keyTimes = keyTimes
-        anim.calculationMode = .discrete
-        anim.duration = total
-        anim.fillMode = .forwards
-        anim.isRemovedOnCompletion = false
-        gifLayer.add(anim, forKey: "dogFrames")
+        for d in decoded.delays { keyTimes.append(NSNumber(value: t / total)); t += d }
+        let frames = CAKeyframeAnimation(keyPath: "contents")
+        frames.values = decoded.frames
+        frames.keyTimes = keyTimes
+        frames.calculationMode = .discrete
+        frames.beginTime = begin
+        frames.duration = total
+        frames.fillMode = .both
+        frames.isRemovedOnCompletion = false
+        gifLayer.add(frames, forKey: "dogFrames")
 
-        // Short fades: the first bark is 0.2 s in, the last one ends 0.6 s
-        // before the clip does.
-        let fadeIn = CABasicAnimation(keyPath: "opacity")
-        fadeIn.fromValue = 0.0
-        fadeIn.toValue = 1.0
-        fadeIn.duration = 0.15
-        gifLayer.add(fadeIn, forKey: "dogFadeIn")
+        // The jump, on the same clock as the mouth. hostLayer is y-up, so a
+        // positive translation lifts him off the bottom edge.
+        let jump = SmallDogBark.jumpCurve(duration: total)
+        let hop = CAKeyframeAnimation(keyPath: "transform.translation.y")
+        hop.values = jump.lift.map { $0 * gifLayer.frame.height * SmallDogBark.jumpFraction }
+        hop.keyTimes = jump.times.map { NSNumber(value: $0 / total) }
+        hop.beginTime = begin
+        hop.duration = total
+        gifLayer.add(hop, forKey: "dogJump")
 
         let fadeOut = CABasicAnimation(keyPath: "opacity")
         fadeOut.fromValue = 1.0
         fadeOut.toValue = 0.0
-        fadeOut.beginTime = CACurrentMediaTime() + max(0, total - 0.4)
+        fadeOut.beginTime = begin + max(0, total - 0.4)
         fadeOut.duration = 0.4
         fadeOut.fillMode = .forwards
         fadeOut.isRemovedOnCompletion = false
         gifLayer.add(fadeOut, forKey: "dogFadeOut")
 
-        trackEffect("small-dog", layer: gifLayer, duration: total, sound: nil)
+        trackEffect("small-dog", layer: gifLayer, duration: lead + total,
+                    sound: playSound ? Self.smallDogSound : nil)
+        return max(lead + total, clipLength)
     }
 
     // MARK: - Pulse / heartbeat (one-shot: 2 QRS cycles then flatline)
