@@ -11,6 +11,12 @@ pkill -f "Victor Effects"; open "/Applications/Victor Effects.app"
 `swift build -c release`, then a bundle assembled by hand. Four details are
 load-bearing:
 
+- **`--build-system native`, on the tests and the build** (2026-10-26). SwiftPM
+  6.4 began choosing `swiftbuild` for debug on its own; that layout nests the
+  resource bundle one level deeper (`Contents/Resources/Resources/`), so
+  `WhipMacroTests` stopped finding the whip cracks and the deploy was refused.
+  The script reads the native `.build/arm64-apple-macosx/…` paths anyway.
+
 - **The `BUILD_TIME` stamp.** A `sed` rewrites `MenuBar.BUILD_TIME` in place
   before the build, so the disabled `Version: …` row above Quit always says which binary is
   actually running. When that row disagrees with what you just changed, you are

@@ -29,7 +29,11 @@ echo "Build timestamp: $BUILD_TIMESTAMP"
 if [ "${SKIP_TESTS:-0}" != "1" ]; then
     echo "Running tests..."
     TESTLOG="$(mktemp -t victor-effects-tests)"
-    if ! swift test > "$TESTLOG" 2>&1; then
+    # --build-system native, pinned (2026-10-26): SwiftPM started picking
+    # `swiftbuild` on its own for debug, which nests the resource bundle one
+    # level deeper (Contents/Resources/Resources) — the whip test could no longer
+    # find its cracks, and this script reads the native .build layout anyway.
+    if ! swift test --build-system native > "$TESTLOG" 2>&1; then
         grep -E "error:|failed \(" "$TESTLOG" | head -20
         echo ""
         echo "❌ Tests failed — NOT deploying (full log: $TESTLOG)."
@@ -52,7 +56,7 @@ if [ "${UNIVERSAL:-0}" = "1" ]; then
     swift build -c "$BUILD_CONFIG" --arch arm64 --arch x86_64
     BINARY="$DIR/.build/apple/Products/Release/VictorEffects"
 else
-    swift build -c "$BUILD_CONFIG"
+    swift build -c "$BUILD_CONFIG" --build-system native
     BINARY="$DIR/.build/arm64-apple-macosx/$BUILD_CONFIG/VictorEffects"
 fi
 echo "VictorEffects built."
