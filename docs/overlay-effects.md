@@ -595,7 +595,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   becomes visible; between detections the scale is parked back at 2× ready for
   the next one, and that 1×→2× reset is placed **after** the fade has fully
   finished (`coverT + fadeT`) so it always happens at zero opacity and can never
-  be seen. The rotation is **keyframed** (not constant): ~0.5s beep-free
+  be seen. Each find is also **named by a comic speech bubble** (white, black
+  heavy text, green glow), one word per detection, escalating: **"Code Smell"**,
+  **"Crap"**, **"Slop"**. Its tail points down-left at the 💩's upper-right edge
+  and it pops out of that tip (0.4× → overshoot → 1× over 0.25 s) **0.12 s after**
+  the find, so the 💩's own zoom lands first; its opacity follows only its own
+  detection's lit + fade window, on the same keyframe grid, so it leaves with the
+  💩. The rotation is **keyframed** (not constant): ~0.5s beep-free
   lead-in, then the front sweeps over the 💩 on **three radar beeps** in the clip
   (clip times 0.104/2.211/3.879s; one full turn between detections). The Mac
   **owns the audio** here — `showSonar(playSound:true)` plays `23_radar.mp3`

@@ -6495,6 +6495,87 @@ class EmojiAnimator {
         blipZoom.isRemovedOnCompletion = false
         blip.add(blipZoom, forKey: "blipZoom")
 
+        // 3c) A comic speech bubble names each find — one word per detection,
+        //     escalating. Its tail points down-left at the 💩 and it pops out of
+        //     that tip, a beat after the find (the 💩's own zoom lands first).
+        //     Its opacity follows ONLY its own detection's lit + fade window,
+        //     on the same grid as the flash, so it leaves with the 💩.
+        let bubbleWords = ["Code Smell", "Crap", "Slop"]
+        let bubbleFont = NSFont.systemFont(ofSize: 44, weight: .heavy)
+        let tailTip = CGPoint(x: blipPos.x + 52, y: blipPos.y + 46)   // just off the 💩's upper-right edge
+        let popDelay = 0.12, popT = 0.25
+        for (di, word) in bubbleWords.enumerated() {
+            let textSize = NSAttributedString(string: word, attributes: [.font: bubbleFont]).size()
+            let padX: CGFloat = 26, padY: CGFloat = 14, tailH: CGFloat = 30
+            let bodyW = ceil(textSize.width) + 2 * padX
+            let bodyH = ceil(textSize.height) + 2 * padY
+            // Local coords (y-up): tail tip at (0,0), body above-right of it.
+            let body = CGRect(x: 14, y: tailH, width: bodyW, height: bodyH)
+            let shape = CGMutablePath()
+            shape.addRoundedRect(in: body, cornerWidth: 22, cornerHeight: 22)
+            shape.move(to: CGPoint(x: body.minX + 18, y: body.minY + 2))
+            shape.addLine(to: .zero)
+            shape.addLine(to: CGPoint(x: body.minX + 54, y: body.minY + 2))
+            shape.closeSubpath()
+
+            let bubble = CALayer()
+            bubble.bounds = CGRect(x: 0, y: 0, width: body.maxX, height: body.maxY)
+            bubble.anchorPoint = .zero                 // grows out of the tail tip
+            bubble.position = tailTip
+            bubble.opacity = 0
+            let fill = CAShapeLayer()
+            fill.path = shape
+            fill.fillColor = NSColor.white.cgColor
+            fill.strokeColor = NSColor.black.cgColor
+            fill.lineWidth = 4
+            fill.lineJoin = .round
+            fill.contentsScale = scale
+            fill.shadowColor = green
+            fill.shadowRadius = 14
+            fill.shadowOpacity = 0.9
+            fill.shadowOffset = .zero
+            bubble.addSublayer(fill)
+            let label = CATextLayer()
+            label.string = NSAttributedString(string: word, attributes: [
+                .font: bubbleFont, .foregroundColor: NSColor.black,
+            ])
+            label.alignmentMode = .center
+            label.frame = CGRect(x: body.minX, y: body.minY + padY, width: bodyW, height: ceil(textSize.height))
+            label.contentsScale = scale
+            bubble.addSublayer(label)
+
+            var bOpacity: [NSNumber] = []
+            var bScale: [NSNumber] = []
+            for k in 0...blipSamples {
+                let tau = Double(k) / Double(blipSamples) * animEnd
+                let x = tau - detT[di] - popDelay
+                var v = 0.0, s = 0.4
+                if x >= 0 && x <= coverT[di] + fadeT - popDelay {
+                    v = x <= coverT[di] - popDelay ? 1.0 : 1.0 - (x - coverT[di] + popDelay) / fadeT
+                    let u = min(1.0, x / popT)
+                    s = 1.0 + 0.6 * sin(.pi * u) * (1 - u) - 0.6 * pow(1 - u, 2)   // 0.4 → overshoot → 1
+                }
+                bOpacity.append(NSNumber(value: v))
+                bScale.append(NSNumber(value: s))
+            }
+            let bFlash = CAKeyframeAnimation(keyPath: "opacity")
+            bFlash.keyTimes = blipKeyTimes
+            bFlash.values = bOpacity
+            let bPop = CAKeyframeAnimation(keyPath: "transform.scale")
+            bPop.keyTimes = blipKeyTimes
+            bPop.values = bScale
+            for a in [bFlash, bPop] {
+                a.calculationMode = .linear
+                a.duration = animEnd
+                a.beginTime = sweepStart
+                a.fillMode = .both
+                a.isRemovedOnCompletion = false
+            }
+            bubble.add(bFlash, forKey: "bubbleFlash")
+            bubble.add(bPop, forKey: "bubblePop")
+            container.addSublayer(bubble)
+        }
+
         // 4) End: fade the whole container out, then trackEffect removes it.
         let fade = CABasicAnimation(keyPath: "opacity")
         fade.fromValue = 1.0
