@@ -2882,22 +2882,19 @@ class EmojiAnimator {
         trackEffect("wolf-howl", layer: gifLayer, duration: total, sound: nil)
     }
 
-    // MARK: - Small dog (tile #44 `44_small_dog.mp3` — three dogs bark in turn)
+    // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)
 
-    /// Tile #44 — a dog barks in the bottom-left corner, mouth opening on each
-    /// of the clip's ten barks. Three dogs take turns, one per press
-    /// (`SmallDogBark`). Played once with the GIF's own delays — they ARE the
-    /// sync, re-timed to the clip — then gone. The clip plays down the ordinary
-    /// routed path; this is the press-path visual only.
+    /// Tile #44 — a dog barks in the bottom-left corner, mouth opening and a
+    /// little jump on each of the clip's ten barks (`SmallDogBark`). Played once
+    /// with the GIF's own delays — they ARE the sync, re-timed to the clip —
+    /// then gone. The clip plays down the ordinary routed path; this is the
+    /// press-path visual only.
     func showSmallDog() {
         if cancelIfRunning("small-dog") { return }
 
-        let dogs = [EffectsResources.url("small-dog-1", "gif"),
-                    EffectsResources.url("small-dog-2", "gif"),
-                    EffectsResources.url("small-dog-3", "gif")].compactMap { $0 }
-        guard let url = SmallDogBark.next(of: dogs),
+        guard let url = EffectsResources.url("small-dog", "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-            overlayError("small-dog-{1,2,3}.gif not found")
+            overlayError("small-dog.gif not found")
             return
         }
 
