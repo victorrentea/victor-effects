@@ -360,6 +360,7 @@ final class EffectsEngine {
         case "crt-shutdown":  animator.showCrtShutdown()
         case "skull-boom":    _ = animator.showSkullBoom(playSound: false)
         case "wolf-howl":     animator.showWolfHowl()
+        case "small-dog":     animator.showSmallDog()
         case "elephant":      animator.showElephant()
         case "elephant/stop": animator.stopElephant()
         case "panda":         animator.showPanda()

@@ -363,7 +363,7 @@ ones. Two tools now cover them:
   never learns about the zoom (the stage has the same bounds). Re-added to the
   top of `hostLayer` on every use, so a new effect still draws over older ones.
   On it: zorro, fireworks, sepia, confetti (both), money, iris, applause,
-  wolf, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
+  wolf, small dog, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
   Star Wars, snow, fire alarm, cavalry, wasn't-me, microwave, universal minions,
   rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda, opus,
   game over and its CRT, sketch arrow, the reaction emojis (☕ too since
@@ -522,6 +522,21 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   head dropping back in two frames: too fast for any interpolator, it came out as
   the head fading at the top and popping in lower, so **it must not loop** — a
   second pass would replay that drop as a cut. Press path, self-terminating, no
+  onStop entry; the clip plays down the ordinary routed path.
+- **🐕 Small dog** (tile #44 `44_small_dog.mp3` → `small-dog`, `showSmallDog`,
+  2026-10-26): a dog barks in the **bottom-right corner** — feet on the bottom
+  edge, 48 % of the screen's height (the box Victor marked), 4 % of the width in
+  from the right. **Three dogs take turns, one per press** (`SmallDogBark.next`,
+  1 → 2 → 3 over whichever of `small-dog-{1,2,3}.gif` are in `assetsDir`):
+  1 an orange dachshund drawn by Codex's image model in three poses (mouth
+  closed / half / wide — only the mouth region of the edits kept, the body from
+  one frame, or the outline shimmered by a pixel), 2 Hugo Puente's "Barking dog"
+  and 3 Maresch&Sturm's "Basti is barking" (Dribbble, backdrop flood-filled to
+  alpha). **Each GIF is re-timed to the clip, not looped**: the clip's RMS on a
+  20 ms grid finds its ten barks, the mouth-open frames cover each bark, the
+  source's own wind-up/recovery frames go either side where there is room, and
+  its idle frames fill the rest — 5.06 s, the clip's length. So the GIF's delays
+  are the sync: played once, never stretched. Press path, self-terminating, no
   onStop entry; the clip plays down the ordinary routed path.
 - **🩸 Blood drip** (sfx #40 `40_joker.mp3` → `blood-drip`): `blood-drip.gif`
   (white bg made transparent via ImageMagick `-coalesce -fuzz 20% -transparent`,

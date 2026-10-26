@@ -2882,6 +2882,77 @@ class EmojiAnimator {
         trackEffect("wolf-howl", layer: gifLayer, duration: total, sound: nil)
     }
 
+    // MARK: - Small dog (tile #44 `44_small_dog.mp3` — three dogs bark in turn)
+
+    /// Tile #44 — a dog barks in the bottom-right corner, mouth opening on each
+    /// of the clip's ten barks. Three dogs take turns, one per press
+    /// (`SmallDogBark`). Played once with the GIF's own delays — they ARE the
+    /// sync, re-timed to the clip — then gone. The clip plays down the ordinary
+    /// routed path; this is the press-path visual only.
+    func showSmallDog() {
+        if cancelIfRunning("small-dog") { return }
+
+        let dogs = [EffectsResources.url("small-dog-1", "gif"),
+                    EffectsResources.url("small-dog-2", "gif"),
+                    EffectsResources.url("small-dog-3", "gif")].compactMap { $0 }
+        guard let url = SmallDogBark.next(of: dogs),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            overlayError("small-dog-{1,2,3}.gif not found")
+            return
+        }
+
+        var images: [CGImage] = []
+        var delays: [Double] = []
+        for i in 0..<CGImageSourceGetCount(source) {
+            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
+            images.append(cg)
+            let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [String: Any]
+            let gif  = props?[kCGImagePropertyGIFDictionary as String] as? [String: Any]
+            delays.append(gif?[kCGImagePropertyGIFUnclampedDelayTime as String] as? Double
+                          ?? gif?[kCGImagePropertyGIFDelayTime as String] as? Double ?? 0.04)
+        }
+        let total = delays.reduce(0, +)
+        guard let first = images.first, total > 0 else { return }
+
+        let gifLayer = CALayer()
+        gifLayer.frame = SmallDogBark.frame(imageSize: CGSize(width: first.width, height: first.height),
+                                            in: hostLayer.bounds)
+        gifLayer.contentsGravity = .resizeAspect
+        gifLayer.contents = first
+        stageLayer.addSublayer(gifLayer)
+
+        var keyTimes: [NSNumber] = []
+        var t = 0.0
+        for d in delays { keyTimes.append(NSNumber(value: t / total)); t += d }
+        let anim = CAKeyframeAnimation(keyPath: "contents")
+        anim.values = images
+        anim.keyTimes = keyTimes
+        anim.calculationMode = .discrete
+        anim.duration = total
+        anim.fillMode = .forwards
+        anim.isRemovedOnCompletion = false
+        gifLayer.add(anim, forKey: "dogFrames")
+
+        // Short fades: the first bark is 0.2 s in, the last one ends 0.6 s
+        // before the clip does.
+        let fadeIn = CABasicAnimation(keyPath: "opacity")
+        fadeIn.fromValue = 0.0
+        fadeIn.toValue = 1.0
+        fadeIn.duration = 0.15
+        gifLayer.add(fadeIn, forKey: "dogFadeIn")
+
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.fromValue = 1.0
+        fadeOut.toValue = 0.0
+        fadeOut.beginTime = CACurrentMediaTime() + max(0, total - 0.4)
+        fadeOut.duration = 0.4
+        fadeOut.fillMode = .forwards
+        fadeOut.isRemovedOnCompletion = false
+        gifLayer.add(fadeOut, forKey: "dogFadeOut")
+
+        trackEffect("small-dog", layer: gifLayer, duration: total, sound: nil)
+    }
+
     // MARK: - Pulse / heartbeat (one-shot: 2 QRS cycles then flatline)
 
     func showPulse(playSound: Bool = false) {
