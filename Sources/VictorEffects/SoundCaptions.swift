@@ -57,6 +57,7 @@ enum SoundCaptions {
         "31_tarzan.mp3":              "[Tarzan yell]",
         "32_sheep.mp3":               "[sheep bleating]",
         "33_yee_har.mp3":             "\"Yee-haw!\"",
+        "33b_ay.mp3":                 "\"Ay, ay, ay, ay!\"",
         "34_phoenix.mp3":             "[phoenix screeching]",
         "35_cant_touch_this.mp3":     "♪ Can't touch this ♪",
         "36_bad_habits.mp3":          "♪ My bad habits lead to late nights ♪",
