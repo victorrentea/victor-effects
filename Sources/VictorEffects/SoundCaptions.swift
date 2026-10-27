@@ -411,9 +411,9 @@ enum CaptionOverlay {
     /// Height of the gap under the caption, as a share of the visible height —
     /// low enough to stay off the slide body (5 %, ~56 pt on the Retina).
     static let bottomInset: CGFloat = 0.05
-    /// Above the peek mascot's `maximumWindow + 1`, the highest anything else
+    /// Above the peek mascot's `EffectsLevel.overlay + 1`, the highest anything else
     /// here goes. `CaptionLevelTests` parses the sources to keep it that way.
-    static let windowLevel = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)) + 2)
+    static let windowLevel = NSWindow.Level(rawValue: EffectsLevel.overlay.rawValue + 2)
     static let followInterval: TimeInterval = 1.0 / 30
     static let fadeOutSeconds: TimeInterval = 0.4
     /// The said words: a saturated, opaque yellow…

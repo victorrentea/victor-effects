@@ -256,7 +256,7 @@ final class PeekHitPanel: NSPanel {
         // Above the overlay it sits on: the overlay is at the maximum window
         // level, and a hit target under the thing it is a target for would
         // never see the click.
-        level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)) + 1)
+        level = NSWindow.Level(rawValue: EffectsLevel.overlay.rawValue + 1)
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
         let view = HitView(frame: NSRect(origin: .zero, size: frame.size))

@@ -430,8 +430,8 @@ final class WhipPanel: NSPanel {
         // (3), and set after the line below it quietly sank the whip under the
         // ⌥⇧ zoom's `.screenSaver` window — the rope vanished the moment the
         // zoom's first frame came in (2026-10-19). Every window of ours sits at
-        // `maximumWindow`; `WhipPanelLevelTests` holds this one to it.
-        level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)))
+        // `EffectsLevel`; `WhipPanelLevelTests` holds this one to it.
+        level = EffectsLevel.overlay
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
     }
 

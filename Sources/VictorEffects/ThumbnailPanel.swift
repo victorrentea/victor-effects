@@ -72,7 +72,7 @@ final class ThumbnailPanel: NSPanel {
         ignoresMouseEvents = false
         // One below the effects overlay: a confetti burst fired from a tile
         // should still land on top of the panel that fired it.
-        level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)) - 1)
+        level = NSWindow.Level(rawValue: EffectsLevel.overlay.rawValue - 1)
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
         let content = PanelContentView(frame: contentRect(forFrameRect: frame))

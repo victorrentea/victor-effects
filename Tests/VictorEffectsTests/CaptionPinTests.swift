@@ -57,6 +57,8 @@ final class CaptionPinTests: XCTestCase {
         let max = Int(CGWindowLevelForKey(.maximumWindow))
         let assignment = try NSRegularExpression(pattern: #"\blevel\s*=\s*(.+)$"#)
         let offset = try NSRegularExpression(pattern: #"maximumWindow\)\)\s*([+-])\s*(\d+)"#)
+        let base = EffectsLevel.overlay.rawValue
+        let fromBase = try NSRegularExpression(pattern: #"EffectsLevel\.overlay(?:\.rawValue\s*([+-])\s*(\d+))?"#)
         var seen = 0
         for file in files {
             let text = try String(contentsOf: file, encoding: .utf8)
@@ -67,7 +69,15 @@ final class CaptionPinTests: XCTestCase {
                 else { continue }
                 let rhs = ns.substring(with: m.range(at: 1))
                 let value: Int
-                if rhs.contains("maximumWindow") {
+                if let o = fromBase.firstMatch(in: rhs, range: NSRange(location: 0, length: (rhs as NSString).length)) {
+                    let r = rhs as NSString
+                    if o.range(at: 2).location != NSNotFound {
+                        let n = Int(r.substring(with: o.range(at: 2)))!
+                        value = r.substring(with: o.range(at: 1)) == "+" ? base + n : base - n
+                    } else {
+                        value = base
+                    }
+                } else if rhs.contains("maximumWindow") {
                     let r = rhs as NSString
                     if let o = offset.firstMatch(in: rhs, range: NSRange(location: 0, length: r.length)) {
                         let n = Int(r.substring(with: o.range(at: 2)))!
