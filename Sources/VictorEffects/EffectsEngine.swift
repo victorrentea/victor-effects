@@ -315,7 +315,9 @@ final class EffectsEngine {
         case "brother/stop":  animator.stopBrother()
         case "gangnam":       animator.showGangnam(playSound: false)
         case "gangnam/stop":  animator.stopGangnam()
-        case "love-hands":    animator.showLoveHands(playSound: false)
+        // Owns its audio since 2026-10-27, the fire's way: the press arms a 🫶
+        // pointer and the clip starts with the click that sends the hands in.
+        case "love-hands":    animator.showLoveHands(playSound: true)
         case "love-hands/stop": animator.stopLoveHands()
         case "star-wars":     animator.showStarWars(playSound: false)
         case "star-wars/stop": animator.stopStarWars()
@@ -759,6 +761,16 @@ final class EffectsEngine {
         if name == "11_fire.mp3" {
             EmojiAnimator.firePressVolume = volume
             return remember(Int(EmojiAnimator.fireFallbackDuration * 1000))
+        }
+        // Tile #41 (🫶 love hands): SILENT on the press since 2026-10-27, the
+        // fire's arrangement. The press arms a 🫶 pointer; the click picks where
+        // the hands meet and starts the clip (`launchLoveHandsAtCursor`), so this
+        // request only parks its volume. Lit for the arm window plus the clip,
+        // so its completion stop never cuts a run that was clicked late. While
+        // suspended the press draws nothing, so the clip plays plainly below.
+        if name == "41_love_hearts.mp3", !isSuspended {
+            EmojiAnimator.loveHandsPressVolume = volume
+            return remember(Int(EmojiAnimator.loveHandsTileLitDuration * 1000))
         }
         // Tile #69 (👻 wazzup ghost): the mask starts sliding in immediately
         // (`showWazzup`, fired by the client's separate `/sound/pressed`

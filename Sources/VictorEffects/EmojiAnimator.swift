@@ -7989,11 +7989,72 @@ class EmojiAnimator {
         }
     }
 
-    // MARK: - Love hands (sound #41) — two hands close in from edges, then hearts
-    // spiral up out of the meeting point.
+    // MARK: - Love hands (sound #41) — aim with a 🫶 pointer, click, and two
+    // hands close in from the side edges onto that point; hearts spiral up out
+    // of it. The wheel sizes them, before the click and while they come in.
+    //
+    // **The click starts it, not the press** (Victor, 2026-10-27: *"vreau să
+    // înceapă efectul atunci când dau click undeva pe ecran"*). The press arms
+    // the run and turns the pointer into a small 🫶; the click picks the point
+    // the hands meet on, starts their slide and starts the clip — the 🔥 fire's
+    // arrangement (`plantFireAtCursor`), down the same routed tablet player so
+    // Escape, stop-all and the 🛑 lamp all reach it.
+
+    /// The pointer while the hands wait for their click: the gesture they are
+    /// about to make, small enough to aim with.
+    static let loveHandsCursorGlyph = "🫶"
+    static let loveHandsCursorFontSize: CGFloat = 44
+    /// How long an armed press waits for its click before it gives up quietly.
+    static let loveHandsArmTimeout: CFTimeInterval = 30
+    /// The slide in from the edges (3× the original 0.9 s).
+    static let loveHandsConverge: CFTimeInterval = 2.7
+    /// One wheel notch is a multiply, so a step feels the same at either end.
+    static let loveHandsScaleStep: CGFloat = 1.12
+    static let loveHandsMinScale: CGFloat = 0.15
+    static let loveHandsMaxScale: CGFloat = 2.0
+    static let loveHandsSound = "41_love_hearts.mp3"
+
+    /// The volume the press's routed `/sound/play` carried. That request plays
+    /// nothing (the clip waits for the click), so it parks its volume here.
+    static var loveHandsPressVolume: Float?
+    /// The size the previous run was framed at. Victor sizes the hands to what
+    /// he is pointing at; the next press starts from that framing, not from 1.
+    private static var loveHandsLastScale: CGFloat = 1.0
+
+    /// The clip's real length, 6 s if it cannot be measured.
+    static var loveHandsSoundDuration: Double {
+        if let url = SoundManager.shared.soundURL(for: loveHandsSound) {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric { return CMTimeGetSeconds(d) }
+        }
+        return 6.0
+    }
+    /// How long the tile stays lit: the longest an armed run can wait, plus the
+    /// clip it then plays. Its completion stop (`love-hands/stop`) therefore
+    /// always lands after the hands have already faded — measured from the
+    /// press, a plain clip length would cut a run that was clicked late.
+    static var loveHandsTileLitDuration: Double { loveHandsArmTimeout + loveHandsSoundDuration }
+
+    static func clampLoveHandsScale(_ s: CGFloat) -> CGFloat {
+        min(loveHandsMaxScale, max(loveHandsMinScale, s))
+    }
+
+    private var _loveHandsImages: (left: CGImage, right: CGImage)?
+    private var _loveHandsCursor: CATextLayer?         // non-nil ⇔ armed, waiting for the click
+    private var _loveHandsCursorTimer: Timer?
+    private var _loveHandsCursorHide: CursorHide?
+    private var _loveHandsHands: [CALayer] = []        // the two hands in flight, for the wheel
+    private var _loveHandsScale: CGFloat = 1.0
+    private var _loveHandsSoundPending = false
+    private var _loveHandsInputTap: CFMachPort?
+    private var _loveHandsInputTapSource: CFRunLoopSource?
+    private var _loveHandsIsLive = false               // read on the tap's thread
+    private var _loveHandsArmed = false                // read on the tap's thread
+    private var _loveHandsSwallowedDown = false        // the up goes where its down went
+    private var _loveHandsScrollAccum: CGFloat = 0     // trackpad pixels → notches
 
     func showLoveHands(playSound: Bool = true) {
-        // Re-pressing toggles off — but with a fade-out, not an instant cut.
+        // Re-pressing toggles off — armed or in flight, with a fade, not a cut.
         if activeEffects["love-hands"] != nil { stopLoveHands(); return }
 
         guard let leftURL = EffectsConfig.shared.assetURL("love_hand_left.png"),
@@ -8005,107 +8066,124 @@ class EmojiAnimator {
             overlayError("love_hand_{left,right}.png not in \(EffectsConfig.shared.assetsDir.path)")
             return
         }
+        _loveHandsImages = (leftCG, rightCG)
 
-        let bounds = hostLayer.bounds
-        // 0.40 → 0.52 (+30%) → 1.04 (×2, 2026-09-11). The hands are now taller
-        // than the screen and that is the point: they read as two hands reaching
-        // INTO the frame rather than two cut-outs sliding across it. The motion
-        // is untouched — every other number here is derived from handHeight, so
-        // doubling it moves the start/end positions with it.
+        // The container is added to the layer tree and OWNS everything the run
+        // draws — the aiming 🫶, both hands, the heart burst — so every teardown
+        // path (cancelIfRunning, stopAllActiveEffects, the scheduled fade) takes
+        // them down together; they can't be left orphaned on screen (the
+        // previous design tracked an empty off-tree wrapper while the hands
+        // lived as siblings under host, so a stop cleared the tracker but not
+        // the hands). It is tracked from the ARM, so the ⭐ turns 🛑 while the
+        // pointer is a 🫶 and one click on it puts the pointer back.
+        //
+        // On `hostLayer`, not the zoom stage: the click point is read in host
+        // coordinates, the bombardment's reason.
+        let container = CALayer()
+        container.frame = hostLayer.bounds
+        hostLayer.addSublayer(container)
+        activeEffects["love-hands"] = container
+        _loveHandsSoundPending = playSound
+        _loveHandsScale = Self.loveHandsLastScale
+
+        startLoveHandsCursor(in: container)
+        startLoveHandsInputCapture()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.loveHandsArmTimeout) { [weak self, weak container] in
+            guard let self, let container, self.activeEffects["love-hands"] === container,
+                  self._loveHandsArmed else { return }
+            effectsInfo("🫶 love hands: no click in \(Int(Self.loveHandsArmTimeout)) s — disarmed")
+            self.stopLoveHands()
+        }
+    }
+
+    /// The click: the hands come in from the two side edges and meet ON the
+    /// point that was under the 🫶, at the size the wheel left them at.
+    fileprivate func launchLoveHandsAtCursor() {
+        guard _loveHandsArmed, let container = activeEffects["love-hands"],
+              let images = _loveHandsImages else { return }
+        let target = mousePointInHostLayer()
+        stopLoveHandsCursor()
+
+        let bounds = container.bounds
+        // 1.04 × the screen height at scale 1 (2026-09-11): taller than the
+        // screen, so they read as two hands reaching INTO the frame rather than
+        // two cut-outs sliding across it. The wheel scales from there.
         let handHeight = bounds.height * 1.04
         // Source images are square halves (512x1024 → aspect 0.5).
         let handWidth = handHeight * 0.5
-        // Place the hand centre 1/5 of screen height below screen midpoint
-        // (AppKit y grows upward, so subtract).
-        let handY = bounds.midY - handHeight / 2 - bounds.height * 0.20
-
-        // End positions: hands touching at the horizontal center.
-        let leftEndX  = bounds.midX - handWidth
-        let rightEndX = bounds.midX
-        // Start positions: just off-screen at the edges.
-        let leftStartX  = -handWidth
-        let rightStartX = bounds.width
-
-        // The container is added to the layer tree and OWNS both hands, so every
-        // teardown path (cancelIfRunning, stopAllActiveEffects, the scheduled
-        // fade below) removes the hands with it — they can't be left orphaned on
-        // screen (the previous design tracked an empty off-tree wrapper while the
-        // hands lived as siblings under host, so a stop cleared the tracker but
-        // not the hands).
-        let container = CALayer()
-        container.frame = bounds
-        stageLayer.addSublayer(container)
-        activeEffects["love-hands"] = container
-
         // 0.8, and on the two hand layers rather than on `container`: the heart
         // burst is a child of the same container, and it is the HANDS that
-        // should let the desktop through, not the hearts. Fading out still works
-        // — `fadeOutLoveHands` animates the container's opacity to 0 on top of
-        // this, so 0.8 is the ceiling the fade starts from.
+        // should let the desktop through, not the hearts. `fadeOutLoveHands`
+        // animates the container's opacity to 0 on top of this.
         let handOpacity: Float = 0.8
+        let scale = CATransform3DMakeScale(_loveHandsScale, _loveHandsScale, 1)
 
-        let leftLayer = CALayer()
-        leftLayer.frame = CGRect(x: leftEndX, y: handY, width: handWidth, height: handHeight)
-        leftLayer.contents = leftCG
-        leftLayer.contentsGravity = .resizeAspect
-        leftLayer.opacity = handOpacity
-        container.addSublayer(leftLayer)
+        // Each hand is anchored on the edge it touches the other one with, at
+        // half its height — the point the hearts come out of. So `position` IS
+        // the meeting point at the end of the slide, the wheel scales each hand
+        // about that point (the hands grow and shrink around what they frame
+        // instead of drifting apart), and the start is simply "that edge on the
+        // screen's edge": fully off-screen at any size.
+        func hand(_ image: CGImage, touchingEdge: CGFloat, startX: CGFloat) -> CALayer {
+            let layer = CALayer()
+            layer.bounds = CGRect(x: 0, y: 0, width: handWidth, height: handHeight)
+            layer.anchorPoint = CGPoint(x: touchingEdge, y: 0.5)
+            layer.position = target
+            layer.transform = scale
+            layer.contents = image
+            layer.contentsGravity = .resizeAspect
+            layer.opacity = handOpacity
+            container.addSublayer(layer)
 
-        let rightLayer = CALayer()
-        rightLayer.frame = CGRect(x: rightEndX, y: handY, width: handWidth, height: handHeight)
-        rightLayer.contents = rightCG
-        rightLayer.contentsGravity = .resizeAspect
-        rightLayer.opacity = handOpacity
-        container.addSublayer(rightLayer)
+            let slide = CABasicAnimation(keyPath: "position.x")
+            slide.fromValue = startX
+            slide.toValue = target.x
+            slide.duration = Self.loveHandsConverge
+            slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            layer.add(slide, forKey: "slide")
+            return layer
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        _loveHandsHands = [hand(images.left, touchingEdge: 1, startX: bounds.minX),
+                           hand(images.right, touchingEdge: 0, startX: bounds.maxX)]
+        CATransaction.commit()
 
-        let converge: CFTimeInterval = 2.7          // 3× slower than the original 0.9s
-        let slideLeft = CABasicAnimation(keyPath: "position.x")
-        slideLeft.fromValue = leftStartX + handWidth / 2
-        slideLeft.toValue   = leftEndX + handWidth / 2
-        slideLeft.duration = converge
-        slideLeft.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        leftLayer.add(slideLeft, forKey: "slide")
-
-        let slideRight = CABasicAnimation(keyPath: "position.x")
-        slideRight.fromValue = rightStartX + handWidth / 2
-        slideRight.toValue   = rightEndX + handWidth / 2
-        slideRight.duration = converge
-        slideRight.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        rightLayer.add(slideRight, forKey: "slide")
-
-        // When the hands touch, spawn the heart burst.
-        let meetingPoint = CGPoint(x: bounds.midX, y: bounds.midY - bounds.height * 0.20)
+        // When the hands touch, spawn the heart burst — sized with the hands, so
+        // a small pair framing one word doesn't throw dinner-plate hearts.
         let riseDuration: CFTimeInterval = 2.0
         let fadeDuration: CFTimeInterval = 0.6
-        DispatchQueue.main.asyncAfter(deadline: .now() + converge) { [weak self, weak container] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.loveHandsConverge) { [weak self, weak container] in
             guard let self = self, let container = container,
                   self.activeEffects["love-hands"] === container else { return }
-            self.spawnLoveHearts(center: meetingPoint, rise: riseDuration, fadeOver: fadeDuration, parent: container)
+            self.spawnLoveHearts(center: target, rise: riseDuration, fadeOver: fadeDuration,
+                                 sizeScale: max(0.4, self._loveHandsScale), parent: container)
         }
 
-        // The hands now linger until the sfx (41_love_hearts.mp3) is almost over,
-        // then fade out so they disappear together with the sound instead of on a
-        // fixed timeline. An explicit/early tablet stop also clears them via
-        // onStop → love-hands/stop → stopLoveHands.
-        var soundDuration = 6.0
-        if let url = SoundManager.shared.soundURL(for: "41_love_hearts.mp3") {
-            let d = AVURLAsset(url: url).duration
-            if d.isNumeric { soundDuration = CMTimeGetSeconds(d) }
+        // The hands linger until the sfx is almost over, then fade out with it
+        // instead of on a fixed timeline. An explicit/early tablet stop also
+        // clears them via onStop → love-hands/stop → stopLoveHands.
+        var soundDuration = Self.loveHandsSoundDuration
+        if _loveHandsSoundPending {
+            _loveHandsSoundPending = false
+            if let played = SoundManager.shared.playTabletSound(Self.loveHandsSound,
+                                                                 volume: Self.loveHandsPressVolume) {
+                soundDuration = played
+            }
         }
-        let handsFadeAt = max(converge + 0.5, soundDuration - fadeDuration)
+        let handsFadeAt = max(Self.loveHandsConverge + 0.5, soundDuration - fadeDuration)
         DispatchQueue.main.asyncAfter(deadline: .now() + handsFadeAt) { [weak self, weak container] in
             guard let self = self, let container = container,
                   self.activeEffects["love-hands"] === container else { return }
             self.fadeOutLoveHands(container, over: fadeDuration)
         }
-
-        if playSound {
-            SoundManager.shared.play("41_love_hearts.mp3")
-        }
     }
 
     func stopLoveHands() {
-        SoundManager.shared.stop("41_love_hearts.mp3", fade: SoundManager.interruptFade)
+        // `stopWherever`: the clip may be the tablet's routed player (the click
+        // started it) or this Mac's own pool, and only THIS file.
+        SoundManager.shared.stopWherever(Self.loveHandsSound)
         if let container = activeEffects["love-hands"] {
             fadeOutLoveHands(container)
         }
@@ -8118,6 +8196,7 @@ class EmojiAnimator {
     private func fadeOutLoveHands(_ container: CALayer, over fadeDuration: CFTimeInterval = 0.6) {
         if activeEffects["love-hands"] === container {
             activeEffects.removeValue(forKey: "love-hands")
+            endLoveHandsRun()
         }
         CATransaction.begin()
         CATransaction.setAnimationDuration(fadeDuration)
@@ -8128,6 +8207,190 @@ class EmojiAnimator {
         }
     }
 
+    /// Pointer, wheel and Escape go back to the room. Idempotent: the fade, a
+    /// stop-all and a re-press all funnel here.
+    private func endLoveHandsRun() {
+        stopLoveHandsCursor()
+        stopLoveHandsInputCapture()
+        _loveHandsHands = []
+        _loveHandsImages = nil
+        _loveHandsSoundPending = false
+    }
+
+    // MARK: The 🫶 pointer
+
+    /// The glyph's size previews the hands' — not linearly (at 0.15 the glyph
+    /// would be too small to aim with), but it visibly grows and shrinks with
+    /// every notch, so the wheel is answered before the click.
+    private func loveHandsCursorFont() -> CGFloat {
+        Self.loveHandsCursorFontSize * sqrt(_loveHandsScale)
+    }
+
+    private func startLoveHandsCursor(in container: CALayer) {
+        stopLoveHandsCursor()
+        let glyph = CATextLayer()
+        glyph.string = Self.loveHandsCursorGlyph
+        glyph.alignmentMode = .center
+        glyph.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        fitLoveHandsCursor(glyph)
+        glyph.position = mousePointInHostLayer()   // centred on the pointer, the heart cursor's way
+        CATransaction.commit()
+        container.addSublayer(glyph)
+        _loveHandsCursor = glyph
+        _loveHandsArmed = true
+        _loveHandsCursorHide = CursorHide()
+
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] t in
+            guard let self, let glyph = self._loveHandsCursor else { t.invalidate(); return }
+            let p = self.mousePointInHostLayer()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            glyph.position = p
+            self.fitLoveHandsCursor(glyph)
+            CATransaction.commit()
+            // The menu bar and the Dock give the real arrow back at the edges.
+            self._loveHandsCursorHide?.reassertNearEdge(pointer: NSPoint(x: p.x, y: p.y),
+                                                        screen: self.hostLayer.bounds)
+        }
+        _loveHandsCursorTimer = timer
+    }
+
+    private func fitLoveHandsCursor(_ glyph: CATextLayer) {
+        let size = loveHandsCursorFont()
+        let box = size * Self.heartCursorBoxRatio
+        Self.fitPointerGlyph(glyph, fontSize: size, box: CGSize(width: box, height: box))
+    }
+
+    private func stopLoveHandsCursor() {
+        _loveHandsArmed = false
+        _loveHandsCursorTimer?.invalidate()
+        _loveHandsCursorTimer = nil
+        _loveHandsCursor?.removeFromSuperlayer()
+        _loveHandsCursor = nil
+        _loveHandsCursorHide?.release()
+        _loveHandsCursorHide = nil
+    }
+
+    // MARK: Click to launch, wheel to size, Escape to call it off
+
+    /// Scroll up = bigger, down = smaller, between `loveHandsMinScale` and
+    /// `loveHandsMaxScale`. Runs on the tap's thread, so it only counts notches
+    /// and hops them to main.
+    fileprivate func handleLoveHandsScroll(_ event: CGEvent) {
+        var notches = 0
+        if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 {
+            // Trackpad: continuous pixels, accumulated into notch-sized steps.
+            _loveHandsScrollAccum += CGFloat(event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1))
+            while _loveHandsScrollAccum >= 12 { notches += 1; _loveHandsScrollAccum -= 12 }
+            while _loveHandsScrollAccum <= -12 { notches -= 1; _loveHandsScrollAccum += 12 }
+        } else {
+            let dy = event.getDoubleValueField(.scrollWheelEventDeltaAxis1)   // + up, - down
+            if dy > 0 { notches = 1 } else if dy < 0 { notches = -1 }
+        }
+        guard notches != 0 else { return }
+
+        let factor = pow(Self.loveHandsScaleStep, CGFloat(notches))
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.activeEffects["love-hands"] != nil else { return }
+            self._loveHandsScale = Self.clampLoveHandsScale(self._loveHandsScale * factor)
+            Self.loveHandsLastScale = self._loveHandsScale
+            if let glyph = self._loveHandsCursor {
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                self.fitLoveHandsCursor(glyph)
+                CATransaction.commit()
+            }
+            // A short ease per notch: the slide on `position.x` runs on, so the
+            // hands keep coming in while they grow or shrink about the point.
+            CATransaction.begin()
+            CATransaction.setAnimationDuration(0.12)
+            for hand in self._loveHandsHands {
+                hand.transform = CATransform3DMakeScale(self._loveHandsScale, self._loveHandsScale, 1)
+            }
+            CATransaction.commit()
+        }
+    }
+
+    /// One tap for the three gestures, for the fire cursor's reason: they have
+    /// to be *taken away* from the app underneath. The aiming click must not
+    /// also press the button below it, the wheel must not scroll the editor out
+    /// from under the hands, and Escape must not close the user's dialog. Once
+    /// the hands are in flight clicks are the room's again — only the wheel
+    /// and Escape stay with the effect.
+    private func startLoveHandsInputCapture() {
+        stopLoveHandsInputCapture()
+
+        let mask = CGEventMask(1 << CGEventType.scrollWheel.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseUp.rawValue)
+            | CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let animator = Unmanaged<EmojiAnimator>.fromOpaque(refcon).takeUnretainedValue()
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = animator._loveHandsInputTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
+            // Once the run is over, the mouse is his again — the belt for an
+            // event in flight while the teardown ran.
+            guard animator._loveHandsIsLive else {
+                DispatchQueue.main.async { animator.stopLoveHandsInputCapture() }
+                return Unmanaged.passUnretained(event)
+            }
+            if type == .keyDown,
+               CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 {   // Esc
+                DispatchQueue.main.async { animator.stopLoveHands() }
+                return nil   // consume — he is calling off the hands, not his app
+            }
+            if type == .leftMouseDown {
+                guard animator._loveHandsArmed else { return Unmanaged.passUnretained(event) }
+                animator._loveHandsSwallowedDown = true
+                DispatchQueue.main.async { animator.launchLoveHandsAtCursor() }
+                return nil   // consume — while armed, a click means "meet here"
+            }
+            if type == .leftMouseUp {
+                // The down was swallowed, so delivering the up alone would hand
+                // the app underneath half a click. The pair goes together.
+                guard animator._loveHandsSwallowedDown else { return Unmanaged.passUnretained(event) }
+                animator._loveHandsSwallowedDown = false
+                return nil
+            }
+            if type == .scrollWheel {
+                // ⌘-scroll is terminal font zoom and ⌥-scroll is macOS screen
+                // zoom — the magnifier's reason for leaving both alone.
+                if event.flags.contains(.maskCommand) || event.flags.contains(.maskAlternate) {
+                    return Unmanaged.passUnretained(event)
+                }
+                animator.handleLoveHandsScroll(event)
+                return nil   // consume — don't scroll the app below while sizing
+            }
+            return Unmanaged.passUnretained(event)
+        }
+        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                          options: .defaultTap, eventsOfInterest: mask,
+                                          callback: callback, userInfo: refcon) else { return }
+        let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        _loveHandsInputTap = tap
+        _loveHandsInputTapSource = src
+        _loveHandsIsLive = true
+    }
+
+    private func stopLoveHandsInputCapture() {
+        // Cleared FIRST: it is what the tap's own thread reads.
+        _loveHandsIsLive = false
+        if let tap = _loveHandsInputTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+        if let src = _loveHandsInputTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
+        _loveHandsInputTap = nil
+        _loveHandsInputTapSource = nil
+        _loveHandsScrollAccum = 0
+        _loveHandsSwallowedDown = false
+    }
+
     /// 7 red hearts rise gently from `center` and diverge outward — modelled on
     /// the WebSocket emoji float (`spawnEmoji`) so the motion looks calm and
     /// continuous rather than spinny. Each heart picks its own pseudo-random
@@ -8135,10 +8398,11 @@ class EmojiAnimator {
     /// the swarm fans out without repeating the same arc.
     /// Parameters `rise`/`fadeOver` set the *target* duration; per-heart life
     /// is randomized ±15% around `rise + fadeOver` for organic spread.
-    private func spawnLoveHearts(center: CGPoint, rise: CFTimeInterval, fadeOver: CFTimeInterval, parent: CALayer) {
+    private func spawnLoveHearts(center: CGPoint, rise: CFTimeInterval, fadeOver: CFTimeInterval,
+                                 sizeScale: CGFloat = 1, parent: CALayer) {
         let bounds = hostLayer.bounds
         let heartCount = 7
-        let baseSize: CGFloat = 70
+        let baseSize: CGFloat = 70 * sizeScale
         let nominalLife = rise + fadeOver
 
         for i in 0..<heartCount {
@@ -14017,6 +14281,10 @@ class EmojiAnimator {
         // its targets and blasts are the run's own layers, it hides the real
         // pointer, and it holds a tap that is swallowing Escape and every click.
         stopBombSession(fade: 0)
+        // 🫶 The love hands' container IS in activeEffects and dies in the loop
+        // below; what the loop cannot reach is the run's hidden pointer and the
+        // tap that is swallowing the wheel, Escape and (while armed) clicks.
+        endLoveHandsRun()
         // 🤖 The mascot's click target is a real window, not one of the layers
         // below: the loop would drop the icon and leave an invisible rectangle
         // eating clicks in the top-left corner of the screen forever.

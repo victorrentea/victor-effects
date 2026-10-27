@@ -1544,23 +1544,43 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     is `static` precisely because the risers are clones of it: one number, not two that drift.
 
 - **💕 Love hands** (tile #41 `41_love_hearts.mp3` → `love-hands` / `love-hands/stop`,
-  `showLoveHands`): two hands (`love_hand_left.png` / `love_hand_right.png` from
-  `EffectsConfig.assetsDir`, square halves at aspect 0.5) slide in from the left and right
-  edges over **2.7 s**, eased out, meet at the horizontal centre a fifth of a screen height
-  below the middle, and spawn a heart burst out of the meeting point. They then linger until
-  the clip is nearly over and **fade** out with it (never an instant cut), identity-guarded
-  so an old run's timer cannot kill a newer one — this is the effect the "love-hands pattern"
-  in the lifecycle rule above is named after. The hands live in a container that is **added
-  to the layer tree and owns both of them**, so every teardown path takes them down together;
-  they used to be siblings under `host` with an empty off-tree wrapper tracked in their
-  place, and a stop cleared the tracker while leaving the hands on the desktop.
-  - **Size and opacity (2026-09-11):** `handHeight` is **1.04 × the screen height** — the
+  `showLoveHands`): **aimed since 2026-10-27** (Victor: *"vreau să înceapă efectul atunci
+  când dau click undeva pe ecran"*). The press only **arms** it: the pointer becomes a small
+  🫶 (`loveHandsCursorGlyph`, 44 pt, real arrow hidden through `CursorHide`) and nothing else
+  happens — the tile is **silent on the press**, the 🔥 fire's arrangement: `playSound` parks
+  the volume (`loveHandsPressVolume`) and the **click** starts the clip down the routed tablet
+  player, so Escape, stop-all and the 🛑 reach it. The click (swallowed, with its up) picks the
+  meeting point: two hands (`love_hand_left.png` / `love_hand_right.png` from
+  `EffectsConfig.assetsDir`, square halves at aspect 0.5) slide in from the **left and right
+  screen edges** over **2.7 s**, eased out, and meet ON that point, then spawn a heart burst out
+  of it. Each hand is anchored on the edge it touches the other with, at half its height, so
+  `position` is the meeting point and the start is just "that edge on the screen edge" — fully
+  off-screen at any size.
+  - **The wheel sizes them** (`loveHandsScale`, ×1.12 per notch, 0.15–2.0), before the click
+    (the 🫶 grows/shrinks as a preview, √scale) and **while they come in** (each hand scales
+    about the meeting point, 0.12 s per notch, the slide runs on). Hearts are sized with the
+    hands (floor 0.4). The last size carries over to the next press. ⌘/⌥-scroll pass through.
+  - **Lifecycle:** the container is tracked from the arm (⭐ → 🛑 while the pointer is a 🫶).
+    No click within **30 s** (`loveHandsArmTimeout`) disarms quietly. The tile is reported lit
+    for arm window + clip (`loveHandsTileLitDuration`), so the `love-hands/stop` the tablet sends
+    at the end never cuts a run that was clicked late; a re-tap still stops it. Once the hands
+    are in flight clicks are the room's again — only the wheel and Escape stay captured, until
+    the fade. `endLoveHandsRun` (fade, stop-all) gives pointer, wheel and Escape back.
+  - They linger until the clip is nearly over and **fade** out with it (never an instant cut),
+    identity-guarded so an old run's timer cannot kill a newer one — this is the effect the
+    "love-hands pattern" in the lifecycle rule above is named after. The hands live in a container
+    that is **added to the layer tree and owns them** (and the 🫶 and the hearts), so every
+    teardown path takes them down together; they used to be siblings under `host` with an empty
+    off-tree wrapper tracked in their place, and a stop cleared the tracker while leaving the
+    hands on the desktop.
+  - **Size and opacity (2026-09-11):** `handHeight` is **1.04 × the screen height** at wheel
+    scale 1 — the
     0.40 it started at, +30 % to 0.52, then **doubled**. They are deliberately taller than
     the screen now: at that size they read as two hands reaching *into* the frame rather than
     two cut-outs sliding across it, and the bottom of the wrists is cropped by the bottom
     edge instead of floating. Everything else is derived from `handHeight` (width, the meeting
-    positions, the off-screen start points), so the **motion is unchanged** — same 2.7 s
-    converge, same ease, same meeting point.
+    positions, the off-screen start points). The fixed meeting point (centre, a fifth of a
+    screen below the middle) went with the aimed click on 2026-10-27.
     The hands are **80 % opaque**, set on the two hand layers and *not* on the container: the
     heart burst is a child of the same container, and it is the hands that should let the
     desktop through, not the hearts. `fadeOutLoveHands` animates the container to 0 on top of
