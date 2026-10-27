@@ -12721,12 +12721,10 @@ class EmojiAnimator {
 
     // MARK: - 🤖 The rusty Opus head, dead centre (⌘⌃O)
 
-    /// NOT the elephant's 5 s. The head is a slide, not a gag: it stays while
-    /// Victor talks over it and leaves when he presses ⌘⌃O again. With 5 s the
-    /// clock always won the race to the key (every showing on 2026-10-16 ended
-    /// by timeout), so the toggle was never reachable. The minute is only the
-    /// self-termination backstop for a forgotten head.
-    static let opusLifetime: Double = 60
+    /// Gone on its own after 7 s (Victor, 2026-10-27: the head is a punchline
+    /// now, not a slide to talk over — it was a minute's backstop until then).
+    /// ⌘⌃O a second time still takes it down sooner.
+    static let opusLifetime: Double = 7
 
     /// Centred on the screen at 60% of its height — the size the head has on
     /// the slide it was cut out of, which is the look this key reproduces.
@@ -12752,8 +12750,9 @@ class EmojiAnimator {
     /// 🤖 The rusty robot head with the orange beacon appears in the middle of
     /// the screen. **No entrance and no exit**: the elephant and the panda walk,
     /// this one is a cut — it is there, then it is not, like a slide change. The
-    /// key again removes it; `opusLifetime` is only the backstop. The one thing
-    /// that moves is the claw rake, a beat after the cut (`rakeOpusCaption`).
+    /// key again removes it sooner, `opusLifetime` on its own. The one thing
+    /// that moves is the claw rake, a beat after the cut (`rakeOpusCaption`),
+    /// with a ring of drawn steel on each claw (`soundOpusClaws`).
     func showOpus() {
         if activeEffects["opus"] != nil { stopOpus(); return }
 
@@ -12784,6 +12783,7 @@ class EmojiAnimator {
         caption.contentsGravity = .resize
         caption.contentsScale = scale
         Self.rakeOpusCaption(caption, after: Self.opusClawDelay)
+        soundOpusClaws(for: layer)
         layer.addSublayer(caption)
         layer.addSublayer(head)
         stageLayer.addSublayer(layer)
@@ -12999,6 +12999,35 @@ class EmojiAnimator {
     /// the head before something tears through the words under it.
     static let opusClawDelay: Double = 0.7
 
+    /// Each claw starts this long after the one before it. The rake draws on
+    /// it and so does the sound, so one ring of metal lands on each claw.
+    static let opusClawStagger: Double = 0.09
+
+    /// A blade drawn from its sheath, once per claw (Victor, 2026-10-27). A
+    /// YouTube rip ("Sword pull out - sound effect", Paracetamol Sounds), cut
+    /// to its 0.6 s of ring, so it is an `assetsDir` drop-in, never shipped:
+    /// without it the rake is silent and one line is logged.
+    static let opusClawSound = "opus-claw.mp3"
+
+    /// Fires the three rings so they *land* on the claws: on Bluetooth
+    /// SoundManager holds each one back by the compensation, so it is fired
+    /// that much earlier — the 0.7 s before the rake covers the ~0.55 s it
+    /// usually takes, and the head stays a cut, with no delay of its own.
+    func soundOpusClaws(for layer: CALayer) {
+        guard SoundManager.shared.soundURL(for: Self.opusClawSound) != nil else {
+            overlayInfo("🤖 opus: no \(Self.opusClawSound) in assetsDir — the claws are silent")
+            return
+        }
+        let comp = SoundTimingConfig.shared.currentBluetoothCompensation
+        for i in 0..<3 {
+            let at = max(Self.opusClawDelay + Double(i) * Self.opusClawStagger - comp, 0)
+            DispatchQueue.main.asyncAfter(deadline: .now() + at) { [weak self, weak layer] in
+                guard let self, let layer, self.activeEffects["opus"] === layer else { return }
+                SoundManager.shared.playOverlapping(Self.opusClawSound, volume: 0.7)
+            }
+        }
+    }
+
     /// Where the title goes in the caption's points (y up): "OPUS" and "SOL"
     /// as two words around a gap one and a half letters high, which the three
     /// claws fill — a slash, tripled (Victor, 2026-10-25; the typed "/" went).
@@ -13083,7 +13112,7 @@ class EmojiAnimator {
     static func rakeOpusCaption(_ caption: CALayer, after delay: Double) {
         let size = caption.bounds.size
         guard let title = opusTitleLayout(size: size) else { return }
-        let frames = 24, tear = 0.42, stagger = 0.09
+        let frames = 24, tear = 0.42, stagger = opusClawStagger
         func progress(_ t: Double) -> [CGFloat] {
             (0..<3).map { i in
                 let p = min(max((t - Double(i) * stagger) / (tear - 2 * stagger), 0), 1)
