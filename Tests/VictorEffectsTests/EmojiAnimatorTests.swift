@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 import ImageIO
 import QuartzCore
 @testable import VictorEffects
@@ -26,6 +27,48 @@ final class EmojiAnimatorTests: XCTestCase {
         XCTAssertLessThan(title.opusX, title.slot.minX)
         XCTAssertGreaterThan(title.solX, title.slot.minX)
         XCTAssertTrue(CGRect(origin: .zero, size: size).contains(full))
+    }
+
+    /// Swamp Death is a personal-use drop-in, so this only runs where it is.
+    /// The O and the P keep their hollow; the paper of every letter stays red.
+    func testOpusCountersStayHollowUnderTheRed() throws {
+        let file = EffectsConfig.shared.assetsDir.appendingPathComponent(EmojiAnimator.opusTitleFontFile)
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: file.path), "no Swamp Death in assetsDir")
+        let font = try XCTUnwrap(EmojiAnimator.opusFont(at: file, 400))
+        func flesh(_ letter: String) -> CGPath { EmojiAnimator.opusLetterPaths(letter, font: font).flesh }
+        func box(_ letter: String) -> CGRect { flesh(letter).boundingBoxOfPath }
+        let o = box("O")
+        XCTAssertFalse(flesh("O").contains(CGPoint(x: o.minX + o.width * 0.5, y: o.minY + o.height * 0.4)))
+        XCTAssertTrue(flesh("O").contains(CGPoint(x: o.minX + o.width * 0.15, y: o.midY)))
+        let p = box("P")
+        XCTAssertFalse(flesh("P").contains(CGPoint(x: p.minX + p.width * 0.56, y: p.minY + p.height * 0.62)))
+        XCTAssertTrue(flesh("P").contains(CGPoint(x: p.minX + p.width * 0.25, y: p.midY)))
+        for letter in ["U", "S", "L"] {
+            XCTAssertEqual(EmojiAnimator.opusCounters(subpaths(of: font, letter), glyph: box(letter)).count, 0, letter)
+        }
+        // Left in $TMPDIR to look at after a change to the title.
+        let image = try XCTUnwrap(EmojiAnimator.opusCaptionImage(size: CGSize(width: 1100, height: 330), scale: 1))
+        let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+        try png?.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("opus-caption.png"))
+    }
+
+    private func subpaths(of font: NSFont, _ letter: String) -> [CGPath] {
+        var chars = Array(letter.utf16), glyph = [CGGlyph](repeating: 0, count: 1)
+        CTFontGetGlyphsForCharacters(font, &chars, &glyph, 1)
+        guard let path = CTFontCreatePathForGlyph(font, glyph[0], nil) else { return [] }
+        var out: [CGMutablePath] = []
+        path.applyWithBlock { e in
+            let pts = e.pointee.points
+            switch e.pointee.type {
+            case .moveToPoint: out.append(CGMutablePath()); out[out.count - 1].move(to: pts[0])
+            case .addLineToPoint: out.last?.addLine(to: pts[0])
+            case .addQuadCurveToPoint: out.last?.addQuadCurve(to: pts[1], control: pts[0])
+            case .addCurveToPoint: out.last?.addCurve(to: pts[2], control1: pts[0], control2: pts[1])
+            case .closeSubpath: out.last?.closeSubpath()
+            @unknown default: break
+            }
+        }
+        return out
     }
 
     // NOTE: `testMonitorEmojiUsesBreakingGlassSound` and `testHeartEmojiHasNoSoundEffect`

@@ -12959,9 +12959,10 @@ class EmojiAnimator {
     }
 
     /// The title as two paths on one baseline: `ink`, every glyph as drawn,
-    /// and `flesh`, only each glyph's outermost contour (the subpath with the
-    /// biggest box) — the letter's silhouette with its hatching and counters
-    /// filled in, to lay colour under the ink.
+    /// and `flesh`, each glyph's outermost contour (the subpath with the
+    /// biggest box) minus its counters — the letter's silhouette with its
+    /// hatching filled in, to lay colour under the ink. The counters stay
+    /// hollow (Victor, 2026-10-27: the O read as a red blob, not an O).
     static func opusLetterPaths(_ text: String, font: NSFont) -> (ink: CGPath, flesh: CGPath) {
         let ink = CGMutablePath(), flesh = CGMutablePath()
         let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
@@ -12989,10 +12990,42 @@ class EmojiAnimator {
                 func area(_ r: CGRect) -> CGFloat { r.width * r.height }
                 if let outer = subpaths.max(by: { area($0.boundingBoxOfPath) < area($1.boundingBoxOfPath) }) {
                     flesh.addPath(outer)
+                    for counter in opusCounters(subpaths, glyph: path.boundingBoxOfPath) {
+                        flesh.addPath(counter)   // opposite winding to the outline: a hole
+                    }
                 }
             }
         }
         return (ink, flesh)
+    }
+
+    /// The counters of one Swamp Death glyph — the hollow of an O or a P. The
+    /// glyph is black ink with white holes in it: the "paper" (the biggest
+    /// hole), the slivers between the hatching strokes, and the counters. A
+    /// hole is white when an odd number of the other contours enclose it; a
+    /// counter is a white one sitting inside the paper's box and bigger than
+    /// a sliver (1.5% of the glyph's box — the P's bowl is 2%, the widest
+    /// sliver in OPUS SOL 1.5% and outside the paper's box). U's two halves
+    /// of paper sit side by side, not one inside the other, so they stay red.
+    static func opusCounters(_ subpaths: [CGPath], glyph: CGRect) -> [CGPath] {
+        func area(_ r: CGRect) -> CGFloat { r.width * r.height }
+        let starts: [CGPoint?] = subpaths.map { p in
+            var first: CGPoint?
+            p.applyWithBlock { e in if first == nil, e.pointee.type == .moveToPoint { first = e.pointee.points[0] } }
+            return first
+        }
+        let holes = subpaths.indices.filter { i in
+            guard let start = starts[i] else { return false }
+            let around = subpaths.indices.filter { $0 != i && subpaths[$0].contains(start) }.count
+            return around % 2 == 1
+        }
+        guard let paper = holes.max(by: { area(subpaths[$0].boundingBoxOfPath) < area(subpaths[$1].boundingBoxOfPath) })
+        else { return [] }
+        let paperBox = subpaths[paper].boundingBoxOfPath
+        return holes.filter { i in
+            let box = subpaths[i].boundingBoxOfPath
+            return i != paper && paperBox.contains(box) && area(box) >= area(glyph) * 0.015
+        }.map { subpaths[$0] }
     }
 
     /// The rake waits this long after the head cuts in, so the room has read
