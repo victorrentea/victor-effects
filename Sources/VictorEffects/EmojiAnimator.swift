@@ -13001,7 +13001,9 @@ class EmojiAnimator {
 
     /// Each claw starts this long after the one before it. The rake draws on
     /// it and so does the sound, so one ring of metal lands on each claw.
-    static let opusClawStagger: Double = 0.09
+    /// 0.2 s, not the 0.09 s of the first rake (Victor, 2026-10-27): at 0.09
+    /// the three rings blurred into one thick swish; three slashes, three hits.
+    static let opusClawStagger: Double = 0.2
 
     /// A blade drawn from its sheath, once per claw (Victor, 2026-10-27). A
     /// YouTube rip ("Sword pull out - sound effect", Paracetamol Sounds), cut
@@ -13104,7 +13106,8 @@ class EmojiAnimator {
     }
 
     /// Three claw marks tear through the caption `delay` seconds after it
-    /// appears, one after the other like a paw swiping down, and stay. They are
+    /// appears, one after the other — three slashes, each with its own ring —
+    /// and stay. They are
     /// real cuts — the screen shows through — so they are a hole in the
     /// caption's mask (even-odd: the whole frame, minus the slivers), with a
     /// raw red lip drawn along each gash. Both are one keyframed path, so the
@@ -13112,10 +13115,12 @@ class EmojiAnimator {
     static func rakeOpusCaption(_ caption: CALayer, after delay: Double) {
         let size = caption.bounds.size
         guard let title = opusTitleLayout(size: size) else { return }
-        let frames = 24, tear = 0.42, stagger = opusClawStagger
+        // Each claw bites for `bite`; the rake lasts until the third one is done.
+        let stagger = opusClawStagger, bite = 0.24, tear = bite + 2 * stagger
+        let frames = Int((tear * 60).rounded())
         func progress(_ t: Double) -> [CGFloat] {
             (0..<3).map { i in
-                let p = min(max((t - Double(i) * stagger) / (tear - 2 * stagger), 0), 1)
+                let p = min(max((t - Double(i) * stagger) / bite, 0), 1)
                 return CGFloat(1 - pow(1 - p, 3))   // fast in, slowing as it bites
             }
         }
