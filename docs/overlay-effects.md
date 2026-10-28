@@ -2460,6 +2460,34 @@ A 120 Hz screen has 8.3 ms. The rules that got there, for the next effect:
   finish growing a moment earlier than longer ones — what sparks flying at one
   speed would do anyway.
 
+**Then the commits, not the frames (2026-10-28).** The table above is GPU
+time per frame, and it stayed low; on the M1 Max the fireworks still stuttered.
+Instruments' **Animation Hitches** template attached to the running app
+(`xcrun xctrace record --template 'Animation Hitches' --attach <pid>`, then
+`/effect/fireworks`) showed why: the dropped frames sat on the app's *commits*,
+which took the window server 10–17 ms (once 54 ms) to apply, past the 8.3 ms of a
+120 Hz frame. Those are the commits that hand over a new bitmap. Two rules:
+
+- **Bitmaps are BGRA** (`EmojiAnimator.nativeBitmapInfo`: `premultipliedFirst` +
+  `byteOrder32Little`), the layout the render server keeps its textures in. An
+  RGBA (`premultipliedLast`) bitmap is swizzled pixel by pixel while the commit
+  is applied, inside somebody's frame.
+- **Soft things are drawn at 1×.** The burst picture (`fireworkPictureScale`):
+  a big one was a 1816 px square, 13 MB, 34 ms to draw; at 1× it is 3.3 MB and
+  7 ms, and a glowing line loses nothing worth seeing. The flash sprite (blur 80)
+  was 32 ms on the main thread the first time each palette fired, which is every
+  fireworks in a workshop; at 1× it is ~4 ms.
+
+| 🎆 fireworks, hitches on the Retina per run | cold (first after launch) | warm |
+|---|---|---|
+| before | 13 (183 ms) | 8–12 (83–100 ms) |
+| after | 5–6 (~65 ms) | 5–8 (~60 ms) |
+| 🎊 confetti, for scale | | 2–5 (42–62 ms) |
+
+`EffectsRenderCostTests` cannot see this: `CARenderer` renders in-process, so
+there is no commit to apply. `FireworkRevealTests` pins the picture's size and
+layout instead.
+
 The rocket also climbs under its own burst again: its trail was drawn at
 `start` *and* moved by `position`, so it rode the rise offset by its own x and
 a rocket for the right half of the screen left it.

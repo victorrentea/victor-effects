@@ -1827,6 +1827,11 @@ class EmojiAnimator {
     /// on every side, so a layer showing it takes `glowBounds(core:blur:)`.
     private static var glowSpriteCache: [String: CGImage] = [:]
 
+    /// Premultiplied BGRA, the layout the render server keeps its textures in.
+    /// An RGBA bitmap (`premultipliedLast`) is swizzled pixel by pixel when a
+    /// commit hands it over — inside the frame, on the window server.
+    static let nativeBitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+
     static func glowMargin(blur: CGFloat) -> CGFloat { ceil(blur * 1.6) }
 
     static func glowBounds(core: CGSize, blur: CGFloat) -> CGRect {
@@ -1843,7 +1848,7 @@ class EmojiAnimator {
         guard pw > 0, ph > 0,
               let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                                  bitmapInfo: nativeBitmapInfo)
         else { return nil }
         ctx.scaleBy(x: scale, y: scale)
         let m = glowMargin(blur: blur)
@@ -1885,6 +1890,13 @@ class EmojiAnimator {
     }
 
     // MARK: - Fireworks
+
+    /// The burst pictures are drawn at 1× even on a Retina: a big one is a
+    /// ~900 pt square, and at 2× its 13 MB went to the window server inside
+    /// one commit, which then took 10–17 ms to apply — past the 8.3 ms of a
+    /// 120 Hz frame, so every burst dropped one (Instruments, Animation
+    /// Hitches, 2026-10-28). Glowing lines lose nothing worth seeing at 1×.
+    static let fireworkPictureScale: CGFloat = 1
 
     private static let fireworkPalettes: [[NSColor]] = [
         [NSColor(red: 1, green: 0.2, blue: 0.2, alpha: 1),
@@ -1972,7 +1984,7 @@ class EmojiAnimator {
         guard px > 0,
               let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                                  bitmapInfo: nativeBitmapInfo)
         else { return nil }
         ctx.scaleBy(x: scale, y: scale)
         ctx.translateBy(x: half, y: half)
@@ -2008,7 +2020,7 @@ class EmojiAnimator {
         burst.bounds = CGRect(x: 0, y: 0, width: 2 * half, height: 2 * half)
         burst.position = center
         burst.contents = picture
-        burst.contentsScale = scale
+        burst.contentsScale = fireworkPictureScale
 
         let ring = CAGradientLayer()
         ring.type = .radial
@@ -2143,7 +2155,7 @@ class EmojiAnimator {
         // Massive flash
         let flashSize: CGFloat = big ? 120 : 60
         let flash = Self.glowDisc(diameter: flashSize, fill: .white, glow: palette[0], blur: big ? 80 : 40,
-                                  center: center, scale: scale)
+                                  center: center, scale: 1)
         container.addSublayer(flash)
 
         let flashScale = CABasicAnimation(keyPath: "transform.scale")
@@ -2190,7 +2202,8 @@ class EmojiAnimator {
                 hasTip: i % 2 == 0))
         }
         DispatchQueue.global(qos: .userInteractive).async {
-            let picture = Self.fireworkPicture(streaks, palette: palette, half: half, glowBlur: glowBlur, scale: scale)
+            let picture = Self.fireworkPicture(streaks, palette: palette, half: half, glowBlur: glowBlur,
+                                               scale: Self.fireworkPictureScale)
             DispatchQueue.main.async { [weak container] in
                 guard let container, container.superlayer != nil else { return }
                 Self.revealFirework(picture, streaks: streaks, center: center, half: half, reach: burstRadius,
