@@ -13588,7 +13588,8 @@ class EmojiAnimator {
         // do not take a turn.
         peekWearsHat = mascot == .claude && PeekSantaHatStore.takeTurn()
         let hat = peekWearsHat
-        // 🦀 He walks in cool, happy or excited — never the same twice running.
+        // 🦀 He walks in one of nine moods (`ClawdMood.entrances`) — never the
+        // same twice running.
         peekMood = ClawdMood.entrance(after: lastEntranceMood, roll: Int.random(in: 0..<1000))
         lastEntranceMood = peekMood
         peekEntrance += 1

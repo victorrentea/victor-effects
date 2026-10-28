@@ -12,16 +12,23 @@ import QuartzCore
 /// p5.brush watercolour swapped for flat fills under a hand-wobbled ink line,
 /// because this is drawn once into a `CGImage` and not painted every frame.
 ///
+/// Six more ways to walk in came on 2026-10-28 (Victor: *"vreau ca intrarea
+/// să aibă încă șase tipuri de atitudini … înainte de a scoate biciul, el vine
+/// cu niște atitudini deja"*): sleepy, grumpy, in love, cheeky, sneaky and
+/// curious — so the room sees nine different Clawds before the whip is out.
+///
 /// **What triggers each one lives with the trigger, not here**: the entrance in
 /// `EmojiAnimator.showClaudePeek`, the rest in `EffectsEngine` (whip on, pray on
 /// / a hymn, a snap) and `EmojiAnimator.whipLash` (a hit). This file only knows
 /// what a mood looks like and how it moves.
 enum ClawdMood: String, CaseIterable {
     case cool, happy, excited, scared, dizzy, hopeful
+    case sleepy, grumpy, love, cheeky, sneaky, curious
 
     /// What he may walk in as. Never the same one twice in a row
     /// (`entrance(after:roll:)`): a greeting that repeats stops being one.
-    static let entrances: [ClawdMood] = [.cool, .happy, .excited]
+    static let entrances: [ClawdMood] = [.cool, .happy, .excited,
+                                         .sleepy, .grumpy, .love, .cheeky, .sneaky, .curious]
 
     /// The entrance after `previous`: one of the *other* entrance moods, picked
     /// by `roll` (any non-negative number — the caller's random). Pure, so the
@@ -38,12 +45,16 @@ enum ClawdMood: String, CaseIterable {
         case .excited: return .spark
         case .scared: return .sweat
         case .dizzy: return .stars
-        case .happy, .hopeful: return nil
+        case .sleepy: return .zzz
+        case .grumpy: return .anger
+        case .love: return .hearts
+        case .curious: return .question
+        case .happy, .hopeful, .cheeky, .sneaky: return nil
         }
     }
 }
 
-enum ClawdEmote { case music, spark, sweat, stars }
+enum ClawdEmote: CaseIterable { case music, spark, sweat, stars, zzz, anger, hearts, question }
 
 /// Clawd drawn in a mood, at **exactly the geometry of `claude-icon.png`**
 /// (461×363: body x 43…418 by y 0…268, arm nubs out to both edges at y 89…180,
@@ -93,6 +104,8 @@ enum ClawdArt {
     static let lens = rgb(0x2A2740)
     static let mouthDark = rgb(0x4A1F2A)
     static let pale = rgb(0xF6E6D2)
+    static let heartRed = rgb(0xE0465A)
+    static let angry = rgb(0xC8442E)
 
     static func rgb(_ hex: UInt32, _ a: CGFloat = 1) -> CGColor {
         CGColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
@@ -117,6 +130,8 @@ enum ClawdArt {
         var armL: CGFloat = 0.2
         var armR: CGFloat = 0.2
         var lookY: CGFloat = 0
+        /// Red in the face (grumpy): the clay pulled toward `angry`.
+        var heat: CGFloat = 0
     }
 
     static func face(_ mood: ClawdMood) -> Face {
@@ -127,6 +142,12 @@ enum ClawdArt {
         case .scared:  return Face(eyes: "scared", mouth: "wobble", pale: 0.6, armL: 0.95, armR: 0.95)
         case .dizzy:   return Face(eyes: "swirl", mouth: "wobble", armL: 0.35, armR: -0.2)
         case .hopeful: return Face(eyes: "shine", mouth: "cat", blush: 0.35, armL: 0.5, armR: 0.5, lookY: -0.4)
+        case .sleepy:  return Face(eyes: "sleepy", mouth: "yawn", armL: -0.65, armR: -0.65)
+        case .grumpy:  return Face(eyes: "angry", mouth: "frown", armL: -0.5, armR: -0.5, heat: 0.45)
+        case .love:    return Face(eyes: "heart", mouth: "grin", blush: 0.6, armL: 0.85, armR: 0.85)
+        case .cheeky:  return Face(eyes: "wink", mouth: "tongue", blush: 0.2, armL: 0.1, armR: 1.1)
+        case .sneaky:  return Face(eyes: "shifty", mouth: "evil", armL: -0.15, armR: 0.25)
+        case .curious: return Face(eyes: "curious", mouth: "o", armL: -0.3, armR: 0.95)
         }
     }
 
@@ -164,7 +185,7 @@ enum ClawdArt {
     private static func draw(_ mood: ClawdMood, boil: Int, pen: inout Pen) {
         let f = face(mood)
         let ctx = pen.ctx
-        let col = mix(clay, pale, 0.55 * f.pale)
+        let col = mix(mix(clay, pale, 0.55 * f.pale), angry, 0.5 * f.heat)
         let dark = mix(clayDark, mix(pale, ink, 0.35), 0.5 * f.pale)
         let light = mix(clayLight, cream, 0.45 * f.pale)
 
@@ -288,10 +309,69 @@ enum ClawdArt {
             ctx.setFillColor(cream)
             ctx.fillEllipse(in: oval(-0.25, ly - 0.45, 0.3, 0.38))
             ctx.fillEllipse(in: oval(0.25, ly + 0.45, 0.14, 0.14))
+        case "sleepy":     // half-shut: the lower half of the pupil under a drooping lid
+            ctx.saveGState()
+            ctx.clip(to: CGRect(x: c.x - u, y: c.y + 0.05 * u, width: 2 * u, height: u))
+            ctx.setFillColor(ink)
+            ctx.fillEllipse(in: oval(0, 0.1, 0.55, 0.5))
+            ctx.restoreGState()
+            pen.line([p(-0.8, -0.05 + 0.12 * s), p(0, 0.05), p(0.8, -0.05 - 0.12 * s)], ink, 9, smooth: true)
+        case "angry":      // a short pupil under a brow that dives toward the nose
+            ctx.setFillColor(ink)
+            ctx.fillEllipse(in: oval(0, 0.2, 0.45, 0.7))
+            pen.line([p(s * 1.0, -1.35), p(-s * 0.75, -0.6)], ink, 12)
+        case "heart":
+            let h = heart(center: c, r: 0.95 * u)
+            pen.fill(h, heartRed)
+            pen.stroke(h, ink, 6)
+            ctx.setFillColor(cream.copy(alpha: 0.9)!)
+            ctx.fillEllipse(in: oval(-0.45, -0.35, 0.18, 0.14))
+        case "wink":       // the left one open and shining, the right one shut
+            if s < 0 {
+                ctx.setFillColor(ink)
+                ctx.fillEllipse(in: oval(0, 0, 0.7, 1.05))
+                ctx.setFillColor(cream)
+                ctx.fillEllipse(in: oval(-0.22, -0.4, 0.26, 0.32))
+            } else {
+                pen.line([p(-0.9, 0.05), p(0, 0.45), p(0.9, 0.05)], ink, 11, smooth: true)
+                pen.line([p(0.85, 0.05), p(1.2, -0.3)], ink, 7)   // a lash flick
+            }
+        case "shifty":     // narrowed, both glancing to the right
+            ctx.saveGState()
+            ctx.clip(to: CGRect(x: c.x - u, y: c.y - 0.2 * u + 0.15 * s * u, width: 2 * u, height: u))
+            ctx.setFillColor(ink)
+            ctx.fillEllipse(in: oval(0.35, 0.15, 0.45, 0.65))
+            ctx.restoreGState()
+            pen.line([p(-0.85, -0.2 + 0.15 * s), p(0.85, -0.2 - 0.15 * s)], ink, 9)
+        case "curious":    // one eye wide, the other squinting under a raised brow
+            if s < 0 {
+                ctx.setFillColor(ink)
+                ctx.fillEllipse(in: oval(0, 0, 0.75, 1.1))
+                ctx.setFillColor(cream)
+                ctx.fillEllipse(in: oval(-0.25, -0.42, 0.26, 0.32))
+            } else {
+                ctx.setFillColor(ink)
+                ctx.fillEllipse(in: oval(0, 0.15, 0.42, 0.55))
+                pen.line([p(-0.8, -1.2), p(0, -1.65), p(0.85, -1.35)], ink, 9, smooth: true)
+            }
         default:
             ctx.setFillColor(ink)
             ctx.fill(oval(0, 0, 0.5, 1))
         }
+    }
+
+    /// A heart, `r` its half-width, point down (y down). Built of curves and
+    /// NOT run through `Pen.wobbly`, which would trace it as an ellipse.
+    static func heart(center c: CGPoint, r: CGFloat) -> CGPath {
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: c.x + x * r, y: c.y + y * r) }
+        let path = CGMutablePath()
+        path.move(to: p(0, 0.9))
+        path.addCurve(to: p(-1, -0.25), control1: p(-0.55, 0.5), control2: p(-1, 0.15))
+        path.addCurve(to: p(0, -0.45), control1: p(-1, -0.95), control2: p(-0.15, -0.95))
+        path.addCurve(to: p(1, -0.25), control1: p(0.15, -0.95), control2: p(1, -0.95))
+        path.addCurve(to: p(0, 0.9), control1: p(1, 0.15), control2: p(0.55, 0.5))
+        path.closeSubpath()
+        return path
     }
 
     /// Sunglasses: two dark lenses, a bridge, arms running back to the edges.
@@ -338,6 +418,57 @@ enum ClawdArt {
                                        width: 0.9 * u, height: 0.5 * u))
             ctx.restoreGState()
             pen.stroke(shape, ink, 6)
+        case "frown": pen.line([p(-0.8, 0.3), p(0, -0.15), p(0.8, 0.3)], ink, 9, smooth: true)
+        case "yawn":
+            let o = CGPath(ellipseIn: CGRect(x: centreX - 0.35 * u, y: mouthY - 0.45 * u,
+                                             width: 0.7 * u, height: 0.9 * u), transform: nil)
+            let shape = pen.wobbly(o, jitter: 0.8)
+            pen.fill(shape, mouthDark)
+            pen.stroke(shape, ink, 6)
+        case "o":
+            let o = CGPath(ellipseIn: CGRect(x: centreX + 0.15 * u, y: mouthY - 0.25 * u,
+                                             width: 0.5 * u, height: 0.5 * u), transform: nil)
+            pen.stroke(pen.wobbly(o, jitter: 0.6), ink, 7)
+        case "grin":       // a wide open D: flat on top, round below, a tongue in it
+            let d = CGMutablePath()
+            d.move(to: p(-1.0, -0.35))
+            d.addLine(to: p(1.0, -0.35))
+            d.addQuadCurve(to: p(-1.0, -0.35), control: p(0, 1.15))
+            d.closeSubpath()
+            pen.fill(d, mouthDark)
+            ctx.saveGState()
+            ctx.addPath(d)
+            ctx.clip()
+            ctx.setFillColor(rose)
+            ctx.fillEllipse(in: CGRect(x: centreX - 0.55 * u, y: mouthY + 0.1 * u, width: 1.1 * u, height: 0.6 * u))
+            ctx.restoreGState()
+            pen.stroke(d, ink, 6)
+        case "tongue":     // a lopsided smile with the tongue out on the right
+            let t = CGMutablePath()
+            t.move(to: p(0.05, -0.05))
+            t.addLine(to: p(0.75, -0.2))
+            t.addQuadCurve(to: p(0.05, -0.05), control: p(0.5, 0.95))
+            t.closeSubpath()
+            pen.fill(t, rose)
+            pen.stroke(t, ink, 5)
+            pen.line([p(0.42, 0.0), p(0.45, 0.3)], mouthDark, 3.5)
+            pen.line([p(-0.9, -0.3), p(-0.2, 0.05), p(0.95, -0.25)], ink, 9, smooth: true)
+        case "evil":       // a too-wide toothy grin
+            let g = CGMutablePath()
+            g.move(to: p(-1.35, -0.45))
+            g.addQuadCurve(to: p(1.35, -0.45), control: p(0, -0.05))
+            g.addQuadCurve(to: p(-1.35, -0.45), control: p(0, 1.05))
+            g.closeSubpath()
+            pen.fill(g, cream)
+            ctx.saveGState()
+            ctx.addPath(g)
+            ctx.clip()
+            for x: CGFloat in [-0.75, -0.25, 0.25, 0.75] {
+                pen.line([p(x, -0.6), p(x, 0.8)], ink, 3.5)
+            }
+            pen.line([p(-1.4, 0.05), p(1.4, 0.05)], ink, 3.5)
+            ctx.restoreGState()
+            pen.stroke(g, ink, 7)
         default: break
         }
     }
@@ -386,6 +517,30 @@ enum ClawdArt {
         case .stars:
             let st = star(center: c, r: 1.15 * s, inner: 0.45, points: 5)
             pen.fill(st, ochre); pen.stroke(st, ink, 4.5)
+        case .zzz:         // three Z's, each smaller and higher
+            for (x, y, r, w) in [(CGFloat(-1.3), CGFloat(1.2), CGFloat(0.8), CGFloat(7)),
+                                 (0.4, -0.2, 0.6, 6), (1.6, -1.4, 0.42, 5)] {
+                pen.line([p(x - r, y - r), p(x + r, y - r), p(x - r, y + r), p(x + r, y + r)], ink, w)
+            }
+        case .anger:       // the manga vein: four arcs bowing in to the middle
+            for (sx, sy) in [(CGFloat(-1), CGFloat(-1)), (1, -1), (1, 1), (-1, 1)] {
+                let a = CGMutablePath()
+                a.move(to: p(sx * 0.35, sy * 1.75))
+                a.addQuadCurve(to: p(sx * 1.75, sy * 0.35), control: p(sx * 0.45, sy * 0.45))
+                pen.stroke(a, ink, 13)
+                pen.stroke(a, angry, 7)
+            }
+        case .hearts:
+            let h = heart(center: c, r: 1.25 * s)
+            pen.fill(h, heartRed); pen.stroke(h, ink, 5)
+            ctx.setFillColor(cream.copy(alpha: 0.9)!)
+            ctx.fillEllipse(in: CGRect(x: p(-0.75, -0.55).x, y: p(-0.75, -0.55).y, width: 0.45 * s, height: 0.35 * s))
+        case .question:
+            pen.line([p(-0.9, -1.0), p(-0.5, -1.75), p(0.45, -1.8), p(0.95, -1.05),
+                      p(0.3, -0.35), p(0, 0.15), p(0, 0.55)], ink, 10, smooth: true)
+            ctx.setFillColor(ink)
+            ctx.fillEllipse(in: CGRect(x: p(0, 1.45).x - 0.32 * s, y: p(0, 1.45).y - 0.32 * s,
+                                       width: 0.64 * s, height: 0.64 * s))
         }
         let image = ctx.makeImage()
         cache[key] = image
@@ -557,6 +712,22 @@ enum ClawdMotion {
         case .hopeful:   // floating a little, looking up
             loop(motionKey, "position", wave { pt(0, 0.25 * u * (1 - cos($0)) / 2) }, 1.6)
             loop(swayKey, "transform.rotation.z", wave { NSNumber(value: Double(0.03 * sin($0))) }, 3.2)
+        case .sleepy:    // slow breathing, nodding off to one side
+            loop(motionKey, "position", wave { pt(0, -0.2 * u * (1 - cos($0)) / 2) }, 2.6)
+            loop(swayKey, "transform.rotation.z", wave { NSNumber(value: Double(-0.07 * (1 - cos($0)) / 2)) }, 2.6)
+        case .grumpy:    // stomping, short and hard
+            loop(motionKey, "position", wave { pt(0.05 * u * sin(3 * $0), 0.35 * u * abs(sin($0 / 2))) }, 0.42)
+        case .love:      // swaying on a cloud
+            loop(motionKey, "position", wave { pt(0, 0.35 * u * (1 - cos($0)) / 2) }, 1.1)
+            loop(swayKey, "transform.rotation.z", wave { NSNumber(value: Double(0.06 * sin($0))) }, 2.2)
+        case .cheeky:    // a cocky lean, back and forth
+            loop(motionKey, "position", wave { pt(0, 0.3 * u * abs(sin($0))) }, 0.8)
+            loop(swayKey, "transform.rotation.z", wave { NSNumber(value: Double(-0.07 * sin($0))) }, 0.8)
+        case .sneaky:    // tiptoeing side to side
+            loop(motionKey, "position", wave(16) { pt(0.45 * u * sin($0), 0.2 * u * abs(sin(2 * $0))) }, 1.5)
+        case .curious:   // tilting the head to look closer, and back
+            loop(motionKey, "position", wave { pt(0.15 * u * (1 - cos($0)) / 2, 0) }, 2.0)
+            loop(swayKey, "transform.rotation.z", wave { NSNumber(value: Double(0.1 * (1 - cos($0)) / 2)) }, 2.0)
         }
     }
 
@@ -652,6 +823,58 @@ enum ClawdMotion {
                 spin.isAdditive = true
                 s.add(spin, forKey: "spin")
             }
+        case .zzz:       // drifting up and away, again and again
+            let s = sprite(side, at: at(cornerX + (leftCorner ? -10 : 10), -35))
+            pop(s)
+            let rise = CAKeyframeAnimation(keyPath: "position")
+            rise.values = [NSValue(point: .zero), NSValue(point: NSPoint(x: 12 * k, y: 30 * k))]
+            rise.isAdditive = true
+            rise.duration = 1.8
+            rise.repeatCount = .infinity
+            s.add(rise, forKey: "rise")
+            let fade = CAKeyframeAnimation(keyPath: "opacity")
+            fade.values = [1, 1, 0]
+            fade.keyTimes = [0, 0.6, 1]
+            fade.duration = 1.8
+            fade.repeatCount = .infinity
+            s.add(fade, forKey: "fade")
+        case .anger:     // throbbing
+            let s = sprite(side * 0.85, at: at(cornerX + (leftCorner ? 5 : -5), -25))
+            pop(s)
+            let throb = CABasicAnimation(keyPath: "transform.scale")
+            throb.fromValue = 1; throb.toValue = 1.25
+            throb.duration = 0.22; throb.autoreverses = true; throb.repeatCount = .infinity
+            throb.beginTime = CACurrentMediaTime() + 0.3
+            s.add(throb, forKey: "throb")
+        case .hearts:    // three hearts rising off his head, one after the other
+            for i in 0..<3 {
+                let x = ClawdArt.canvas.width * (0.25 + 0.25 * CGFloat(i))
+                let s = sprite(side * 0.55, at: at(x, -10))
+                s.opacity = 0
+                let rise = CAKeyframeAnimation(keyPath: "position")
+                rise.values = (0...8).map { j -> NSValue in
+                    let t = CGFloat(j) / 8
+                    return NSValue(point: NSPoint(x: 12 * k * sin(t * 2 * .pi), y: 110 * k * t))
+                }
+                rise.isAdditive = true
+                let fade = CAKeyframeAnimation(keyPath: "opacity")
+                fade.values = [0, 1, 1, 0]
+                fade.keyTimes = [0, 0.15, 0.65, 1]
+                let group = CAAnimationGroup()
+                group.animations = [rise, fade]
+                group.duration = 1.5
+                group.repeatCount = .infinity
+                group.beginTime = CACurrentMediaTime() + Double(i) * 0.5
+                s.add(group, forKey: "float")
+            }
+        case .question:  // bobbing and rocking, like the notes
+            let s = sprite(side, at: at(cornerX + (leftCorner ? -10 : 10), -45))
+            pop(s)
+            let rock = CABasicAnimation(keyPath: "transform.rotation.z")
+            rock.fromValue = -0.18; rock.toValue = 0.18
+            rock.duration = 0.7; rock.autoreverses = true; rock.repeatCount = .infinity
+            rock.isAdditive = true
+            s.add(rock, forKey: "rock")
         }
     }
 }

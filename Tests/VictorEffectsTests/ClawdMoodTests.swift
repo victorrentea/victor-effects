@@ -35,7 +35,7 @@ final class ClawdMoodTests: XCTestCase {
         let pictures = try ClawdMood.allCases.map { try XCTUnwrap(ClawdArt.picture($0)) }
         let bytes = pictures.map { $0.dataProvider?.data as Data? }
         XCTAssertEqual(Set(bytes.compactMap { $0 }).count, ClawdMood.allCases.count)
-        for emote in [ClawdEmote.music, .spark, .sweat, .stars] {
+        for emote in ClawdEmote.allCases {
             XCTAssertNotNil(ClawdArt.emotePicture(emote))
         }
         try writeContactSheet()
@@ -49,7 +49,8 @@ final class ClawdMoodTests: XCTestCase {
             XCTAssertNotEqual(next, previous)
             previous = next
         }
-        XCTAssertEqual(Set(ClawdMood.entrances), [.cool, .happy, .excited])
+        XCTAssertEqual(Set(ClawdMood.entrances),
+                       [.cool, .happy, .excited, .sleepy, .grumpy, .love, .cheeky, .sneaky, .curious])
     }
 
     // MARK: -
