@@ -13,10 +13,17 @@ import Foundation
 enum OpenEndedTiles {
     /// Tile asset → the question that says whether its effect is still up.
     /// Keyed by the TILE's asset, the one the client asked `/sound/play` for.
+    ///
+    /// Two more than the Escape ones, for the same lie: #41 love hands waits up
+    /// to 30 s for the click that starts its clip, and #3's bombardment lasts as
+    /// long as bombs keep being planted. Every other tile ends with its clip, or
+    /// with a fixed length `playSound` already reports (phoenix, the FBI knock).
     static let assets: [String: (EmojiAnimator) -> Bool] = [
-        "11_fire.mp3":     { $0.isFireRunning },
-        "18_chainsaw.mp3": { $0.isChainsawRunning },
-        "22_minigun.mp3":  { $0.activeEffectNames.contains("bullet-holes") },
+        "11_fire.mp3":        { $0.isFireRunning },
+        "18_chainsaw.mp3":    { $0.isChainsawRunning },
+        "22_minigun.mp3":     { $0.activeEffectNames.contains("bullet-holes") },
+        "41_love_hearts.mp3": { $0.activeEffectNames.contains("love-hands") },
+        "03_explosion.mp3":   { $0.isBombRunning },
     ]
 
     static func isOpenEnded(_ asset: String) -> Bool { assets[asset] != nil }

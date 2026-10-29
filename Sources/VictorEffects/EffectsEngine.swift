@@ -662,8 +662,9 @@ final class EffectsEngine {
         func remember(_ ms: Int) -> String {
             playing = (name, ms, Date())
             routedPlay = (requested, Date())
-            // ♾️ `durationMs` stays for clients that predate `open`.
-            let open = OpenEndedTiles.isOpenEnded(requested) ? ",\"open\":true" : ""
+            // ♾️ `durationMs` stays for clients that predate `open`. Suspended,
+            // nothing is drawn and the plain clip's length is the truth.
+            let open = OpenEndedTiles.isOpenEnded(requested) && !isSuspended ? ",\"open\":true" : ""
             return "{\"ok\":true,\"durationMs\":\(ms)\(open)}"
         }
 

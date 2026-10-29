@@ -3667,6 +3667,9 @@ class EmojiAnimator {
     ///
     /// Nothing here gives the cursor back any more: the run never took it. The
     /// pointer stays the pointer from the first frame to the last.
+    /// ♾️ The tablet spins #3 until this is false (`OpenEndedTiles`).
+    var isBombRunning: Bool { _bombSessionActive }
+
     private func stopBombSession(fade: Double = 0.25) {
         _bombEpoch &+= 1
         _bombSessionActive = false
