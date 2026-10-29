@@ -141,6 +141,7 @@ final class CantTouchThisSession {
         CATransaction.commit()
         stamps.append(sign)
         if stamps.count > Self.maxStamps { stamps.removeFirst().removeFromSuperlayer() }
+        effectsInfo("✋ stamp #\(stamps.count) at \(Int(sign.position.x)),\(Int(sign.position.y))")
 
         // One transaction, one animation object copied onto every layer: they
         // all start on the same frame, so the blink is in unison by
