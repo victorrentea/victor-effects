@@ -14260,6 +14260,29 @@ class EmojiAnimator {
 
     var activeEffectNames: [String] { activeEffects.keys.sorted() }
 
+    /// Stop ONE effect by its catalogue name — its tile was pressed again while
+    /// another tile's effect keeps running (2026-10-29: effects overlap now, and
+    /// only a re-press ends one early). The ones that live outside
+    /// `activeEffects` are torn down the way `stopAllActiveEffects` does; the
+    /// rest are a tracked layer under their own name. A name with neither just
+    /// runs out on its own, as every effect does anyway.
+    func stopEffect(named name: String) {
+        switch name {
+        case "spiral-hearts": clearSpiralHearts(fadeDuration: 0)
+        case "snow":          clearSnow(fadeDuration: 0)
+        case "storm":         clearStorm(fadeDuration: 0)
+        case "heaven":        clearHeaven(fadeDuration: 0)
+        case "bullet-holes":  stopMinigunSession()
+        case "chainsaw":      stopChainsawCursor(fade: 0)
+        case "fire":          stopFireCursor(fade: 0)
+        case "applause":      stopApplause()
+        case "pulse":         if pulseRunning { _stopPulse() }
+        case "iris":          if let iris = _irisLayer { cancelIris(iris, fadeDuration: 0.2) }
+        default:              break
+        }
+        _ = cancelIfRunning(name)
+    }
+
     // MARK: - Stop all active effects (called when tablet stops any sound)
 
     func stopAllActiveEffects() {

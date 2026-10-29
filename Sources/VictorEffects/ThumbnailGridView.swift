@@ -97,10 +97,10 @@ final class ThumbnailGridView: NSView {
     /// Red border follows the sound, not the click: a tile whose sound ended on
     /// its own has to stop pulsing without anyone pressing anything. A layer-B
     /// sound lights its host — the only place the panel draws it.
-    func setPlaying(asset: String?) {
+    func setPlaying(assets: Set<String>) {
         for view in tileViews {
-            view.isPlaying = asset != nil
-                && (view.tile.asset == asset || view.tile.under?.asset == asset)
+            view.isPlaying = assets.contains(view.tile.asset)
+                || (view.tile.under.map { assets.contains($0.asset) } ?? false)
         }
     }
 

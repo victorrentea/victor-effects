@@ -47,36 +47,37 @@ final class SoundboardPressTests: XCTestCase {
         work?()
     }
 
-    func testAPressStopsEverythingThenPlaysThenFiresThePairedEffect() {
+    func testAPressPlaysThenFiresThePairedEffectWithoutStoppingAnything() {
         press.press(joker)
 
         XCTAssertEqual(router.paths, [
-            "/effect/stop-all",
             "/sound/play/40_joker.mp3?vol=70",
             "/sound/pressed/40_joker.mp3",
         ])
         XCTAssertEqual(press.playing, joker)
     }
 
-    func testTheStopComesBeforeTheEffectAndNotAfter() {
-        // The tablet learned this one by watching an effect die the instant it
-        // started, because a stop-all sent from another thread arrived second.
+    /// 2026-10-29: two tiles run at once — another press leaves the first alone.
+    func testAnotherTileRunsAlongsideTheFirst() {
         press.press(joker)
-        let stop = router.paths.firstIndex(of: "/effect/stop-all")
-        let start = router.paths.firstIndex(of: "/sound/pressed/40_joker.mp3")
-        XCTAssertNotNil(stop)
-        XCTAssertNotNil(start)
-        XCTAssertLessThan(stop!, start!)
+        router.paths.removeAll()
+
+        press.press(siren)
+
+        XCTAssertFalse(router.paths.contains("/effect/stop-all"), "\(router.paths)")
+        XCTAssertFalse(router.paths.contains { $0.hasPrefix("/sound/stop/") }, "\(router.paths)")
+        XCTAssertEqual(press.playingTiles, [joker, siren])
     }
 
-    func testRePressingANonRestartableTileOnlyStops() {
+    func testRePressingANonRestartableTileStopsOnlyIt() {
         press.press(joker)
+        press.press(siren)
         router.paths.removeAll()
 
         press.press(joker)
 
-        XCTAssertEqual(router.paths, ["/effect/stop-all"])
-        XCTAssertNil(press.playing)
+        XCTAssertEqual(router.paths, ["/sound/stop/40_joker.mp3"])
+        XCTAssertEqual(press.playingTiles, [siren])
     }
 
     func testRePressingARestartableTileReplaysIt() {
@@ -86,32 +87,30 @@ final class SoundboardPressTests: XCTestCase {
         press.press(money)
 
         XCTAssertEqual(router.paths, [
-            "/effect/stop-all",
             "/sound/play/53_rain.mp3?vol=70",
             "/sound/pressed/53_rain.mp3",
         ])
-        XCTAssertEqual(press.playing, money)
+        XCTAssertEqual(press.playingTiles, [money])
     }
 
     func testTheSirenDrivesTheAlarmOverlayInsteadOfAPairedEffect() {
         press.press(siren)
 
         XCTAssertEqual(router.paths, [
-            "/effect/stop-all",
             "/sound/play/02_siren.mp3?vol=70",
             "/alarm/start",
         ])
     }
 
     func testStoppingASirenTakesTheAlarmOverlayDownFirst() {
-        // `stop-all` alone leaves the alarm up: it is a toggled overlay, not a
+        // Its own stop leaves the alarm up: it is a toggled overlay, not a
         // self-terminating effect. Hence the extra call, and hence its order.
         press.press(siren)
         router.paths.removeAll()
 
         press.press(siren)
 
-        XCTAssertEqual(router.paths, ["/alarm/stop", "/effect/stop-all"])
+        XCTAssertEqual(router.paths, ["/alarm/stop", "/sound/stop/02_siren.mp3"])
     }
 
     func testCompletionReportsTheStopByFilename() {
@@ -135,9 +134,9 @@ final class SoundboardPressTests: XCTestCase {
     }
 
     func testAStaleCompletionDoesNothing() {
-        press.press(joker)
+        press.press(money)
         let stale = pending
-        press.press(money)      // a newer press outvotes the pending completion
+        press.press(money)      // a restart outvotes the pending completion
         router.paths.removeAll()
 
         stale?.work()
@@ -146,12 +145,24 @@ final class SoundboardPressTests: XCTestCase {
         XCTAssertEqual(press.playing, money, "the running tile must survive an old timer")
     }
 
+    func testOneTilesCompletionLeavesTheOtherPlaying() {
+        press.press(joker)
+        let jokerDone = pending
+        press.press(siren)
+        router.paths.removeAll()
+
+        jokerDone?.work()
+
+        XCTAssertEqual(router.paths, ["/sound/stopped/40_joker.mp3"])
+        XCTAssertEqual(press.playingTiles, [siren])
+    }
+
     func testAMissingSoundLeavesNothingPlaying() {
         router.playStatus = 404
 
         let json = press.press(joker)
 
-        XCTAssertEqual(router.paths, ["/effect/stop-all", "/sound/play/40_joker.mp3?vol=70"])
+        XCTAssertEqual(router.paths, ["/sound/play/40_joker.mp3?vol=70"])
         XCTAssertNil(press.playing)
         XCTAssertTrue(json.contains("missing-sound"), json)
         XCTAssertNil(pending, "no completion may be scheduled for a sound that never started")
@@ -177,12 +188,12 @@ final class SoundboardPressTests: XCTestCase {
     }
 
     func testThePlayingTileIsPublishedForTheBorder() {
-        var seen: [String?] = []
-        press.onPlayingChanged = { seen.append($0?.asset) }
+        var seen: [[String]] = []
+        press.onPlayingChanged = { seen.append($0.map(\.asset)) }
 
         press.press(joker)
         fireCompletion()
 
-        XCTAssertEqual(seen, ["40_joker.mp3", nil])
+        XCTAssertEqual(seen, [["40_joker.mp3"], []])
     }
 }

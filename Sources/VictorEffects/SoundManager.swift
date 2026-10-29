@@ -55,10 +55,31 @@ class SoundManager {
 
 
     /// Player for the single tablet-routed sound. The tablet routes its
-    /// soundboard here when "play on Mac" is active: one sound at a time, a
-    /// new play preempts the current one (mirrors the tablet's local
-    /// MediaPlayer semantics: same button = stop, other button = preempt).
-    private var tabletPlayer: AVAudioPlayer?
+    /// soundboard here when "play on Mac" is active. **One clip per TILE**
+    /// (2026-10-29): another tile plays alongside it, the same tile pressed again
+    /// replaces it (a restartable one) — Victor wants two effects at once, and a
+    /// running one ended only by pressing it again. Oldest first.
+    private struct TabletClip {
+        let player: AVAudioPlayer
+        /// The tile it was pressed for (`routedTile`), or the file's own name.
+        let tile: String
+        /// Everything on top of `tabletVolume`: mastering trim × the tile's own volume.
+        var gain: Float
+    }
+    private var tabletClips: [TabletClip] = []
+
+    /// The most recent clip — what the single-player callers still mean.
+    private var tabletPlayer: AVAudioPlayer? { tabletClips.last?.player }
+
+    /// A new clip for `tile`: one already sounding for the same tile fades out
+    /// (a restart), every other tile's clip plays on.
+    private func installTabletClip(_ player: AVAudioPlayer, tile: String, gain: Float) {
+        // Clips that ran out on their own are dropped here: nothing else ends them.
+        tabletClips.removeAll { !$0.player.isPlaying }
+        for clip in tabletClips where clip.tile == tile { fadeOutAndStop(clip.player, over: Self.interruptFade) }
+        tabletClips.removeAll { $0.tile == tile }
+        tabletClips.append(TabletClip(player: player, tile: tile, gain: gain))
+    }
 
     /// When the current tablet-routed sound was started — the lost-ping
     /// watchdog needs it to tell "the client that started this went quiet"
@@ -73,16 +94,12 @@ class SoundManager {
     /// Per-clip trim on top of `tabletVolume`, for a tile whose file is
     /// mastered louder than the rest. Kept through a live volume change.
     static let fileGain: [String: Float] = [RainStorm.soundName: RainStorm.soundGain]
-    private var tabletFileGain: Float = 1.0
 
     /// 🔉 The tile a routed play was asked for (`EffectsEngine.playSound` sets it
     /// for the length of that call): its own volume (`SoundGains`) is keyed by
     /// the tile, and the file that ends up playing may be another one (#31 → the
     /// gong). nil = a play nobody pressed a tile for — the file's own name is used.
     var routedTile: String?
-    /// The tile behind `tabletPlayer`, so a live change of that tile's volume
-    /// reaches the clip already sounding.
-    private var tabletTileAsset: String?
 
     /// Everything on top of `tabletVolume` for `filename`: the file's mastering
     /// trim times the pressed tile's own volume.
@@ -473,22 +490,17 @@ class SoundManager {
     func playTabletSound(_ filename: String, volume: Float? = nil, lead: TimeInterval? = nil,
                          startAt: TimeInterval = 0) -> TimeInterval? {
         if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
-        // Preempt by fading, not by cutting: the outgoing clip keeps playing
-        // under the new one for `interruptFade` seconds.
-        if let outgoing = tabletPlayer { fadeOutAndStop(outgoing, over: Self.interruptFade) }
-        tabletPlayer = nil
         guard let url = soundURL(for: filename) else {
             overlayError("Tablet sound not found: \(filename)")
             return nil
         }
         do {
             let player = try SoundManager.player(contentsOf: url)
-            tabletTileAsset = routedTile ?? filename
-            tabletFileGain = clipGain(filename)
-            player.volume = min(1, tabletVolume * tabletFileGain)
+            let gain = clipGain(filename)
+            player.volume = min(1, tabletVolume * gain)
             player.prepareToPlay()
             if startAt > 0 { player.currentTime = min(startAt, player.duration) }
-            tabletPlayer = player
+            installTabletClip(player, tile: routedTile ?? filename, gain: gain)
             tabletSoundStartedAt = Date()
             let lead = lead ?? Self.pairedEffectStartDelays[filename] ?? 0
             // When this Mac's own output is Bluetooth, prepend silence to warm
@@ -528,21 +540,16 @@ class SoundManager {
     /// tablet's effect-stop chain. Main thread only.
     func playTabletSoundClipped(_ filename: String, fraction: Double, fade: TimeInterval = 0.6, volume: Float? = nil) -> TimeInterval? {
         if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
-        // Preempt by fading, not by cutting: the outgoing clip keeps playing
-        // under the new one for `interruptFade` seconds.
-        if let outgoing = tabletPlayer { fadeOutAndStop(outgoing, over: Self.interruptFade) }
-        tabletPlayer = nil
         guard let url = soundURL(for: filename) else {
             overlayError("Tablet sound not found: \(filename)")
             return nil
         }
         do {
             let player = try SoundManager.player(contentsOf: url)
-            tabletTileAsset = routedTile ?? filename
-            tabletFileGain = clipGain(filename)
-            player.volume = min(1, tabletVolume * tabletFileGain)
+            let gain = clipGain(filename)
+            player.volume = min(1, tabletVolume * gain)
             player.prepareToPlay()
-            tabletPlayer = player
+            installTabletClip(player, tile: routedTile ?? filename, gain: gain)
             let lead = Self.pairedEffectStartDelays[filename] ?? 0
             let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
             let total = lead + btComp
@@ -563,7 +570,7 @@ class SoundManager {
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + total + clipped + 0.05) { [weak self, weak player] in
                 player?.stop()
-                if self?.tabletPlayer === player { self?.tabletPlayer = nil }
+                self?.tabletClips.removeAll { $0.player === player }
             }
             return clipped + total
         } catch {
@@ -614,7 +621,7 @@ class SoundManager {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.tabletVolume = max(0.0, min(1.0, volume))
-            self.tabletPlayer?.volume = min(1, self.tabletVolume * self.tabletFileGain)
+            for clip in self.tabletClips { clip.player.volume = min(1, self.tabletVolume * clip.gain) }
             self.playOverlapping("click.wav", volume: self.tabletVolume)
         }
     }
@@ -625,10 +632,11 @@ class SoundManager {
     /// Main thread only (the router's).
     func setTileGain(_ asset: String, position pct: Int) {
         SoundGains.set(asset, pct)
-        guard let player = tabletPlayer, tabletTileAsset == asset else { return }
-        let file = player.url?.lastPathComponent ?? asset
-        tabletFileGain = (Self.fileGain[file] ?? 1.0) * SoundGains.gain(for: asset)
-        player.volume = min(1, tabletVolume * tabletFileGain)
+        for i in tabletClips.indices where tabletClips[i].tile == asset {
+            let file = tabletClips[i].player.url?.lastPathComponent ?? asset
+            tabletClips[i].gain = (Self.fileGain[file] ?? 1.0) * SoundGains.gain(for: asset)
+            tabletClips[i].player.volume = min(1, tabletVolume * tabletClips[i].gain)
+        }
     }
 
     /// The tablet's current volume level (0..1), for Mac-local sounds that
@@ -646,8 +654,18 @@ class SoundManager {
     func stopTabletSound(fade: TimeInterval = SoundManager.interruptFade) {
         Self.onMain { [weak self] in
             guard let self else { return }
-            if let player = self.tabletPlayer { self.fadeOutAndStop(player, over: fade) }
-            self.tabletPlayer = nil
+            for clip in self.tabletClips { self.fadeOutAndStop(clip.player, over: fade) }
+            self.tabletClips.removeAll()
+        }
+    }
+
+    /// Stop only `tile`'s clip — the tile pressed again while it plays — and
+    /// leave every other tile's sounding.
+    func stopTabletSound(tile: String, fade: TimeInterval = SoundManager.interruptFade) {
+        Self.onMain { [weak self] in
+            guard let self else { return }
+            for clip in self.tabletClips where clip.tile == tile { self.fadeOutAndStop(clip.player, over: fade) }
+            self.tabletClips.removeAll { $0.tile == tile }
         }
     }
 
@@ -672,9 +690,11 @@ class SoundManager {
                 self.players[filename] = nil
                 self.fadeOutAndStop(player, over: fade)
             }
-            if let tablet = self.tabletPlayer, let url, tablet.url == url {
-                self.tabletPlayer = nil
-                self.fadeOutAndStop(tablet, over: fade)
+            if let url {
+                for clip in self.tabletClips where clip.player.url == url {
+                    self.fadeOutAndStop(clip.player, over: fade)
+                }
+                self.tabletClips.removeAll { $0.player.url == url }
             }
         }
     }
@@ -682,7 +702,7 @@ class SoundManager {
     /// Whether a tablet-routed sound is currently playing (main thread only —
     /// used by the ping watchdog).
     var isTabletSoundPlaying: Bool {
-        tabletPlayer?.isPlaying ?? false
+        tabletClips.contains { $0.player.isPlaying }
     }
 
     /// Stop any overlapping instances of a given sound immediately (e.g. interrupt

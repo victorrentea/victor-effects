@@ -41,6 +41,9 @@ final class EffectsRouter {
         /// 🔉 `GET /sound/gain/<asset>/<pct>` — move one tile's own volume.
         case soundGainSet(String, Int)
         case soundStop
+        /// `GET /sound/stop/<asset>` — that tile pressed again: its clip and its
+        /// effect stop, every other tile's keep running.
+        case soundStopTile(String)
         /// A client reports a sound started; the Mac owns the sound→effect map.
         case soundPressed(String)
         case soundStopped(String)
@@ -229,6 +232,10 @@ final class EffectsRouter {
             let name = String(pathOnly.dropFirst("/sound/stopped/".count))
             if !name.isEmpty { return .soundStopped(name) }
         }
+        if pathOnly.hasPrefix("/sound/stop/") {
+            let name = String(pathOnly.dropFirst("/sound/stop/".count))
+            return name.isEmpty ? .unknown : .soundStopTile(name)
+        }
         if pathOnly.hasPrefix("/sound/gain/") {
             let parts = pathOnly.dropFirst("/sound/gain/".count).split(separator: "/")
             if parts.count == 2, let pct = Int(parts[1]) { return .soundGainSet(String(parts[0]), pct) }
@@ -342,6 +349,10 @@ final class EffectsRouter {
         case .soundGainSet(let asset, let pct):
             SoundManager.shared.setTileGain(asset, position: pct)
             return .json(SoundGains.json)
+
+        case .soundStopTile(let asset):
+            engine.stopTile(asset)
+            return .ok()
 
         case .soundStop:
             SoundManager.shared.stopTabletSound()

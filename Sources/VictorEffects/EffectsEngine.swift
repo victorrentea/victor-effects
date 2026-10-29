@@ -492,6 +492,17 @@ final class EffectsEngine {
             || animator.isFireRunning
     }
 
+    /// One tile pressed again while it runs (`/sound/stop/<asset>`): its clip,
+    /// its desktop effect and its looping stop-effect end; every other tile's
+    /// keep going. `stopAll` is still the panic button for everything.
+    func stopTile(_ asset: String) {
+        SoundManager.shared.stopTabletSound(tile: asset)
+        if let effect = EffectsCatalog.effectName(forAsset: asset) { animator.stopEffect(named: effect) }
+        if let stop = SoundEffectMap.stopEffect(for: asset) { runEffect(stop) }
+        if routedPlay?.asset == asset { playing = nil; routedPlay = nil }
+        effectsInfo("⏹ \(asset) stopped by a re-press — the rest keep running")
+    }
+
     func stopAll() {
         deferredFires.stopped()
         // Only when there is something to clear: the tablet fires one of these

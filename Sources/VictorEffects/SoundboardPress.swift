@@ -42,15 +42,19 @@ final class SoundboardPress {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
-    /// The tile whose sound is running, for the pulsing red border.
-    private(set) var playing: Tile?
-    var onPlayingChanged: ((Tile?) -> Void)?
+    /// The tiles whose sounds are running, oldest first, for the pulsing red
+    /// border. Several at once since 2026-10-29: pressing another tile no
+    /// longer stops the one running — only pressing THAT tile again does.
+    private(set) var playingTiles: [Tile] = []
+    /// The most recent of them.
+    var playing: Tile? { playingTiles.last }
+    var onPlayingChanged: (([Tile]) -> Void)?
 
-    /// Completion timers are not cancelled, they are *outvoted*: every press
-    /// bumps this and a late completion that finds a newer generation does
-    /// nothing. Same effect as the tablet's `if (playingPosition == position)`
-    /// guard, minus a cancellable handle to keep in sync.
-    private var generation = 0
+    /// Completion timers are not cancelled, they are *outvoted*: each start of
+    /// a tile records a fresh number under its asset, and a late completion
+    /// that finds another number (a restart, a stop) does nothing.
+    private var generations: [String: Int] = [:]
+    private var counter = 0
 
     init(router: SoundboardDispatcher) {
         self.router = router
@@ -60,16 +64,15 @@ final class SoundboardPress {
     /// answers with, which doubles as a description of what happened.
     @discardableResult
     func press(_ tile: Tile) -> String {
-        // Re-pressing the tile that is playing stops it — unless the tile is
-        // restartable (#53 money), which falls through to the start path and so
-        // replays from the top, stacking a fresh round of the effect.
-        if let current = playing, current.asset == tile.asset, !tile.restartable {
-            stopAll()
+        // Re-pressing a tile that is playing stops IT (and only it) — unless the
+        // tile is restartable (#53 money), which falls through to the start path
+        // and so replays from the top, stacking a fresh round of the effect.
+        if playingTiles.contains(where: { $0.asset == tile.asset }), !tile.restartable {
+            stop(tile)
             return "{\"ok\":true,\"n\":\(tile.n),\"asset\":\"\(tile.asset)\",\"action\":\"stop\"}"
         }
 
-        stopAll()
-
+        // No stop-all: whatever else is running keeps running.
         let response = router.dispatch("/sound/play/\(tile.asset)?vol=\(volumePct())")
         guard response.status == 200 else {
             return "{\"ok\":false,\"n\":\(tile.n),\"asset\":\"\(tile.asset)\",\"reason\":\"missing-sound\"}"
@@ -79,14 +82,16 @@ final class SoundboardPress {
         // The Mac owns the sound→effect map: every press is reported by bare
         // filename and the Mac decides whether a visual is paired with it.
         router.dispatch(startPath(for: tile.asset))
-        setPlaying(tile)
+        setPlaying(playingTiles.filter { $0.asset != tile.asset } + [tile])
 
-        generation += 1
-        let gen = generation
+        counter += 1
+        let gen = counter
         let asset = tile.asset
+        generations[asset] = gen
         schedule(Double(durationMs + 100) / 1000) { [weak self] in
-            guard let self, self.generation == gen else { return }
-            self.setPlaying(nil)
+            guard let self, self.generations[asset] == gen else { return }
+            self.generations[asset] = nil
+            self.setPlaying(self.playingTiles.filter { $0.asset != asset })
             self.router.dispatch(self.stopPath(for: asset))
         }
 
@@ -94,16 +99,25 @@ final class SoundboardPress {
             + "\"action\":\"play\",\"durationMs\":\(durationMs)}"
     }
 
+    /// Stop one running tile: its clip and its desktop effect
+    /// (`/sound/stop/<asset>`); the siren's toggled overlay goes down first.
+    func stop(_ tile: Tile) {
+        generations[tile.asset] = nil
+        if tile.asset == Self.sirenAsset { router.dispatch("/alarm/stop") }
+        router.dispatch("/sound/stop/\(tile.asset)")
+        setPlaying(playingTiles.filter { $0.asset != tile.asset })
+    }
+
     /// Silence everything, exactly as the tablet's `stopAllLocalAndMac` does:
     /// the siren's overlay first (it is toggled, so `stop-all` alone leaves it
     /// up), then the blanket stop.
     func stopAll() {
-        generation += 1
-        if playing?.asset == Self.sirenAsset {
+        generations.removeAll()
+        if playingTiles.contains(where: { $0.asset == Self.sirenAsset }) {
             router.dispatch("/alarm/stop")
         }
         router.dispatch("/effect/stop-all")
-        setPlaying(nil)
+        setPlaying([])
     }
 
     private func startPath(for asset: String) -> String {
@@ -114,10 +128,10 @@ final class SoundboardPress {
         asset == Self.sirenAsset ? "/alarm/stop" : "/sound/stopped/\(asset)"
     }
 
-    private func setPlaying(_ tile: Tile?) {
-        guard playing != tile else { return }
-        playing = tile
-        onPlayingChanged?(tile)
+    private func setPlaying(_ tiles: [Tile]) {
+        guard playingTiles != tiles else { return }
+        playingTiles = tiles
+        onPlayingChanged?(tiles)
     }
 
     /// `{"ok":true,"durationMs":8600}` → 8600. Hand-rolled rather than

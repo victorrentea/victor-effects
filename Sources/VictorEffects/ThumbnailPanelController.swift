@@ -174,8 +174,8 @@ final class ThumbnailPanelController {
         self.router = router
         self.press = SoundboardPress(router: router)
         self.state = PanelHoldRule.State()
-        press.onPlayingChanged = { [weak self] tile in
-            self?.panel?.grid.setPlaying(asset: tile?.asset)
+        press.onPlayingChanged = { [weak self] tiles in
+            self?.panel?.grid.setPlaying(assets: Set(tiles.map(\.asset)))
         }
         videoPress.onPlayingChanged = { [weak self] tile in
             self?.panel?.videoGrid.setPlaying(id: tile?.id)
@@ -257,7 +257,7 @@ final class ThumbnailPanelController {
         // points and the panel maps them onto the glass of THIS display.
         let screen = NSScreen.screens.first { $0.frame == placement.screen.fullFrame }
         panel.show(at: hugged, on: screen, slidingFrom: offscreen)
-        panel.grid.setPlaying(asset: press.playing?.asset)
+        panel.grid.setPlaying(assets: Set(press.playingTiles.map(\.asset)))
         panel.videoGrid.setPlaying(id: videoPress.playing?.id)
         effectsInfo("Thumbnail panel (\(page.rawValue)) on \"\(placed.screen.name)\" "
             + "\(Int(hugged.width))×\(Int(hugged.height)) "
@@ -334,7 +334,7 @@ final class ThumbnailPanelController {
         build(page: page, in: panel)
         panel.setPage(page)
         shownPage = page
-        panel.grid.setPlaying(asset: press.playing?.asset)
+        panel.grid.setPlaying(assets: Set(press.playingTiles.map(\.asset)))
         panel.videoGrid.setPlaying(id: videoPress.playing?.id)
         if let placement = lastPlacement {
             panel.resize(to: hug(placement, page: page, in: panel))
