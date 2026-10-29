@@ -106,6 +106,8 @@ final class EffectsEngine {
             // tablet draws are these numbers, so it needs to know they moved —
             // including when the move came from the Mac's own panel.
             + "\"usageHash\":\"\(UsageCounts.hash)\","
+            // 🔉 The per-tile volumes, same contract as the dots.
+            + "\"gainsHash\":\"\(SoundGains.hash)\","
             + "\"tabletVolume\":\(vol),\"panelMonitor\":\(panelMonitor)}"
     }
 
@@ -631,6 +633,10 @@ final class EffectsEngine {
         }
 
         let volume = volumePct.map { Float($0) / 100 }
+        // 🔉 Every clip started below plays at the TILE's own volume
+        // (`SoundGains`), whichever file it turns out to be.
+        SoundManager.shared.routedTile = requested
+        defer { SoundManager.shared.routedTile = nil }
 
         // A 404 hands the clip back to the client: its press is not ours to delay.
         routedPlay = nil

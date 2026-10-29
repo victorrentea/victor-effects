@@ -33,10 +33,12 @@ press cannot drift apart.
 
 | route | answers | notes |
 |---|---|---|
-| `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","usageHash":"…","tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
+| `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","usageHash":"…","gainsHash":"…","tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
 | `GET /sounds/manifest` | `{name: sha256}` over `soundsDir/*.mp3` | **503** `{"error":"soundsDir unreadable"}` when the folder is gone |
 | `GET /sound/play/<file>?vol=N` | `{"ok":true,"durationMs":N}` | **404** `{"ok":false,"reason":"unknown-sound"}`. Seven files take a paired-visual path, and a few are **alternating pairs** — one press, two clips in turn (#19/#20), with the duration of the file actually played. Both in `docs/sound-routing.md` |
 | `GET /sound/volume/<pct>` | `ok` | player level, not system volume |
+| `GET /sound/gains` | `{"gains":{"<asset>":<pct>,…},"defaultPct":80,"hash":"…"}` | 🔉 Each tile's own volume (`SoundGains`), as a slider position 0–100; only tiles moved off the default 80 are listed. 80 = the level every clip had before (×1.0), the x² curve pinned there: 100 → ×1.56, 40 → ×0.25. Keyed by the **tile** asset that `/sound/play` was asked for, not the file that plays (#31 → gong), and applied on every surface — tablet-routed and thumbnail panel alike. Stored in `sound-gains.json` beside `usageFile` |
+| `GET /sound/gain/<asset>/<pct>` | the table | 🔉 Move one tile's volume; persisted, and applied live if that tile is the clip sounding. **No click**, unlike `/sound/volume`: the tablet drags this bar while the clip plays |
 | `GET /sound/stop` | `ok` | fades over `interruptFade` |
 | `GET /sound/pressed/<file>` | `ok`, or `no-effect` | `SoundEffectMap.pressEffect` → `runEffect`; also counts the press and shows its caption (`docs/overlay-effects.md`, **💬 Every press is captioned**) |
 | `GET /usage` | `{"counts":{"<asset>":n,…},"hash":"…"}` | The press count behind each of the tablet's green dots. **This Mac is the only counter**: every `/sound/pressed/` (tablet) and every in-process panel press lands in `UsageCounts`, so the dots finally include the presses made on the Mac itself. The body carries the hash it was computed from — a client adopting the table records THAT, not the one from a `/ping` its own press may have crossed |
@@ -138,6 +140,10 @@ Two test files hold this together, and both are guards rather than copies:
 `UsageCounts`. It moves on every press — including a press made on the Mac's own
 thumbnail panel, which is exactly the event the tablet had no way of hearing
 about — and the tablet re-pulls `/usage` when it does.
+
+`gainsHash` is the fourth, the same contract over `SoundGains` (`asset:pct`
+lines): the tablet re-pulls `/sound/gains` when it moves, for the clips it
+plays locally.
 
 `tilesHash` and `effectsHash` answer different questions and must not be merged:
 `tilesHash` is the hash of the manifest's own BYTES ("is my tile list the Mac's

@@ -75,6 +75,21 @@ class SoundManager {
     static let fileGain: [String: Float] = [RainStorm.soundName: RainStorm.soundGain]
     private var tabletFileGain: Float = 1.0
 
+    /// 🔉 The tile a routed play was asked for (`EffectsEngine.playSound` sets it
+    /// for the length of that call): its own volume (`SoundGains`) is keyed by
+    /// the tile, and the file that ends up playing may be another one (#31 → the
+    /// gong). nil = a play nobody pressed a tile for — the file's own name is used.
+    var routedTile: String?
+    /// The tile behind `tabletPlayer`, so a live change of that tile's volume
+    /// reaches the clip already sounding.
+    private var tabletTileAsset: String?
+
+    /// Everything on top of `tabletVolume` for `filename`: the file's mastering
+    /// trim times the pressed tile's own volume.
+    private func clipGain(_ filename: String) -> Float {
+        (Self.fileGain[filename] ?? 1.0) * SoundGains.gain(for: routedTile ?? filename)
+    }
+
     /// Fade `player` to silence over `seconds`, then stop it and let it go.
     /// Retains it for the duration — the caller has already dropped its own
     /// reference (see `fadingOut`). A zero/negative fade stops it immediately,
@@ -468,8 +483,9 @@ class SoundManager {
         }
         do {
             let player = try SoundManager.player(contentsOf: url)
-            tabletFileGain = Self.fileGain[filename] ?? 1.0
-            player.volume = tabletVolume * tabletFileGain
+            tabletTileAsset = routedTile ?? filename
+            tabletFileGain = clipGain(filename)
+            player.volume = min(1, tabletVolume * tabletFileGain)
             player.prepareToPlay()
             if startAt > 0 { player.currentTime = min(startAt, player.duration) }
             tabletPlayer = player
@@ -522,8 +538,9 @@ class SoundManager {
         }
         do {
             let player = try SoundManager.player(contentsOf: url)
-            tabletFileGain = Self.fileGain[filename] ?? 1.0
-            player.volume = tabletVolume * tabletFileGain
+            tabletTileAsset = routedTile ?? filename
+            tabletFileGain = clipGain(filename)
+            player.volume = min(1, tabletVolume * tabletFileGain)
             player.prepareToPlay()
             tabletPlayer = player
             let lead = Self.pairedEffectStartDelays[filename] ?? 0
@@ -574,7 +591,7 @@ class SoundManager {
         }
         do {
             let player = try SoundManager.player(contentsOf: url)
-            player.volume = tabletVolume * (Self.fileGain[filename] ?? 1.0)
+            player.volume = min(1, tabletVolume * clipGain(filename))
             player.prepareToPlay()
             overlappingPlayers.append(player)
             player.play()
@@ -597,9 +614,21 @@ class SoundManager {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.tabletVolume = max(0.0, min(1.0, volume))
-            self.tabletPlayer?.volume = self.tabletVolume * self.tabletFileGain
+            self.tabletPlayer?.volume = min(1, self.tabletVolume * self.tabletFileGain)
             self.playOverlapping("click.wav", volume: self.tabletVolume)
         }
+    }
+
+    /// 🔉 Move one tile's own volume (`GET /sound/gain/<asset>/<pct>`), persisted,
+    /// and apply it to that tile's clip if it is the one sounding. No click: the
+    /// tablet drags this bar WHILE the clip plays, and the clip is the feedback.
+    /// Main thread only (the router's).
+    func setTileGain(_ asset: String, position pct: Int) {
+        SoundGains.set(asset, pct)
+        guard let player = tabletPlayer, tabletTileAsset == asset else { return }
+        let file = player.url?.lastPathComponent ?? asset
+        tabletFileGain = (Self.fileGain[file] ?? 1.0) * SoundGains.gain(for: asset)
+        player.volume = min(1, tabletVolume * tabletFileGain)
     }
 
     /// The tablet's current volume level (0..1), for Mac-local sounds that

@@ -36,6 +36,10 @@ final class EffectsRouter {
         /// Filename + optional volume percent (0–100) from `?vol=`.
         case soundPlay(String, Int?)
         case soundVolume(Int)
+        /// 🔉 `GET /sound/gains` — every tile's own volume position (`SoundGains`).
+        case soundGains
+        /// 🔉 `GET /sound/gain/<asset>/<pct>` — move one tile's own volume.
+        case soundGainSet(String, Int)
         case soundStop
         /// A client reports a sound started; the Mac owns the sound→effect map.
         case soundPressed(String)
@@ -166,6 +170,7 @@ final class EffectsRouter {
         case "/tiles":              return .tiles
         case "/sounds/captions":    return .soundsCaptions
         case "/usage":              return .usage
+        case "/sound/gains":        return .soundGains
         case "/usage/reset":        return .usageReset
         case "/usage/import":
             // "asset:count,asset:count" — a GET because that is the only verb
@@ -223,6 +228,11 @@ final class EffectsRouter {
         if pathOnly.hasPrefix("/sound/stopped/") {
             let name = String(pathOnly.dropFirst("/sound/stopped/".count))
             if !name.isEmpty { return .soundStopped(name) }
+        }
+        if pathOnly.hasPrefix("/sound/gain/") {
+            let parts = pathOnly.dropFirst("/sound/gain/".count).split(separator: "/")
+            if parts.count == 2, let pct = Int(parts[1]) { return .soundGainSet(String(parts[0]), pct) }
+            return .unknown
         }
         if pathOnly.hasPrefix("/sound/volume/") {
             if let pct = Int(pathOnly.dropFirst("/sound/volume/".count)) { return .soundVolume(pct) }
@@ -325,6 +335,13 @@ final class EffectsRouter {
         case .soundVolume(let pct):
             SoundManager.shared.setTabletVolume(Float(pct) / 100)
             return .ok()
+
+        case .soundGains:
+            return .json(SoundGains.json)
+
+        case .soundGainSet(let asset, let pct):
+            SoundManager.shared.setTileGain(asset, position: pct)
+            return .json(SoundGains.json)
 
         case .soundStop:
             SoundManager.shared.stopTabletSound()
