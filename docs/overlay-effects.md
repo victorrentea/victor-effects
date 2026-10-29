@@ -551,6 +551,14 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   the dog. Now `playSound` starts clip, frames and jump in one call, shifted
   together by the Bluetooth lead, from frames decoded at launch
   (`warmSmallDogCache`, deduplicated: 133 GIF frames, 49 pictures, ~45 MB).
+  **The bark cycle is redrawn, not the source's** (2026-10-29): on every bark the
+  original whipped the head from looking up all the way down to looking ahead
+  and snapped it back, through four motion-blur smears — ten times in five
+  seconds, too violent on a projector. Its eight pictures (u02–u09 of the 49)
+  were replaced by Codex image-gen heads composited onto the rest frame's body:
+  a nod of about a third of the old swing, no smears, mouth wide open on the
+  same two slots as before. Only pictures changed — the 133-slot timeline is
+  the sync and was kept as is, so nothing in Swift moved.
   (The first version rotated three dogs per press — a Codex-drawn dachshund and
   Hugo Puente's "Barking dog" too; Victor kept only Basti.)
 - **🩸 Blood drip** (sfx #40 `40_joker.mp3` → `blood-drip`): `blood-drip.gif`
