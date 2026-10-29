@@ -33,7 +33,7 @@ press cannot drift apart.
 
 | route | answers | notes |
 |---|---|---|
-| `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","usageHash":"…","gainsHash":"…","tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
+| `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","usageHash":"…","gainsHash":"…","speakerChargePct":<0–100 or -1>,"speakerCharging":<bool>,"speakerChargeAgeS":<s>,"tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
 | `GET /sounds/manifest` | `{name: sha256}` over `soundsDir/*.mp3` | **503** `{"error":"soundsDir unreadable"}` when the folder is gone |
 | `GET /sound/play/<file>?vol=N` | `{"ok":true,"durationMs":N}` | **404** `{"ok":false,"reason":"unknown-sound"}`. Seven files take a paired-visual path, and a few are **alternating pairs** — one press, two clips in turn (#19/#20), with the duration of the file actually played. Both in `docs/sound-routing.md` |
 | `GET /sound/volume/<pct>` | `ok` | player level, not system volume |

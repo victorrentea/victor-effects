@@ -108,6 +108,8 @@ final class EffectsEngine {
             + "\"usageHash\":\"\(UsageCounts.hash)\","
             // 🔉 The per-tile volumes, same contract as the dots.
             + "\"gainsHash\":\"\(SoundGains.hash)\","
+            // 🔊🔋 The JBL's battery, for the tablet's top bar (SpeakerBattery).
+            + SpeakerBattery.shared.pingFields() + ","
             + "\"tabletVolume\":\(vol),\"panelMonitor\":\(panelMonitor)}"
     }
 

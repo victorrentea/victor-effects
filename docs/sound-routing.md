@@ -258,3 +258,40 @@ relaunch; the 30 s poll keeps running while it is off, since that poll is what
 notices the switch coming back. The three-way mapping is pure
 (`BluetoothKeepAlive.state(enabled:configured:playing:)`) and pinned by
 `BluetoothKeepAliveStateTests`.
+
+## Speaker battery (`SpeakerBattery`, 2026-10-29)
+
+The tablet's top bar shows the JBL's battery next to the phone's, from three
+flat `/ping` keys: `speakerChargePct` (-1 = none known), `speakerCharging`,
+`speakerChargeAgeS`.
+
+**macOS never knows it.** The Go 4 has no microphone, so no HFP — and the
+HFP AT commands are where macOS gets every third-party battery it shows. It
+declares only A2DP 1.4 + AVRCP 1.6 and exposes no Battery Service (0x180F).
+What it does expose, over BLE, is the JBL Portable app's own channel: service
+`65786365-6C70-6F69-6E74-2E636F6D0000` (the bytes spell `excelpoint.com`),
+write to `…0002`, answers on notify `…0001`. `AA 11 00` gets a burst of
+`AA 12 <len> 00 <token> <value…>` frames: `0x44` battery (low 7 bits %, top
+bit charging), `0x48` the classic MAC, `0x42` the model (`20 E4` = Go 4),
+`0xC1` the name. Found in JBLControl / jbl-charge5 (reverse-engineered on a
+Flip 7 and a Charge 5), confirmed on Victor's Go 4 the same evening. Never
+send `AA 01 02 82 00`: it wipes the speaker's usage counters.
+
+**A visit, not a connection.** The speaker takes one control connection at a
+time, so while we hold it the phone's JBL app cannot connect. Every 2 min
+(first at +10 s): scan 6 s for Harman adverts (company `0x0057`), connect,
+ask, disconnect as soon as battery + MAC are in (6 s cap per speaker).
+
+**Only this Mac's speakers.** A reading counts only if its MAC is a connected
+audio output here — the keep-alive's own `targets`, matched against the
+CoreAudio UID (`E8-26-CF-C6-97-0B:output`). An advertiser is visited once to
+learn its MAC (`toVisit`); a JBL that turns out to be somebody else's is not
+visited again. With two boxes connected the tablet gets the default output's,
+else the emptiest (`pick`).
+
+**Grant.** CoreBluetooth needs `NSBluetoothAlwaysUsageDescription`
+(`build-app.sh` writes it) and asks for the Bluetooth permission the first
+time a JBL is connected — not before, the manager is created lazily. Denied →
+one `🔊🔋 Bluetooth access denied` log line and the tablet shows no speaker.
+Pinned by `SpeakerBatteryTests` (frames, UID parsing, choice, visit list).
+

@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         keepAlive = BluetoothKeepAlive()
         keepAlive?.start()
+        SpeakerBattery.shared.start()
 
         installHotkeyTap()
 
