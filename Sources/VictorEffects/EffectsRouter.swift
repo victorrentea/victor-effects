@@ -44,6 +44,9 @@ final class EffectsRouter {
         /// `GET /sound/stop/<asset>` — that tile pressed again: its clip and its
         /// effect stop, every other tile's keep running.
         case soundStopTile(String)
+        /// ♾️ `GET /sound/running/<asset>` — is that open-ended tile's effect
+        /// (fire, chainsaw, minigun) still up? `OpenEndedTiles`.
+        case soundRunning(String)
         /// A client reports a sound started; the Mac owns the sound→effect map.
         case soundPressed(String)
         case soundStopped(String)
@@ -236,6 +239,10 @@ final class EffectsRouter {
             let name = String(pathOnly.dropFirst("/sound/stop/".count))
             return name.isEmpty ? .unknown : .soundStopTile(name)
         }
+        if pathOnly.hasPrefix("/sound/running/") {
+            let name = String(pathOnly.dropFirst("/sound/running/".count))
+            return name.isEmpty ? .unknown : .soundRunning(name)
+        }
         if pathOnly.hasPrefix("/sound/gain/") {
             let parts = pathOnly.dropFirst("/sound/gain/".count).split(separator: "/")
             if parts.count == 2, let pct = Int(parts[1]) { return .soundGainSet(String(parts[0]), pct) }
@@ -353,6 +360,12 @@ final class EffectsRouter {
         case .soundStopTile(let asset):
             engine.stopTile(asset)
             return .ok()
+
+        case .soundRunning(let asset):
+            guard let running = engine.isOpenEndedTileRunning(asset) else {
+                return .json("{\"ok\":false,\"reason\":\"not-open-ended\"}", status: 404)
+            }
+            return .json("{\"running\":\(running)}")
 
         case .soundStop:
             SoundManager.shared.stopTabletSound()

@@ -505,6 +505,12 @@ final class EffectsEngine {
         effectsInfo("⏹ \(asset) stopped by a re-press — the rest keep running")
     }
 
+    /// ♾️ `GET /sound/running/<asset>` — whether an open-ended tile's effect is
+    /// still up; `nil` for any other tile (`OpenEndedTiles`).
+    func isOpenEndedTileRunning(_ asset: String) -> Bool? {
+        OpenEndedTiles.isRunning(asset, animator: animator)
+    }
+
     func stopAll() {
         deferredFires.stopped()
         // Only when there is something to clear: the tablet fires one of these
@@ -656,7 +662,9 @@ final class EffectsEngine {
         func remember(_ ms: Int) -> String {
             playing = (name, ms, Date())
             routedPlay = (requested, Date())
-            return "{\"ok\":true,\"durationMs\":\(ms)}"
+            // ♾️ `durationMs` stays for clients that predate `open`.
+            let open = OpenEndedTiles.isOpenEnded(requested) ? ",\"open\":true" : ""
+            return "{\"ok\":true,\"durationMs\":\(ms)\(open)}"
         }
 
         // ⏸️ The hold is on what is DRAWN, not on what is heard: while a crop is

@@ -129,6 +129,22 @@ final class EffectsRouterTests: XCTestCase {
         XCTAssertEqual(route("/sound/play/50_gong.mp3?vol=60"), .soundPlay("50_gong.mp3", 60))
     }
 
+    func testSoundRunningRoutesTheTileAsset() {
+        XCTAssertEqual(route("/sound/running/11_fire.mp3"), .soundRunning("11_fire.mp3"))
+        XCTAssertEqual(route("/sound/running/"), .unknown)
+    }
+
+    func testOpenEndedTilesAreTheOnesThatLastUntilEscape() {
+        // ♾️ Fire, chainsaw and minigun: the tablet spins instead of counting
+        // down for exactly these. Each must still be a tile with a desktop
+        // effect, or the spinner would wait on an effect that never starts.
+        XCTAssertEqual(Set(OpenEndedTiles.assets.keys), ["11_fire.mp3", "18_chainsaw.mp3", "22_minigun.mp3"])
+        for asset in OpenEndedTiles.assets.keys {
+            XCTAssertNotNil(SoundEffectMap.pressEffect(for: asset), asset)
+        }
+        XCTAssertFalse(OpenEndedTiles.isOpenEnded("50_gong.mp3"))
+    }
+
     func testSoundEffectMapDrivesBloodAndKeepsSirenSpecial() {
         XCTAssertEqual(SoundEffectMap.pressEffect(for: "40_joker.mp3"), "blood-drip")
         XCTAssertEqual(SoundEffectMap.pressEffect(for: "03_explosion.mp3"), "explosion")
