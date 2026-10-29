@@ -25,7 +25,8 @@ first. Not notarized: `curl` sets no quarantine flag, so Gatekeeper never asks.
 ## What the clean-VM runs taught (2026-10-14)
 
 Tested on a fresh Tart clone of `ghcr.io/cirruslabs/macos-sequoia-base`
-(external disk, `TART_HOME=/Volumes/Vic/tart`, VM `fx-lab`), by running the
+(then on the external disk, `TART_HOME=/Volumes/Vic/tart`, VM `fx-lab`; that disk is dropped since
+2026-10-30 — a new clean-VM run goes in `TART_HOME=~/tart` and re-clones the image), by running the
 installer and by letting an agent (Claude Code, `--restricted`, shell only via
 SSH into the VM) install both apps from a one-sentence request.
 
