@@ -59,6 +59,9 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     private var currentFrames: [UInt8: [UInt8]] = [:]
     private var visitDeadline: DispatchWorkItem?
     private var loggedDenied = false
+    /// How far the current visit got — logged when it ends without a reading,
+    /// since a silent miss looks exactly like a speaker that is just full.
+    private var stage = ""
 
     func start() {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -167,6 +170,7 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         // scan-only round goes stale without a sound.
         let direct = c.retrieveConnectedPeripherals(withServices: [Self.service])
         if !direct.isEmpty {
+            effectsInfo("🔊🔋 visiting \(direct.count) over the Classic link")
             queue = direct
             visitNext()
             return
@@ -187,6 +191,7 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         let p = queue.removeFirst()
         current = p
         currentFrames = [:]
+        stage = "connect"
         p.delegate = self
         c.connect(p)
         let deadline = DispatchWorkItem { [weak self] in self?.endVisit(p) }
@@ -200,6 +205,9 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         visitDeadline = nil
         current = nil
         central?.cancelPeripheralConnection(p)
+        if Self.battery(currentFrames) == nil {
+            effectsInfo("🔊🔋 \(p.name ?? "?") gave no battery (stopped at: \(stage))")
+        }
         if let mac = Self.mac(currentFrames) { macById[p.identifier] = mac }
         if let mac = Self.mac(currentFrames), let b = Self.battery(currentFrames),
            Self.connectedSpeakerMacs().contains(mac) {
@@ -215,6 +223,7 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     // MARK: - CBCentralManagerDelegate
 
     func centralManagerDidUpdateState(_ c: CBCentralManager) {
+        effectsInfo("🔊🔋 Bluetooth state \(c.state.rawValue) (5 = on)")
         switch c.state {
         case .poweredOn: startRound()
         case .unauthorized:
@@ -232,6 +241,7 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     }
 
     func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
+        stage = "services"
         p.discoverServices([Self.service])
     }
 
@@ -243,18 +253,28 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
 
     func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
         guard let s = p.services?.first(where: { $0.uuid == Self.service }) else { endVisit(p); return }
-        p.discoverCharacteristics([Self.notifyChar, Self.writeChar], for: s)
+        stage = "characteristics"
+        // All of them, exactly as the probe that first read a Go 4 over the
+        // Classic link did (2026-10-29) — the one combination known to answer.
+        p.discoverCharacteristics(nil, for: s)
     }
 
     func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
         guard let n = s.characteristics?.first(where: { $0.uuid == Self.notifyChar }) else { endVisit(p); return }
+        stage = "notify"
         p.setNotifyValue(true, for: n)
     }
 
     func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor ch: CBCharacteristic, error: Error?) {
-        guard error == nil, let w = ch.service?.characteristics?.first(where: { $0.uuid == Self.writeChar }) else {
+        // Over the Classic link the subscribe reports "The attribute could not
+        // be found" — and the answers arrive anyway (2026-10-29). So the error
+        // only goes into the stage; the visit's deadline is what ends a silence.
+        if let error { stage = "notify (\(error.localizedDescription)), answer" }
+        guard let w = ch.service?.characteristics?.first(where: { $0.uuid == Self.writeChar }) else {
+            stage = "notify (no write characteristic)"
             endVisit(p); return
         }
+        if error == nil { stage = "answer" }
         p.writeValue(Data(Self.infoRequest), for: w, type: .withResponse)
     }
 

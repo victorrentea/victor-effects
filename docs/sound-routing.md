@@ -290,6 +290,10 @@ after it connects — on 2026-10-29 the adverts were gone ~10 min in, the
 reading froze, and the one LE read it had given said 100 % where the Classic
 path said 75 % (twice, same MAC). Only when nothing comes back that way does a
 round fall back to scanning 6 s for Harman adverts (company `0x0057`).
+Over that link, subscribing to `…0001` reports *"The attribute could not be
+found"* and the answers arrive anyway — so the error is only logged into the
+visit's stage, and the 6 s deadline is what ends a real silence. Every visit
+that ends without a battery logs `🔊🔋 <name> gave no battery (stopped at: …)`.
 
 **Only this Mac's speakers.** A reading counts only if its MAC is a connected
 audio output here — the keep-alive's own `targets`, matched against the
