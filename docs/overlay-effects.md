@@ -537,8 +537,12 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   fill the rest — 5.06 s, the clip's length; the GIF's delays are the sync,
   played once, never stretched. On each bark he **jumps**: a
   `transform.translation.y` keyframe animation (`SmallDogBark.jumpCurve`), a
-  half-sine from a step before the bark to a step after it, up to 12 % of his
-  height on the loudest (√ of the bark's peak RMS for the quieter ones). The
+  half-sine with its apex on the bark, up to 12 % of his height on the loudest
+  (√ of the bark's peak RMS for the quieter ones), and **at least
+  `minAirtime` = 0.45 s long** (2026-10-29): sized to the bark itself (40–140 ms)
+  he went up and down five times a second, dizzying on a projector, and Victor
+  wanted it slower, *not* lower. In a volley the hops overlap and the higher
+  wins, so he stays up and bobs instead of hitting the floor between barks. The
   jump was baked into the GIF first — every frame then a different picture,
   ~170 MB decoded — so it moved out to Core Animation, on the frames' clock.
   **A play-path visual that owns its audio**, the skull boom's way: pressed from

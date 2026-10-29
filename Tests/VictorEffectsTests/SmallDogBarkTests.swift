@@ -31,6 +31,15 @@ final class SmallDogBarkTests: XCTestCase {
         XCTAssertLessThanOrEqual(curve.lift.max()!, 1.0)
     }
 
+    /// Slow enough to watch: the shortest bark (1.06–1.08 s) still keeps him
+    /// in the air for `minAirtime`, not for its own 40 ms.
+    func testEvenTheShortestBarkIsAFullSlowHop() {
+        let curve = SmallDogBark.jumpCurve(duration: 5.06)
+        let airborne = zip(curve.times, curve.lift).filter { $0.0 > 0.95 && $0.0 < 1.4 && $0.1 > 0 }
+        XCTAssertGreaterThanOrEqual(airborne.count, Int(SmallDogBark.minAirtime / 0.02) - 2)
+        XCTAssertGreaterThanOrEqual(SmallDogBark.minAirtime, 0.4)
+    }
+
     func testBarksAreInOrderInsideTheClip() {
         let barks = SmallDogBark.barks
         XCTAssertEqual(barks.count, 10)

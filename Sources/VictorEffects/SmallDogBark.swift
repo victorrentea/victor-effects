@@ -58,18 +58,29 @@ enum SmallDogBark {
                       y: bounds.minY, width: w, height: h)
     }
 
+    /// Shortest time a hop spends in the air. A bark lasts 40–140 ms, and a hop
+    /// that long (the first version) threw him up and down five times in a
+    /// second — dizzying on a projector. Same height, slower (Victor,
+    /// 2026-10-29): every hop now takes at least this long, centred on its
+    /// bark, so the rise and the fall are 2.5–5× gentler. In a volley the hops
+    /// overlap and the higher one wins, so he stays up and bobs instead of
+    /// slamming back to the floor between barks.
+    static let minAirtime: Double = 0.45
+
     /// The lift (0…1 of `jumpFraction`) every 20 ms over the clip: a half-sine
-    /// per bark from one step before it to one step after its end — up as he
-    /// opens his mouth, down just after — scaled by the bark's strength.
+    /// per bark, apex on the bark's middle, at least `minAirtime` wide (wider
+    /// if the bark itself is), scaled by the bark's strength.
     static func jumpCurve(duration: Double, step: Double = 0.02) -> (times: [Double], lift: [Double]) {
         let n = Int((duration / step).rounded(.up))
         var lift = [Double](repeating: 0, count: n + 1)
         for bark in barks {
-            let a = max(Int((bark.start / step).rounded()) - 1, 0)
-            let b = min(Int((bark.end / step).rounded()) + 1, n)
+            let airtime = max(minAirtime, bark.end - bark.start + 2 * step)
+            let takeoff = (bark.start + bark.end) / 2 - airtime / 2
+            let a = max(Int((takeoff / step).rounded(.up)), 0)
+            let b = min(Int(((takeoff + airtime) / step).rounded(.down)), n)
             guard b > a else { continue }
             for i in a...b {
-                let phase = Double(i - a) / Double(b - a)
+                let phase = (Double(i) * step - takeoff) / airtime
                 lift[i] = max(lift[i], bark.strength * sin(.pi * phase))
             }
         }
