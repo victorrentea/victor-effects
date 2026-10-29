@@ -29,18 +29,27 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
-    /// One word, two at most (2026-10-29) — emoji are not words.
+    /// One word, two at most (2026-10-29).
     func testNoPhraseIsLongerThanTwoWords() {
         for phrase in WhipPleas.phrases {
             let words = WhipPleas.flagged(phrase).words.split(separator: " ")
-                .filter { $0.contains { $0.isLetter } }
             XCTAssertLessThanOrEqual(words.count, WhipPleas.maxWords, "\(phrase) is too long")
         }
     }
 
-    /// Every thank-you opens with its country's flag (2026-10-23), one
-    /// glyph of two regional indicators, from a Schengen or euro country.
-    func testEveryPhraseOpensWithAnAllowedFlag() {
+    /// The flag is the only emoji left (2026-10-29): words, then the country.
+    func testNoEmojiBesideTheFlag() {
+        for phrase in WhipPleas.phrases {
+            let words = WhipPleas.flagged(phrase).words
+            XCTAssertTrue(words.allSatisfy { $0.isLetter || $0.isWhitespace || $0.isPunctuation },
+                          "\(phrase) carries more than its flag")
+        }
+    }
+
+    /// Every thank-you ends with its country's flag (2026-10-29; it opened
+    /// with it from 2026-10-23), one glyph of two regional indicators, from a
+    /// Schengen or euro country.
+    func testEveryPhraseEndsWithAnAllowedFlag() {
         for phrase in WhipPleas.phrases {
             let (flag, iso, _) = WhipPleas.flagged(phrase)
             XCTAssertEqual(flag.unicodeScalars.count, 2, "\(phrase) has no flag")
@@ -51,10 +60,10 @@ final class WhipPleasTests: XCTestCase {
 
     /// The ISO code is read off the flag itself — no second table to drift.
     func testFlaggedReadsTheIsoCodeOffTheFlag() {
-        let (flag, iso, words) = WhipPleas.flagged("🇫🇷 merci beaucoup 💋")
+        let (flag, iso, words) = WhipPleas.flagged("merci beaucoup 🇫🇷")
         XCTAssertEqual(flag, "🇫🇷")
         XCTAssertEqual(iso, "FR")
-        XCTAssertEqual(words, " merci beaucoup 💋")
+        XCTAssertEqual(words, "merci beaucoup ")
     }
 
     /// The word lands past the tip, on the far side from the pointer.

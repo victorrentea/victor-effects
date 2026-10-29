@@ -101,23 +101,27 @@ compensation delay would only make it late.
 *please*es, Victor: *"make my whip throw please statements … whenever where it
 cracks"*; since 2026-10-22 only thanks, never an apology — Victor: *"nu vreau
 să îți cer scuze … vreau să spui mulțumesc în cât mai amuzante moduri
-multiculturale din Europa"*): *mille mercis 🥐*, *grazie, bello 🤌*,
-*danke, Schatzi 🍺*, *tusen tack 🫎*, *ευχαριστώ 🏛️*, *cheers, lads ☘️*,
-*mersi, dragă 🧛*, Victor's own *săru-mâna 🙏* and the Romanian pop ones
-Codex came up with: *mersi, rege 👑*, *mulțam, legendă 🏆*, *mersi, șefu’ 🤝*,
-*să trăiești 🎤*, *pupici, mersi 😘* (`WhipPleas.phrases`). No *sorry*
-anywhere, and **one word, two at most** (2026-10-29, Victor: *"un singur danke
-… un cuvânt, două max"* — *danke, danke, danke* and *go raibh maith agat* went,
-*tack så mycket* became *tusen tack*); `WhipPleasTests` keeps both that way
-(`WhipPleas.maxWords`).
-**Each one flies under its country's flag**, first, so the room reads where
-before it reads what (2026-10-23, Victor: *"să pui și steagul țării din care e
-acea mulțumire … să învățăm cultură"*): *🇨🇭 merci vielmal*, *🇦🇹 danke,
-Schatzi*, *🇮🇪 cheers, lads*. Catalan and Basque go under 🇪🇸 — emoji have
-no flag for either. **The flag's ISO code follows it as a subscript** (🇫🇷₍FR₎,
-50% size, 12% below the baseline — `WhipPleas.isoScale`/`isoDrop`), read back off
-the two regional indicators, so a flag nobody recognises still says where it is
-from (same day: *"codul ISO … mai bine subscript după [steag]"*). **Only Schengen
+multiculturale din Europa"*): *mille mercis*, *grazie, bello*,
+*danke, Schatzi*, *tusen tack*, *ευχαριστώ*, *cheers, lads*, *mersi, dragă*,
+Victor's own *săru-mâna* and the Romanian pop ones Codex came up with:
+*mersi, rege*, *mersi, șefu’*, *să trăiești*, *pupici, mersi*
+(`WhipPleas.phrases`). No *sorry* anywhere, and **one word, two at most**
+(2026-10-29, Victor: *"un singur danke … un cuvânt, două max"* — *danke, danke,
+danke* and *go raibh maith agat* went, *tack så mycket* became *tusen tack*);
+`WhipPleasTests` keeps both that way (`WhipPleas.maxWords`).
+**Each one ends with its country's flag and nothing else** (2026-10-23, Victor:
+*"să pui și steagul țării din care e acea mulțumire … să învățăm cultură"*):
+*merci vielmal 🇨🇭*, *danke, Schatzi 🇦🇹*, *cheers, lads 🇮🇪*. Until
+2026-10-29 the flag came first and a joke emoji closed the phrase (*mille mercis
+🥐*); then the words went first, the joke emoji went and the country moved to the
+end (Victor: *"scoate emoji-ul de la finalul frazelor … lasă doar țara … la
+final. Începe cu cuvintele"*) — and *mulțam, legendă* went with its 🏆, since
+without the trophy it read as nonsense. `WhipPleasTests` fails on any emoji
+besides the flag. Catalan and Basque go under 🇪🇸 — emoji have no flag for
+either. **The flag's ISO code follows it as a subscript** (🇫🇷₍FR₎, 50% size,
+12% below the baseline — `WhipPleas.isoScale`/`isoDrop`), read back off the two
+regional indicators, so a flag nobody recognises still says where it is from
+(2026-10-23: *"codul ISO … mai bine subscript după [steag]"*). **Only Schengen
 or euro countries** (*"nu pune chiar toate țările … din toate colțurile"*):
 Albania, Wales and the British phrases went, Ireland stays on the euro.
 `WhipPleasTests` fails on a phrase without a flag, or with one outside

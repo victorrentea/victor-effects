@@ -608,31 +608,34 @@ private final class WhipView: NSView {
 /// thanks (2026-10-22, Victor: *"nu vreau să îți cer scuze … vreau să spui
 /// mulțumesc în cât mai amuzante moduri multiculturale din Europa"*).
 enum WhipPleas {
-    /// Each thank-you flies under the flag of the country it comes from
+    /// Each thank-you carries the flag of the country it comes from
     /// (2026-10-23, Victor: *"să pui și steagul țării din care e acea
-    /// mulțumire … să învățăm cultură"*) — first, so the room reads where
-    /// before it reads what. Only Schengen or euro countries (same day:
-    /// *"nu pune chiar toate țările … din toate colțurile"*), so Albania,
-    /// Wales and the British went; Ireland stays on the euro.
+    /// mulțumire … să învățăm cultură"*) — and nothing else: words first, the
+    /// country last (2026-10-29, Victor: *"scoate emoji-ul de la finalul
+    /// frazelor … lasă doar țara … la final. Începe cu cuvintele"*). Only
+    /// Schengen or euro countries (2026-10-23: *"nu pune chiar toate țările
+    /// … din toate colțurile"*), so Albania, Wales and the British went;
+    /// Ireland stays on the euro.
     /// One word, two at most (2026-10-29, Victor: *"un singur danke … un
     /// cuvânt, două max"*): the room reads it in the flash it flies, and a
     /// *danke, danke, danke* only stuttered.
     static let maxWords = 2
     static let phrases = [
-        "🇫🇷 merci beaucoup 💋", "🇫🇷 mille mercis 🥐", "🇮🇹 grazie mille 🍝",
-        "🇮🇹 grazie, bello 🤌", "🇩🇪 danke schön 🥨", "🇦🇹 danke, Schatzi 🍺",
-        "🇨🇭 merci vielmal 🧀", "🇪🇸 gracias, amigo 💃", "🇪🇸 moltes gràcies 🏖️",
-        "🇪🇸 eskerrik asko 🏔️", "🇵🇹 obrigadíssimo! 🐓", "🇳🇱 dankjewel 🌷",
-        "🇸🇪 tusen tack 🫎", "🇳🇴 tusen takk ❄️", "🇩🇰 mange tak 🧱", "🇫🇮 kiitos 🧖",
-        "🇮🇸 takk fyrir 🌋", "🇪🇪 aitäh 💾", "🇱🇻 paldies 🌲", "🇱🇹 ačiū 🏀",
-        "🇵🇱 dziękuję 🥟", "🇨🇿 děkuji 🍺", "🇸🇰 ďakujem ⛰️", "🇭🇺 köszönöm 🌶️",
-        "🇭🇷 hvala lijepa 🍇", "🇧🇬 благодаря 🌹", "🇬🇷 ευχαριστώ 🏛️", "🇲🇹 grazzi 🌞",
-        "🇮🇪 cheers, lads ☘️",
-        "🇷🇴 mulțumesc frumos 🍷", "🇷🇴 mersi, dragă 🧛",
+        "merci beaucoup 🇫🇷", "mille mercis 🇫🇷", "grazie mille 🇮🇹",
+        "grazie, bello 🇮🇹", "danke schön 🇩🇪", "danke, Schatzi 🇦🇹",
+        "merci vielmal 🇨🇭", "gracias, amigo 🇪🇸", "moltes gràcies 🇪🇸",
+        "eskerrik asko 🇪🇸", "obrigadíssimo! 🇵🇹", "dankjewel 🇳🇱",
+        "tusen tack 🇸🇪", "tusen takk 🇳🇴", "mange tak 🇩🇰", "kiitos 🇫🇮",
+        "takk fyrir 🇮🇸", "aitäh 🇪🇪", "paldies 🇱🇻", "ačiū 🇱🇹",
+        "dziękuję 🇵🇱", "děkuji 🇨🇿", "ďakujem 🇸🇰", "köszönöm 🇭🇺",
+        "hvala lijepa 🇭🇷", "благодаря 🇧🇬", "ευχαριστώ 🇬🇷", "grazzi 🇲🇹",
+        "cheers, lads 🇮🇪",
+        "mulțumesc frumos 🇷🇴", "mersi, dragă 🇷🇴",
         // Victor's own (2026-10-29: *"bagă săru-mâna în română"*), and the
-        // millennial/pop ones he asked Codex for the same day.
-        "🇷🇴 săru-mâna 🙏", "🇷🇴 mersi, rege 👑", "🇷🇴 mulțam, legendă 🏆",
-        "🇷🇴 mersi, șefu’ 🤝", "🇷🇴 să trăiești 🎤", "🇷🇴 pupici, mersi 😘",
+        // millennial/pop ones he asked Codex for the same day — minus
+        // *mulțam, legendă*, which made no sense once its 🏆 went.
+        "săru-mâna 🇷🇴", "mersi, rege 🇷🇴", "mersi, șefu’ 🇷🇴",
+        "să trăiești 🇷🇴", "pupici, mersi 🇷🇴",
     ]
     /// Schengen ∪ euro area, as of 2026 — the only flags a thank-you may fly.
     static let allowedCountries: Set<String> = [
@@ -642,32 +645,32 @@ enum WhipPleas {
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
     /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),
-    /// so a flag nobody recognises still says where it is from.
+    /// so a flag nobody recognises still says where it is from. Flag and code
+    /// close the phrase together (2026-10-29).
     static let isoScale: CGFloat = 0.5
     static let isoDrop: CGFloat = 0.12
 
     /// The phrase split around its flag: the flag, its ISO 3166 code read
-    /// back off the two regional indicators (🇫🇷 → "FR"), and the words after.
+    /// back off the two regional indicators (🇫🇷 → "FR"), and the words before.
     static func flagged(_ phrase: String) -> (flag: String, iso: String, words: String) {
-        guard let flag = phrase.first else { return ("", "", phrase) }
+        guard let flag = phrase.last else { return ("", "", phrase) }
         let iso = String(String.UnicodeScalarView(flag.unicodeScalars.compactMap {
             (0x1F1E6...0x1F1FF).contains($0.value) ? UnicodeScalar($0.value - 0x1F1E6 + 65) : nil
         }))
-        return (String(flag), iso, String(phrase.dropFirst()))
+        return (String(flag), iso, String(phrase.dropLast()))
     }
     /// `phrase` in `font`, with its flag's ISO code dropped in as a subscript.
     static func attributed(_ phrase: String, font: NSFont,
                            _ attrs: [NSAttributedString.Key: Any]) -> NSAttributedString {
         let (flag, iso, words) = flagged(phrase)
         let small = NSFont.systemFont(ofSize: font.pointSize * isoScale, weight: .heavy)
-        let s = NSMutableAttributedString(string: flag, attributes: attrs.merging([.font: font]) { $1 })
+        let s = NSMutableAttributedString(string: words + flag, attributes: attrs.merging([.font: font]) { $1 })
         s.append(NSAttributedString(string: iso, attributes: attrs.merging(
             [.font: small, .baselineOffset: -font.pointSize * isoDrop]) { $1 }))
-        s.append(NSAttributedString(string: words, attributes: attrs.merging([.font: font]) { $1 }))
         return s
     }
     /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
-    /// time"*) — the room needs the time to read *mulțam, legendă 🏆*.
+    /// time"*) — the room needs the time to read *mulțumesc frumos 🇷🇴RO*.
     static let lifeMs = 1950.0
     static let riseDistance: CGFloat = 70
     /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).
