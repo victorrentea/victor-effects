@@ -537,7 +537,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   fill the rest — 5.06 s, the clip's length; the GIF's delays are the sync,
   played once, never stretched. On each bark he **jumps**: a
   `transform.translation.y` keyframe animation (`SmallDogBark.jumpCurve`), a
-  half-sine with its apex on the bark, up to 12 % of his height on the loudest
+  half-sine with its apex on the bark, up to 3.6 % of his height on the loudest
+  (12 % until 2026-10-29, then cut to 30 % of that)
   (√ of the bark's peak RMS for the quieter ones), and **at least
   `minAirtime` = 0.45 s long** (2026-10-29): sized to the bark itself (40–140 ms)
   he went up and down five times a second, dizzying on a projector, and Victor

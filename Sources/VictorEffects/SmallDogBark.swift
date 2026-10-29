@@ -36,8 +36,9 @@ enum SmallDogBark {
         Bark(start: 4.24, end: 4.36, strength: 1.00),
     ]
 
-    /// The loudest bark lifts him this share of his own height.
-    static let jumpFraction: CGFloat = 0.12
+    /// The loudest bark lifts him this share of his own height. Was 0.12;
+    /// Victor cut it to 30 % of that on 2026-10-29, once the hops were slow.
+    static let jumpFraction: CGFloat = 0.036
 
     /// Height of the dog as a share of the screen's — the box Victor marked on
     /// screen (1072 of 2234 px), the same 48 % the 🐺 wolf stands in.
