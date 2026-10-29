@@ -279,8 +279,17 @@ send `AA 01 02 82 00`: it wipes the speaker's usage counters.
 
 **A visit, not a connection.** The speaker takes one control connection at a
 time, so while we hold it the phone's JBL app cannot connect. Every 2 min
-(first at +10 s): scan 6 s for Harman adverts (company `0x0057`), connect,
-ask, disconnect as soon as battery + MAC are in (6 s cap per speaker).
+(first at +10 s): ask, and let go as soon as battery + MAC are in (6 s cap
+per speaker).
+
+**Over the Classic link, not over BLE adverts.** The same service is reachable
+as GATT over the BR/EDR link the audio already uses:
+`retrieveConnectedPeripherals(withServices:)` hands it over with no scan. That
+is the first choice, because a Go 4 **stops advertising over BLE** a while
+after it connects — on 2026-10-29 the adverts were gone ~10 min in, the
+reading froze, and the one LE read it had given said 100 % where the Classic
+path said 75 % (twice, same MAC). Only when nothing comes back that way does a
+round fall back to scanning 6 s for Harman adverts (company `0x0057`).
 
 **Only this Mac's speakers.** A reading counts only if its MAC is a connected
 audio output here — the keep-alive's own `targets`, matched against the

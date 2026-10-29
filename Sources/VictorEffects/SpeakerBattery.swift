@@ -160,6 +160,17 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         guard let c = central, c.state == .poweredOn, !busy else { return }
         busy = true
         found = [:]
+        // First choice: the JBL's GATT over the Classic link the audio already
+        // uses — no advert needed. A Go 4 stops advertising over BLE a while
+        // after it connects (2026-10-29: silent after ~10 min, and the one LE
+        // read it had given said 100 % where this path said 75 %), so a
+        // scan-only round goes stale without a sound.
+        let direct = c.retrieveConnectedPeripherals(withServices: [Self.service])
+        if !direct.isEmpty {
+            queue = direct
+            visitNext()
+            return
+        }
         c.scanForPeripherals(withServices: nil, options: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.scanSeconds) { [weak self] in
             guard let self else { return }
