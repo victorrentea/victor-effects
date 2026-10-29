@@ -12244,6 +12244,37 @@ class EmojiAnimator {
     /// first fire would read as "nothing running" — the chainsaw's reason.
     var isFireRunning: Bool { _firePointerLayer != nil || !_firePlanted.isEmpty }
 
+    // MARK: ✋ Can't touch this (tile #35) — the session is `CantTouchThisSession`
+
+    private var _cantTouch: CantTouchThisSession?
+
+    /// For the 🛑 lamp, for the chainsaw's reason: it lives outside `activeEffects`.
+    var isCantTouchRunning: Bool { _cantTouch?.isRunning == true }
+
+    /// The pointer becomes a stop sign for the length of the clip; every click
+    /// stamps one and they all blink. A re-press while it runs puts it away.
+    func showCantTouchThis() {
+        if isCantTouchRunning { stopCantTouchThis(); return }
+        stopCantTouchThis(fade: 0)   // never leak a previous run's tap/hidden cursor
+        guard let session = CantTouchThisSession(hostLayer: hostLayer,
+                                                 mousePoint: { [weak self] in self?.mousePointInHostLayer() ?? .zero })
+        else { return }
+        var duration = CantTouchThisSession.fallbackDuration
+        if let url = SoundManager.shared.soundURL(for: "35_cant_touch_this.mp3") {
+            let d = AVURLAsset(url: url).duration
+            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+        }
+        session.onEnded = { [weak self, weak session] in
+            if let self, self._cantTouch === session { self._cantTouch = nil }
+        }
+        _cantTouch = session
+        session.start(duration: duration)
+    }
+
+    func stopCantTouchThis(fade: Double = CantTouchThisSession.fadeOut) {
+        _cantTouch?.stop(fade: fade)
+    }
+
     /// How far the fireball has to travel before a drag plants the next fire.
     /// Small enough that a sweep reads as a continuous line of flame, large
     /// enough that the flames stay separate fires rather than one smeared blob
@@ -14278,6 +14309,7 @@ class EmojiAnimator {
         case "bullet-holes":  stopMinigunSession()
         case "chainsaw":      stopChainsawCursor(fade: 0)
         case "fire":          stopFireCursor(fade: 0)
+        case "cant-touch-this": stopCantTouchThis(fade: 0)
         case "applause":      stopApplause()
         case "pulse":         if pulseRunning { _stopPulse() }
         case "iris":          if let iris = _irisLayer { cancelIris(iris, fadeDuration: 0.2) }
@@ -14317,6 +14349,8 @@ class EmojiAnimator {
         // scroll wheel. Leaking that would cost the user their wheel long after
         // the flame was gone, with nothing on screen to explain it.
         stopFireCursor(fade: 0)
+        // ✋ The stop hand hides the pointer and swallows clicks, like the fire.
+        stopCantTouchThis(fade: 0)
         // ☢️ The bombardment is outside activeEffects for the same reasons again:
         // its targets and blasts are the run's own layers, it hides the real
         // pointer, and it holds a tap that is swallowing Escape and every click.

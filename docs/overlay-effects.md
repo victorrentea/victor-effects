@@ -1312,6 +1312,24 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     as `/sound/stopped`, and the saw must outlive the tile. `/test/chainsaw`,
     `/test/chainsaw/stop` and `/effect/chainsaw` drive it, now with the engine noise.
 
+- **✋ Can't touch this** (tile #35 `35_cant_touch_this.mp3` → `cant-touch-this` /
+  `cant-touch-this/stop`, `CantTouchThisSession`, 2026-10-30, Victor: *"dacă apăs cu
+  mouse-ul o să lase în urmă semnul acesta … clipește de trei ori unde am lăsat, plus unde
+  e mouse-ul meu"*). The pointer becomes a red **stop sign with a raised hand** (120 pt,
+  centred on the pointer; real cursor hidden, `fitPointerSprite` under zoom). **Every left
+  click is taken from the app underneath** — the desktop can't be touched — and stamps a
+  copy of the sign on that spot, glued to the desktop. Then **every sign on screen blinks
+  three times in unison** (0.14 s dark / 0.14 s lit ×3, discrete, ending lit): the stamped
+  ones, the new one and the one on the pointer, one animation added to all of them in one
+  transaction, so they cannot drift; a click mid-blink restarts it for all. The tap is the
+  AK-47's rule (`minigunMouseDecision`), Esc puts it away. Lives for the clip (8.9 s, read
+  off the file), then fades out in 0.35 s; re-press, the tablet's stop and stop-all end it
+  too. Lives outside `activeEffects` (hidden cursor + tap), so `stopAllActiveEffects` and
+  `stopEffect(named:)` tear it down by name and `isAnythingRunning` asks for it. The
+  picture is the lit frame of Wikimedia's *Blinking Stop hand.gif* (CC BY-SA 3.0,
+  shipped as `Resources/stop-hand.png`); its own 1 s blink was too slow to answer a click.
+  `/test/cant-touch-this`, `/effect/cant-touch-this`.
+
 - **🔥 Fireball & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):
   the pointer becomes a **burning sphere of fire**, and every fire on screen is one he put
   down with it: a click lays a fire where the ball was, the wheel sizes **that** fire on the

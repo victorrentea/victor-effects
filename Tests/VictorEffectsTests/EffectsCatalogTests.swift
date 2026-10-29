@@ -17,7 +17,7 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 48 of the 91 tiles (#61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 48 of the 91 tiles (#35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
@@ -40,6 +40,7 @@ final class EffectsCatalogTests: XCTestCase {
         "29_gangnam_style.mp3":  "gangnam",
         "31_tarzan.mp3":         "iris",
         "34_phoenix.mp3":        "phoenix",
+        "35_cant_touch_this.mp3": "cant-touch-this", // ✋ the pointer stamps blinking stop signs
         "37_rainbow.mp3":        "rainbow",
         "39_skull_boom.mp3":     "skull-boom",     // 💀 in-clip cue, the drop 0.5 s in
         "40_joker.mp3":          "blood-drip",

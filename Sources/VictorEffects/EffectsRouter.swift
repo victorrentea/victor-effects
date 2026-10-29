@@ -140,6 +140,8 @@ final class EffectsRouter {
         "/test/chainsaw/stop": "chainsaw/stop",
         "/test/fire": "fire",
         "/test/fire/stop": "fire/stop",
+        "/test/cant-touch-this": "cant-touch-this",
+        "/test/cant-touch-this/stop": "cant-touch-this/stop",
         "/test/microwave": "microwave",
         "/test/universal-minions": "universal-minions",
         "/test/universal-minions/preview": "universal-minions/preview",

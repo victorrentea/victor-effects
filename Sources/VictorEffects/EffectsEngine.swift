@@ -343,6 +343,8 @@ final class EffectsEngine {
         // fire struck, not on the press, so the routed play stays silent.
         case "fire":          animator.showFireCursor(playSound: true)
         case "fire/stop":     animator.stopFireCursor()
+        case "cant-touch-this":      animator.showCantTouchThis()
+        case "cant-touch-this/stop": animator.stopCantTouchThis()
         // Like the sonar: the door's cue lives INSIDE the clip, so the effect
         // owns its own audio rather than trusting a separate routed play to land
         // on the same millisecond.
@@ -492,6 +494,7 @@ final class EffectsEngine {
             || snapIsShowing
             || animator.isChainsawRunning
             || animator.isFireRunning
+            || animator.isCantTouchRunning
     }
 
     /// One tile pressed again while it runs (`/sound/stop/<asset>`): its clip,

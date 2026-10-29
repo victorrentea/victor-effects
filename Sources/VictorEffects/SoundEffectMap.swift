@@ -72,6 +72,10 @@ enum SoundEffectMap {
         // starts on the first click now, so the tablet's completion stop (timed
         // from the press) would cut it short; the clip's length is the end.
         "11_fire.mp3":           "fire",
+        // Tile 35 (✋ MC Hammer): the pointer becomes a stop sign, every click
+        // stamps one on the desktop (taken from the app underneath) and all of
+        // them blink three times together. Ends with the clip; Escape earlier.
+        "35_cant_touch_this.mp3": "cant-touch-this",
         // Tile 6 (©️ the Pink Panther theme): the tile's own artwork is
         // Inspector Clouseau stooped over a magnifying glass, so the desktop
         // gets the glass. It follows the pointer and magnifies only what is
@@ -184,6 +188,7 @@ enum SoundEffectMap {
         "46_michael_buble.mp3":  "snow/stop",
         "20_storm.mp3":          "storm/stop",
         "61_hallelujah.mp3":     "heaven/stop",
+        "35_cant_touch_this.mp3": "cant-touch-this/stop",
     ]
 
     /// Sounds whose desktop visual is driven from the routed `/sound/play` path
