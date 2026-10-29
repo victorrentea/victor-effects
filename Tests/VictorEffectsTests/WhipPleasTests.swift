@@ -29,6 +29,15 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
+    /// One word, two at most (2026-10-29) — emoji are not words.
+    func testNoPhraseIsLongerThanTwoWords() {
+        for phrase in WhipPleas.phrases {
+            let words = WhipPleas.flagged(phrase).words.split(separator: " ")
+                .filter { $0.contains { $0.isLetter } }
+            XCTAssertLessThanOrEqual(words.count, WhipPleas.maxWords, "\(phrase) is too long")
+        }
+    }
+
     /// Every thank-you opens with its country's flag (2026-10-23), one
     /// glyph of two regional indicators, from a Schengen or euro country.
     func testEveryPhraseOpensWithAnAllowedFlag() {

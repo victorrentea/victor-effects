@@ -614,19 +614,25 @@ enum WhipPleas {
     /// before it reads what. Only Schengen or euro countries (same day:
     /// *"nu pune chiar toate țările … din toate colțurile"*), so Albania,
     /// Wales and the British went; Ireland stays on the euro.
+    /// One word, two at most (2026-10-29, Victor: *"un singur danke … un
+    /// cuvânt, două max"*): the room reads it in the flash it flies, and a
+    /// *danke, danke, danke* only stuttered.
+    static let maxWords = 2
     static let phrases = [
-        "🇫🇷 merci beaucoup 💋", "🇫🇷 merci mille fois 🥐", "🇮🇹 grazie mille 🍝",
-        "🇮🇹 grazie, mamma mia 🤌", "🇩🇪 danke schön 🥨", "🇦🇹 danke, Schatzi 🍺",
+        "🇫🇷 merci beaucoup 💋", "🇫🇷 mille mercis 🥐", "🇮🇹 grazie mille 🍝",
+        "🇮🇹 grazie, bello 🤌", "🇩🇪 danke schön 🥨", "🇦🇹 danke, Schatzi 🍺",
         "🇨🇭 merci vielmal 🧀", "🇪🇸 gracias, amigo 💃", "🇪🇸 moltes gràcies 🏖️",
-        "🇪🇸 eskerrik asko 🏔️", "🇵🇹 obrigadíssimo! 🐓", "🇳🇱 dank je wel 🌷",
-        "🇸🇪 tack så mycket 🫎", "🇳🇴 tusen takk ❄️", "🇩🇰 mange tak 🧱", "🇫🇮 kiitos 🧖",
+        "🇪🇸 eskerrik asko 🏔️", "🇵🇹 obrigadíssimo! 🐓", "🇳🇱 dankjewel 🌷",
+        "🇸🇪 tusen tack 🫎", "🇳🇴 tusen takk ❄️", "🇩🇰 mange tak 🧱", "🇫🇮 kiitos 🧖",
         "🇮🇸 takk fyrir 🌋", "🇪🇪 aitäh 💾", "🇱🇻 paldies 🌲", "🇱🇹 ačiū 🏀",
         "🇵🇱 dziękuję 🥟", "🇨🇿 děkuji 🍺", "🇸🇰 ďakujem ⛰️", "🇭🇺 köszönöm 🌶️",
         "🇭🇷 hvala lijepa 🍇", "🇧🇬 благодаря 🌹", "🇬🇷 ευχαριστώ 🏛️", "🇲🇹 grazzi 🌞",
-        "🇮🇪 go raibh maith agat ☘️", "🇮🇪 thanks a million 🍀",
+        "🇮🇪 cheers, lads ☘️",
         "🇷🇴 mulțumesc frumos 🍷", "🇷🇴 mersi, dragă 🧛",
-        // Victor's own, as dictated: no sorry, sorry, sorry.
-        "🇩🇪 danke, danke, danke 🥺", "🇷🇴 mulțumesc, te rog frumos 🙏",
+        // Victor's own (2026-10-29: *"bagă săru-mâna în română"*), and the
+        // millennial/pop ones he asked Codex for the same day.
+        "🇷🇴 săru-mâna 🙏", "🇷🇴 mersi, rege 👑", "🇷🇴 mulțam, legendă 🏆",
+        "🇷🇴 mersi, șefu’ 🤝", "🇷🇴 să trăiești 🎤", "🇷🇴 pupici, mersi 😘",
     ]
     /// Schengen ∪ euro area, as of 2026 — the only flags a thank-you may fly.
     static let allowedCountries: Set<String> = [
@@ -661,7 +667,7 @@ enum WhipPleas {
         return s
     }
     /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
-    /// time"*) — the room needs the time to read *go raibh maith agat ☘️*.
+    /// time"*) — the room needs the time to read *mulțam, legendă 🏆*.
     static let lifeMs = 1950.0
     static let riseDistance: CGFloat = 70
     /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).

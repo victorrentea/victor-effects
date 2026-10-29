@@ -101,15 +101,19 @@ compensation delay would only make it late.
 *please*es, Victor: *"make my whip throw please statements … whenever where it
 cracks"*; since 2026-10-22 only thanks, never an apology — Victor: *"nu vreau
 să îți cer scuze … vreau să spui mulțumesc în cât mai amuzante moduri
-multiculturale din Europa"*): *merci mille fois 🥐*, *grazie, mamma mia 🤌*,
-*danke, Schatzi 🍺*, *tack så mycket 🫎*, *ευχαριστώ 🏛️*, *go raibh maith
-agat ☘️*, *mersi, dragă 🧛*, and Victor's own
-*mulțumesc, te rog frumos 🙏* (`WhipPleas.phrases`). No *sorry* anywhere,
-`WhipPleasTests` keeps it that way.
+multiculturale din Europa"*): *mille mercis 🥐*, *grazie, bello 🤌*,
+*danke, Schatzi 🍺*, *tusen tack 🫎*, *ευχαριστώ 🏛️*, *cheers, lads ☘️*,
+*mersi, dragă 🧛*, Victor's own *săru-mâna 🙏* and the Romanian pop ones
+Codex came up with: *mersi, rege 👑*, *mulțam, legendă 🏆*, *mersi, șefu’ 🤝*,
+*să trăiești 🎤*, *pupici, mersi 😘* (`WhipPleas.phrases`). No *sorry*
+anywhere, and **one word, two at most** (2026-10-29, Victor: *"un singur danke
+… un cuvânt, două max"* — *danke, danke, danke* and *go raibh maith agat* went,
+*tack så mycket* became *tusen tack*); `WhipPleasTests` keeps both that way
+(`WhipPleas.maxWords`).
 **Each one flies under its country's flag**, first, so the room reads where
 before it reads what (2026-10-23, Victor: *"să pui și steagul țării din care e
 acea mulțumire … să învățăm cultură"*): *🇨🇭 merci vielmal*, *🇦🇹 danke,
-Schatzi*, *🇮🇪 thanks a million*. Catalan and Basque go under 🇪🇸 — emoji have
+Schatzi*, *🇮🇪 cheers, lads*. Catalan and Basque go under 🇪🇸 — emoji have
 no flag for either. **The flag's ISO code follows it as a subscript** (🇫🇷₍FR₎,
 50% size, 12% below the baseline — `WhipPleas.isoScale`/`isoDrop`), read back off
 the two regional indicators, so a flag nobody recognises still says where it is
