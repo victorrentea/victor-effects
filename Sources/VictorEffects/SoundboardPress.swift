@@ -71,6 +71,13 @@ final class SoundboardPress {
             stop(tile)
             return "{\"ok\":true,\"n\":\(tile.n),\"asset\":\"\(tile.asset)\",\"action\":\"stop\"}"
         }
+        // One cell, one sound (Victor, 2026-10-30): a tile and the one under it
+        // (same `n`) never play together — while either runs, pressing the cell
+        // on the other layer stops it instead. Different cells still overlap.
+        if let sibling = playingTiles.first(where: { $0.n == tile.n && $0.asset != tile.asset }) {
+            stop(sibling)
+            return "{\"ok\":true,\"n\":\(sibling.n),\"asset\":\"\(sibling.asset)\",\"action\":\"stop\"}"
+        }
 
         // No stop-all: whatever else is running keeps running.
         let response = router.dispatch("/sound/play/\(tile.asset)?vol=\(volumePct())")

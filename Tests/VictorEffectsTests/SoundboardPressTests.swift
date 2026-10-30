@@ -80,6 +80,21 @@ final class SoundboardPressTests: XCTestCase {
         XCTAssertEqual(press.playingTiles, [siren])
     }
 
+    /// 2026-10-30: a cell's two layers never sound together — pressing the
+    /// cell on the other layer stops the one running there, starts nothing.
+    func testTheTileUnderARunningOneStopsItInsteadOfStarting() {
+        let starWars = Tile(n: 55, asset: "55_star_wars.mp3", image: "tiles/sfx_55.jpg")
+        let tsunami = Tile(n: 55, asset: "55b_tsunami.mp3", image: "tiles/sfx_55b.jpg")
+        press.press(joker)
+        press.press(starWars)
+        router.paths.removeAll()
+
+        press.press(tsunami)
+
+        XCTAssertEqual(router.paths, ["/sound/stop/55_star_wars.mp3"])
+        XCTAssertEqual(press.playingTiles, [joker])
+    }
+
     func testRePressingARestartableTileReplaysIt() {
         press.press(money)
         router.paths.removeAll()
