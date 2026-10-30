@@ -337,7 +337,7 @@ brings him back until another is picked), the `🙏 Pray` menu row under `🔥 W
   0.35 a frame) so they drift after it, centred on it, breathing ±2%. They are
   the figure drawn through a traced outline (`PrayView.handsOutline`, unit
   coordinates of the 265×324 cut-out — a new picture needs a new trace), so the
-  man (200 pt tall) is placed by his hands and grows around those very pixels. Same panel
+  man (260 pt tall — 200 until 2026-10-30) is placed by his hands and grows around those very pixels. Same panel
   (`WhipPanel`, `maximumWindow`) and the same `ZoomedPanel` mapping every frame,
   so ⌥-scroll and the ⌥⇧ zoom treat him exactly as they treat the rope.
 - **A click plants a man, nothing is typed** (2026-10-20, Victor: *"when I
@@ -400,7 +400,7 @@ is the click).
 
 - **The hand IS the pointer**: glued, not eased like pray's hands, held by the
   point where thumb meets middle finger (`SnapView.hotspot`, unit coordinates
-  of the 370×520 cut-out), 170 pt tall. Same `WhipPanel` + `ZoomedPanel`, same
+  of the 370×520 cut-out), 340 pt tall (170 until 2026-10-30; the burst lines and the 🫰 fallback scale with it). Same `WhipPanel` + `ZoomedPanel`, same
   `CursorHide`.
 - **A click snaps**: frame 0 of `finger-snap.png` is the hand at rest; a click
   plays every frame after it once, each for its own delay — a black silhouette

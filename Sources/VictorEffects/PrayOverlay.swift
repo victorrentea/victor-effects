@@ -326,7 +326,8 @@ private final class PrayView: NSView {
     var prayers: [PrayChoir.Prayer] = []
     var onMouseDown: (() -> Void)?
 
-    static let figureHeight: CGFloat = 200
+    /// 260 since 2026-10-30 (was 200): Victor wanted him 30% bigger.
+    static let figureHeight: CGFloat = 260
     static let glowColor = NSColor(red: 1.0, green: 0.84, blue: 0.35, alpha: 1)
     static let beamColor = NSColor(red: 1.0, green: 0.96, blue: 0.78, alpha: 1)
     /// How long the ray takes to come down from the top edge to him — three

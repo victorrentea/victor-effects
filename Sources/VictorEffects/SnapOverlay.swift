@@ -248,7 +248,10 @@ private final class SnapView: NSView {
     var snappedAtMs: Double?
     var onMouseDown: (() -> Void)?
 
-    static let handHeight: CGFloat = 170
+    /// 340 since 2026-10-30 (was 170): Victor wanted the snap twice as big.
+    /// The burst and the emoji fallback scale with it (`scale`).
+    static let handHeight: CGFloat = 340
+    static let scale: CGFloat = handHeight / 170
     /// Where thumb meets middle finger in the rest frame, in unit coordinates
     /// of the picture (y down) — the point that sits on the pointer. Measured
     /// on the shipped 370×520 cut-out; a dropped-in GIF is placed by it too.
@@ -268,7 +271,7 @@ private final class SnapView: NSView {
 
         guard let frames else {
             let pop = since.map { $0 < 200 ? 1.25 - 0.25 * $0 / 200 : 1 } ?? 1
-            let str = NSAttributedString(string: "🫰", attributes: [.font: NSFont.systemFont(ofSize: 64 * pop)])
+            let str = NSAttributedString(string: "🫰", attributes: [.font: NSFont.systemFont(ofSize: 64 * Self.scale * pop)])
             let s = str.size()
             str.draw(at: CGPoint(x: at.x - s.width / 2, y: at.y - s.height / 2))
             drawBurst(ctx, since: since)
@@ -299,14 +302,14 @@ private final class SnapView: NSView {
         let ease = 1 - (1 - f) * (1 - f)
         ctx.saveGState()
         ctx.setLineCap(.round)
-        ctx.setLineWidth(3.5)
+        ctx.setLineWidth(3.5 * Self.scale)
         ctx.setStrokeColor(NSColor.white.withAlphaComponent(1 - f).cgColor)
         ctx.setShadow(offset: .zero, blur: 3, color: NSColor.black.withAlphaComponent(0.6 * (1 - f)).cgColor)
         for k in 0..<Self.burstLines {
             // A fan from straight left (π) round to straight up (1.5π), wider
             // than the hand leaves room for.
             let a = CGFloat.pi * (0.85 + 0.8 * CGFloat(k) / CGFloat(Self.burstLines - 1))
-            let r0 = 16 + 30 * ease, r1 = r0 + 18 * (1 - f) + 6
+            let r0 = (16 + 30 * ease) * Self.scale, r1 = r0 + (18 * (1 - f) + 6) * Self.scale
             ctx.move(to: CGPoint(x: at.x + cos(a) * r0, y: at.y + sin(a) * r0))
             ctx.addLine(to: CGPoint(x: at.x + cos(a) * r1, y: at.y + sin(a) * r1))
         }
