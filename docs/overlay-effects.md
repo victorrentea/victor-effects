@@ -940,17 +940,17 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `tsunami/stop`, `Tsunami` + `showTsunami`, 2026-10-30, Victor: *"un tsunami să mă măture
   ecranul și să-mi curețe textul, să lase fundalul cumva gri … un val mare să rupă tot"*).
   One capture (`captureBuiltInDisplayFast`, zoom-safe through `ZoomSlice` like the skull boom),
-  two pictures of it: the screen **cut into a grid of 18 columns of square pieces** that cover
-  the glass exactly (the first frame looks like nothing happened), and under them a **washed
-  copy** — quarter-resolution Gaussian blur (r 14), saturation 0.15, pulled 40 % to mid-grey:
-  the layout survives as soft light and dark, the text does not. A **plunging breaker** (a
-  hollow face under a forward-thrown lip, teal gradient body fading out behind, white foam
-  edge, spray emitters off the lip and the face) slides left → right at constant speed: the
-  lip touches the left edge **0.35 s** after the press and the right edge **2.5 s** later
-  (`frontEnters`, `frontCrosses`). Each piece is **ripped off when the lip reaches it** (low
-  pieces a little later: the face trails the lip) and tumbles forward with the water — up
-  toward the crest, spinning, shrinking, gone in 1.15 s. What it uncovers is the washed copy
-  under a teal wet film that grows with the front and dries off from 3.4 s to 5 s. Clean
+  two pictures of it: the screen as it is on top (the first frame looks like nothing happened),
+  and under it a **washed copy** — quarter-resolution Gaussian blur (r 14), saturation 0.15,
+  pulled 40 % to mid-grey: the layout survives as soft light and dark, the text does not. A
+  **plunging breaker** slides left → right at constant speed: the lip touches the left edge
+  **0.35 s** after the press and the right edge **2.5 s** later (`frontEnters`,
+  `frontCrosses`). **The wave sweeps, it does not tear** (Victor, 2026-10-30: *"nu mai rupe
+  ecranul ci doar mătură ecranul cu valul"* — until then the screen was cut into 18 columns of
+  pieces flung into the crest): the capture on top is masked to whatever the water has not
+  reached, the mask's edge riding with the wave just behind its water on every row. What the
+  wave leaves is the washed copy under a teal wet film that grows with the front and dries off
+  from 3.4 s to 5 s. Clean
   until the clip ends (7.3 s, read off the file), with the real screen fading back over the
   last 0.8 s. The clip is **our own, synthesized with ffmpeg** (brown-noise rumble, pink-noise
   roar, a thump as it breaks, a hissing foam tail) and made for this timeline: the roar starts
@@ -959,14 +959,16 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `/test/tsunami`, `/effect/tsunami`.
   - **The filmed wave** (2026-10-30, Victor: *"folosește GIF-ul ăsta"*): when
     `assetsDir/tsunami-wave/NN.png` is there, a real cartoon breaker replaces the drawn one —
-    60 frames at 15 fps curling in place on a loop, the screen's full height, bottom-aligned,
+    60 frames at 15 fps curling in place on a loop, 1.25 × the screen's height, bottom-aligned
+    (so the crest reaches the top edge and every row is swept by water, not sky),
     carried by the same slide. `tools/make-tsunami-wave.py` keys the flat sky out by colour
     (only sky reachable from the top edge, so the pale streaks inside the water stay opaque),
     un-mixes the edges from the sky's colour, fades the frame's left 30 % and right 4 % (a hard
     edge of sea would slide along) and crops the watermark rows. Its front is the other way
     round from the drawn breaker's: the sea at the bottom leads (98 % of the frame's width),
-    the crest trails (62 %) — so each piece is ripped when *that row's* water reaches it, from
-    a profile read off the frames at load (`frontProfile`). The lip crosses the glass on the
+    the crest trails (62 %) — so the screen is swept row by row as *that row's* water reaches it, from
+    a profile read off the frames at load (`frontProfile`) — the sweep's edge follows it
+    (`Sprite.edge`), 2 % of the frame behind the water. The lip crosses the glass on the
     same 2.5 s, then the wave leaves in `spriteExit` 1.2 s, so the washed screen has the
     clip's last ~2.5 s to itself. Without the frames, the drawn breaker as above.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,

@@ -5,18 +5,18 @@ import ImageIO
 import QuartzCore
 
 /// 🌊 Tile 55b (`55b_tsunami.mp3`, folded under #55 Star Wars): **a wall of
-/// water sweeps the screen left to right, tears the desktop off in pieces and
-/// leaves it washed clean** — the text gone, the background a blurred grey
+/// water sweeps the screen left to right and leaves it washed clean** — the text gone, the background a blurred grey
 /// ghost of itself (2026-10-30, Victor: *"un tsunami să mă măture ecranul și
 /// să-mi curețe textul, să lase fundalul cumva gri … un val mare să rupă tot"*).
 ///
-/// One capture, two pictures of it. The screen as it is, cut into a grid of
-/// pieces that cover the glass exactly, so the first frame looks like nothing
-/// happened; and under them a WASHED copy — blurred past legibility, drained of
-/// colour, pulled toward grey. As the breaker's lip reaches a piece it is
-/// ripped off and tumbles ahead in the crest; what it uncovers is the washed
-/// copy, wet for a moment, then dry. Clean until the clip ends, then the real
-/// screen fades back.
+/// One capture, two pictures of it. The screen as it is, on top, so the first
+/// frame looks like nothing happened; and under it a WASHED copy — blurred past
+/// legibility, drained of colour, pulled toward grey. The water wipes the one
+/// off to the other: the capture is masked to whatever the wave has not reached
+/// yet, so what the wave leaves behind is the washed copy, wet for a moment,
+/// then dry. Nothing is torn off — the wave sweeps it (Victor, 2026-10-30: "nu
+/// mai rupe ecranul ci doar mătură ecranul cu valul"). Clean until the clip
+/// ends, then the real screen fades back.
 ///
 /// The clip is the tablet's (routed, so the visual is silent), and it was made
 /// for this timeline: the roar starts and pans left → right exactly while the
@@ -33,10 +33,6 @@ enum Tsunami {
     static let frontCrosses: Double = 2.5
     /// The breaker's length behind its lip, as a share of the screen width.
     static let bodyShare: CGFloat = 0.42
-    /// Pieces per row; rows follow from the screen's aspect so they stay square.
-    static let columns = 18
-    /// How long a ripped piece tumbles before it has gone under.
-    static let pieceFlight: Double = 1.15
     /// The wet sheen over the washed screen dries off in this window.
     static let wetFadeStart: Double = 3.4
     static let wetFadeDuration: Double = 1.6
@@ -56,16 +52,6 @@ enum Tsunami {
         return d.isNumeric && CMTimeGetSeconds(d) > 0 ? CMTimeGetSeconds(d) : fallbackClip
     }
 
-    /// Seconds after the press at which the wave reaches a piece whose left
-    /// edge is at `x` and whose centre is at height `y`. The lip (high up) is
-    /// the frontmost point; the concave face below it trails, so low pieces go
-    /// a little later — the breaker plunges, it does not push a flat wall.
-    static func launchTime(x: CGFloat, y: CGFloat, size: CGSize) -> Double {
-        guard size.width > 0, size.height > 0 else { return frontEnters }
-        let trail = bodyShare * size.width * 0.25 * max(0, 1 - y / (0.75 * size.height))
-        return frontEnters + frontCrosses * Double((x + trail) / size.width)
-    }
-
     // MARK: The filmed wave (optional drop-in)
 
     /// A real breaker, when `assetsDir/tsunami-wave/NN.png` is there (made by
@@ -74,8 +60,10 @@ enum Tsunami {
     /// runs, as before. It curls in place in the frames; the slide carries it.
     static var spriteDir: URL { EffectsConfig.shared.assetsDir.appendingPathComponent("tsunami-wave") }
     static let spriteFPS: Double = 15
-    /// The filmed wave's height, as a share of the screen's (bottom-aligned).
-    static let spriteHeightShare: CGFloat = 1.0
+    /// The filmed wave's height, as a share of the screen's (bottom-aligned):
+    /// tall enough that its crest (a fifth of the frame from the top) reaches
+    /// the top edge, so every row of the screen is swept by water, not by sky.
+    static let spriteHeightShare: CGFloat = 1.25
     /// Once its front has crossed the glass, the wave leaves this fast, so the
     /// washed screen gets the clip's remaining seconds to itself.
     static let spriteExit: Double = 1.2
@@ -89,12 +77,15 @@ enum Tsunami {
         /// The frontmost point of the wave: what "the front is at x" means.
         var lip: CGFloat { front.max() ?? 1 }
 
-        /// How far behind the lip the water is at `y` (points from the
-        /// bottom) for a sprite `height` tall. Above the water: the crest's.
-        func trail(y: CGFloat, height: CGFloat, width: CGFloat) -> CGFloat {
-            guard !front.isEmpty, height > 0 else { return 0 }
-            let row = Int(((1 - y / height) * CGFloat(front.count)).rounded(.down))
-            return (lip - front[min(max(row, 0), front.count - 1)]) * width
+        /// The edge of what the water has not reached yet, in points relative
+        /// to the lip (x ≤ 0), for a sprite `size` bottom-aligned at y = 0:
+        /// one point per row, top to bottom, held `margin` behind the water so
+        /// the foam's frame-to-frame jitter never opens a gap onto the old screen.
+        func edge(size: CGSize, margin: CGFloat) -> [CGPoint] {
+            let n = CGFloat(front.count)
+            return front.enumerated().map { row, f in
+                CGPoint(x: (f - lip) * size.width - margin, y: size.height * (1 - (CGFloat(row) + 0.5) / n))
+            }
         }
     }
 
@@ -144,19 +135,9 @@ enum Tsunami {
         return sprite
     }
 
-    /// Seconds after the press at which the filmed wave's lip is at `p`
-    /// (points from the left edge): constant speed over the glass, then the
-    /// faster exit over the remaining `travel`. Pure.
-    static func spriteTime(lipAt p: CGFloat, width W: CGFloat, travel: CGFloat) -> Double {
-        guard W > 0 else { return frontEnters }
-        if p <= W || travel <= W { return frontEnters + frontCrosses * Double(max(0, p) / W) }
-        return frontEnters + frontCrosses + spriteExit * Double(min(1, (p - W) / (travel - W)))
-    }
-
     // MARK: Preparation (off the main thread)
 
-    struct Piece { let frame: CGRect; let image: CGImage }
-    struct Prepared { let washed: CGImage?; let pieces: [Piece]; var sprite: Sprite? = nil }
+    struct Prepared { let washed: CGImage?; let shot: CGImage; var sprite: Sprite? = nil }
 
     private static let ci = CIContext(options: [.cacheIntermediates: false])
 
@@ -182,29 +163,8 @@ enum Tsunami {
         return ci.createCGImage(out, from: small.extent)
     }
 
-    /// The capture cut into the grid, each piece's frame in `size` (points,
-    /// y up) with its own crop of the image (pixels, y down).
-    static func pieces(of shot: CGImage, size: CGSize) -> [Piece] {
-        guard size.width > 0, size.height > 0 else { return [] }
-        let cw = size.width / CGFloat(columns)
-        let rows = max(1, Int((size.height / cw).rounded()))
-        let ch = size.height / CGFloat(rows)
-        let sx = CGFloat(shot.width) / size.width, sy = CGFloat(shot.height) / size.height
-        var out: [Piece] = []
-        out.reserveCapacity(rows * columns)
-        for r in 0..<rows {
-            for c in 0..<columns {
-                let frame = CGRect(x: CGFloat(c) * cw, y: CGFloat(r) * ch, width: cw, height: ch)
-                let pixels = CGRect(x: frame.minX * sx, y: (size.height - frame.maxY) * sy,
-                                    width: cw * sx, height: ch * sy).integral
-                if let crop = shot.cropping(to: pixels) { out.append(Piece(frame: frame, image: crop)) }
-            }
-        }
-        return out
-    }
-
     static func prepare(shot: CGImage, size: CGSize) -> Prepared {
-        Prepared(washed: washed(shot), pieces: pieces(of: shot, size: size), sprite: loadSprite())
+        Prepared(washed: washed(shot), shot: shot, sprite: loadSprite())
     }
 
     // MARK: The layers (main thread)
@@ -250,56 +210,66 @@ enum Tsunami {
         root.addSublayer(wet)
 
         // 3. The breaker, sliding from just off the left edge to well past the right:
-        // the filmed one when its frames are there, else the drawn one.
+        // the filmed one when its frames are there, else the drawn one. `edge` is
+        // the line, relative to the lip, behind which the screen has been swept.
         let wave: CALayer
-        let launch: (Piece) -> Double
+        let slide: CAAnimation
+        let edge: [CGPoint]
         if let sprite = prepared.sprite {
-            let sh = H * spriteHeightShare, sw = sh * sprite.aspect
-            wave = makeSpriteWave(sprite, size: CGSize(width: sw, height: sh), clock0: clock0)
-            let travel = W + sprite.lip * sw
+            let size = CGSize(width: H * spriteHeightShare * sprite.aspect, height: H * spriteHeightShare)
+            wave = makeSpriteWave(sprite, size: size, clock0: clock0)
+            let travel = W + sprite.lip * size.width
             wave.position = CGPoint(x: travel, y: 0)
-            let slide = CAKeyframeAnimation(keyPath: "position.x")
-            slide.values = [0, W, travel]
-            slide.keyTimes = [0, NSNumber(value: frontCrosses / (frontCrosses + spriteExit)), 1]
-            slide.beginTime = clock0 + frontEnters
-            slide.duration = frontCrosses + spriteExit
-            slide.fillMode = .both
-            slide.isRemovedOnCompletion = false
-            wave.add(slide, forKey: "slide")
-            launch = { piece in
-                spriteTime(lipAt: piece.frame.minX + sprite.trail(y: piece.frame.midY, height: sh, width: sw),
-                           width: W, travel: travel)
-            }
+            let s = CAKeyframeAnimation(keyPath: "position.x")
+            s.values = [0, W, travel]
+            s.keyTimes = [0, NSNumber(value: frontCrosses / (frontCrosses + spriteExit)), 1]
+            s.duration = frontCrosses + spriteExit
+            slide = s
+            edge = sprite.edge(size: size, margin: 0.02 * size.width)
         } else {
-            wave = makeWave(height: H, body: bodyShare * W, scale: scale)
+            let L = bodyShare * W
+            wave = makeWave(height: H, body: L, scale: scale)
             let travel = W * (1 + bodyShare * 1.7)
             wave.position = CGPoint(x: travel, y: 0)
-            let slide = CABasicAnimation(keyPath: "position.x")
-            slide.fromValue = 0
-            slide.toValue = travel
-            slide.beginTime = clock0 + frontEnters
-            slide.duration = frontCrosses * Double(travel / W)
-            slide.fillMode = .both
-            slide.isRemovedOnCompletion = false
-            wave.add(slide, forKey: "slide")
-            launch = { piece in launchTime(x: piece.frame.minX, y: piece.frame.midY, size: bounds.size) }
+            let s = CABasicAnimation(keyPath: "position.x")
+            s.fromValue = 0
+            s.toValue = travel
+            s.duration = frontCrosses * Double(travel / W)
+            slide = s
+            // Behind the hollow face's deepest point (−0.32 L), top to bottom.
+            edge = [CGPoint(x: -0.36 * L, y: H * 1.1), CGPoint(x: -0.36 * L, y: 0)]
         }
+        slide.beginTime = clock0 + frontEnters
+        slide.fillMode = .both
+        slide.isRemovedOnCompletion = false
+        wave.add(slide, forKey: "slide")
         wave.zPosition = 10
         root.addSublayer(wave)
 
-        // 4. The screen as it was, in pieces, each ripped off as the water reaches it.
-        let speed = W / CGFloat(frontCrosses)
-        for piece in prepared.pieces {
-            let layer = CALayer()
-            layer.frame = piece.frame
-            layer.contents = piece.image
-            layer.contentsGravity = .resize
-            layer.zPosition = 20
-            let start = launch(piece) + Double.random(in: 0...0.06)
-            layer.add(rip(from: CGPoint(x: piece.frame.midX, y: piece.frame.midY),
-                          speed: speed, height: H, beginTime: clock0 + start), forKey: "rip")
-            root.addSublayer(layer)
-        }
+        // 4. The screen as it was, over the washed copy, masked to what the water
+        // has not reached yet: the mask's left edge rides with the wave.
+        let before = CALayer()
+        before.frame = CGRect(origin: .zero, size: bounds.size)
+        before.contents = prepared.shot
+        before.contentsGravity = .resize
+        before.zPosition = 5
+        let ahead = CGMutablePath()
+        let far = W * 4
+        ahead.move(to: CGPoint(x: far, y: (edge.first?.y ?? H) + H))
+        ahead.addLine(to: CGPoint(x: edge.first?.x ?? 0, y: (edge.first?.y ?? H) + H))
+        ahead.addLines(between: edge)
+        ahead.addLine(to: CGPoint(x: edge.last?.x ?? 0, y: -H))
+        ahead.addLine(to: CGPoint(x: far, y: -H))
+        ahead.closeSubpath()
+        let mask = CAShapeLayer()
+        mask.anchorPoint = .zero
+        mask.bounds = .zero
+        mask.path = ahead
+        mask.fillColor = NSColor.black.cgColor
+        mask.position = .zero
+        mask.add(slide, forKey: "slide")
+        before.mask = mask
+        root.addSublayer(before)
 
         // 5. Back to the real screen.
         let out = CABasicAnimation(keyPath: "opacity")
@@ -311,40 +281,6 @@ enum Tsunami {
         out.isRemovedOnCompletion = false
         root.add(out, forKey: "fadeOut")
         return root
-    }
-
-    /// One piece torn off: flung forward with the water, up toward the crest
-    /// and down again, spinning, shrinking as it goes under.
-    private static func rip(from c: CGPoint, speed: CGFloat, height H: CGFloat,
-                            beginTime: CFTimeInterval) -> CAAnimationGroup {
-        let dx = speed * CGFloat(pieceFlight) * .random(in: 0.75...1.3)
-        let crest = H * .random(in: 0.7...1.0)
-        let rise = max(H * 0.08, crest - c.y) * .random(in: 0.6...1.1)
-        let end = CGPoint(x: c.x + dx, y: c.y + rise * 0.3 - H * .random(in: 0...0.25))
-        let path = CGMutablePath()
-        path.move(to: c)
-        path.addQuadCurve(to: end, control: CGPoint(x: c.x + dx * 0.45, y: c.y + rise * 1.6))
-
-        let move = CAKeyframeAnimation(keyPath: "position")
-        move.path = path
-        move.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.7, 0.4, 1)
-        let spin = CABasicAnimation(keyPath: "transform.rotation.z")
-        spin.toValue = Double.random(in: 1.5...4) * .pi * (Bool.random() ? 1 : -1)
-        let shrink = CABasicAnimation(keyPath: "transform.scale")
-        shrink.toValue = Double.random(in: 0.3...0.65)
-        let sink = CAKeyframeAnimation(keyPath: "opacity")
-        sink.values = [1, 1, 0]
-        sink.keyTimes = [0, 0.45, 1]
-
-        let group = CAAnimationGroup()
-        group.animations = [move, spin, shrink, sink]
-        group.beginTime = beginTime
-        group.duration = pieceFlight
-        group.fillMode = .both
-        group.isRemovedOnCompletion = false
-        // Model values stay at rest: before `beginTime` the backwards fill keeps
-        // the piece in place, after it the forwards fill keeps it gone.
-        return group
     }
 
     /// The filmed breaker: its frames on a loop, bottom-aligned, the anchor on
