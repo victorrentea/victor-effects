@@ -148,3 +148,8 @@ this one only routes.
   *no videos (addons down?)* — not a hang and not a missing panel. Any further
   cross-app call owes the same three things: a config key, a timeout, and a
   visible degraded state.
+
+## Memoria lui Claude
+
+Memoria generală (cine e Victor, cum vrea să lucrezi) e în repo-ul privat `victorrentea/assistant`.
+Într-o sesiune din cloud, atașează-l la sesiune și urmează-i `CLAUDE.md`-ul. Pe Mac se încarcă singură.
