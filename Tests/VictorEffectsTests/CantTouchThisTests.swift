@@ -3,16 +3,35 @@ import XCTest
 
 final class CantTouchThisTests: XCTestCase {
 
-    /// Three blinks, each a clean dark-then-lit, ending lit: a sign that ends
-    /// its blink dark would vanish from the desktop it was stamped on.
-    func testTheBlinkIsThreeDarkFlashesEndingLit() {
-        let blink = CantTouchThisSession.blinkAnimation()
-        let values = blink.values as? [Float]
-        XCTAssertEqual(values, [0, 1, 0, 1, 0, 1])
+    /// Lit on the beat, dark on the off-beat, for as long as it lives: a
+    /// discrete on/off one beat long, repeating.
+    func testTheBlinkIsLitOnTheBeatAndRepeats() {
+        let blink = CantTouchThisSession.beatAnimation(beginTime: 42)
+        XCTAssertEqual(blink.values as? [Float], [1, 0])
         XCTAssertEqual(blink.calculationMode, .discrete)
-        XCTAssertEqual(blink.keyTimes?.count, values?.count)
-        XCTAssertEqual(blink.duration, 6 * CantTouchThisSession.blinkHalfPeriod, accuracy: 1e-9)
-        XCTAssertLessThan(blink.duration, 1.0, "three blinks answer a click, they don't hold it up")
+        XCTAssertEqual(blink.keyTimes?.count, 3, "discrete: one more key time than values")
+        XCTAssertEqual(blink.duration, CantTouchThisSession.beatPeriod, accuracy: 1e-9)
+        XCTAssertEqual(blink.repeatCount, .infinity)
+        XCTAssertEqual(blink.beginTime, 42)
+    }
+
+    /// The epoch is a beat of the clip's grid, never in the future, so the
+    /// blink starts at once and lands on the beats the room will hear.
+    func testTheEpochIsABeatOfTheHeardClipAtOrBeforeNow() {
+        let p = CantTouchThisSession.beatPeriod, b = CantTouchThisSession.firstBeat
+        for heardIn in [0.0, 0.3, 0.8, 1.35, 2.0] {
+            let now = 1_000.0
+            let epoch = CantTouchThisSession.beatEpoch(clipHeardAt: now + heardIn, now: now)
+            XCTAssertLessThanOrEqual(epoch, now)
+            XCTAssertGreaterThan(epoch, now - p)
+            let beatsFromFirst = (epoch - (now + heardIn + b)) / p
+            XCTAssertEqual(beatsFromFirst, beatsFromFirst.rounded(), accuracy: 1e-9)
+        }
+    }
+
+    /// 133 BPM is the song; a grid far off it means someone typed a wrong number.
+    func testTheGridIsHammersTempo() {
+        XCTAssertEqual(60 / CantTouchThisSession.beatPeriod, 133, accuracy: 1)
     }
 
     func testTheStopHandShipsWithTheApp() {

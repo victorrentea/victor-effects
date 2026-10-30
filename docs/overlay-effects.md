@@ -1318,16 +1318,20 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   e mouse-ul meu"*). The pointer becomes a red **stop sign with a raised hand** (120 pt,
   centred on the pointer; real cursor hidden, `fitPointerSprite` under zoom). **Every left
   click is taken from the app underneath** — the desktop can't be touched — and stamps a
-  copy of the sign on that spot, glued to the desktop. Then **every sign on screen blinks
-  three times in unison** (0.14 s dark / 0.14 s lit ×3, discrete, ending lit): the stamped
-  ones, the new one and the one on the pointer, one animation added to all of them in one
-  transaction, so they cannot drift; a click mid-blink restarts it for all. The tap is the
+  copy of the sign on that spot, glued to the desktop. **Every sign on screen blinks on the
+  song's beat, in unison** (2026-10-30, *"vreau să clipească în ritmul muzicii"*): lit on
+  the beat, dark on the off-beat, discrete. The grid was measured off the mp3 (librosa:
+  133 BPM → `beatPeriod` 0.451 s, `firstBeat` 0.355 s; re-measure if the clip is re-cut)
+  and is anchored to when the clip is **heard** — `EffectsEngine.heardIn`, the captions'
+  BT silence + speaker latency, 0 when the tablet plays it itself. One repeating animation
+  with one absolute `beginTime` on every layer, so a sign stamped later joins the same
+  phase. The tap is the
   AK-47's rule (`minigunMouseDecision`), Esc puts it away. Lives for the clip (8.9 s, read
-  off the file), then fades out in 0.35 s; re-press, the tablet's stop and stop-all end it
+  off the file, from when it is heard), then fades out in 0.35 s; re-press, the tablet's stop and stop-all end it
   too. Lives outside `activeEffects` (hidden cursor + tap), so `stopAllActiveEffects` and
   `stopEffect(named:)` tear it down by name and `isAnythingRunning` asks for it. The
   picture is the lit frame of Wikimedia's *Blinking Stop hand.gif* (CC BY-SA 3.0,
-  shipped as `Resources/stop-hand.png`); its own 1 s blink was too slow to answer a click.
+  shipped as `Resources/stop-hand.png`); its own 1 s blink knows nothing of the song.
   `/test/cant-touch-this`, `/effect/cant-touch-this`.
 
 - **🔥 Fireball & fires** (tile #11 `11_fire.mp3` → `fire` / `fire/stop`, `showFireCursor`):

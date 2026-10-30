@@ -8,14 +8,15 @@ import AppKit
 /// - The real cursor is hidden and the sign rides the mouse, centred on it.
 /// - Every click is **taken from the app underneath** — the joke is that the
 ///   desktop can't be touched — and leaves a copy of the sign on that spot.
-/// - On every stamp **all the signs blink three times in unison**: the ones
-///   already on the desktop, the new one and the one on the pointer. One shared
-///   animation, added to every layer in one transaction, so they cannot drift.
+/// - **Every sign blinks on the beat of the song**, in unison: lit on the
+///   beat, dark on the off-beat (Victor, 2026-10-30: *"vreau să clipească în
+///   ritmul muzicii"*). One repeating animation with ONE absolute `beginTime`
+///   on every layer, so a sign stamped later joins the same phase.
 /// - Lives for the clip, Escape ends it early, a re-press or stop-all too.
 ///
 /// The picture is the lit frame of Wikimedia's *Blinking Stop hand.gif*
 /// (CC BY-SA 3.0, `Resources/CREDITS.md`); the GIF's own blink (1 s on, 1 s off)
-/// is far too slow for a click, so the blink is drawn here instead.
+/// knows nothing of the song, so the blink is drawn here instead.
 ///
 /// Not a `trackEffect` client, for the chainsaw's reason: it owns a follow
 /// timer, a tap swallowing clicks and a hidden system cursor, which a generic
@@ -27,10 +28,14 @@ final class CantTouchThisSession {
     /// The sign's width on screen. 120 pt = the GIF's 240 px at Retina 2×, so
     /// it is drawn pixel for pixel.
     static let signWidth: CGFloat = 120
-    static let blinkCount = 3
-    /// One blink = this long dark, then this long lit. Fast enough to read as a
-    /// flash answering the click, slow enough to count three on a projector.
-    static let blinkHalfPeriod: Double = 0.14
+    static let clip = "35_cant_touch_this.mp3"
+    /// The clip's beat grid, measured off the mp3 (librosa onset strength,
+    /// 2026-10-30): 133 BPM, steady drum machine, first beat 0.355 s in. A
+    /// re-cut clip needs these measured again.
+    static let beatPeriod: Double = 0.451
+    static let firstBeat: Double = 0.355
+    /// The share of each beat the sign is lit, starting ON the beat.
+    static let litFraction: Double = 0.5
     /// Ceiling on stamps, for a stuck button: past it the oldest goes.
     static let maxStamps = 60
     static let fadeOut: Double = 0.35
@@ -39,16 +44,24 @@ final class CantTouchThisSession {
     /// Above the fireball's 9 350, so a hand stamped over a fire is seen.
     static let zPosition: CGFloat = 9_400
 
-    /// Lit → dark → lit, `blinkCount` times, ending lit. Discrete, so each
-    /// state is a clean on/off like the GIF's, never a cross-fade.
-    static func blinkAnimation() -> CAKeyframeAnimation {
-        var values: [Float] = []
-        for _ in 0..<blinkCount { values += [0, 1] }
+    /// The media time of a beat at or before `now`, given that the clip is
+    /// heard from `clipHeardAt`: any beat of the grid will do as the animation's
+    /// start, and one in the past makes it blink in phase from the first frame.
+    static func beatEpoch(clipHeardAt: CFTimeInterval, now: CFTimeInterval) -> CFTimeInterval {
+        let beat = clipHeardAt + firstBeat
+        return beat - (max(0, beat - now) / beatPeriod).rounded(.up) * beatPeriod
+    }
+
+    /// Lit on the beat, dark after `litFraction` of it, forever. Discrete, so
+    /// each state is a clean on/off like the GIF's, never a cross-fade.
+    static func beatAnimation(beginTime: CFTimeInterval) -> CAKeyframeAnimation {
         let anim = CAKeyframeAnimation(keyPath: "opacity")
-        anim.values = values
-        anim.keyTimes = (0..<values.count).map { NSNumber(value: Double($0) / Double(values.count)) }
+        anim.values = [Float(1), Float(0)]
+        anim.keyTimes = [0, NSNumber(value: litFraction), 1]
         anim.calculationMode = .discrete
-        anim.duration = Double(values.count) * blinkHalfPeriod
+        anim.duration = beatPeriod
+        anim.repeatCount = .infinity
+        anim.beginTime = beginTime
         return anim
     }
 
@@ -61,6 +74,8 @@ final class CantTouchThisSession {
     private var pointer: CALayer?
     private var stamps: [CALayer] = []
     private var timer: Timer?
+    /// Where the beat grid starts, in media time (`beatEpoch`).
+    private var beatEpoch: CFTimeInterval = 0
     private var hidCursor = false
     private var tap: CFMachPort?
     private var tapSource: CFRunLoopSource?
@@ -85,7 +100,9 @@ final class CantTouchThisSession {
                                height: Self.signWidth * CGFloat(image.height) / CGFloat(image.width))
     }
 
-    func start(duration: Double) {
+    func start(duration: Double, heardIn: Double = 0) {
+        let now = CACurrentMediaTime()
+        beatEpoch = Self.beatEpoch(clipHeardAt: now + heardIn, now: now)
         let sign = makeSign()
         EmojiAnimator.fitPointerSprite(sign, base: baseSize)
         CATransaction.begin()
@@ -94,6 +111,7 @@ final class CantTouchThisSession {
         hostLayer.addSublayer(sign)
         CATransaction.commit()
         pointer = sign
+        keepTheBeat(sign)
 
         EmojiAnimator.armBackgroundCursorHiding()
         NSCursor.hide()
@@ -110,11 +128,11 @@ final class CantTouchThisSession {
         }
         startInputCapture()
         // The self-termination rule: the clip's length is the end, whatever
-        // the tablet does or doesn't report.
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+        // the tablet does or doesn't report — counted from when it is heard.
+        DispatchQueue.main.asyncAfter(deadline: .now() + heardIn + duration) { [weak self] in
             self?.stop()
         }
-        effectsInfo("✋ can't touch this — up for \(String(format: "%.1f", duration)) s")
+        effectsInfo("✋ can't touch this — up for \(String(format: "%.1f", duration)) s, heard in \(Int(heardIn * 1000)) ms")
     }
 
     private func makeSign() -> CALayer {
@@ -127,8 +145,14 @@ final class CantTouchThisSession {
         return layer
     }
 
-    /// A click: a sign stays where the pointer's was, then every sign on screen
-    /// blinks together.
+    /// Blink on the song's beat. The same absolute start on every layer, so
+    /// they are in unison however late each one arrived.
+    private func keepTheBeat(_ layer: CALayer) {
+        layer.add(Self.beatAnimation(beginTime: layer.convertTime(beatEpoch, from: nil)), forKey: "beat")
+    }
+
+    /// A click: a sign stays where the pointer's was, blinking on the beat
+    /// with the others.
     private func stamp() {
         guard let pointer else { return }
         let sign = makeSign()
@@ -139,17 +163,10 @@ final class CantTouchThisSession {
         // size, so under ⌥-scroll zoom it grows with what it was stamped on.
         hostLayer.insertSublayer(sign, below: pointer)
         CATransaction.commit()
+        keepTheBeat(sign)
         stamps.append(sign)
         if stamps.count > Self.maxStamps { stamps.removeFirst().removeFromSuperlayer() }
         effectsInfo("✋ stamp #\(stamps.count) at \(Int(sign.position.x)),\(Int(sign.position.y))")
-
-        // One transaction, one animation object copied onto every layer: they
-        // all start on the same frame, so the blink is in unison by
-        // construction. A stamp mid-blink restarts it for all of them.
-        let blink = Self.blinkAnimation()
-        CATransaction.begin()
-        for layer in stamps + [pointer] { layer.add(blink, forKey: "blink") }
-        CATransaction.commit()
     }
 
     /// Idempotent: Escape, the clip's end, the tablet's stop, a re-press and
@@ -176,8 +193,11 @@ final class CantTouchThisSession {
         }
         guard fade > 0, !layers.isEmpty else { teardown(); return }
         for layer in layers {
+            // Fades from wherever the beat left it, without the beat on top.
+            let from = layer.presentation()?.opacity ?? 1
+            layer.removeAnimation(forKey: "beat")
             let fadeOut = CABasicAnimation(keyPath: "opacity")
-            fadeOut.fromValue = layer.presentation()?.opacity ?? 1
+            fadeOut.fromValue = from
             fadeOut.toValue = 0
             fadeOut.duration = fade
             fadeOut.fillMode = .forwards

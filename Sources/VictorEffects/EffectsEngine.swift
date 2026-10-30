@@ -204,16 +204,21 @@ final class EffectsEngine {
         // The words are timed into the CLIP; a clip routed here is heard only
         // after its Bluetooth silence and the speaker's own latency, so the
         // track waits for that (2026-10-23: it led the voice by ~1.3 s).
-        var delay: TimeInterval = 0
-        if let routed = routedPlay, routed.asset == asset {
-            let timing = SoundTimingConfig.shared
-            delay = SoundCaptions.audibleDelay(playedAt: routed.at, now: Date(),
-                                               lead: timing.animationLead(for: asset),
-                                               bluetoothCompensation: timing.currentBluetoothCompensation,
-                                               outputLatency: timing.currentOutputLatency)
-        }
+        let delay = heardIn(asset)
         if delay > 0 { effectsInfo(String(format: "💬 caption %@ in %.0f ms (heard then)", asset, delay * 1000)) }
         CaptionOverlay.play(lines, on: screen, after: delay)
+    }
+
+    /// How long until a clip just routed to THIS Mac is actually heard: its
+    /// Bluetooth silence plus the speaker's own latency, counted from the
+    /// play. 0 for a clip played elsewhere (the tablet) or long started.
+    private func heardIn(_ asset: String) -> TimeInterval {
+        guard let routed = routedPlay, routed.asset == asset else { return 0 }
+        let timing = SoundTimingConfig.shared
+        return SoundCaptions.audibleDelay(playedAt: routed.at, now: Date(),
+                                          lead: timing.animationLead(for: asset),
+                                          bluetoothCompensation: timing.currentBluetoothCompensation,
+                                          outputLatency: timing.currentOutputLatency)
     }
 
     /// Run one effect by its route name, with the Bluetooth visual delay that
@@ -343,7 +348,8 @@ final class EffectsEngine {
         // fire struck, not on the press, so the routed play stays silent.
         case "fire":          animator.showFireCursor(playSound: true)
         case "fire/stop":     animator.stopFireCursor()
-        case "cant-touch-this":      animator.showCantTouchThis()
+        // The hands blink on the beat, so they need to know when the clip is HEARD.
+        case "cant-touch-this":      animator.showCantTouchThis(heardIn: heardIn(CantTouchThisSession.clip))
         case "cant-touch-this/stop": animator.stopCantTouchThis()
         // Like the sonar: the door's cue lives INSIDE the clip, so the effect
         // owns its own audio rather than trusting a separate routed play to land

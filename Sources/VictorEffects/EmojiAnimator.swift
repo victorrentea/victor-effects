@@ -12252,15 +12252,16 @@ class EmojiAnimator {
     var isCantTouchRunning: Bool { _cantTouch?.isRunning == true }
 
     /// The pointer becomes a stop sign for the length of the clip; every click
-    /// stamps one and they all blink. A re-press while it runs puts it away.
-    func showCantTouchThis() {
+    /// stamps one and they all blink on the beat. A re-press while it runs puts
+    /// it away. `heardIn`: seconds until the clip reaches the speaker.
+    func showCantTouchThis(heardIn: Double = 0) {
         if isCantTouchRunning { stopCantTouchThis(); return }
         stopCantTouchThis(fade: 0)   // never leak a previous run's tap/hidden cursor
         guard let session = CantTouchThisSession(hostLayer: hostLayer,
                                                  mousePoint: { [weak self] in self?.mousePointInHostLayer() ?? .zero })
         else { return }
         var duration = CantTouchThisSession.fallbackDuration
-        if let url = SoundManager.shared.soundURL(for: "35_cant_touch_this.mp3") {
+        if let url = SoundManager.shared.soundURL(for: CantTouchThisSession.clip) {
             let d = AVURLAsset(url: url).duration
             if d.isNumeric { duration = CMTimeGetSeconds(d) }
         }
@@ -12268,7 +12269,7 @@ class EmojiAnimator {
             if let self, self._cantTouch === session { self._cantTouch = nil }
         }
         _cantTouch = session
-        session.start(duration: duration)
+        session.start(duration: duration, heardIn: heardIn)
     }
 
     func stopCantTouchThis(fade: Double = CantTouchThisSession.fadeOut) {
