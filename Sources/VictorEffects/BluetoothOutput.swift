@@ -147,6 +147,20 @@ enum BluetoothOutput {
             || transport == kAudioDeviceTransportTypeBluetoothLE
     }
 
+    /// Whether any process is playing into `id` right now — this app, a video,
+    /// a call. Unreadable counts as playing: the callers use it to decide
+    /// whether the speaker may be interrupted.
+    static func isRunningSomewhere(_ id: AudioDeviceID) -> Bool {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceIsRunningSomewhere,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var running: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &running) == noErr else { return true }
+        return running != 0
+    }
+
     /// The current default output device's id, or 0 if unreadable.
     static func defaultOutputID() -> AudioDeviceID {
         let sys = AudioObjectID(kAudioObjectSystemObject)

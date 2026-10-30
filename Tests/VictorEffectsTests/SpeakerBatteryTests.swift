@@ -68,4 +68,10 @@ final class SpeakerBatteryTests: XCTestCase {
                                               macById: [mine: a, stranger: "00-11-22-33-44-55"],
                                               connectedMacs: [a, b]), [mine, fresh])
     }
+
+    func testRelinkOnlyAnUnreadSpeakerOncePerConnection() {
+        XCTAssertEqual(SpeakerBattery.relinkCandidate(connected: [a, b], read: [a], relinked: []), b)
+        XCTAssertNil(SpeakerBattery.relinkCandidate(connected: [a, b], read: [a], relinked: [b]))
+        XCTAssertNil(SpeakerBattery.relinkCandidate(connected: [a], read: [a], relinked: []))
+    }
 }

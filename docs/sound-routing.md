@@ -298,6 +298,18 @@ A round that finds nobody to visit logs `🔊🔋 no JBL to visit: …` once (wh
 the Classic link and the scan saw, which MACs are connected and known) — until
 2026-10-30 that case was silent and the tablet simply had no 🔊 chip.
 
+**Hidden both ways → re-link once.** On 2026-10-30 a second Go 4
+(`F3-69`) sat connected for hours with neither: no adverts, and nothing over
+the Classic link, although its SDP lists ATT (PSM 31) for that very service
+(opening PSM 31 ourselves with IOBluetooth fails — bluetoothd owns it). Dropping
+the Classic link and having the Mac reopen it (`closeConnection` +
+`openConnection`) brought the service back over the Classic link, and the next
+round read 60 %. So a round that finds nobody to visit re-links the connected
+speaker that has no reading (`relinkCandidate`): once per connection, only while
+nothing plays into it (`kAudioDevicePropertyDeviceIsRunningSomewhere`), and the
+default output is put back if it was that speaker. The cost is ~6 s of the
+speaker gone and its reconnect beep, once; it logs `🔊🔋 re-linking …`.
+
 **Only this Mac's speakers.** A reading counts only if its MAC is a connected
 audio output here — the keep-alive's own `targets`, matched against the
 CoreAudio UID (`E8-26-CF-C6-97-0B:output`). An advertiser is visited once to

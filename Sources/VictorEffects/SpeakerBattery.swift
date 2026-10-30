@@ -1,5 +1,6 @@
 import CoreBluetooth
 import Foundation
+import IOBluetooth
 
 /// 🔊 The connected JBL speakers' battery, for the tablet's top bar (next to
 /// the phone's). macOS itself never learns it: the Go 4 has no microphone, so
@@ -65,6 +66,8 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// The last "nothing to visit" line, so a speaker that stays unreachable
     /// logs once, not every two minutes.
     private var lastEmptyRound = ""
+    /// Speakers re-linked during their current connection (`relinkHidden`).
+    private var relinked: Set<String> = []
 
     func start() {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -192,8 +195,66 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
                     + "connected \(Self.connectedSpeakerMacs().sorted()), known \(Set(self.macById.values).sorted())"
                 if line != self.lastEmptyRound { effectsInfo(line); self.lastEmptyRound = line }
             } else { self.lastEmptyRound = "" }
+            let nobody = self.queue.isEmpty
             self.visitNext()
+            if nobody { self.relinkHidden() }
         }
+    }
+
+    // MARK: - Re-link a speaker hidden both ways
+
+    /// Picks the connected speaker that has no reading and has not been
+    /// re-linked during this connection. Pure.
+    static func relinkCandidate(connected: Set<String>, read: Set<String>, relinked: Set<String>) -> String? {
+        connected.subtracting(read).subtracting(relinked).sorted().first
+    }
+
+    /// The last resort when a connected JBL can't be reached over the Classic
+    /// link or through an advert (2026-10-30). In that state no amount of waiting
+    /// helps: the Go 4 had sent no adverts for hours, and bluetoothd had never
+    /// opened GATT over the audio link. Dropping the Classic link and having
+    /// *this Mac* reopen it brings the service back over the Classic link, and
+    /// it stays there. Each speaker gets this once per connection, and only
+    /// while nothing plays into it: the speaker drops out for ~6 s and beeps
+    /// when it reconnects. If it was the default output, it is made the default
+    /// again.
+    private func relinkHidden() {
+        let connected = Self.connectedSpeakerMacs()
+        relinked.formIntersection(connected)
+        guard let mac = Self.relinkCandidate(connected: connected, read: Set(readings.keys), relinked: relinked),
+              let dev = IOBluetoothDevice(addressString: mac),
+              let out = BluetoothOutput.outputDevices().first(where: { Self.mac(fromUID: $0.uid) == mac }) else { return }
+        if BluetoothOutput.isRunningSomewhere(out.id) { return }  // retried next round
+        relinked.insert(mac)
+        let wasDefault = BluetoothOutput.defaultOutputID() == out.id
+        effectsInfo("🔊🔋 re-linking \(mac): hidden over Classic and BLE, and silent right now")
+        dev.closeConnection()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self else { return }
+            dev.openConnection(self)
+            self.awaitRelink(mac: mac, uid: out.uid, restoreDefault: wasDefault, triesLeft: 20)
+        }
+    }
+
+    /// Polls once a second until the speaker is an output again, puts the
+    /// default back, then reads it straight away instead of in two minutes.
+    private func awaitRelink(mac: String, uid: String, restoreDefault: Bool, triesLeft: Int) {
+        guard let out = BluetoothOutput.outputDevices().first(where: { $0.uid == uid }) else {
+            guard triesLeft > 0 else { effectsError("🔊🔋 \(mac) did not come back after the re-link"); return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.awaitRelink(mac: mac, uid: uid, restoreDefault: restoreDefault, triesLeft: triesLeft - 1)
+            }
+            return
+        }
+        if restoreDefault, BluetoothOutput.defaultOutputID() != out.id {
+            effectsInfo("🔊🔋 \(mac) back; default output restored: \(BluetoothOutput.setDefaultOutput(out.id))")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.startRound() }
+    }
+
+    /// `IOBluetoothDevice.openConnection(_:)`'s callback.
+    @objc func connectionComplete(_ device: IOBluetoothDevice, status: IOReturn) {
+        if status != kIOReturnSuccess { effectsError("🔊🔋 re-link of \(device.addressString ?? "?") failed: \(status)") }
     }
 
     private func visitNext() {
