@@ -1,6 +1,7 @@
 import AppKit
 import AVFoundation
 import CoreImage
+import ImageIO
 import QuartzCore
 
 /// 🌊 Tile 55b (`55b_tsunami.mp3`, folded under #55 Star Wars): **a wall of
@@ -65,10 +66,97 @@ enum Tsunami {
         return frontEnters + frontCrosses * Double((x + trail) / size.width)
     }
 
+    // MARK: The filmed wave (optional drop-in)
+
+    /// A real breaker, when `assetsDir/tsunami-wave/NN.png` is there (made by
+    /// `tools/make-tsunami-wave.py` from a GIF we may not publish, 2026-10-30,
+    /// Victor: "folosește GIF-ul ăsta"). Without it the drawn breaker below
+    /// runs, as before. It curls in place in the frames; the slide carries it.
+    static var spriteDir: URL { EffectsConfig.shared.assetsDir.appendingPathComponent("tsunami-wave") }
+    static let spriteFPS: Double = 15
+    /// The filmed wave's height, as a share of the screen's (bottom-aligned).
+    static let spriteHeightShare: CGFloat = 1.0
+    /// Once its front has crossed the glass, the wave leaves this fast, so the
+    /// washed screen gets the clip's remaining seconds to itself.
+    static let spriteExit: Double = 1.2
+
+    struct Sprite {
+        let frames: [CGImage]
+        /// Per row, top to bottom: how far right the water reaches, as a share
+        /// of the frame's width (its rightmost opaque pixel in most frames).
+        let front: [CGFloat]
+        var aspect: CGFloat { CGFloat(frames[0].width) / CGFloat(frames[0].height) }
+        /// The frontmost point of the wave: what "the front is at x" means.
+        var lip: CGFloat { front.max() ?? 1 }
+
+        /// How far behind the lip the water is at `y` (points from the
+        /// bottom) for a sprite `height` tall. Above the water: the crest's.
+        func trail(y: CGFloat, height: CGFloat, width: CGFloat) -> CGFloat {
+            guard !front.isEmpty, height > 0 else { return 0 }
+            let row = Int(((1 - y / height) * CGFloat(front.count)).rounded(.down))
+            return (lip - front[min(max(row, 0), front.count - 1)]) * width
+        }
+    }
+
+    /// Per row, the rightmost column opaque in at least half the frames; rows
+    /// with no water (the sky above the crest) take the crest's value. Pure.
+    static func frontProfile(alpha frames: [[UInt8]], width: Int, height: Int) -> [CGFloat] {
+        guard !frames.isEmpty, width > 0, height > 0 else { return [] }
+        var rows = [CGFloat?](repeating: nil, count: height)
+        for y in 0..<height {
+            for x in stride(from: width - 1, through: 0, by: -1) {
+                let opaque = frames.reduce(0) { $0 + ($1[y * width + x] > 128 ? 1 : 0) }
+                if opaque * 2 >= frames.count { rows[y] = CGFloat(x + 1) / CGFloat(width); break }
+            }
+        }
+        let crest = rows.compactMap { $0 }.min() ?? 1
+        return rows.map { $0 ?? crest }
+    }
+
+    /// The frames, decoded here (off the main thread) so the first ones do not
+    /// stutter, plus their front profile. Loaded once.
+    private static var _sprite: Sprite??
+    static func loadSprite() -> Sprite? {
+        if let s = _sprite { return s }
+        let files = ((try? FileManager.default.contentsOfDirectory(at: spriteDir, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "png" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        var frames: [CGImage] = []
+        var alphas: [[UInt8]] = []
+        for f in files {
+            guard let src = CGImageSourceCreateWithURL(f as CFURL, nil),
+                  let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { continue }
+            let w = img.width, h = img.height
+            if let first = frames.first, first.width != w || first.height != h { continue }
+            var px = [UInt8](repeating: 0, count: w * h * 4)
+            guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { continue }
+            ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+            guard let decoded = ctx.makeImage() else { continue }
+            frames.append(decoded)
+            alphas.append(stride(from: 3, to: px.count, by: 4).map { px[$0] })
+        }
+        let sprite: Sprite? = frames.isEmpty ? nil
+            : Sprite(frames: frames, front: frontProfile(alpha: alphas, width: frames[0].width, height: frames[0].height))
+        if sprite == nil, !files.isEmpty { effectsError("🌊 tsunami: \(spriteDir.path) has no readable frames") }
+        _sprite = .some(sprite)
+        return sprite
+    }
+
+    /// Seconds after the press at which the filmed wave's lip is at `p`
+    /// (points from the left edge): constant speed over the glass, then the
+    /// faster exit over the remaining `travel`. Pure.
+    static func spriteTime(lipAt p: CGFloat, width W: CGFloat, travel: CGFloat) -> Double {
+        guard W > 0 else { return frontEnters }
+        if p <= W || travel <= W { return frontEnters + frontCrosses * Double(max(0, p) / W) }
+        return frontEnters + frontCrosses + spriteExit * Double(min(1, (p - W) / (travel - W)))
+    }
+
     // MARK: Preparation (off the main thread)
 
     struct Piece { let frame: CGRect; let image: CGImage }
-    struct Prepared { let washed: CGImage?; let pieces: [Piece] }
+    struct Prepared { let washed: CGImage?; let pieces: [Piece]; var sprite: Sprite? = nil }
 
     private static let ci = CIContext(options: [.cacheIntermediates: false])
 
@@ -116,7 +204,7 @@ enum Tsunami {
     }
 
     static func prepare(shot: CGImage, size: CGSize) -> Prepared {
-        Prepared(washed: washed(shot), pieces: pieces(of: shot, size: size))
+        Prepared(washed: washed(shot), pieces: pieces(of: shot, size: size), sprite: loadSprite())
     }
 
     // MARK: The layers (main thread)
@@ -161,22 +249,45 @@ enum Tsunami {
         wet.add(dry, forKey: "dry")
         root.addSublayer(wet)
 
-        // 3. The breaker, sliding from just off the left edge to well past the right.
-        let wave = makeWave(height: H, body: bodyShare * W, scale: scale)
+        // 3. The breaker, sliding from just off the left edge to well past the right:
+        // the filmed one when its frames are there, else the drawn one.
+        let wave: CALayer
+        let launch: (Piece) -> Double
+        if let sprite = prepared.sprite {
+            let sh = H * spriteHeightShare, sw = sh * sprite.aspect
+            wave = makeSpriteWave(sprite, size: CGSize(width: sw, height: sh), clock0: clock0)
+            let travel = W + sprite.lip * sw
+            wave.position = CGPoint(x: travel, y: 0)
+            let slide = CAKeyframeAnimation(keyPath: "position.x")
+            slide.values = [0, W, travel]
+            slide.keyTimes = [0, NSNumber(value: frontCrosses / (frontCrosses + spriteExit)), 1]
+            slide.beginTime = clock0 + frontEnters
+            slide.duration = frontCrosses + spriteExit
+            slide.fillMode = .both
+            slide.isRemovedOnCompletion = false
+            wave.add(slide, forKey: "slide")
+            launch = { piece in
+                spriteTime(lipAt: piece.frame.minX + sprite.trail(y: piece.frame.midY, height: sh, width: sw),
+                           width: W, travel: travel)
+            }
+        } else {
+            wave = makeWave(height: H, body: bodyShare * W, scale: scale)
+            let travel = W * (1 + bodyShare * 1.7)
+            wave.position = CGPoint(x: travel, y: 0)
+            let slide = CABasicAnimation(keyPath: "position.x")
+            slide.fromValue = 0
+            slide.toValue = travel
+            slide.beginTime = clock0 + frontEnters
+            slide.duration = frontCrosses * Double(travel / W)
+            slide.fillMode = .both
+            slide.isRemovedOnCompletion = false
+            wave.add(slide, forKey: "slide")
+            launch = { piece in launchTime(x: piece.frame.minX, y: piece.frame.midY, size: bounds.size) }
+        }
         wave.zPosition = 10
-        let travel = W * (1 + bodyShare * 1.7)
-        wave.position = CGPoint(x: travel, y: 0)
-        let slide = CABasicAnimation(keyPath: "position.x")
-        slide.fromValue = 0
-        slide.toValue = travel
-        slide.beginTime = clock0 + frontEnters
-        slide.duration = frontCrosses * Double(travel / W)
-        slide.fillMode = .both
-        slide.isRemovedOnCompletion = false
-        wave.add(slide, forKey: "slide")
         root.addSublayer(wave)
 
-        // 4. The screen as it was, in pieces, each ripped off as the lip reaches it.
+        // 4. The screen as it was, in pieces, each ripped off as the water reaches it.
         let speed = W / CGFloat(frontCrosses)
         for piece in prepared.pieces {
             let layer = CALayer()
@@ -184,8 +295,7 @@ enum Tsunami {
             layer.contents = piece.image
             layer.contentsGravity = .resize
             layer.zPosition = 20
-            let start = launchTime(x: piece.frame.minX, y: piece.frame.midY, size: bounds.size)
-                + Double.random(in: 0...0.06)
+            let start = launch(piece) + Double.random(in: 0...0.06)
             layer.add(rip(from: CGPoint(x: piece.frame.midX, y: piece.frame.midY),
                           speed: speed, height: H, beginTime: clock0 + start), forKey: "rip")
             root.addSublayer(layer)
@@ -235,6 +345,25 @@ enum Tsunami {
         // Model values stay at rest: before `beginTime` the backwards fill keeps
         // the piece in place, after it the forwards fill keeps it gone.
         return group
+    }
+
+    /// The filmed breaker: its frames on a loop, bottom-aligned, the anchor on
+    /// its lip so `position.x` is where the front is.
+    private static func makeSpriteWave(_ sprite: Sprite, size: CGSize, clock0: CFTimeInterval) -> CALayer {
+        let layer = CALayer()
+        layer.bounds = CGRect(origin: .zero, size: size)
+        layer.anchorPoint = CGPoint(x: sprite.lip, y: 0)
+        layer.contents = sprite.frames[0]
+        layer.contentsGravity = .resize
+        layer.magnificationFilter = .linear
+        let roll = CAKeyframeAnimation(keyPath: "contents")
+        roll.values = sprite.frames
+        roll.calculationMode = .discrete
+        roll.duration = Double(sprite.frames.count) / spriteFPS
+        roll.repeatCount = .infinity
+        roll.beginTime = clock0
+        layer.add(roll, forKey: "roll")
+        return layer
     }
 
     /// The breaker in its own coordinates: x ≤ 0, the lip's tip at x = 0 (the

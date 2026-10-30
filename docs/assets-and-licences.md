@@ -72,7 +72,10 @@ Maria was cut from — preferred over the shipped take, 2026-10-21, `docs/whip.m
 `finger-snap.gif` (optional: a nicer snapping hand for 🫰 snap, which ships its
 own CC0 `finger-snap.png` and uses the GIF only when one is dropped in — frame 0
 must be the rest pose, `docs/whip.md`) and the
-folders `gangnam_frames/`, `skull-boom/`, `universal-minions/`.
+folders `gangnam_frames/`, `skull-boom/`, `universal-minions/` and `tsunami-wave/`
+(🌊 tsunami, 2026-10-30: 60 RGBA frames sky-keyed by `tools/make-tsunami-wave.py` out of
+usagif.com's "ocean-wave-6-big-fast-blue-wave" GIF, no licence stated — the drawn breaker
+runs without them).
 
 ## The soundboard
 

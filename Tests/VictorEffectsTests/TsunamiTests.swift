@@ -40,4 +40,30 @@ final class TsunamiTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Tsunami.totalDuration(clip: 1),
                                     Tsunami.frontEnters + Tsunami.frontCrosses * Double(1 + Tsunami.bodyShare))
     }
+
+    /// The filmed wave's front, read off its frames: the rightmost pixel each
+    /// row has opaque in most frames, and the sky rows above take the crest's.
+    func testFrontProfileFollowsTheWaterAndFillsTheSky() {
+        // 4×3, top to bottom: sky, crest reaching x=1, sea reaching x=3.
+        let a: [UInt8] = [0, 0, 0, 0,
+                          255, 255, 0, 0,
+                          255, 255, 255, 255]
+        XCTAssertEqual(Tsunami.frontProfile(alpha: [a, a], width: 4, height: 3), [0.5, 0.5, 1])
+        // A splash in one frame of three is not the front.
+        var splash = a; splash[7] = 255
+        XCTAssertEqual(Tsunami.frontProfile(alpha: [a, a, splash], width: 4, height: 3)[1], 0.5)
+    }
+
+    /// Constant speed over the glass, then the faster exit: the lip is at the
+    /// right edge exactly when the drawn wave's would be, and gone `spriteExit` later.
+    func testTheFilmedWaveCrossesOnTheRoarThenLeavesFast() {
+        let W: CGFloat = 1000, travel: CGFloat = 2500
+        XCTAssertEqual(Tsunami.spriteTime(lipAt: 0, width: W, travel: travel), Tsunami.frontEnters, accuracy: 1e-9)
+        XCTAssertEqual(Tsunami.spriteTime(lipAt: W, width: W, travel: travel),
+                       Tsunami.frontEnters + Tsunami.frontCrosses, accuracy: 1e-9)
+        XCTAssertEqual(Tsunami.spriteTime(lipAt: travel, width: W, travel: travel),
+                       Tsunami.frontEnters + Tsunami.frontCrosses + Tsunami.spriteExit, accuracy: 1e-9)
+        XCTAssertLessThanOrEqual(Tsunami.frontEnters + Tsunami.frontCrosses + Tsunami.spriteExit,
+                                 Tsunami.totalDuration(clip: 1) - Tsunami.fadeOut)
+    }
 }

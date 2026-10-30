@@ -957,6 +957,18 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   and **pans L → R exactly over the 2.5 s crossing**; re-cut it and those two numbers move.
   Silent here (the tablet routes the clip); re-press, stop-all, `/test/tsunami/stop` end it.
   `/test/tsunami`, `/effect/tsunami`.
+  - **The filmed wave** (2026-10-30, Victor: *"folosește GIF-ul ăsta"*): when
+    `assetsDir/tsunami-wave/NN.png` is there, a real cartoon breaker replaces the drawn one —
+    60 frames at 15 fps curling in place on a loop, the screen's full height, bottom-aligned,
+    carried by the same slide. `tools/make-tsunami-wave.py` keys the flat sky out by colour
+    (only sky reachable from the top edge, so the pale streaks inside the water stay opaque),
+    un-mixes the edges from the sky's colour, fades the frame's left 30 % and right 4 % (a hard
+    edge of sea would slide along) and crops the watermark rows. Its front is the other way
+    round from the drawn breaker's: the sea at the bottom leads (98 % of the frame's width),
+    the crest trails (62 %) — so each piece is ripped when *that row's* water reaches it, from
+    a profile read off the frames at load (`frontProfile`). The lip crosses the glass on the
+    same 2.5 s, then the wave leaves in `spriteExit` 1.2 s, so the washed screen has the
+    clip's last ~2.5 s to itself. Without the frames, the drawn breaker as above.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
   **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its
