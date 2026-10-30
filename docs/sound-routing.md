@@ -294,6 +294,9 @@ Over that link, subscribing to `…0001` reports *"The attribute could not be
 found"* and the answers arrive anyway — so the error is only logged into the
 visit's stage, and the 6 s deadline is what ends a real silence. Every visit
 that ends without a battery logs `🔊🔋 <name> gave no battery (stopped at: …)`.
+A round that finds nobody to visit logs `🔊🔋 no JBL to visit: …` once (what
+the Classic link and the scan saw, which MACs are connected and known) — until
+2026-10-30 that case was silent and the tablet simply had no 🔊 chip.
 
 **Only this Mac's speakers.** A reading counts only if its MAC is a connected
 audio output here — the keep-alive's own `targets`, matched against the

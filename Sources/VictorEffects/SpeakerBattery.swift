@@ -62,6 +62,9 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// How far the current visit got — logged when it ends without a reading,
     /// since a silent miss looks exactly like a speaker that is just full.
     private var stage = ""
+    /// The last "nothing to visit" line, so a speaker that stays unreachable
+    /// logs once, not every two minutes.
+    private var lastEmptyRound = ""
 
     func start() {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -182,6 +185,13 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             self.queue = Self.toVisit(found: Array(self.found.keys), macById: self.macById,
                                       connectedMacs: Self.connectedSpeakerMacs())
                 .compactMap { self.found[$0] }
+            if self.queue.isEmpty {
+                // Without this a round that reaches no speaker is silent, and
+                // a tablet with no 🔊 chip has nothing to point at.
+                let line = "🔊🔋 no JBL to visit: none over the Classic link, \(self.found.count) JBL advert(s) in \(Int(Self.scanSeconds)) s, "
+                    + "connected \(Self.connectedSpeakerMacs().sorted()), known \(Set(self.macById.values).sorted())"
+                if line != self.lastEmptyRound { effectsInfo(line); self.lastEmptyRound = line }
+            } else { self.lastEmptyRound = "" }
             self.visitNext()
         }
     }
