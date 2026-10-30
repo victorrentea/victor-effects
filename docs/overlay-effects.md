@@ -1650,6 +1650,14 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     at the end never cuts a run that was clicked late; a re-tap still stops it. Once the hands
     are in flight clicks are the room's again — only the wheel and Escape stay captured, until
     the fade. `endLoveHandsRun` (fade, stop-all) gives pointer, wheel and Escape back.
+  - **🛟 The tap never outlives the hands (2026-10-31).** A re-press of tile 41 goes through
+    `stopTile` → `stopEffect(named:)`, which had no `love-hands` case: `cancelIfRunning` took
+    the hands off the screen and skipped `endLoveHandsRun`, so the tap stayed live — every
+    scroll, Esc and left click on the Mac eaten and the arrow hidden, until 🛑 or a restart
+    (reproduced: `/effect/love-hands` then `/sound/stop/41_love_hearts.mp3` left the tap in
+    `CGGetEventTapList` with `running:false`). Now `stopEffect` routes it to `stopLoveHands`,
+    which ends the run even with no hands left, and the tap itself lets go (`🫶🛟` in the log)
+    the first time it sees an event with no `love-hands` on screen.
   - They linger until the clip is nearly over and **fade** out with it (never an instant cut),
     identity-guarded so an old run's timer cannot kill a newer one — this is the effect the
     "love-hands pattern" in the lifecycle rule above is named after. The hands live in a container

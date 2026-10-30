@@ -8202,6 +8202,8 @@ class EmojiAnimator {
         SoundManager.shared.stopWherever(Self.loveHandsSound)
         if let container = activeEffects["love-hands"] {
             fadeOutLoveHands(container)
+        } else {
+            endLoveHandsRun()   // the hands are gone already: their tap must go too
         }
     }
 
@@ -8354,6 +8356,16 @@ class EmojiAnimator {
             // event in flight while the teardown ran.
             guard animator._loveHandsIsLive else {
                 DispatchQueue.main.async { animator.stopLoveHandsInputCapture() }
+                return Unmanaged.passUnretained(event)
+            }
+            // ⚠️ And the suspenders: hands taken off the screen by a path that
+            // skipped `endLoveHandsRun` (a re-press of tile 41 did, through
+            // `cancelIfRunning`) left this tap live — every scroll, Esc and
+            // click on the Mac eaten, the pointer hidden, until a restart. No
+            // hands on screen ⇒ no run. Main run loop, so this read is safe.
+            guard animator.activeEffects["love-hands"] != nil else {
+                effectsError("🫶🛟 love-hands tap outlived its hands — released, scroll is back")
+                DispatchQueue.main.async { animator.endLoveHandsRun() }
                 return Unmanaged.passUnretained(event)
             }
             if type == .keyDown,
@@ -14356,6 +14368,9 @@ class EmojiAnimator {
         case "chainsaw":      stopChainsawCursor(fade: 0)
         case "fire":          stopFireCursor(fade: 0)
         case "cant-touch-this": stopCantTouchThis(fade: 0)
+        // Before `cancelIfRunning` below takes the hands off the screen and
+        // leaves their tap eating every scroll, Esc and click (2026-10-31).
+        case "love-hands":    stopLoveHands()
         case "applause":      stopApplause()
         case "pulse":         if pulseRunning { _stopPulse() }
         case "iris":          if let iris = _irisLayer { cancelIris(iris, fadeDuration: 0.2) }
