@@ -957,20 +957,34 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   and **pans L → R exactly over the 2.5 s crossing**; re-cut it and those two numbers move.
   Silent here (the tablet routes the clip); re-press, stop-all, `/test/tsunami/stop` end it.
   `/test/tsunami`, `/effect/tsunami`.
-  - **The filmed wave** (2026-10-30, Victor: *"folosește GIF-ul ăsta"*): when
+  - **The filmed wave** (2026-10-30, Victor: *"folosește GIF-ul ăsta"*; since 2026-10-31 a clip
+    he generated with Gemini, *"use it for the wave effect to wipe the screen"*): when
     `assetsDir/tsunami-wave/NN.png` is there, a real cartoon breaker replaces the drawn one —
-    60 frames at 15 fps curling in place on a loop, 1.25 × the screen's height, bottom-aligned
-    (so the crest reaches the top edge and every row is swept by water, not sky),
-    carried by the same slide. `tools/make-tsunami-wave.py` keys the flat sky out by colour
-    (only sky reachable from the top edge, so the pale streaks inside the water stay opaque),
-    un-mixes the edges from the sky's colour, fades the frame's left 30 % and right 4 % (a hard
-    edge of sea would slide along) and crops the watermark rows. Its front is the other way
-    round from the drawn breaker's: the sea at the bottom leads (98 % of the frame's width),
-    the crest trails (62 %) — so the screen is swept row by row as *that row's* water reaches it, from
-    a profile read off the frames at load (`frontProfile`) — the sweep's edge follows it
-    (`Sprite.edge`), 2 % of the frame behind the water. The lip crosses the glass on the
-    same 2.5 s, then the wave leaves in `spriteExit` 1.2 s, so the washed screen has the
-    clip's last ~2.5 s to itself. Without the frames, the drawn breaker as above.
+    60 frames at 15 fps curling in place, 1.25 × the screen's height, bottom-aligned (so the
+    crest reaches the top edge and every row is swept by water, not sky), carried by the same
+    slide. `tools/make-tsunami-wave.py` takes the 4 s of the clip where the wave is fully grown
+    and breaking (2.7 s in) and:
+    - **keys by connectivity, not colour** — the foam is the same ~245 grey as the background,
+      so the background is the near-grey region connected to the frame's top/left/right
+      border (the drawing's blue outlines wall the foam off), plus large flat enclosed pockets
+      of it (the inside of the barrel once the lip closes onto the water); edges un-mixed
+      from the background colour;
+    - **holds the wave in place** — the film's wave travels across its own frame, but here the
+      slide does the travelling, so each frame is cropped to a window riding the crest's
+      front (smoothed: the crest stalls mid-curl and surges as it crashes, so a straight-line
+      fit let the curl run off the window);
+    - fades the window's left 30 % (from where the film starts, not from the window's edge,
+      which early on reaches past the film) and right 4 % (a hard edge of sea would slide along).
+    Its front is the other way round from the drawn breaker's: the sea at the bottom leads
+    (98 % of the frame's width), the crest trails (~52 %) — so the screen is swept row by row
+    as *that row's* water reaches it, from a profile read off the frames at load
+    (`frontProfile`); the sweep's edge follows it (`Sprite.edge`), 2 % of the frame behind the
+    water. **The mask is one rectangle per row** (`aheadPath`), not one polygon through the
+    edge: the 540-point concave polygon was tessellated with a diagonal wedge of the screen
+    already swept before the wave arrived (found offscreen with CARenderer, 2026-10-31, with
+    the GIF's frames too). The lip crosses the glass on the same 2.5 s, then the wave leaves in
+    `spriteExit` 1.2 s, so the washed screen has the clip's last ~2.5 s to itself. Without the
+    frames, the drawn breaker as above.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
   **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its

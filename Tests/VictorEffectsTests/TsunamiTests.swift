@@ -19,6 +19,23 @@ final class TsunamiTests: XCTestCase {
         XCTAssertEqual(edge.map(\.y), [75, 25])
     }
 
+    /// The old screen survives exactly where the water has not reached, row by
+    /// row, even where the edge is concave — the one polygon through the edge
+    /// came out with a diagonal wedge already swept.
+    func testTheAheadMaskKeepsTheOldScreenRightOfTheEdgeOnEveryRow() {
+        // Three rows, top to bottom: crest far back, a hollow further back, sea ahead.
+        let edge = [CGPoint(x: -300, y: 150), CGPoint(x: -500, y: 90), CGPoint(x: -20, y: 30)]
+        let path = Tsunami.aheadPath(edge: edge, width: 800, height: 180)
+        for (pt, row) in zip(edge, ["crest", "hollow", "sea"]) {
+            XCTAssertTrue(path.contains(CGPoint(x: pt.x + 5, y: pt.y)), "\(row): just ahead of the water is still the old screen")
+            XCTAssertFalse(path.contains(CGPoint(x: pt.x - 5, y: pt.y)), "\(row): just behind it is swept")
+        }
+        // The wedge's spot: high up, between the hollow's edge and the crest's.
+        XCTAssertFalse(path.contains(CGPoint(x: -400, y: 160)))
+        XCTAssertTrue(path.contains(CGPoint(x: 790, y: 179)), "ahead reaches the screen's top right")
+        XCTAssertTrue(path.contains(CGPoint(x: 790, y: 1)), "and its bottom right")
+    }
+
     /// Self-termination: the effect ends with the clip, but never before the
     /// wave has crossed, left and dried.
     func testLivesForTheClipButNeverCutsTheWaveShort() {

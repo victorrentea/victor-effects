@@ -253,14 +253,7 @@ enum Tsunami {
         before.contents = prepared.shot
         before.contentsGravity = .resize
         before.zPosition = 5
-        let ahead = CGMutablePath()
-        let far = W * 4
-        ahead.move(to: CGPoint(x: far, y: (edge.first?.y ?? H) + H))
-        ahead.addLine(to: CGPoint(x: edge.first?.x ?? 0, y: (edge.first?.y ?? H) + H))
-        ahead.addLines(between: edge)
-        ahead.addLine(to: CGPoint(x: edge.last?.x ?? 0, y: -H))
-        ahead.addLine(to: CGPoint(x: far, y: -H))
-        ahead.closeSubpath()
+        let ahead = aheadPath(edge: edge, width: W, height: H)
         let mask = CAShapeLayer()
         mask.anchorPoint = .zero
         mask.bounds = .zero
@@ -281,6 +274,29 @@ enum Tsunami {
         out.isRemovedOnCompletion = false
         root.add(out, forKey: "fadeOut")
         return root
+    }
+
+    /// What the water has not reached yet, relative to the lip: one rectangle
+    /// per row of `edge` (row centres, any order), from the row's edge out to
+    /// past the screen's right side, kept to the glass (the mask rides the lip,
+    /// which is never left of the screen, so `width` past it is the whole screen).
+    ///
+    /// Strips, not one polygon through the edge points: a 540-vertex concave
+    /// polygon was tessellated wrong, leaving a diagonal wedge of the screen
+    /// already swept before the wave got there (seen offscreen, 2026-10-31, with
+    /// the GIF's frames as much as the film's). Each strip overlaps the next by
+    /// half a point so no hairline of the old screen shows between them. Pure.
+    static func aheadPath(edge: [CGPoint], width W: CGFloat, height H: CGFloat) -> CGPath {
+        let top = H + 2, bottom: CGFloat = -2, far = W + 2
+        let rows = edge.sorted { $0.y > $1.y }
+        let path = CGMutablePath()
+        for (k, pt) in rows.enumerated() {
+            let hi = min(top, k == 0 ? top : (rows[k - 1].y + pt.y) / 2 + 0.5)
+            let lo = max(bottom, k == rows.count - 1 ? bottom : (pt.y + rows[k + 1].y) / 2)
+            guard hi > lo, pt.x < far else { continue }
+            path.addRect(CGRect(x: pt.x, y: lo, width: far - pt.x, height: hi - lo))
+        }
+        return path
     }
 
     /// The filmed breaker: its frames on a loop, bottom-aligned, the anchor on
