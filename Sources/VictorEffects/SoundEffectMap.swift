@@ -76,6 +76,11 @@ enum SoundEffectMap {
         // stamps one on the desktop (taken from the app underneath) and all of
         // them blink three times together. Ends with the clip; Escape earlier.
         "35_cant_touch_this.mp3": "cant-touch-this",
+        // Tile 55b (🌊, folded under #55 Star Wars): a breaker sweeps the screen
+        // left to right, tears the desktop off in pieces and leaves it washed
+        // grey, text gone. Self-terminating with the clip; the stop below is the
+        // re-press.
+        "55b_tsunami.mp3":       "tsunami",
         // Tile 6 (©️ the Pink Panther theme): the tile's own artwork is
         // Inspector Clouseau stooped over a magnifying glass, so the desktop
         // gets the glass. It follows the pointer and magnifies only what is
@@ -183,6 +188,7 @@ enum SoundEffectMap {
         "29_gangnam_style.mp3":  "gangnam/stop",
         "06_copyright_cartoon.mp3": "magnifier/stop",
         "55_star_wars.mp3":      "star-wars/stop",
+        "55b_tsunami.mp3":       "tsunami/stop",
         "26_drum.mp3":           "drum-roll/stop",
         "59_game_over.mp3":      "game-over/stop",
         "46_michael_buble.mp3":  "snow/stop",

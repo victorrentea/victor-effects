@@ -17,7 +17,7 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 48 of the 91 tiles (#35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 49 tiles, 48 of the 91 on layer A plus 55b (the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
@@ -53,6 +53,7 @@ final class EffectsCatalogTests: XCTestCase {
         "51_beethoven.mp3":      "beethoven",      // in-clip cue
         "53_rain.mp3":           "money",          // in-clip cue
         "55_star_wars.mp3":      "star-wars",
+        "55b_tsunami.mp3":       "tsunami",        // 🌊 the screen torn off and washed grey
         "59_game_over.mp3":      "game-over",
         "61_hallelujah.mp3":     "heaven",         // 😇 light from heaven, under Bocelli
         "63_air_horn.mp3":       "siren-lamp",     // 🚨 rotating beacon on the bottom edge

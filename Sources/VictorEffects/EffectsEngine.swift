@@ -330,6 +330,8 @@ final class EffectsEngine {
         case "love-hands/stop": animator.stopLoveHands()
         case "star-wars":     animator.showStarWars(playSound: false)
         case "star-wars/stop": animator.stopStarWars()
+        case "tsunami":       animator.showTsunami()
+        case "tsunami/stop":  animator.stopTsunami()
         case "gong":          animator.showGong(playSound: false)
         case "rainbow":       animator.showRainbow(playSound: false)
         case "rainbow/stop":  animator.stopRainbow()

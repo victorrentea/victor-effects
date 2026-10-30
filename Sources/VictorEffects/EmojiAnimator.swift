@@ -8612,6 +8612,51 @@ class EmojiAnimator {
         _ = cancelIfRunning("star-wars", sound: "55_star_wars.mp3")
     }
 
+    // MARK: - 🌊 Tsunami (tile 55b, under #55) — the art is `Tsunami`
+
+    /// The screen is torn off by a breaker and left washed grey. Silent: the
+    /// clip is the tablet's, routed. A re-press while it runs ends it.
+    func showTsunami() {
+        if cancelIfRunning("tsunami") { return }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        // The press is the clock: the capture runs inside the 0.35 s before the
+        // lip reaches the glass, so the wave still lands on the clip's roar.
+        let clock0 = CACurrentMediaTime()
+        let total = Tsunami.totalDuration(clip: Tsunami.clipLength())
+
+        // The skull boom's shape: tracked before the capture goes out, so a
+        // second press or a stop-all reaches it while the capture is running.
+        let slice = ZoomSlice.current(in: bounds)
+        let holder = CALayer()
+        holder.frame = slice.rect
+        hostLayer.addSublayer(holder)
+        ZoomFollower.shared.stage(holder, full: bounds, laidOutFor: slice.rect)
+        trackEffect("tsunami", layer: holder, duration: total)
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let shot = slice.crop(Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay()) else {
+                DispatchQueue.main.async { overlayError("tsunami: screen capture failed") }
+                return
+            }
+            let prepared = Tsunami.prepare(shot: shot, size: slice.local.size)
+            DispatchQueue.main.async {
+                guard let self, self.activeEffects["tsunami"] === holder else { return }
+                let late = CACurrentMediaTime() - clock0
+                if late > Tsunami.frontEnters {
+                    effectsInfo("🌊 tsunami prep ran \(Int((late - Tsunami.frontEnters) * 1000)) ms past the wave's entry")
+                }
+                holder.addSublayer(Tsunami.makeLayer(in: slice.local, prepared: prepared,
+                                                     clock0: clock0, total: total, scale: scale))
+            }
+        }
+    }
+
+    func stopTsunami() {
+        _ = cancelIfRunning("tsunami")
+    }
+
     // Pending spawn (and cleanup) work items for the current spiral-hearts
     // emission, kept so an explicit stop — the saxophone sound stopped on the
     // tablet — can cancel the not-yet-fired ones. Without this, hearts keep

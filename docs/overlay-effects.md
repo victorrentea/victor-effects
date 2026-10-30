@@ -936,6 +936,27 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - On white the glow almost vanishes (light on white), on a dark editor it reads
     as light; the room usually sees the dark one. The tablet's stop fades it out
     (1.6 s); the clip's length is the guaranteed end.
+- **🌊 Tsunami** (tile 55b `55b_tsunami.mp3`, folded under #55 Star Wars → `tsunami` /
+  `tsunami/stop`, `Tsunami` + `showTsunami`, 2026-10-30, Victor: *"un tsunami să mă măture
+  ecranul și să-mi curețe textul, să lase fundalul cumva gri … un val mare să rupă tot"*).
+  One capture (`captureBuiltInDisplayFast`, zoom-safe through `ZoomSlice` like the skull boom),
+  two pictures of it: the screen **cut into a grid of 18 columns of square pieces** that cover
+  the glass exactly (the first frame looks like nothing happened), and under them a **washed
+  copy** — quarter-resolution Gaussian blur (r 14), saturation 0.15, pulled 40 % to mid-grey:
+  the layout survives as soft light and dark, the text does not. A **plunging breaker** (a
+  hollow face under a forward-thrown lip, teal gradient body fading out behind, white foam
+  edge, spray emitters off the lip and the face) slides left → right at constant speed: the
+  lip touches the left edge **0.35 s** after the press and the right edge **2.5 s** later
+  (`frontEnters`, `frontCrosses`). Each piece is **ripped off when the lip reaches it** (low
+  pieces a little later: the face trails the lip) and tumbles forward with the water — up
+  toward the crest, spinning, shrinking, gone in 1.15 s. What it uncovers is the washed copy
+  under a teal wet film that grows with the front and dries off from 3.4 s to 5 s. Clean
+  until the clip ends (7.3 s, read off the file), with the real screen fading back over the
+  last 0.8 s. The clip is **our own, synthesized with ffmpeg** (brown-noise rumble, pink-noise
+  roar, a thump as it breaks, a hissing foam tail) and made for this timeline: the roar starts
+  and **pans L → R exactly over the 2.5 s crossing**; re-cut it and those two numbers move.
+  Silent here (the tablet routes the clip); re-press, stop-all, `/test/tsunami/stop` end it.
+  `/test/tsunami`, `/effect/tsunami`.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
   **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its

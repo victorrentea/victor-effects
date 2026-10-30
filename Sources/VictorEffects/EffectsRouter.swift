@@ -124,6 +124,8 @@ final class EffectsRouter {
         "/test/snow/stop": "snow/stop",
         "/test/storm": "storm",
         "/test/storm/stop": "storm/stop",
+        "/test/tsunami": "tsunami",
+        "/test/tsunami/stop": "tsunami/stop",
         "/test/heaven": "heaven",
         "/test/heaven/stop": "heaven/stop",
         "/test/elephant": "elephant",

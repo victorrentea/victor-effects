@@ -82,6 +82,7 @@ enum SoundCaptions {
         "53_rain.mp3":                "[money raining]",
         "54_piano.mp3":               "[piano music]",
         "55_star_wars.mp3":           "♪ Star Wars theme ♪",
+        "55b_tsunami.mp3":            "[tsunami]",
         "56_door_open.mp3":           "[door creaking open]",
         "57_checkmark.mp3":           "[success chime]",
         "58_cat.mp3":                 "[cat meowing]",
