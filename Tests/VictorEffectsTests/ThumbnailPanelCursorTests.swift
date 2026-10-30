@@ -367,7 +367,10 @@ final class ThumbnailPanelCursorTests: XCTestCase {
               let doc = TilesManifest.parse(data), !doc.tiles.isEmpty else {
             throw XCTSkip("no tiles.json under soundsDir — tablet assets not on this machine")
         }
-        let starred = Set(doc.tiles.filter { TileView.desktopEffect(for: $0) != nil }.map(\.asset))
+        // Both layers: the 🌊 tsunami (55b) is the first effect that lives on an
+        // `under` tile, and the catalogue does not care which layer a tile is on.
+        let both = doc.tiles + doc.tiles.compactMap(\.under)
+        let starred = Set(both.filter { TileView.desktopEffect(for: $0) != nil }.map(\.asset))
         XCTAssertEqual(starred, Set(EffectsCatalog.assets),
                        "the panel's stars and the catalogue have drifted apart")
 
@@ -375,7 +378,8 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         // disagree even if the catalogue itself is wrong.
         let enriched = try XCTUnwrap(TilesManifest.enrich(data))
         let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(enriched.utf8)) as? [String: Any])
-        let stamped = Set((obj["tiles"] as? [[String: Any]] ?? [])
+        let rows = obj["tiles"] as? [[String: Any]] ?? []
+        let stamped = Set((rows + rows.compactMap { $0["under"] as? [String: Any] })
             .filter { $0["effect"] != nil }
             .compactMap { $0["asset"] as? String })
         XCTAssertEqual(starred, stamped, "the panel stars a different set than GET /tiles hands the tablet")
