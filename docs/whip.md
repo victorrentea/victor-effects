@@ -83,6 +83,13 @@ A keyboard/button crack is a **scripted flick**: `forceCrack` queues
 physics consumes one per frame, so the rope moves exactly as a hand would have
 moved it. There is no separate "play the sound now" path.
 
+**A hit sounds like a crack** (2026-10-31): a fast lash straight through
+Clawd flies sparks the moment the rope crosses him, but the tip may never snap —
+and the sparks went up in silence (*"s-a văzut scânteia … nu s-a auzit niciun
+zgomot"*). `EmojiAnimator.whipLash` now says whether it hit and the engine calls
+`WhipController.struck()`, which plays a crack; a real crack within
+`crackSoundGap` (0.25 s) of it, either way round, is the same blow and stays silent.
+
 Each crack plays one of `whip_A..E.mp3` at random, **seeked to its measured
 snap onset** (`crackOnset`: B at 0.13 s, D at 0.155 s, E at 0.06 s). Without the
 seek, two of the five samples bury the snap behind 140–170 ms of wind-up swish
@@ -101,17 +108,17 @@ compensation delay would only make it late.
 *please*es, Victor: *"make my whip throw please statements … whenever where it
 cracks"*; since 2026-10-22 only thanks, never an apology — Victor: *"nu vreau
 să îți cer scuze … vreau să spui mulțumesc în cât mai amuzante moduri
-multiculturale din Europa"*): *mille mercis*, *grazie, bello*,
-*danke, Schatzi*, *tusen tack*, *ευχαριστώ*, *cheers, lads*, *mersi, dragă*,
-Victor's own *săru-mâna* and the Romanian pop ones Codex came up with:
-*mersi, rege*, *mersi, șefu’*, *să trăiești*, *pupici, mersi*
-(`WhipPleas.phrases`). No *sorry* anywhere, and **one word, two at most**
-(2026-10-29, Victor: *"un singur danke … un cuvânt, două max"* — *danke, danke,
-danke* and *go raibh maith agat* went, *tack så mycket* became *tusen tack*);
-`WhipPleasTests` keeps both that way (`WhipPleas.maxWords`).
+multiculturale din Europa"*): *merci*, *grazie*, *dankeschön*, *tack*,
+*ευχαριστώ*, *cheers*, *mersi* and Victor's own *săru-mâna*
+(`WhipPleas.phrases`). No *sorry* anywhere, and **one word** (2026-10-31,
+Victor: *"să fie întotdeauna un cuvânt … mulțumesc frumos, o să zici merci …
+și româna nu uita: săru' mâna"* — two at most since 2026-10-29, *"un singur
+danke … un cuvânt, două max"*): *grazie, bello*, *mersi, rege*, *să trăiești*
+and the other pairs went, and a language keeps its one-word thanks; a
+hyphenated *săru-mâna* counts as one. `WhipPleasTests` keeps both that way (`WhipPleas.maxWords`).
 **Each one ends with its country's flag and nothing else** (2026-10-23, Victor:
 *"să pui și steagul țării din care e acea mulțumire … să învățăm cultură"*):
-*merci vielmal 🇨🇭*, *danke, Schatzi 🇦🇹*, *cheers, lads 🇮🇪*. Until
+*merci 🇨🇭*, *dankeschön 🇦🇹*, *cheers 🇮🇪*. Until
 2026-10-29 the flag came first and a joke emoji closed the phrase (*mille mercis
 🥐*); then the words went first, the joke emoji went and the country moved to the
 end (Victor: *"scoate emoji-ul de la finalul frazelor … lasă doar țara … la

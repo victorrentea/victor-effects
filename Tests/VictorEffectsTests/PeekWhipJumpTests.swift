@@ -297,8 +297,11 @@ final class PeekWhipJumpTests: XCTestCase {
             .filter { !$0.hasPrefix("//") && !$0.hasPrefix("///") }
             .filter { $0.contains("playCrack()") }
 
+        // The one other caller is `struck()`, on purpose: a HIT on the mascot
+        // (2026-10-31) sounds like a crack, but it is not one — the mascot has
+        // already jumped for it, and it owes the room no thank-you.
         XCTAssertEqual(
-            calls, ["private func playCrack() {", "playCrack()"],
+            calls, ["private func playCrack() {", "func struck() { playCrack() }", "playCrack()"],
             "playCrack() is called from somewhere other than cracked() — that crack plays a sound but "
             + "never reaches onCrack, so the mascot does not flinch for it. Call cracked() instead."
         )

@@ -598,8 +598,9 @@ final class EffectsEngine {
         // it touched (2026-10-16; until then every crack anywhere did it).
         // Wired here so the overlay keeps knowing nothing about the effects it
         // triggers; a no-op while he is not on screen.
-        controller.onRope = { [weak self] points, speeds in
-            self?.animator.whipLash(points: points, speeds: speeds)
+        // A hit sounds like a crack even when the tip never snapped.
+        controller.onRope = { [weak self, weak controller] points, speeds in
+            if self?.animator.whipLash(points: points, speeds: speeds) == true { controller?.struck() }
         }
         controller.show()
         // 🦀 The whip is out: Clawd, if he is on screen, is scared of it.

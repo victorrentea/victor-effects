@@ -14015,26 +14015,29 @@ class EmojiAnimator {
     /// screen made him jump. `points` are the rope's links in global
     /// framebuffer points, handle first; `speeds` how far each moved this frame,
     /// in the whip's own (glass) points.
-    func whipLash(points: [CGPoint], speeds: [CGFloat]) {
+    /// Returns whether he was hit, so the whip can sound it.
+    @discardableResult
+    func whipLash(points: [CGPoint], speeds: [CGFloat]) -> Bool {
         guard let layer = activeEffects["claude-peek"],
-              let contents = layer.contents else { return }
+              let contents = layer.contents else { return false }
         let image = contents as! CGImage
         let now = CACurrentMediaTime()
         guard now - lastPeekLash >= Self.peekLashCooldown,
-              let mask = Self.peekAlphaMask(for: image) else { return }
+              let mask = Self.peekAlphaMask(for: image) else { return false }
         let origin = EdgeFlash.builtInScreen?.frame.origin ?? .zero
         let hit = Self.firstLashHit(points: points, speeds: speeds,
                                     minSpeed: Self.peekLashMinSpeed,
                                     from: points.count / Self.peekLashSkipHandleFraction) { g in
             self.peekIsOpaque(atGlobal: g, layer: layer, screenOrigin: origin, mask: mask)
         }
-        guard let hit else { return }
+        guard let hit else { return false }
         lastPeekLash = now
         effectsInfo("🔥 whip hit claude-peek at \(Int(hit.x)),\(Int(hit.y))")
         whipClaudePeek()
         spawnWhipSparks(at: CGPoint(x: hit.x - origin.x, y: hit.y - origin.y))
         // 🦀 …and the hit leaves him seeing stars.
         clawdFeel(.dizzy)
+        return true
     }
 
     /// Below this a link is draped over him or carried by the hand, not

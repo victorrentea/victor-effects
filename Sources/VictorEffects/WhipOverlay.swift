@@ -95,11 +95,25 @@ final class WhipController {
     /// (the overlay keeps the A2DP link warm), so the crack lands as tightly as
     /// possible on the on-screen crack.
     private func playCrack() {
-        guard let sound = crackSounds.randomElement() else { return }
+        let now = CACurrentMediaTime()
+        guard now - lastCrackSound >= Self.crackSoundGap,
+              let sound = crackSounds.randomElement() else { return }
+        lastCrackSound = now
         let volume = SoundManager.shared.currentTabletVolume * Self.crackVolumeFactor
         SoundManager.shared.playOverlapping(
             sound, volume: volume, bluetoothCompensated: false, startAt: Self.crackOnset[sound] ?? 0)
     }
+
+    /// A crack and a hit within this long of each other are one blow, and sound once.
+    static let crackSoundGap: CFTimeInterval = 0.25
+    private var lastCrackSound: CFTimeInterval = 0
+
+    /// The rope hit something on screen (Clawd, sparks flying): it sounds like a
+    /// crack even when the tip never snapped. A fast swipe straight through him
+    /// showed the sparks in silence (Victor, 2026-10-31: *"s-a văzut scânteia …
+    /// nu s-a auzit niciun zgomot"*). A real crack in the same lash is folded
+    /// into this one by `crackSoundGap`, whichever comes first.
+    func struck() { playCrack() }
 
     /// **The one funnel every crack passes through**, scripted or natural: sound
     /// first, then whoever is listening. Both callers used to call `playCrack()`
@@ -616,26 +630,20 @@ enum WhipPleas {
     /// Schengen or euro countries (2026-10-23: *"nu pune chiar toate țările
     /// … din toate colțurile"*), so Albania, Wales and the British went;
     /// Ireland stays on the euro.
-    /// One word, two at most (2026-10-29, Victor: *"un singur danke … un
-    /// cuvânt, două max"*): the room reads it in the flash it flies, and a
-    /// *danke, danke, danke* only stuttered.
-    static let maxWords = 2
+    /// One word (2026-10-31, Victor: *"să fie întotdeauna un cuvânt … mulțumesc
+    /// frumos, o să zici merci … și româna nu uita: săru' mâna"*; two at most
+    /// since 2026-10-29): the room reads it in the flash it flies. A hyphenated
+    /// *săru-mâna* is one word. Countries with the same word keep their own flag.
+    static let maxWords = 1
     static let phrases = [
-        "merci beaucoup 🇫🇷", "mille mercis 🇫🇷", "grazie mille 🇮🇹",
-        "grazie, bello 🇮🇹", "danke schön 🇩🇪", "danke, Schatzi 🇦🇹",
-        "merci vielmal 🇨🇭", "gracias, amigo 🇪🇸", "moltes gràcies 🇪🇸",
-        "eskerrik asko 🇪🇸", "obrigadíssimo! 🇵🇹", "dankjewel 🇳🇱",
-        "tusen tack 🇸🇪", "tusen takk 🇳🇴", "mange tak 🇩🇰", "kiitos 🇫🇮",
-        "takk fyrir 🇮🇸", "aitäh 🇪🇪", "paldies 🇱🇻", "ačiū 🇱🇹",
-        "dziękuję 🇵🇱", "děkuji 🇨🇿", "ďakujem 🇸🇰", "köszönöm 🇭🇺",
-        "hvala lijepa 🇭🇷", "благодаря 🇧🇬", "ευχαριστώ 🇬🇷", "grazzi 🇲🇹",
-        "cheers, lads 🇮🇪",
-        "mulțumesc frumos 🇷🇴", "mersi, dragă 🇷🇴",
-        // Victor's own (2026-10-29: *"bagă săru-mâna în română"*), and the
-        // millennial/pop ones he asked Codex for the same day — minus
-        // *mulțam, legendă*, which made no sense once its 🏆 went.
-        "săru-mâna 🇷🇴", "mersi, rege 🇷🇴", "mersi, șefu’ 🇷🇴",
-        "să trăiești 🇷🇴", "pupici, mersi 🇷🇴",
+        "merci 🇫🇷", "grazie 🇮🇹", "danke 🇩🇪", "dankeschön 🇦🇹",
+        "merci 🇨🇭", "gracias 🇪🇸", "gràcies 🇪🇸", "milesker 🇪🇸",
+        "obrigadíssimo! 🇵🇹", "dankjewel 🇳🇱", "tack 🇸🇪", "takk 🇳🇴",
+        "tak 🇩🇰", "kiitos 🇫🇮", "takk 🇮🇸", "aitäh 🇪🇪", "paldies 🇱🇻",
+        "ačiū 🇱🇹", "dziękuję 🇵🇱", "děkuji 🇨🇿", "ďakujem 🇸🇰",
+        "köszönöm 🇭🇺", "hvala 🇭🇷", "благодаря 🇧🇬", "ευχαριστώ 🇬🇷",
+        "grazzi 🇲🇹", "cheers 🇮🇪",
+        "mersi 🇷🇴", "mulțumesc 🇷🇴", "săru-mâna 🇷🇴",
     ]
     /// Schengen ∪ euro area, as of 2026 — the only flags a thank-you may fly.
     static let allowedCountries: Set<String> = [

@@ -29,8 +29,9 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
-    /// One word, two at most (2026-10-29).
-    func testNoPhraseIsLongerThanTwoWords() {
+    /// One word (2026-10-31; two at most until then).
+    func testEveryPhraseIsOneWord() {
+        XCTAssertEqual(WhipPleas.maxWords, 1)
         for phrase in WhipPleas.phrases {
             let words = WhipPleas.flagged(phrase).words.split(separator: " ")
             XCTAssertLessThanOrEqual(words.count, WhipPleas.maxWords, "\(phrase) is too long")
