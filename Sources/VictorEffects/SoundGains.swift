@@ -37,6 +37,9 @@ enum SoundGains {
 
     static func position(of asset: String) -> Int { positions[asset] ?? defaultPct }
 
+    /// The tiles set above the default — the ones that play a boosted copy.
+    static var boostedAssets: [String] { positions.filter { $0.value > defaultPct }.keys.sorted() }
+
     /// Amplitude multiplier for `asset`'s tile: 1.0 at the default position.
     static func gain(for asset: String) -> Float { gain(position: position(of: asset)) }
 

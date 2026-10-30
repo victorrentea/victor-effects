@@ -26,6 +26,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = EffectsConfig.shared   // logs what it loaded
         SoundManager.warmUpAudioStack()
+        // 🔉 Tiles turned up past the tablet's tick get their amplified copies
+        // now (in the background), not on their first press.
+        for asset in SoundGains.boostedAssets {
+            if let url = SoundManager.shared.soundURL(for: asset) { BoostedClips.prepare(url) }
+        }
 
         // Both grants are asked for ONCE, here, before anything needs them.
         requestPermissionsAtLaunch()

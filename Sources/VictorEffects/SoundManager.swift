@@ -63,8 +63,15 @@ class SoundManager {
         let player: AVAudioPlayer
         /// The tile it was pressed for (`routedTile`), or the file's own name.
         let tile: String
+        /// The file asked for — `player.url` is a boosted copy for a tile
+        /// turned up past ×1 (`BoostedClips`).
+        let file: String
         /// Everything on top of `tabletVolume`: mastering trim × the tile's own volume.
         var gain: Float
+        /// The amplification already baked into the file playing (1, or
+        /// `BoostedClips.headroom` for a boosted copy).
+        let boost: Float
+        func volume(at master: Float) -> Float { min(1, master * gain / boost) }
     }
     private var tabletClips: [TabletClip] = []
 
@@ -73,12 +80,12 @@ class SoundManager {
 
     /// A new clip for `tile`: one already sounding for the same tile fades out
     /// (a restart), every other tile's clip plays on.
-    private func installTabletClip(_ player: AVAudioPlayer, tile: String, gain: Float) {
+    private func installTabletClip(_ player: AVAudioPlayer, tile: String, file: String, gain: Float, boost: Float) {
         // Clips that ran out on their own are dropped here: nothing else ends them.
         tabletClips.removeAll { !$0.player.isPlaying }
         for clip in tabletClips where clip.tile == tile { fadeOutAndStop(clip.player, over: Self.interruptFade) }
         tabletClips.removeAll { $0.tile == tile }
-        tabletClips.append(TabletClip(player: player, tile: tile, gain: gain))
+        tabletClips.append(TabletClip(player: player, tile: tile, file: file, gain: gain, boost: boost))
     }
 
     /// When the current tablet-routed sound was started — the lost-ping
@@ -495,12 +502,13 @@ class SoundManager {
             return nil
         }
         do {
-            let player = try SoundManager.player(contentsOf: url)
             let gain = clipGain(filename)
-            player.volume = min(1, tabletVolume * gain)
+            let (playURL, boost) = BoostedClips.source(for: url, gain: gain)
+            let player = try SoundManager.player(contentsOf: playURL)
+            player.volume = min(1, tabletVolume * gain / boost)
             player.prepareToPlay()
             if startAt > 0 { player.currentTime = min(startAt, player.duration) }
-            installTabletClip(player, tile: routedTile ?? filename, gain: gain)
+            installTabletClip(player, tile: routedTile ?? filename, file: filename, gain: gain, boost: boost)
             tabletSoundStartedAt = Date()
             let lead = lead ?? Self.pairedEffectStartDelays[filename] ?? 0
             // When this Mac's own output is Bluetooth, prepend silence to warm
@@ -545,11 +553,12 @@ class SoundManager {
             return nil
         }
         do {
-            let player = try SoundManager.player(contentsOf: url)
             let gain = clipGain(filename)
-            player.volume = min(1, tabletVolume * gain)
+            let (playURL, boost) = BoostedClips.source(for: url, gain: gain)
+            let player = try SoundManager.player(contentsOf: playURL)
+            player.volume = min(1, tabletVolume * gain / boost)
             player.prepareToPlay()
-            installTabletClip(player, tile: routedTile ?? filename, gain: gain)
+            installTabletClip(player, tile: routedTile ?? filename, file: filename, gain: gain, boost: boost)
             let lead = Self.pairedEffectStartDelays[filename] ?? 0
             let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
             let total = lead + btComp
@@ -621,7 +630,7 @@ class SoundManager {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.tabletVolume = max(0.0, min(1.0, volume))
-            for clip in self.tabletClips { clip.player.volume = min(1, self.tabletVolume * clip.gain) }
+            for clip in self.tabletClips { clip.player.volume = clip.volume(at: self.tabletVolume) }
             self.playOverlapping("click.wav", volume: self.tabletVolume)
         }
     }
@@ -633,10 +642,12 @@ class SoundManager {
     func setTileGain(_ asset: String, position pct: Int) {
         SoundGains.set(asset, pct)
         for i in tabletClips.indices where tabletClips[i].tile == asset {
-            let file = tabletClips[i].player.url?.lastPathComponent ?? asset
+            let file = tabletClips[i].file
             tabletClips[i].gain = (Self.fileGain[file] ?? 1.0) * SoundGains.gain(for: asset)
-            tabletClips[i].player.volume = min(1, tabletVolume * tabletClips[i].gain)
+            tabletClips[i].player.volume = tabletClips[i].volume(at: tabletVolume)
         }
+        // Turned up past the tick: have the amplified copy ready for the next press.
+        if pct > SoundGains.defaultPct, let url = soundURL(for: asset) { BoostedClips.prepare(url) }
     }
 
     /// The tablet's current volume level (0..1), for Mac-local sounds that
@@ -691,10 +702,10 @@ class SoundManager {
                 self.fadeOutAndStop(player, over: fade)
             }
             if let url {
-                for clip in self.tabletClips where clip.player.url == url {
+                for clip in self.tabletClips where clip.player.url == url || clip.file == filename {
                     self.fadeOutAndStop(clip.player, over: fade)
                 }
-                self.tabletClips.removeAll { $0.player.url == url }
+                self.tabletClips.removeAll { $0.player.url == url || $0.file == filename }
             }
         }
     }
