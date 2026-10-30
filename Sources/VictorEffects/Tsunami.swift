@@ -241,28 +241,34 @@ enum Tsunami {
     /// frontmost point, so "the front is at x" means the lip is), the body
     /// stretching back to −1.7 × `body` and fading out there.
     private static func makeWave(height H: CGFloat, body L: CGFloat, scale: CGFloat) -> CALayer {
-        let back = -1.7 * L
+        // Sublayers draw in their OWN coordinates, origin zero, so everything
+        // is drawn shifted right by `ox`: the lip's tip sits at x = ox, and the
+        // anchor puts that point on `position`.
+        let ox = 1.7 * L
+        let back = -ox
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: ox + x, y: y) }
         let container = CALayer()
-        container.bounds = CGRect(x: back, y: 0, width: -back + 2, height: H)
-        container.anchorPoint = CGPoint(x: -back / (-back + 2), y: 0)
+        container.bounds = CGRect(x: 0, y: 0, width: ox + 2, height: H)
+        container.anchorPoint = CGPoint(x: ox / (ox + 2), y: 0)
 
-        let outline = CGMutablePath()
-        outline.move(to: CGPoint(x: back, y: 0))
-        outline.addLine(to: CGPoint(x: -0.08 * L, y: 0))
-        // The face, hollow: it falls back under the lip…
-        outline.addCurve(to: CGPoint(x: -0.24 * L, y: 0.58 * H),
-                         control1: CGPoint(x: -0.26 * L, y: 0.14 * H),
-                         control2: CGPoint(x: -0.31 * L, y: 0.40 * H))
-        // …then throws forward into the lip.
-        outline.addCurve(to: CGPoint(x: 0, y: 0.80 * H),
-                         control1: CGPoint(x: -0.16 * L, y: 0.76 * H),
-                         control2: CGPoint(x: -0.07 * L, y: 0.86 * H))
-        // Over the top of the crest and back.
-        outline.addCurve(to: CGPoint(x: -0.38 * L, y: 1.0 * H),
-                         control1: CGPoint(x: -0.04 * L, y: 0.95 * H),
-                         control2: CGPoint(x: -0.20 * L, y: 1.02 * H))
-        outline.addLine(to: CGPoint(x: -1.0 * L, y: 0.94 * H))
-        outline.addLine(to: CGPoint(x: back, y: 0.88 * H))
+        // The breaker's front, foot to crest: the hollow face, the lip thrown
+        // forward OVER it (its tip, the frontmost point, at x = 0), and the lip's
+        // upper side back to the top of the crest. The foam is drawn along it too.
+        let front = CGMutablePath()
+        front.move(to: p(-0.05 * L, 0))
+        front.addCurve(to: p(-0.30 * L, 0.45 * H),
+                       control1: p(-0.25 * L, 0.05 * H), control2: p(-0.32 * L, 0.25 * H))
+        front.addCurve(to: p(-0.18 * L, 0.88 * H),
+                       control1: p(-0.30 * L, 0.65 * H), control2: p(-0.26 * L, 0.85 * H))
+        front.addCurve(to: p(0, 0.70 * H),
+                       control1: p(-0.08 * L, 0.93 * H), control2: p(0.02 * L, 0.85 * H))
+        front.addCurve(to: p(-0.20 * L, 0.98 * H),
+                       control1: p(0.03 * L, 0.86 * H), control2: p(-0.05 * L, 0.99 * H))
+
+        let outline = front.mutableCopy() ?? CGMutablePath()
+        outline.addLine(to: p(-0.6 * L, 1.05 * H))
+        outline.addLine(to: p(back, 1.05 * H))
+        outline.addLine(to: p(back, 0))
         outline.closeSubpath()
 
         let water = CAGradientLayer()
@@ -284,21 +290,10 @@ enum Tsunami {
         container.addSublayer(water)
 
         // Foam along the face, the lip and the crest: one soft wide band, one bright edge.
-        let edge = CGMutablePath()
-        edge.move(to: CGPoint(x: -0.08 * L, y: 0))
-        edge.addCurve(to: CGPoint(x: -0.24 * L, y: 0.58 * H),
-                      control1: CGPoint(x: -0.26 * L, y: 0.14 * H),
-                      control2: CGPoint(x: -0.31 * L, y: 0.40 * H))
-        edge.addCurve(to: CGPoint(x: 0, y: 0.80 * H),
-                      control1: CGPoint(x: -0.16 * L, y: 0.76 * H),
-                      control2: CGPoint(x: -0.07 * L, y: 0.86 * H))
-        edge.addCurve(to: CGPoint(x: -0.38 * L, y: 1.0 * H),
-                      control1: CGPoint(x: -0.04 * L, y: 0.95 * H),
-                      control2: CGPoint(x: -0.20 * L, y: 1.02 * H))
-        for (width, alpha, blur) in [(CGFloat(46), Float(0.35), CGFloat(24)), (14, 0.95, 10)] {
+        for (width, alpha, blur) in [(CGFloat(26), Float(0.28), CGFloat(14)), (5, 0.8, 4)] {
             let foam = CAShapeLayer()
             foam.frame = container.bounds
-            foam.path = edge
+            foam.path = front
             foam.fillColor = nil
             foam.strokeColor = NSColor.white.cgColor
             foam.lineWidth = width
@@ -315,7 +310,7 @@ enum Tsunami {
         let drop = droplet(scale: scale)
         let lip = CAEmitterLayer()
         lip.frame = container.bounds
-        lip.emitterPosition = CGPoint(x: -0.02 * L, y: 0.82 * H)
+        lip.emitterPosition = p(-0.01 * L, 0.72 * H)
         lip.emitterShape = .circle
         lip.emitterSize = CGSize(width: 0.08 * L, height: 0.08 * L)
         lip.emitterCells = [spray(drop, birthRate: 320, velocity: 420, longitude: .pi / 5,
@@ -323,9 +318,9 @@ enum Tsunami {
         container.addSublayer(lip)
         let face = CAEmitterLayer()
         face.frame = container.bounds
-        face.emitterPosition = CGPoint(x: -0.16 * L, y: 0.32 * H)
+        face.emitterPosition = p(-0.22 * L, 0.25 * H)
         face.emitterShape = .rectangle
-        face.emitterSize = CGSize(width: 0.12 * L, height: 0.6 * H)
+        face.emitterSize = CGSize(width: 0.12 * L, height: 0.45 * H)
         face.emitterCells = [spray(drop, birthRate: 420, velocity: 260, longitude: .pi / 8,
                                    range: .pi / 4, lifetime: 0.9, gravity: -600)]
         container.addSublayer(face)
