@@ -1374,7 +1374,11 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   and is anchored to when the clip is **heard** — `EffectsEngine.heardIn`, the captions'
   BT silence + speaker latency, 0 when the tablet plays it itself. One repeating animation
   with one absolute `beginTime` on every layer, so a sign stamped later joins the same
-  phase. The tap is the
+  phase. **The stamped signs blink at half speed** (2026-10-31, *"să clipească mai lent și
+  în ritmul melodiei. Cele pe care le plasez apăsând mouse-ul"*): one blink per two beats
+  (`stampBeatsPerBlink`, 0.9 s), lit on the **heavy** beats — sampled on the grid, the
+  sub-150 Hz energy is 2–4× higher on the odd beats (0.81, 1.71, 2.61 … s) — dark on the
+  light ones; the pointer keeps the every-beat blink. The tap is the
   AK-47's rule (`minigunMouseDecision`), Esc puts it away. Lives for the clip (8.9 s, read
   off the file, from when it is heard), then fades out in 0.35 s; re-press, the tablet's stop and stop-all end it
   too. Lives outside `activeEffects` (hidden cursor + tap), so `stopAllActiveEffects` and

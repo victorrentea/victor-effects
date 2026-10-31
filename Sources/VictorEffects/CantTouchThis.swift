@@ -12,6 +12,10 @@ import AppKit
 ///   beat, dark on the off-beat (Victor, 2026-10-30: *"vreau să clipească în
 ///   ritmul muzicii"*). One repeating animation with ONE absolute `beginTime`
 ///   on every layer, so a sign stamped later joins the same phase.
+/// - **The stamped signs blink at half that speed**, one blink per two beats,
+///   lit on the heavy beat — the odd beats, where the bass lands (Victor,
+///   2026-10-31: *"să clipească mai lent și în ritmul melodiei. Cele pe care
+///   le plasez apăsând mouse-ul"*). The pointer keeps the every-beat blink.
 /// - Lives for the clip, Escape ends it early, a re-press or stop-all too.
 ///
 /// The picture is the lit frame of Wikimedia's *Blinking Stop hand.gif*
@@ -34,8 +38,15 @@ final class CantTouchThisSession {
     /// re-cut clip needs these measured again.
     static let beatPeriod: Double = 0.451
     static let firstBeat: Double = 0.355
-    /// The share of each beat the sign is lit, starting ON the beat.
+    /// The share of each blink the sign is lit, starting ON the beat.
     static let litFraction: Double = 0.5
+    /// A stamped sign blinks once per this many beats: lit one beat, dark the
+    /// next (2026-10-31: one blink a beat read as frantic on the desktop).
+    static let stampBeatsPerBlink = 2
+    /// The first heavy beat: sampled on the grid, the sub-150 Hz energy is
+    /// 2–4× higher on the odd beats (0.81, 1.71, 2.61 … s) than on the even
+    /// ones, so a stamp is lit on those and dark on the light ones between.
+    static let stampFirstBeat: Double = firstBeat + beatPeriod
     /// Ceiling on stamps, for a stuck button: past it the oldest goes.
     static let maxStamps = 60
     static let fadeOut: Double = 0.35
@@ -47,19 +58,22 @@ final class CantTouchThisSession {
     /// The media time of a beat at or before `now`, given that the clip is
     /// heard from `clipHeardAt`: any beat of the grid will do as the animation's
     /// start, and one in the past makes it blink in phase from the first frame.
-    static func beatEpoch(clipHeardAt: CFTimeInterval, now: CFTimeInterval) -> CFTimeInterval {
+    static func beatEpoch(clipHeardAt: CFTimeInterval, now: CFTimeInterval,
+                          firstBeat: Double = firstBeat,
+                          period: Double = beatPeriod) -> CFTimeInterval {
         let beat = clipHeardAt + firstBeat
-        return beat - (max(0, beat - now) / beatPeriod).rounded(.up) * beatPeriod
+        return beat - (max(0, beat - now) / period).rounded(.up) * period
     }
 
-    /// Lit on the beat, dark after `litFraction` of it, forever. Discrete, so
-    /// each state is a clean on/off like the GIF's, never a cross-fade.
-    static func beatAnimation(beginTime: CFTimeInterval) -> CAKeyframeAnimation {
+    /// Lit on the beat, dark after `litFraction` of the blink, forever.
+    /// Discrete, so each state is a clean on/off like the GIF's, never a
+    /// cross-fade. One blink lasts `beats` beats.
+    static func beatAnimation(beginTime: CFTimeInterval, beats: Int = 1) -> CAKeyframeAnimation {
         let anim = CAKeyframeAnimation(keyPath: "opacity")
         anim.values = [Float(1), Float(0)]
         anim.keyTimes = [0, NSNumber(value: litFraction), 1]
         anim.calculationMode = .discrete
-        anim.duration = beatPeriod
+        anim.duration = beatPeriod * Double(beats)
         anim.repeatCount = .infinity
         anim.beginTime = beginTime
         return anim
@@ -76,6 +90,8 @@ final class CantTouchThisSession {
     private var timer: Timer?
     /// Where the beat grid starts, in media time (`beatEpoch`).
     private var beatEpoch: CFTimeInterval = 0
+    /// The stamps' slower grid: a heavy beat, `stampBeatsPerBlink` apart.
+    private var stampEpoch: CFTimeInterval = 0
     private var hidCursor = false
     private var tap: CFMachPort?
     private var tapSource: CFRunLoopSource?
@@ -103,6 +119,9 @@ final class CantTouchThisSession {
     func start(duration: Double, heardIn: Double = 0) {
         let now = CACurrentMediaTime()
         beatEpoch = Self.beatEpoch(clipHeardAt: now + heardIn, now: now)
+        stampEpoch = Self.beatEpoch(clipHeardAt: now + heardIn, now: now,
+                                    firstBeat: Self.stampFirstBeat,
+                                    period: Self.beatPeriod * Double(Self.stampBeatsPerBlink))
         let sign = makeSign()
         EmojiAnimator.fitPointerSprite(sign, base: baseSize)
         CATransaction.begin()
@@ -145,14 +164,17 @@ final class CantTouchThisSession {
         return layer
     }
 
-    /// Blink on the song's beat. The same absolute start on every layer, so
-    /// they are in unison however late each one arrived.
-    private func keepTheBeat(_ layer: CALayer) {
-        layer.add(Self.beatAnimation(beginTime: layer.convertTime(beatEpoch, from: nil)), forKey: "beat")
+    /// Blink on the song's beat. The same absolute start on every layer of a
+    /// kind, so they are in unison however late each one arrived.
+    private func keepTheBeat(_ layer: CALayer, stamped: Bool = false) {
+        let epoch = stamped ? stampEpoch : beatEpoch
+        let beats = stamped ? Self.stampBeatsPerBlink : 1
+        layer.add(Self.beatAnimation(beginTime: layer.convertTime(epoch, from: nil), beats: beats),
+                  forKey: "beat")
     }
 
-    /// A click: a sign stays where the pointer's was, blinking on the beat
-    /// with the others.
+    /// A click: a sign stays where the pointer's was, blinking on the heavy
+    /// beats with the other stamps.
     private func stamp() {
         guard let pointer else { return }
         let sign = makeSign()
@@ -163,7 +185,7 @@ final class CantTouchThisSession {
         // size, so under ⌥-scroll zoom it grows with what it was stamped on.
         hostLayer.insertSublayer(sign, below: pointer)
         CATransaction.commit()
-        keepTheBeat(sign)
+        keepTheBeat(sign, stamped: true)
         stamps.append(sign)
         if stamps.count > Self.maxStamps { stamps.removeFirst().removeFromSuperlayer() }
         effectsInfo("✋ stamp #\(stamps.count) at \(Int(sign.position.x)),\(Int(sign.position.y))")
