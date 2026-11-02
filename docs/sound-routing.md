@@ -197,6 +197,14 @@ generation, so a stale ticket draws nothing and logs `⏸️ dropping deferred
 effect`. The next tile's own visual is queued *after* its stop-all, so it keeps
 its ticket.
 
+**A re-press is a stop too, for its own tile only.** Since effects overlap
+(2026-10-29) a re-press ends one tile with `stopTile`, not `stopAll`, and that
+path never moved the generation: on 2026-11-02 Hallelujah was re-pressed 0.6 s
+into its 1050 ms gap, the clip stopped, and the angels came up half a second
+later — silent, with `heaven/stop` already spent. The ticket now also carries
+the effect's own stop count; `stopTile` bumps it (`stopped(effect:)`), so only
+that tile's queued visual is outvoted and every other tile's still draws.
+
 ## Keep-alive (`BluetoothKeepAlive`)
 
 A JBL switches itself **off** after ~20 min without audio, even while

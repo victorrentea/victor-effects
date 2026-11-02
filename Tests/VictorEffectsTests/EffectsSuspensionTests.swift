@@ -81,10 +81,10 @@ final class EffectsSuspensionTests: XCTestCase {
         // or a crop's suspend — lands 0.3 s later. The queued visual must
         // then draw nothing: its stop is already spent.
         var fires = DeferredFires()
-        let queuedAt = fires.generation
-        XCTAssertTrue(fires.stillWanted(queuedAt))
+        let queuedAt = fires.ticket(for: "heaven")
+        XCTAssertTrue(fires.stillWanted(queuedAt, effect: "heaven"))
         fires.stopped()
-        XCTAssertFalse(fires.stillWanted(queuedAt))
+        XCTAssertFalse(fires.stillWanted(queuedAt, effect: "heaven"))
     }
 
     func testAFireQueuedAfterTheStopStillDraws() {
@@ -92,6 +92,19 @@ final class EffectsSuspensionTests: XCTestCase {
         // so the stop that killed the previous fire must not kill this one.
         var fires = DeferredFires()
         fires.stopped()
-        XCTAssertTrue(fires.stillWanted(fires.generation))
+        fires.stopped(effect: "heaven")
+        XCTAssertTrue(fires.stillWanted(fires.ticket(for: "heaven"), effect: "heaven"))
+    }
+
+    func testARePressOutvotesOnlyItsOwnQueuedFire() {
+        // 2026-11-02, 14:24:52: Hallelujah pressed, its visual queued 1050 ms
+        // behind the JBL; re-pressed 0.6 s later — clip stopped, and the
+        // angels then came up anyway, silent, with nothing left to stop them.
+        var fires = DeferredFires()
+        let heaven = fires.ticket(for: "heaven")
+        let snow = fires.ticket(for: "snow")
+        fires.stopped(effect: "heaven")
+        XCTAssertFalse(fires.stillWanted(heaven, effect: "heaven"))
+        XCTAssertTrue(fires.stillWanted(snow, effect: "snow"), "another tile's visual still draws")
     }
 }

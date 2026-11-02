@@ -15,11 +15,22 @@ import Foundation
 /// the generation when it is queued and draws nothing if a stop has moved it
 /// since. Pure, so the race tests without a clock or a screen.
 struct DeferredFires {
+    /// What a queued fire remembers: the global stop count and its own
+    /// effect's stop count, both as they were when it was queued.
+    struct Ticket: Equatable { let all: Int; let own: Int }
+
     private(set) var generation = 0
-    /// Every `stopAll()` — the 🛑, the next tile's pre-press stop, a re-tap,
-    /// a suspend.
+    private var perEffect: [String: Int] = [:]
+    /// Every `stopAll()` — the 🛑, a suspend, an explicit stop-all.
     mutating func stopped() { generation += 1 }
-    func stillWanted(_ queuedAt: Int) -> Bool { queuedAt == generation }
+    /// One tile re-pressed (`stopTile`, since 2026-10-29 the usual way to end
+    /// an effect): only ITS queued visual is outvoted, the rest still draw.
+    /// Without it a re-press inside the ~1 s Bluetooth gap stopped the clip and
+    /// then drew the visual anyway, silent and with its `/stop` already spent —
+    /// the Hallelujah angels stayed up (2026-11-02).
+    mutating func stopped(effect: String) { perEffect[effect, default: 0] += 1 }
+    func ticket(for effect: String) -> Ticket { Ticket(all: generation, own: perEffect[effect] ?? 0) }
+    func stillWanted(_ t: Ticket, effect: String) -> Bool { t == ticket(for: effect) }
 }
 
 final class EffectsEngine {
@@ -216,7 +227,9 @@ final class EffectsEngine {
         guard let routed = routedPlay, routed.asset == asset else { return 0 }
         let timing = SoundTimingConfig.shared
         return SoundCaptions.audibleDelay(playedAt: routed.at, now: Date(),
-                                          lead: timing.animationLead(for: asset),
+                                          lead: timing.animationLead(for: asset)
+                                              // The CT squad's lead lives in code, not in sound-timing.json.
+                                              + (asset == "73_counter_strike.mp3" ? EmojiAnimator.counterStrikeLeadIn : 0),
                                           bluetoothCompensation: timing.currentBluetoothCompensation,
                                           outputLatency: timing.currentOutputLatency)
     }
@@ -273,11 +286,11 @@ final class EffectsEngine {
         // it has already cleared the screen, and a visual that then appears is
         // one nobody asked for — its paired `/stop` is spent. Not cancelled,
         // outvoted: see `DeferredFires`.
-        let queuedAt = deferredFires.generation
+        let queuedAt = deferredFires.ticket(for: name)
         DispatchQueue.main.asyncAfter(deadline: .now() + comp) { [weak self] in
             guard let self else { return }
-            guard self.deferredFires.stillWanted(queuedAt) else {
-                effectsInfo("⏹ dropping deferred effect '\(name)' — a stop-all landed while it waited")
+            guard self.deferredFires.stillWanted(queuedAt, effect: name) else {
+                effectsInfo("⏹ dropping deferred effect '\(name)' — a stop landed while it waited")
                 return
             }
             self.fireEffect(name)
@@ -510,6 +523,11 @@ final class EffectsEngine {
     /// keep going. `stopAll` is still the panic button for everything.
     func stopTile(_ asset: String) {
         SoundManager.shared.stopTabletSound(tile: asset)
+        // A visual still waiting out the Bluetooth gap must not draw after this.
+        for effect in Set([EffectsCatalog.effectName(forAsset: asset),
+                           SoundEffectMap.pressEffect(for: asset)].compactMap { $0 }) {
+            deferredFires.stopped(effect: effect)
+        }
         if let effect = EffectsCatalog.effectName(forAsset: asset) { animator.stopEffect(named: effect) }
         if let stop = SoundEffectMap.stopEffect(for: asset) { runEffect(stop) }
         if routedPlay?.asset == asset { playing = nil; routedPlay = nil }
@@ -821,6 +839,15 @@ final class EffectsEngine {
         // #22's aim lead-in: the number is owned by the animation's own
         // timeline (`EmojiAnimator.wazzupLeadIn`), not by the tablet-tunable
         // `sound-timing.json`.
+        // Tile #73 (🔫 Counter-Strike): the squad comes up on the press and
+        // "Go, go, go!" lands `counterStrikeLeadIn` later — the wazzup's
+        // mechanism, the number owned by the animation (Victor, 2026-11-02).
+        if name == "73_counter_strike.mp3" {
+            guard let duration = SoundManager.shared.playTabletSound(
+                name, volume: volume,
+                lead: EmojiAnimator.counterStrikeLeadIn) else { return nil }
+            return remember(Int(duration * 1000))
+        }
         if name == WazzupCorner.soundName {
             guard let duration = SoundManager.shared.playTabletSound(
                 name, volume: volume,

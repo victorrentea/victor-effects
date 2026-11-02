@@ -10642,8 +10642,11 @@ class EmojiAnimator {
     // MARK: - Counter-Strike (CT duo holds the bottom-left quarter — sound #73)
 
     /// The two Counter-Strike operators hold the WEST side of the screen, glued
-    /// to the bottom edge, for exactly as long as `73_counter_strike.mp3`
-    /// plays (~1.36s, measured from the file so a re-cut clip stays in sync).
+    /// to the bottom edge. They come up `counterStrikeLeadIn` (0.5 s) BEFORE the
+    /// "Go, go, go!" is heard — the routed play is delayed by that much, the
+    /// wazzup's way — and stay `counterStrikeLinger` (2 s) after the clip
+    /// (~1.36 s, measured from the file so a re-cut clip stays in sync) ends
+    /// (Victor, 2026-11-02: the squad was gone before anyone had seen it).
     /// The bundled PNG is pre-trimmed to its opaque content, so "glued to the
     /// bottom" is literal — the layer's bottom edge IS the boots, with no
     /// transparent margin lifting them off the edge. Width is the driver: they
@@ -10659,12 +10662,13 @@ class EmojiAnimator {
             return
         }
 
-        // Linger exactly as long as the clip; fall back to its measured length.
-        var duration: Double = 1.36
+        // Lead-in + the clip (measured; falls back to its known length) + linger.
+        var clip: Double = 1.36
         if let soundURL = SoundManager.shared.soundURL(for: "73_counter_strike.mp3") {
             let d = AVURLAsset(url: soundURL).duration
-            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+            if d.isNumeric { clip = CMTimeGetSeconds(d) }
         }
+        let duration = Self.counterStrikeLeadIn + clip + Self.counterStrikeLinger
 
         let bounds = hostLayer.bounds
         // Half the screen width is the target, aspect preserved, anchored at the
@@ -10688,11 +10692,11 @@ class EmojiAnimator {
         let rise = CABasicAnimation(keyPath: "position.y")
         rise.fromValue = -h / 2
         rise.toValue = h / 2
-        rise.duration = min(0.18, duration * 0.2)
+        rise.duration = 0.18
         rise.timingFunction = CAMediaTimingFunction(name: .easeOut)
         imgLayer.add(rise, forKey: "rise")
 
-        // Gone with the last of the sound.
+        // Gone `counterStrikeLinger` after the last of the sound.
         let fadeOut = CABasicAnimation(keyPath: "opacity")
         fadeOut.beginTime = CACurrentMediaTime() + max(0, duration - 0.3)
         fadeOut.fromValue = 1.0
@@ -10702,10 +10706,22 @@ class EmojiAnimator {
         fadeOut.isRemovedOnCompletion = false
         imgLayer.add(fadeOut, forKey: "fadeOut")
 
-        if playSound { SoundManager.shared.play("73_counter_strike.mp3") }
+        if playSound {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.counterStrikeLeadIn) { [weak self, weak imgLayer] in
+                guard let self, let imgLayer, self.activeEffects["counter-strike"] === imgLayer else { return }
+                SoundManager.shared.play("73_counter_strike.mp3")
+            }
+        }
         trackEffect("counter-strike", layer: imgLayer, duration: duration,
                     sound: playSound ? "73_counter_strike.mp3" : nil)
     }
+
+    /// How long the CT squad is on screen before "Go, go, go!" is heard. Owned
+    /// here, not in `sound-timing.json`: the routed `/sound/play` passes it as
+    /// the clip's `lead` (`EffectsEngine.playSound`), the wazzup's arrangement.
+    static let counterStrikeLeadIn: Double = 0.5
+    /// How long the squad stays after the clip has ended.
+    static let counterStrikeLinger: Double = 2.0
 
     // MARK: - Wasn't me (wagging finger in the SW quadrant — sound #76)
 

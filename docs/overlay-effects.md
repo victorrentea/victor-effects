@@ -673,9 +673,12 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   no transparent margin lifting them off the edge) stand in the **bottom-left
   quarter** of the retina — fitted aspect-preserved inside half-width × half-height,
   anchored at the bottom-left corner, **glued to the bottom screen edge** — snapping
-  up into place over 0.18 s. It lives exactly as long as the clip (**duration read
-  from the mp3** via `AVURLAsset`, ~1.36 s, falling back to that measured value) and
-  fades out over its last 0.3 s. Driven from the **press path** (`SoundEffectMap`),
+  up into place over 0.18 s. Since 2026-11-02 it comes up **0.5 s before "Go, go,
+  go!" is heard** (`counterStrikeLeadIn`: `EffectsEngine.playSound` passes it as the
+  routed clip's `lead`, the wazzup's mechanism, and the caption waits for it too) and
+  **stays 2 s after the clip ends** (`counterStrikeLinger`): lead-in + clip
+  (**duration read from the mp3** via `AVURLAsset`, ~1.36 s, falling back to that
+  measured value) + linger, fading out over its last 0.3 s. Driven from the **press path** (`SoundEffectMap`),
   so the routed `/sound/play/73_counter_strike.mp3` supplies the audio and the
   visual never double-triggers. `/test/counter-strike` and `/effect/counter-strike`
   fire it silently.
