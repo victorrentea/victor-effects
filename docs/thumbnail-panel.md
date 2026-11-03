@@ -426,7 +426,8 @@ finger for its second way in because a finger has no hover; a mouse does.
   (2026-11-03). The border alone said "this cell" but not which of its two
   sounds — with a B sound running, Victor did not know whether to click the tile
   or the corner, and panicked. The corner spinner is the circle inscribed in the
-  corner's *clickable* triangle (the fold pulled in by the dead band), so the
+  corner's *clickable* triangle (the fold pulled in by the dead band, the outer
+  edges by the red border), so the
   whole wheel sits where a click presses the corner; a top sound on a folded tile
   spins up-right of centre, off the fold. `LayerBTests` pins both. Re-clicking
   the corner stops it, as a re-tap does on the tablet.

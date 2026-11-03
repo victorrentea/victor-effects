@@ -303,12 +303,14 @@ final class TileView: NSView {
         let diameter: CGFloat
         switch part {
         case .under:
-            // The CLICKABLE triangle — the fold pulled in by the dead band —
-            // and the circle inscribed in it, so the whole spinner is on the
-            // spot a click presses the corner.
-            let leg = side * (peekSideRatio - peekDeadBandRatio * 2.squareRoot())
-            let r = leg / (2 + 2.squareRoot())
-            centre = CGPoint(x: r, y: r)
+            // The CLICKABLE triangle — the fold pulled in by the dead band,
+            // the two outer edges pulled in by the red border that is pulsing
+            // over them — and the circle inscribed in it, so the whole spinner
+            // is on the spot a click presses the corner and none under the red.
+            let b = playingBorderWidth
+            let leg = side * (peekSideRatio - peekDeadBandRatio * 2.squareRoot()) - 2 * b
+            let r = max(0, leg) / (2 + 2.squareRoot())
+            centre = CGPoint(x: b + r, y: b + r)
             diameter = 2 * r * spinnerUnderFill
         case .top:
             let c = side * (hasUnder ? 0.62 : 0.5)
