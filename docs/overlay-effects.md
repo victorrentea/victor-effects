@@ -981,8 +981,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     Its front is the other way round from the drawn breaker's: the sea at the bottom leads
     (98 % of the frame's width), the crest trails (~52 %) — so the screen is swept row by row
     as *that row's* water reaches it, from a profile read off the frames at load
-    (`frontProfile`); the sweep's edge follows it (`Sprite.edge`), 2 % of the frame behind the
-    water. **The mask is one rectangle per row** (`aheadPath`), not one polygon through the
+    (`frontProfile`, which places the lip). The sweep's edge (`Sprite.edge`, 2 % of the frame
+    behind the water) follows a stricter profile, `sweepProfile`: per row, how far the water
+    reaches in its **shortest** frame, with the hollow under the curl (a gap ≥ 4 % of the frame)
+    counting as not reached. Until 2026-11-03 it followed the majority front, so the washed grey
+    showed through the barrel and under the sea's tongue in the frames where it ran short
+    (Victor: *"sub valul ăla … e gri sub el, doamne ferește"*); ahead of the edge the old screen
+    shows through any gap, which reads right — the wave has not got there yet. **The mask is one rectangle per row** (`aheadPath`), not one polygon through the
     edge: the 540-point concave polygon was tessellated with a diagonal wedge of the screen
     already swept before the wave arrived (found offscreen with CARenderer, 2026-10-31, with
     the GIF's frames too). The lip crosses the glass on the same 2.5 s, then the wave leaves in

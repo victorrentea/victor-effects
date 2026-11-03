@@ -73,6 +73,10 @@ enum Tsunami {
         /// Per row, top to bottom: how far right the water reaches, as a share
         /// of the frame's width (its rightmost opaque pixel in most frames).
         let front: [CGFloat]
+        /// Per row, how far right the water reaches in its SHORTEST frame,
+        /// counting the hollow under the curl as not reached (`sweepProfile`):
+        /// where the sweep edge sits. `nil` = `front`.
+        var sweep: [CGFloat]? = nil
         var aspect: CGFloat { CGFloat(frames[0].width) / CGFloat(frames[0].height) }
         /// The frontmost point of the wave: what "the front is at x" means.
         var lip: CGFloat { front.max() ?? 1 }
@@ -82,8 +86,9 @@ enum Tsunami {
         /// one point per row, top to bottom, held `margin` behind the water so
         /// the foam's frame-to-frame jitter never opens a gap onto the old screen.
         func edge(size: CGSize, margin: CGFloat) -> [CGPoint] {
-            let n = CGFloat(front.count)
-            return front.enumerated().map { row, f in
+            let rows = sweep ?? front
+            let n = CGFloat(rows.count)
+            return rows.enumerated().map { row, f in
                 CGPoint(x: (f - lip) * size.width - margin, y: size.height * (1 - (CGFloat(row) + 0.5) / n))
             }
         }
@@ -102,6 +107,41 @@ enum Tsunami {
         }
         let crest = rows.compactMap { $0 }.min() ?? 1
         return rows.map { $0 ?? crest }
+    }
+
+    /// Per row, the share of the frame's width the water surely covers: in
+    /// every frame, from the row's first opaque pixel rightwards to where a
+    /// gap of at least `minHole` (or the frame's edge) opens; the minimum over
+    /// the frames. Rows with no water in any frame take the smallest value.
+    ///
+    /// Why not `frontProfile`: the sweep edge must never pass where the water
+    /// is not (Victor, 2026-11-03: "sub valul ăla … e gri sub el"). Two places
+    /// did — the hollow under the curl, where the majority front sat on the
+    /// lip's far side so the washed grey showed through the barrel, and the
+    /// sea's tongue in the frames where it is shorter than in most. Behind the
+    /// sweep edge what is not water shows grey; ahead of it, the old screen
+    /// shows through any gap, which reads right: the wave has not got there. Pure.
+    static func sweepProfile(alpha frames: [[UInt8]], width: Int, height: Int, minHole: Int) -> [CGFloat] {
+        guard !frames.isEmpty, width > 0, height > 0 else { return [] }
+        var rows = [Int?](repeating: nil, count: height)
+        for y in 0..<height {
+            for a in frames {
+                let base = y * width
+                guard var x = (0..<width).first(where: { a[base + $0] > 128 }) else { continue }
+                var reach = width
+                while x < width {
+                    if a[base + x] <= 128 {
+                        let start = x
+                        while x < width, a[base + x] <= 128 { x += 1 }
+                        if x == width || x - start >= minHole { reach = start; break }
+                    }
+                    x += 1
+                }
+                rows[y] = min(rows[y] ?? width, reach)
+            }
+        }
+        let fallback = rows.compactMap { $0 }.min() ?? width
+        return rows.map { CGFloat($0 ?? fallback) / CGFloat(width) }
     }
 
     /// The frames, decoded here (off the main thread) so the first ones do not
@@ -128,8 +168,11 @@ enum Tsunami {
             frames.append(decoded)
             alphas.append(stride(from: 3, to: px.count, by: 4).map { px[$0] })
         }
-        let sprite: Sprite? = frames.isEmpty ? nil
-            : Sprite(frames: frames, front: frontProfile(alpha: alphas, width: frames[0].width, height: frames[0].height))
+        let sprite: Sprite? = frames.isEmpty ? nil : {
+            let w = frames[0].width, h = frames[0].height
+            return Sprite(frames: frames, front: frontProfile(alpha: alphas, width: w, height: h),
+                          sweep: sweepProfile(alpha: alphas, width: w, height: h, minHole: max(1, w / 25)))
+        }()
         if sprite == nil, !files.isEmpty { effectsError("🌊 tsunami: \(spriteDir.path) has no readable frames") }
         _sprite = .some(sprite)
         return sprite

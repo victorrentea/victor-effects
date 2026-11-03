@@ -56,4 +56,27 @@ final class TsunamiTests: XCTestCase {
         var splash = a; splash[7] = 255
         XCTAssertEqual(Tsunami.frontProfile(alpha: [a, a, splash], width: 4, height: 3)[1], 0.5)
     }
+
+    /// Where the sweep edge sits: as far as the water reaches in its shortest
+    /// frame, and the hollow under the curl counts as not reached — else the
+    /// washed grey shows through the barrel (Victor, 2026-11-03).
+    func testSweepProfileStopsAtTheHollowAndAtTheShortestFrame() {
+        // 10 wide, top to bottom: sky, curl (back face 0-2, hollow 3-6, lip 7-8),
+        // sea reaching 9, sea with a one-pixel fleck of foam texture at 4.
+        let o: UInt8 = 255
+        let a: [UInt8] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          o, o, o, 0, 0, 0, 0, o, o, 0,
+                          o, o, o, o, o, o, o, o, o, 0,
+                          o, o, o, o, 0, o, o, o, o, o]
+        XCTAssertEqual(Tsunami.sweepProfile(alpha: [a], width: 10, height: 4, minHole: 3), [0.3, 0.3, 0.9, 1])
+        // The sea breathes: one frame's is shorter, and that frame decides.
+        var short = a; short[27] = 0; short[28] = 0
+        XCTAssertEqual(Tsunami.sweepProfile(alpha: [a, short], width: 10, height: 4, minHole: 3)[2], 0.7)
+        // The edge follows the sweep, not the front.
+        let frame = try! XCTUnwrap(CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0,
+                                              space: CGColorSpaceCreateDeviceRGB(),
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.makeImage())
+        let sprite = Tsunami.Sprite(frames: [frame], front: [0.9, 1.0], sweep: [0.3, 1.0])
+        XCTAssertEqual(sprite.edge(size: CGSize(width: 100, height: 100), margin: 0).map(\.x), [-70, 0])
+    }
 }
