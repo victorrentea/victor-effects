@@ -169,8 +169,9 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
 - **Songs roll up, line by line** (2026-10-10, roll-up 2026-11-04: "I want to read
   it from somewhere, not have it leave the screen fast"). A song in
   `SoundCaptions.lyrics` is a *track*: each sung line goes up at the second it
-  starts in the clip. Every line is its own row and pill: a new one comes in at
-  the bottom and pushes the others up, and a row whose time is up fades out
+  starts in the clip, **half a second before its first word is heard** (`leadIn`, `CaptionLine.ahead`;
+  `at` stays the reviewed cue). Every line is its own row and pill: the first one fades in fast on
+  the standard position, one arriving over another rises from below and pushes the others up, and a row whose time is up fades out
   where it stands, no swipe; the bottom row stays on its standard position meanwhile. **A said line stays `readHold` (1 s) after its
   fill ends**, however soon the next line comes (it arrives underneath) and
   however long the clip goes on (no more words, the line goes;
@@ -957,19 +958,17 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
 - **🌊 Tsunami** (tile 55b `55b_tsunami.mp3`, folded under #55 Star Wars → `tsunami` /
   `tsunami/stop`, `Tsunami` + `showTsunami`, 2026-10-30, Victor: *"un tsunami să mă măture
   ecranul și să-mi curețe textul, să lase fundalul cumva gri … un val mare să rupă tot"*).
-  One capture (`captureBuiltInDisplayFast`, zoom-safe through `ZoomSlice` like the skull boom),
-  two pictures of it: the screen as it is on top (the first frame looks like nothing happened),
-  and under it a **washed copy** — quarter-resolution Gaussian blur (r 14), saturation 0.15,
-  pulled 40 % to mid-grey: the layout survives as soft light and dark, the text does not. A
+  One capture (`captureBuiltInDisplayFast`, zoom-safe through `ZoomSlice` like the skull boom)
+  stays on top, so the first frame looks like nothing happened, and **under it is plain black**
+  (2026-11-04, *"să rămână negru, nu gri"*; until then a blurred grey copy under a teal wet
+  film). A
   **plunging breaker** slides left → right at constant speed: the lip touches the left edge
   **0.35 s** after the press and the right edge **2.5 s** later (`frontEnters`,
   `frontCrosses`). **The wave sweeps, it does not tear** (Victor, 2026-10-30: *"nu mai rupe
   ecranul ci doar mătură ecranul cu valul"* — until then the screen was cut into 18 columns of
   pieces flung into the crest): the capture on top is masked to whatever the water has not
   reached, the mask's edge riding with the wave just behind its water on every row. What the
-  wave leaves is the washed copy under a teal wet film that grows with the front and dries off
-  from 3.4 s to 5 s. Clean
-  until the clip ends (7.3 s, read off the file), with the real screen fading back over the
+  wave leaves stays black until the clip ends (7.3 s, read off the file), with the real screen fading back over the
   last 0.8 s. The clip is **our own, synthesized with ffmpeg** (brown-noise rumble, pink-noise
   roar, a thump as it breaks, a hissing foam tail) and made for this timeline: the roar starts
   and **pans L → R exactly over the 2.5 s crossing**; re-cut it and those two numbers move.
@@ -999,14 +998,17 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     (`frontProfile`, which places the lip). The sweep's edge (`Sprite.edge`, 2 % of the frame
     behind the water) follows a stricter profile, `sweepProfile`: per row, how far the water
     reaches in its **shortest** frame, with the hollow under the curl (a gap ≥ 4 % of the frame)
-    counting as not reached. Until 2026-11-03 it followed the majority front, so the washed grey
+    counting as not reached, and a speck of spray ahead of or behind the longest run of water not
+    counting at all. The top 38 % of the frame (`crestShare`, crest and spray, no hollow) takes
+    `front` instead: going by the shortest frame there left the old screen standing above the
+    crest after the wave had passed (2026-11-04). Until 2026-11-03 it followed the majority front, so the grey of the time
     showed through the barrel and under the sea's tongue in the frames where it ran short
     (Victor: *"sub valul ăla … e gri sub el, doamne ferește"*); ahead of the edge the old screen
     shows through any gap, which reads right — the wave has not got there yet. **The mask is one rectangle per row** (`aheadPath`), not one polygon through the
     edge: the 540-point concave polygon was tessellated with a diagonal wedge of the screen
     already swept before the wave arrived (found offscreen with CARenderer, 2026-10-31, with
     the GIF's frames too). The lip crosses the glass on the same 2.5 s, then the wave leaves in
-    `spriteExit` 1.2 s, so the washed screen has the clip's last ~2.5 s to itself. Without the
+    `spriteExit` 1.2 s, so the black has the clip's last ~2.5 s to itself. Without the
     frames, the drawn breaker as above.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and

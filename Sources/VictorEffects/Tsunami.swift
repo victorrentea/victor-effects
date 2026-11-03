@@ -1,6 +1,5 @@
 import AppKit
 import AVFoundation
-import CoreImage
 import ImageIO
 import QuartzCore
 
@@ -34,15 +33,15 @@ enum Tsunami {
     /// The breaker's length behind its lip, as a share of the screen width.
     static let bodyShare: CGFloat = 0.42
     /// The wet sheen over the washed screen dries off in this window.
-    static let wetFadeStart: Double = 3.4
-    static let wetFadeDuration: Double = 1.6
     /// The washed screen hands back to the real one over the clip's last stretch.
     static let fadeOut: Double = 0.8
+    /// However short the clip, the black gets a look before the screen is back.
+    static let shortestRun: Double = 5.8
 
     /// On-screen length: the clip, but never shorter than the wave needs to
     /// cross, leave and dry.
     static func totalDuration(clip: Double) -> Double {
-        max(clip, wetFadeStart + wetFadeDuration + fadeOut)
+        max(clip, shortestRun)
     }
 
     /// The clip's real length, read off the file in `soundsDir`.
@@ -65,7 +64,7 @@ enum Tsunami {
     /// the top edge, so every row of the screen is swept by water, not by sky.
     static let spriteHeightShare: CGFloat = 1.25
     /// Once its front has crossed the glass, the wave leaves this fast, so the
-    /// washed screen gets the clip's remaining seconds to itself.
+    /// black gets the clip's remaining seconds to itself.
     static let spriteExit: Double = 1.2
 
     struct Sprite {
@@ -117,9 +116,9 @@ enum Tsunami {
     /// Why not `frontProfile`: the sweep edge must never pass where the water
     /// is not (Victor, 2026-11-03: "sub valul ăla … e gri sub el"). Two places
     /// did — the hollow under the curl, where the majority front sat on the
-    /// lip's far side so the washed grey showed through the barrel, and the
+    /// lip's far side so what the wave leaves showed through the barrel, and the
     /// sea's tongue in the frames where it is shorter than in most. Behind the
-    /// sweep edge what is not water shows grey; ahead of it, the old screen
+    /// sweep edge what is not water shows black; ahead of it, the old screen
     /// shows through any gap, which reads right: the wave has not got there. Pure.
     static func sweepProfile(alpha frames: [[UInt8]], width: Int, height: Int, minHole: Int) -> [CGFloat] {
         guard !frames.isEmpty, width > 0, height > 0 else { return [] }
@@ -127,21 +126,35 @@ enum Tsunami {
         for y in 0..<height {
             for a in frames {
                 let base = y * width
-                guard var x = (0..<width).first(where: { a[base + $0] > 128 }) else { continue }
-                var reach = width
-                while x < width {
-                    if a[base + x] <= 128 {
-                        let start = x
-                        while x < width, a[base + x] <= 128 { x += 1 }
-                        if x == width || x - start >= minHole { reach = start; break }
-                    }
-                    x += 1
+                // The longest run of water, bridging holes under `minHole`: a
+                // speck of spray to its left is not where the water starts.
+                var longest: (length: Int, end: Int)?, start: Int?, last = 0
+                func close() {
+                    if let s = start, last + 1 - s > (longest?.length ?? 0) { longest = (last + 1 - s, last + 1) }
                 }
-                rows[y] = min(rows[y] ?? width, reach)
+                for x in 0..<width where a[base + x] > 128 {
+                    if start != nil, x - last - 1 >= minHole { close(); start = nil }
+                    if start == nil { start = x }
+                    last = x
+                }
+                close()
+                if let longest { rows[y] = min(rows[y] ?? width, longest.end) }
             }
         }
         let fallback = rows.compactMap { $0 }.min() ?? width
         return rows.map { CGFloat($0 ?? fallback) / CGFloat(width) }
+    }
+
+    /// The share of the frame, from the top, that is crest and spray: no
+    /// hollow there to protect, and the shortest frame runs far behind the
+    /// rest, so these rows are swept by `front` instead. Going by `sweepProfile`
+    /// up here left the old screen standing above the crest after the wave had
+    /// passed (Victor, 2026-11-04). Read off the frames: a re-cut re-measures it.
+    static let crestShare: CGFloat = 0.38
+
+    static func crestSwept(sweep: [CGFloat], front: [CGFloat]) -> [CGFloat] {
+        let crest = Int(CGFloat(sweep.count) * crestShare)
+        return sweep.indices.map { $0 < crest && $0 < front.count ? front[$0] : sweep[$0] }
     }
 
     /// The frames, decoded here (off the main thread) so the first ones do not
@@ -170,8 +183,10 @@ enum Tsunami {
         }
         let sprite: Sprite? = frames.isEmpty ? nil : {
             let w = frames[0].width, h = frames[0].height
-            return Sprite(frames: frames, front: frontProfile(alpha: alphas, width: w, height: h),
-                          sweep: sweepProfile(alpha: alphas, width: w, height: h, minHole: max(1, w / 25)))
+            let front = frontProfile(alpha: alphas, width: w, height: h)
+            return Sprite(frames: frames, front: front,
+                          sweep: crestSwept(sweep: sweepProfile(alpha: alphas, width: w, height: h, minHole: max(1, w / 25)),
+                                            front: front))
         }()
         if sprite == nil, !files.isEmpty { effectsError("🌊 tsunami: \(spriteDir.path) has no readable frames") }
         _sprite = .some(sprite)
@@ -180,34 +195,10 @@ enum Tsunami {
 
     // MARK: Preparation (off the main thread)
 
-    struct Prepared { let washed: CGImage?; let shot: CGImage; var sprite: Sprite? = nil }
-
-    private static let ci = CIContext(options: [.cacheIntermediates: false])
-
-    /// Blurred far past legibility (at quarter resolution — it is going to be a
-    /// smear anyway, and that is the expensive filter), saturation nearly gone,
-    /// then pulled 40 % of the way to mid-grey: the layout of the screen is
-    /// still there as soft light and dark, the text is not.
-    static func washed(_ shot: CGImage) -> CGImage? {
-        let input = CIImage(cgImage: shot)
-        let small = input.transformed(by: CGAffineTransform(scaleX: 0.25, y: 0.25))
-        let out = small.clampedToExtent()
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 14])
-            .cropped(to: small.extent)
-            .applyingFilter("CIColorControls", parameters: [
-                kCIInputSaturationKey: 0.15, kCIInputContrastKey: 0.85,
-            ])
-            .applyingFilter("CIColorMatrix", parameters: [
-                "inputRVector": CIVector(x: 0.6, y: 0, z: 0, w: 0),
-                "inputGVector": CIVector(x: 0, y: 0.6, z: 0, w: 0),
-                "inputBVector": CIVector(x: 0, y: 0, z: 0.6, w: 0),
-                "inputBiasVector": CIVector(x: 0.2, y: 0.21, z: 0.22, w: 0),
-            ])
-        return ci.createCGImage(out, from: small.extent)
-    }
+    struct Prepared { let shot: CGImage; var sprite: Sprite? = nil }
 
     static func prepare(shot: CGImage, size: CGSize) -> Prepared {
-        Prepared(washed: washed(shot), shot: shot, sprite: loadSprite())
+        Prepared(shot: shot, sprite: loadSprite())
     }
 
     // MARK: The layers (main thread)
@@ -219,40 +210,10 @@ enum Tsunami {
         let W = bounds.width, H = bounds.height
         let root = CALayer()
         root.frame = bounds
+        // 1. What the wave leaves: black (Victor, 2026-11-04, until then a washed grey copy).
+        root.backgroundColor = NSColor.black.cgColor
 
-        // 1. The washed screen, under everything.
-        let washed = CALayer()
-        washed.frame = CGRect(origin: .zero, size: bounds.size)
-        washed.contents = prepared.washed
-        washed.contentsGravity = .resize
-        root.addSublayer(washed)
-
-        // 2. The water left behind: a teal film that grows with the front and dries.
-        let wet = CALayer()
-        wet.anchorPoint = CGPoint(x: 0, y: 0.5)
-        wet.position = CGPoint(x: 0, y: H / 2)
-        wet.bounds = CGRect(x: 0, y: 0, width: W, height: H)
-        wet.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.32, blue: 0.40, alpha: 0.45).cgColor
-        wet.opacity = 0
-        let grow = CABasicAnimation(keyPath: "bounds.size.width")
-        grow.fromValue = 0
-        grow.toValue = W
-        grow.beginTime = clock0 + frontEnters + frontCrosses * Double(bodyShare * 0.2)
-        grow.duration = frontCrosses
-        grow.fillMode = .both
-        grow.isRemovedOnCompletion = false
-        wet.add(grow, forKey: "grow")
-        let dry = CAKeyframeAnimation(keyPath: "opacity")
-        dry.values = [1, 1, 0]
-        dry.keyTimes = [0, NSNumber(value: wetFadeStart / (wetFadeStart + wetFadeDuration)), 1]
-        dry.beginTime = clock0
-        dry.duration = wetFadeStart + wetFadeDuration
-        dry.fillMode = .forwards
-        dry.isRemovedOnCompletion = false
-        wet.add(dry, forKey: "dry")
-        root.addSublayer(wet)
-
-        // 3. The breaker, sliding from just off the left edge to well past the right:
+        // 2. The breaker, sliding from just off the left edge to well past the right:
         // the filmed one when its frames are there, else the drawn one. `edge` is
         // the line, relative to the lip, behind which the screen has been swept.
         let wave: CALayer
@@ -289,7 +250,7 @@ enum Tsunami {
         wave.zPosition = 10
         root.addSublayer(wave)
 
-        // 4. The screen as it was, over the washed copy, masked to what the water
+        // 3. The screen as it was, over the black, masked to what the water
         // has not reached yet: the mask's left edge rides with the wave.
         let before = CALayer()
         before.frame = CGRect(origin: .zero, size: bounds.size)
@@ -307,7 +268,7 @@ enum Tsunami {
         before.mask = mask
         root.addSublayer(before)
 
-        // 5. Back to the real screen.
+        // 4. Back to the real screen.
         let out = CABasicAnimation(keyPath: "opacity")
         out.fromValue = 1
         out.toValue = 0

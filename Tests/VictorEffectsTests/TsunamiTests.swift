@@ -58,8 +58,8 @@ final class TsunamiTests: XCTestCase {
     }
 
     /// Where the sweep edge sits: as far as the water reaches in its shortest
-    /// frame, and the hollow under the curl counts as not reached — else the
-    /// washed grey shows through the barrel (Victor, 2026-11-03).
+    /// frame, and the hollow under the curl counts as not reached — else what
+    /// the wave leaves shows through the barrel (Victor, 2026-11-03).
     func testSweepProfileStopsAtTheHollowAndAtTheShortestFrame() {
         // 10 wide, top to bottom: sky, curl (back face 0-2, hollow 3-6, lip 7-8),
         // sea reaching 9, sea with a one-pixel fleck of foam texture at 4.
@@ -78,5 +78,22 @@ final class TsunamiTests: XCTestCase {
                                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.makeImage())
         let sprite = Tsunami.Sprite(frames: [frame], front: [0.9, 1.0], sweep: [0.3, 1.0])
         XCTAssertEqual(sprite.edge(size: CGSize(width: 100, height: 100), margin: 0).map(\.x), [-70, 0])
+    }
+
+    /// A speck of spray left of the crest is not where the water ends: the old
+    /// screen stayed up above the crest because of it (Victor, 2026-11-04).
+    func testASpeckOfSprayDoesNotHoldTheSweepBack() {
+        let o: UInt8 = 255
+        let row: [UInt8] = [o, 0, 0, 0, 0, o, o, o, o, 0]
+        XCTAssertEqual(Tsunami.sweepProfile(alpha: [row], width: 10, height: 1, minHole: 3), [0.9])
+    }
+
+    /// The crest's rows go by the front, the hollow's stay on the sweep.
+    func testTheCrestIsSweptByTheFront() {
+        let sweep = [CGFloat](repeating: 0.1, count: 100), front = [CGFloat](repeating: 0.8, count: 100)
+        let swept = Tsunami.crestSwept(sweep: sweep, front: front)
+        XCTAssertEqual(swept[0], 0.8)
+        XCTAssertEqual(swept[Int(Tsunami.crestShare * 100) - 1], 0.8)
+        XCTAssertEqual(swept[Int(Tsunami.crestShare * 100)], 0.1)
     }
 }
