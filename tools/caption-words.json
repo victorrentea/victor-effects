@@ -634,14 +634,13 @@
  "76_sfx_118.mp3": [
   {
    "at": 0,
-   "text": "♪ It wasn't me ♪",
+   "text": "♪ Wasn't me ♪",
    "words": [
-    0.25,
     0.36,
     0.66
    ],
    "confidence": "medium",
-   "note": "Low voice 0.25-0.9. 'It' barely audible: only the soft rising onset 0.25-0.36 (MMS score 0.03, Whisper hears 'Wasn't me'); lit at the voice onset. Tail: 0.4='Wasn't me', 0.6='To me', 0.68='Hey' -> me ~0.66 (MMS 0.66-0.68)."
+   "note": "Captioned without 'It' (Victor, 2026-11-04: only 'Wasn't me'); wasn't = the 'w' step of the review. Low voice 0.25-0.9. 'It' barely audible: only the soft rising onset 0.25-0.36 (MMS score 0.03, Whisper hears 'Wasn't me'); lit at the voice onset. Tail: 0.4='Wasn't me', 0.6='To me', 0.68='Hey' -> me ~0.66 (MMS 0.66-0.68)."
   },
   {
    "at": 0.7,
@@ -660,14 +659,13 @@
   },
   {
    "at": 2.4,
-   "text": "♪ It wasn't me ♪",
+   "text": "♪ Wasn't me ♪",
    "words": [
-    2.77,
     2.88,
     3.19
    ],
    "confidence": "medium",
-   "note": "Same pattern as line 1: soft onset 2.77 ('It', barely audible), 'w' step at 2.88 (MMS 2.87-2.89; tail from 2.9 still 'Wasn't', from 3.0 not), me 3.19 (tail 3.1='To me', 3.2='you'; MMS 3.19-3.21)."
+   "note": "Captioned without 'It' (Victor, 2026-11-04: only 'Wasn't me'); wasn't = the 'w' step of the review. Same pattern as line 1: soft onset 2.77 ('It', barely audible), 'w' step at 2.88 (MMS 2.87-2.89; tail from 2.9 still 'Wasn't', from 3.0 not), me 3.19 (tail 3.1='To me', 3.2='you'; MMS 3.19-3.21)."
   },
   {
    "at": 3.3,
@@ -684,14 +682,13 @@
   },
   {
    "at": 4.7,
-   "text": "♪ It wasn't me ♪",
+   "text": "♪ Wasn't me ♪",
    "words": [
-    5.32,
     5.43,
     5.79
    ],
    "confidence": "medium",
-   "note": "Here 'It' is audible: weak step 5.32 then 'w' 5.43 (tail from 5.25='It wasn't me', from 5.35='Wasn't me'; MMS 5.43-5.45). 'me' 5.79 from a small dip + MMS (score low; Whisper silent on the tail). A new uncaptioned phrase starts ~6.1."
+   "note": "Captioned without 'It' (Victor, 2026-11-04: only 'Wasn't me'); wasn't = the 'w' step of the review. Here 'It' is audible: weak step 5.32 then 'w' 5.43 (tail from 5.25='It wasn't me', from 5.35='Wasn't me'; MMS 5.43-5.45). 'me' 5.79 from a small dip + MMS (score low; Whisper silent on the tail). A new uncaptioned phrase starts ~6.1."
   }
  ],
  "77_maui.mp3": [

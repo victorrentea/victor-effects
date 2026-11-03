@@ -118,7 +118,8 @@ state it started with.
 
 While on, each soundboard press puts a subtitle at the bottom of the overlay screen, for
 whoever in the room (or on the call) cannot hear the joke: `♪ Hello, is it me
-you're looking for? ♪` for a song, `[wolf howling]` for a noise.
+you're looking for? ♪` for a song, `♪ Piano music ♪` for music without words
+(Victor, 2026-11-04: wherever music plays, the note shows), `[wolf howling]` for a noise.
 `SoundCaptions` holds the text, `CaptionOverlay` draws it.
 
 - **On the press, not the play.** `EffectsRouter` calls

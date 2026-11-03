@@ -41,14 +41,30 @@ final class SoundCaptionsTests: XCTestCase {
     /// overlapping the next by the handover so they swap instead of blinking.
     func testASongFlowsLineByLine() {
         let track = SoundCaptions.schedule(for: "76_sfx_118.mp3", clipSeconds: 6.55)
-        XCTAssertEqual(track.map(\.text), ["♪ It wasn't me ♪",
+        XCTAssertEqual(track.map(\.text), ["♪ Wasn't me ♪",
                                            "♪ Heard the words that I told her ♪",
-                                           "♪ It wasn't me ♪",
+                                           "♪ Wasn't me ♪",
                                            "♪ Heard the screams getting louder ♪",
-                                           "♪ It wasn't me ♪"])
+                                           "♪ Wasn't me ♪"])
         XCTAssertEqual(track[0].seconds, 0.7 + SoundCaptions.handover, accuracy: 0.001)
         XCTAssertEqual(track.last!.seconds, SoundCaptions.minSeconds, accuracy: 0.001,
                        "the last line still stays up long enough to read")
+    }
+
+    /// Music is music with or without words (Victor, 2026-11-04): the room
+    /// reads the ♪ before it reads the line, so an instrumental is never a
+    /// [noise].
+    func testInstrumentalMusicCarriesTheNote() {
+        let instrumentals = ["14_universal.mp3", "19_fail.mp3", "20_fail2.mp3", "41_love_hearts.mp3",
+                             "42_saxophone.mp3", "43_dun.mp3", "54_piano.mp3", "60_sfx_100.mp3",
+                             "70_cavalry.mp3", "84_eclipse.mp3"]
+        for asset in instrumentals {
+            let line = SoundCaptions.table[asset] ?? ""
+            XCTAssertTrue(line.hasPrefix("♪ ") && line.hasSuffix(" ♪"), "\(asset): \(line)")
+        }
+        for (asset, line) in SoundCaptions.table where line.hasPrefix("[") {
+            XCTAssertFalse(line.lowercased().contains("music"), "\(asset) is music captioned as a noise: \(line)")
+        }
     }
 
     func testASongWithAnIntroOpensOnItsTitle() {
