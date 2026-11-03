@@ -65,6 +65,10 @@ final class TileView: NSView {
     private let imageLayer = CALayer()
     private let gutterLayer = CALayer()
     private let borderLayer = CALayer()
+    /// The spinner on the part of the cell that is sounding — see `playing`.
+    private let spinnerLayer = CALayer()
+    private let spinnerDisc = CAShapeLayer()
+    private let spinnerArc = CAShapeLayer()
     private let numberLayer = CATextLayer()
     private var labelLayer: CATextLayer?
     private var fxLayer: CAShapeLayer?
@@ -261,9 +265,65 @@ final class TileView: NSView {
         target(of: tile, down: point, up: point, side: side)
     }
 
-    var isPlaying = false {
-        didSet { guard isPlaying != oldValue else { return }; updatePlayingBorder() }
+    /// Which half of the cell is sounding: the tile itself, or the one folded
+    /// under its corner (layer B).
+    enum PlayingPart: Equatable { case top, under }
+
+    /// The red border says "this cell"; the spinner says **which of its two
+    /// sounds**, on the very spot a click stops it — the middle of the tile, or
+    /// the folded corner. Before it (2026-11-03) a layer-B sound only pulsed
+    /// its host's border, so with a cell playing Victor could not tell the
+    /// corner from the tile and did not know where to click to silence it.
+    var playing: PlayingPart? {
+        didSet {
+            guard playing != oldValue else { return }
+            updatePlayingBorder()
+            updateSpinner()
+        }
     }
+    var isPlaying: Bool { playing != nil }
+
+    /// Pure: which part of `tile` is sounding when `assets` are running. The
+    /// tile itself wins when (somehow) both are — the press rule keeps a cell to
+    /// one sound, so that is a race, not a state.
+    static func playingPart(of tile: Tile, in assets: Set<String>) -> PlayingPart? {
+        if assets.contains(tile.asset) { return .top }
+        if let under = tile.under, assets.contains(under.asset) { return .under }
+        return nil
+    }
+
+    /// Pure: where the spinner sits, in tile coordinates (origin bottom-left).
+    /// - `.under`: centred on the folded triangle's inscribed circle — the
+    ///   middle of the corner a click presses, clear of the crease.
+    /// - `.top` on a tile with a corner: pushed up-right, so it never sits on
+    ///   the fold and reads as the tile's own, not the corner's.
+    /// - `.top` otherwise: the middle of the tile.
+    static func spinnerFrame(_ part: PlayingPart, side: CGFloat, hasUnder: Bool) -> NSRect {
+        let centre: CGPoint
+        let diameter: CGFloat
+        switch part {
+        case .under:
+            // The CLICKABLE triangle — the fold pulled in by the dead band —
+            // and the circle inscribed in it, so the whole spinner is on the
+            // spot a click presses the corner.
+            let leg = side * (peekSideRatio - peekDeadBandRatio * 2.squareRoot())
+            let r = leg / (2 + 2.squareRoot())
+            centre = CGPoint(x: r, y: r)
+            diameter = 2 * r * spinnerUnderFill
+        case .top:
+            let c = side * (hasUnder ? 0.62 : 0.5)
+            centre = CGPoint(x: c, y: c)
+            diameter = side * spinnerTopRatio
+        }
+        return NSRect(x: centre.x - diameter / 2, y: centre.y - diameter / 2,
+                      width: diameter, height: diameter)
+    }
+
+    /// The top spinner's diameter, as a fraction of the tile's side.
+    static let spinnerTopRatio: CGFloat = 0.42
+    /// The corner spinner fills this much of the circle inscribed in the
+    /// corner's clickable triangle (~0.35 of the side across).
+    static let spinnerUnderFill: CGFloat = 0.95
 
     /// What the hover mark IS at this instant, reported by
     /// `GET /test/thumbnail-panel/hover`.
@@ -366,6 +426,18 @@ final class TileView: NSView {
         borderLayer.opacity = 0
         layer?.addSublayer(borderLayer)
 
+        // The spinner: a dark translucent disc so the white arc reads on light
+        // and dark pictures alike, and a ¾ arc turning on it. Built once, shown
+        // by opacity, positioned in `layoutSpinner()`.
+        spinnerDisc.fillColor = NSColor(white: 0, alpha: 0.55).cgColor
+        spinnerArc.fillColor = nil
+        spinnerArc.strokeColor = NSColor.white.cgColor
+        spinnerArc.lineCap = .round
+        spinnerArc.strokeEnd = 0.75
+        spinnerLayer.addSublayer(spinnerDisc)
+        spinnerLayer.addSublayer(spinnerArc)
+        spinnerLayer.opacity = 0
+
         // The tablet's `numberPaint`: white with a black shadow, because half
         // the pictures are light and half are dark.
         numberLayer.string = "#\(tile.n)"
@@ -432,6 +504,9 @@ final class TileView: NSView {
             layer?.addSublayer(fx)
             fxLayer = fx
         }
+
+        // Above the picture, the fold and the badges: it is the thing to find.
+        layer?.addSublayer(spinnerLayer)
 
         // **Last, and again in `layout()`.** `NSView.clipsToBounds` arrived in
         // macOS 14 defaulting to TRUE and drives the backing layer's
@@ -521,6 +596,7 @@ final class TileView: NSView {
             fx.path = Self.fxUnitPath.copy(using: &t)
             fx.lineWidth = 2 * side * Self.fxOutlineRatio
         }
+        layoutSpinner()
         CATransaction.commit()
 
         if let hit = TileImageCache.shared.cached(tile.image) {
@@ -670,6 +746,44 @@ final class TileView: NSView {
             return
         }
         onPress?(target)
+    }
+
+    /// Frame the spinner for the current `playing` part. Called inside the
+    /// caller's transaction (layout) or its own (a play state change).
+    private func layoutSpinner() {
+        guard let part = playing, bounds.width > 0 else { return }
+        let f = Self.spinnerFrame(part, side: bounds.width, hasUnder: tile.under != nil)
+        spinnerLayer.frame = f
+        let local = CGRect(origin: .zero, size: f.size)
+        spinnerDisc.frame = local
+        spinnerDisc.path = CGPath(ellipseIn: local, transform: nil)
+        let line = max(2, f.width * 0.13)
+        spinnerArc.frame = local
+        spinnerArc.lineWidth = line
+        spinnerArc.path = CGPath(ellipseIn: local.insetBy(dx: line, dy: line), transform: nil)
+        spinnerLayer.contentsScale = window?.backingScaleFactor ?? 2
+        spinnerArc.contentsScale = spinnerLayer.contentsScale
+        spinnerDisc.contentsScale = spinnerLayer.contentsScale
+    }
+
+    private func updateSpinner() {
+        spinnerArc.removeAnimation(forKey: "spin")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        guard playing != nil else {
+            spinnerLayer.opacity = 0
+            CATransaction.commit()
+            return
+        }
+        layoutSpinner()
+        spinnerLayer.opacity = 1
+        CATransaction.commit()
+        let spin = CABasicAnimation(keyPath: "transform.rotation.z")
+        spin.fromValue = 0
+        spin.toValue = -2 * Double.pi   // clockwise, as a loading wheel turns
+        spin.duration = 0.9
+        spin.repeatCount = .infinity
+        spinnerArc.add(spin, forKey: "spin")
     }
 
     private func updatePlayingBorder() {

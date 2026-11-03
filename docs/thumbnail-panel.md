@@ -297,7 +297,10 @@ on a layer, versus a redraw loop in a drawing method:
   surface drawing the board without the badge: same grid, same `tiles.json`, a
   badge on one screen and not on the other. `ThumbnailPanelCursorTests` reads
   `MenuBar.swift` and fails if the menu-bar icon and `TileView.fxMark` part ways;
-- **playing** = a red border whose opacity pulses, `playingBorderWidth` thick;
+- **playing** = a red border whose opacity pulses, `playingBorderWidth` thick,
+  **plus a turning spinner** (white ¾ arc on a dark translucent disc) on the
+  exact spot a click stops it — the middle of the tile, or the folded corner when
+  the sound is layer B's (`TileView.playing` / `playingPart` / `spinnerFrame`);
 - **hover** = the **gutter around the cell filled bright green** (`#39FF14`), and
   **the picture does not move**. The mark reaches one `gap` outwards
   (`highlightGutter`) towards a neighbour, i.e. exactly to its edge, so the whole
@@ -419,8 +422,14 @@ finger for its second way in because a finger has no hover; a mouse does.
   green (3× thicker), pressing it red — the gutter's two colours, on the fold —
   so the hand sees which of the two tiles a click will press before it clicks.
   The gutter still lights as for any hover.
-- A playing B sound pulses its **host's** red border: the panel has no other place
-  that draws B. Re-clicking the corner stops it, as a re-tap does on the tablet.
+- A playing B sound pulses its **host's** red border **and spins in the corner**
+  (2026-11-03). The border alone said "this cell" but not which of its two
+  sounds — with a B sound running, Victor did not know whether to click the tile
+  or the corner, and panicked. The corner spinner is the circle inscribed in the
+  corner's *clickable* triangle (the fold pulled in by the dead band), so the
+  whole wheel sits where a click presses the corner; a top sound on a folded tile
+  spins up-right of centre, off the fold. `LayerBTests` pins both. Re-clicking
+  the corner stops it, as a re-tap does on the tablet.
 - `/press/81b` (and `/test/thumbnail-panel/press/81b`) presses it without a click.
 - The right ⌘ / right ⇧ gestures are untouched: ⌘ held = soundboard, ⇧ added =
   videos.

@@ -26,6 +26,50 @@ final class LayerBTests: XCTestCase {
         XCTAssertNil(try XCTUnwrap(TilesManifest.parse(Data(json.utf8))).tiles[0].under)
     }
 
+    // MARK: - The spinner says which of the cell's two sounds is playing
+
+    func testALayerBSoundSpinsInTheCornerNotOnTheTile() throws {
+        let host = try XCTUnwrap(TilesManifest.parse(Data(sample.utf8))).tiles[0]
+        XCTAssertEqual(TileView.playingPart(of: host, in: ["81b_let_go.mp3"]), .under)
+        XCTAssertEqual(TileView.playingPart(of: host, in: ["81_let_it_be.mp3"]), .top)
+        XCTAssertNil(TileView.playingPart(of: host, in: ["82_x.mp3"]))
+    }
+
+    func testTheCornerSpinnerSitsInsideTheFoldClearOfTheCrease() {
+        let side: CGFloat = 100
+        let f = TileView.spinnerFrame(.under, side: side, hasUnder: true)
+        // Every point of the spinner's disc is clearly on the corner, so the
+        // spot it marks is the spot a click there would press.
+        for deg in stride(from: 0.0, to: 360.0, by: 15.0) {
+            let a = deg * .pi / 180
+            let p = NSPoint(x: f.midX + cos(a) * f.width / 2, y: f.midY + sin(a) * f.height / 2)
+            XCTAssertEqual(TileView.peekHit(p, side: side), .under, "spinner edge at \(deg)°")
+        }
+    }
+
+    func testTheTopSpinnerOnAFoldedTileStaysOffTheCorner() {
+        let side: CGFloat = 100
+        let f = TileView.spinnerFrame(.top, side: side, hasUnder: true)
+        for deg in stride(from: 0.0, to: 360.0, by: 15.0) {
+            let a = deg * .pi / 180
+            let p = NSPoint(x: f.midX + cos(a) * f.width / 2, y: f.midY + sin(a) * f.height / 2)
+            XCTAssertEqual(TileView.peekHit(p, side: side), .top, "spinner edge at \(deg)°")
+            XCTAssertTrue(NSRect(x: 0, y: 0, width: side, height: side).contains(p))
+        }
+    }
+
+    func testTheGridSpinsTheCornerOfTheHostForALayerBSound() throws {
+        let doc = try XCTUnwrap(TilesManifest.parse(Data(sample.utf8)))
+        let host = TileView(tile: doc.tiles[0])
+        let other = TileView(tile: doc.tiles[1])
+        for (view, assets) in [(host, Set(["81b_let_go.mp3"])), (other, Set(["81b_let_go.mp3"]))] {
+            view.playing = TileView.playingPart(of: view.tile, in: assets)
+        }
+        XCTAssertEqual(host.playing, .under)
+        XCTAssertTrue(host.isPlaying)
+        XCTAssertNil(other.playing)
+    }
+
     // MARK: - The corner is the triangle under the fold, minus a band along it
 
     // side 100: the fold runs from (0,76) to (76,0) — x + y = 76 — and the dead
