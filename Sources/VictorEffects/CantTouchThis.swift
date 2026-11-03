@@ -8,14 +8,15 @@ import AppKit
 /// - The real cursor is hidden and the sign rides the mouse, centred on it.
 /// - Every click is **taken from the app underneath** — the joke is that the
 ///   desktop can't be touched — and leaves a copy of the sign on that spot.
-/// - **Every sign blinks on the beat of the song**, in unison: lit on the
-///   beat, dark on the off-beat (Victor, 2026-10-30: *"vreau să clipească în
-///   ritmul muzicii"*). One repeating animation with ONE absolute `beginTime`
-///   on every layer, so a sign stamped later joins the same phase.
-/// - **The stamped signs blink at half that speed**, one blink per two beats,
-///   lit on the heavy beat — the odd beats, where the bass lands (Victor,
-///   2026-10-31: *"să clipească mai lent și în ritmul melodiei. Cele pe care
-///   le plasez apăsând mouse-ul"*). The pointer keeps the every-beat blink.
+/// - **The sign on the pointer stays lit while it is carried** (Victor,
+///   2026-11-04: *"să nu clipească decât după ce l-am așezat"*): a blinking
+///   pointer loses you where it is. Only a placed sign blinks.
+/// - **The stamped signs blink on the song**, in unison: one blink per two
+///   beats, lit on the heavy beat — the odd beats, where the bass lands
+///   (Victor, 2026-10-31: *"să clipească mai lent și în ritmul melodiei. Cele
+///   pe care le plasez apăsând mouse-ul"*). One repeating animation with ONE
+///   absolute `beginTime` on every layer, so a sign stamped later joins the
+///   same phase.
 /// - Lives for the clip, Escape ends it early, a re-press or stop-all too.
 ///
 /// The picture is the lit frame of Wikimedia's *Blinking Stop hand.gif*
@@ -88,9 +89,8 @@ final class CantTouchThisSession {
     private var pointer: CALayer?
     private var stamps: [CALayer] = []
     private var timer: Timer?
-    /// Where the beat grid starts, in media time (`beatEpoch`).
-    private var beatEpoch: CFTimeInterval = 0
-    /// The stamps' slower grid: a heavy beat, `stampBeatsPerBlink` apart.
+    /// The stamps' grid, in media time (`beatEpoch`): a heavy beat,
+    /// `stampBeatsPerBlink` apart.
     private var stampEpoch: CFTimeInterval = 0
     private var hidCursor = false
     private var tap: CFMachPort?
@@ -118,7 +118,6 @@ final class CantTouchThisSession {
 
     func start(duration: Double, heardIn: Double = 0) {
         let now = CACurrentMediaTime()
-        beatEpoch = Self.beatEpoch(clipHeardAt: now + heardIn, now: now)
         stampEpoch = Self.beatEpoch(clipHeardAt: now + heardIn, now: now,
                                     firstBeat: Self.stampFirstBeat,
                                     period: Self.beatPeriod * Double(Self.stampBeatsPerBlink))
@@ -130,7 +129,6 @@ final class CantTouchThisSession {
         hostLayer.addSublayer(sign)
         CATransaction.commit()
         pointer = sign
-        keepTheBeat(sign)
 
         EmojiAnimator.armBackgroundCursorHiding()
         NSCursor.hide()
@@ -164,12 +162,11 @@ final class CantTouchThisSession {
         return layer
     }
 
-    /// Blink on the song's beat. The same absolute start on every layer of a
-    /// kind, so they are in unison however late each one arrived.
-    private func keepTheBeat(_ layer: CALayer, stamped: Bool = false) {
-        let epoch = stamped ? stampEpoch : beatEpoch
-        let beats = stamped ? Self.stampBeatsPerBlink : 1
-        layer.add(Self.beatAnimation(beginTime: layer.convertTime(epoch, from: nil), beats: beats),
+    /// Blink on the song's heavy beats. The same absolute start on every
+    /// stamp, so they are in unison however late each one arrived.
+    private func keepTheBeat(_ layer: CALayer) {
+        layer.add(Self.beatAnimation(beginTime: layer.convertTime(stampEpoch, from: nil),
+                                     beats: Self.stampBeatsPerBlink),
                   forKey: "beat")
     }
 
@@ -185,7 +182,7 @@ final class CantTouchThisSession {
         // size, so under ⌥-scroll zoom it grows with what it was stamped on.
         hostLayer.insertSublayer(sign, below: pointer)
         CATransaction.commit()
-        keepTheBeat(sign, stamped: true)
+        keepTheBeat(sign)
         stamps.append(sign)
         if stamps.count > Self.maxStamps { stamps.removeFirst().removeFromSuperlayer() }
         effectsInfo("✋ stamp #\(stamps.count) at \(Int(sign.position.x)),\(Int(sign.position.y))")
