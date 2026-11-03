@@ -169,8 +169,8 @@ you're looking for? ♪` for a song, `♪ Piano music ♪` for music without wor
   it from somewhere, not have it leave the screen fast"). A song in
   `SoundCaptions.lyrics` is a *track*: each sung line goes up at the second it
   starts in the clip. Every line is its own row and pill: a new one comes in at
-  the bottom and pushes the others up, and a row whose time is up floats on
-  upward and fades out alone. **A said line stays `readHold` (1 s) after its
+  the bottom and pushes the others up, and a row whose time is up fades out
+  where it stands, no swipe; the bottom row stays on its standard position meanwhile. **A said line stays `readHold` (1 s) after its
   fill ends**, however soon the next line comes (it arrives underneath) and
   however long the clip goes on (no more words, the line goes;
   `heldToBeRead`), never under `minSeconds`. An untimed line stays until 1 s
@@ -1389,18 +1389,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   e mouse-ul meu"*). The pointer becomes a red **stop sign with a raised hand** (120 pt,
   centred on the pointer; real cursor hidden, `fitPointerSprite` under zoom). **Every left
   click is taken from the app underneath** — the desktop can't be touched — and stamps a
-  copy of the sign on that spot, glued to the desktop. **Every sign on screen blinks on the
-  song's beat, in unison** (2026-10-30, *"vreau să clipească în ritmul muzicii"*): lit on
-  the beat, dark on the off-beat, discrete. The grid was measured off the mp3 (librosa:
-  133 BPM → `beatPeriod` 0.451 s, `firstBeat` 0.355 s; re-measure if the clip is re-cut)
-  and is anchored to when the clip is **heard** — `EffectsEngine.heardIn`, the captions'
-  BT silence + speaker latency, 0 when the tablet plays it itself. One repeating animation
-  with one absolute `beginTime` on every layer, so a sign stamped later joins the same
-  phase. **The stamped signs blink at half speed** (2026-10-31, *"să clipească mai lent și
-  în ritmul melodiei. Cele pe care le plasez apăsând mouse-ul"*): one blink per two beats
+  copy of the sign on that spot, glued to the desktop. **The sign on the pointer stays lit
+  while it is carried; only a placed one blinks** (2026-11-04, *"să nu clipească decât după
+  ce l-am așezat"*). **The stamped signs blink on the song's beat, in unison** (2026-10-30,
+  *"vreau să clipească în ritmul muzicii"*), discrete. The grid was measured off the mp3
+  (librosa: 133 BPM → `beatPeriod` 0.451 s, `firstBeat` 0.355 s; re-measure if the clip is
+  re-cut) and is anchored to when the clip is **heard** — `EffectsEngine.heardIn`, the
+  captions' BT silence + speaker latency, 0 when the tablet plays it itself. One repeating
+  animation with one absolute `beginTime` on every layer, so a sign stamped later joins the
+  same phase. They blink at half the beat (2026-10-31, *"să clipească mai lent și în ritmul
+  melodiei. Cele pe care le plasez apăsând mouse-ul"*): one blink per two beats
   (`stampBeatsPerBlink`, 0.9 s), lit on the **heavy** beats — sampled on the grid, the
   sub-150 Hz energy is 2–4× higher on the odd beats (0.81, 1.71, 2.61 … s) — dark on the
-  light ones; the pointer keeps the every-beat blink. The tap is the
+  light ones. The tap is the
   AK-47's rule (`minigunMouseDecision`), Esc puts it away. Lives for the clip (8.9 s, read
   off the file, from when it is heard), then fades out in 0.35 s; re-press, the tablet's stop and stop-all end it
   too. Lives outside `activeEffects` (hidden cursor + tap), so `stopAllActiveEffects` and

@@ -425,9 +425,10 @@ final class CaptionPanel: NSPanel {}
 /// - **A roll-up, not a swap** (Victor, 2026-11-04: "read from somewhere, don't
 ///   let it leave the screen fast"). Each line is its own row, its own pill. A
 ///   new line comes in at the bottom and pushes the others up; a row whose
-///   time is up floats on upward and fades out by itself, so a line stays for
-///   its `readHold` while the next one is already being sung under it. No more
-///   words, no more rows.
+///   time is up fades out where it stands, so a line stays for its `readHold`
+///   while the next one is already being sung under it, and the bottom row
+///   never moves because of the one above it going (Victor, 2026-11-04: a
+///   fade is enough, no swipe). No more words, no more rows.
 /// - **Painted last.** Its window level (`windowLevel`) is above every other
 ///   window this app opens — the overlay, the whip, the edge flash, even the
 ///   peek mascot — so no effect can cover it. It stays an ordinary window: Zoom
@@ -460,7 +461,7 @@ enum CaptionOverlay {
     static let rollSeconds: TimeInterval = 0.25
     /// Between two rows.
     static let rowGap: CGFloat = 8
-    /// How far a new row rises as it comes in, and a leaving one as it goes.
+    /// How far a new row rises as it comes in.
     static let rowTravel: CGFloat = 36
     /// The stage reaches this far under the first row, or a row rising from
     /// below would be cut off by the panel's edge. Taken off the panel's
@@ -715,8 +716,8 @@ enum CaptionOverlay {
         box.add(fade, forKey: "fade")
     }
 
-    /// A row goes: up and out, whatever is below it staying where it is. The
-    /// rows above it, if it was not the top one, close the gap. The panel
+    /// A row goes: a fade, where it stands, whatever is below it staying put.
+    /// The rows above it, if it was not the top one, close the gap. The panel
     /// leaves the screen with its last row.
     private static func leave(_ row: Row, over seconds: TimeInterval) {
         guard let i = rows.firstIndex(where: { $0 === row }) else { return }
@@ -729,7 +730,6 @@ enum CaptionOverlay {
             box.removeFromSuperlayer()
             if rows.isEmpty { panelDown() }
         }
-        slide(box, toY: box.position.y + rowTravel, over: seconds)
         let from = box.presentation()?.opacity ?? box.opacity
         CATransaction.setDisableActions(true)
         box.opacity = 0
