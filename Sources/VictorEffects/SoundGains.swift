@@ -19,6 +19,11 @@ import Foundation
 /// and its thumbnail panel presses the same tiles: one table, both surfaces. The
 /// tablet adopts it when `gainsHash` in `/ping` moves, for its local playback.
 enum SoundGains {
+    /// A video snippet's row (page 2 of the tablet, the panel's 🎬 page). The
+    /// clip plays in addons, which gets the level as `?gain=` and follows a live
+    /// move as `/sound/gain/video:<id>/<pct>` passes through its proxy.
+    static func videoKey(_ id: String) -> String { "video:\(id)" }
+
     static let defaultPct = 80
 
     private static var positions: [String: Int] = load()

@@ -162,7 +162,9 @@ final class VideoPress {
             setPlaying(nil)
             return "{\"ok\":true,\"n\":\(tile.n),\"id\":\"\(tile.id)\",\"action\":\"stop\"}"
         }
-        guard let body = get("/video/play/\(tile.id)") else {
+        // 🔉 The clip's own volume, the tablet's bar on page 2: a row of the
+        // same table as every tile (`SoundGains`, key `video:<id>`).
+        guard let body = get("/video/play/\(tile.id)?gain=\(SoundGains.position(of: SoundGains.videoKey(tile.id)))") else {
             return "{\"ok\":false,\"n\":\(tile.n),\"id\":\"\(tile.id)\",\"reason\":\"addons-down\"}"
         }
         // `durationMs` is the shorter of what is left of the clip and the

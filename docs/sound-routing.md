@@ -313,7 +313,9 @@ the Classic link, although its SDP lists ATT (PSM 31) for that very service
 the Classic link and having the Mac reopen it (`closeConnection` +
 `openConnection`) brought the service back over the Classic link, and the next
 round read 60 %. So a round that finds nobody to visit re-links the connected
-speaker that has no reading (`relinkCandidate`): once per connection, only while
+speaker that has no *fresh* reading (`relinkCandidate`; fresh = under 10 min,
+the tablet's own grey threshold — on 2026-11-03 yesterday's 100 % counted as
+"read" and kept a speaker that reconnected hidden grey all morning): once per connection, only while
 nothing plays into it (`kAudioDevicePropertyDeviceIsRunningSomewhere`), and the
 default output is put back if it was that speaker. The cost is ~6 s of the
 speaker gone and its reconnect beep, once; it logs `🔊🔋 re-linking …`.

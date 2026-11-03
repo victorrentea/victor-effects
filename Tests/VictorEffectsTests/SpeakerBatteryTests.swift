@@ -74,4 +74,13 @@ final class SpeakerBatteryTests: XCTestCase {
         XCTAssertNil(SpeakerBattery.relinkCandidate(connected: [a, b], read: [a], relinked: [b]))
         XCTAssertNil(SpeakerBattery.relinkCandidate(connected: [a], read: [a], relinked: []))
     }
+
+    func testAStaleReadingDoesNotCountAsRead() {
+        let now = Date()
+        let readings = [
+            "AA-AA-AA-AA-AA-AA": SpeakerBattery.Reading(pct: 100, charging: false, at: now.addingTimeInterval(-17 * 3600)),
+            "BB-BB-BB-BB-BB-BB": SpeakerBattery.Reading(pct: 60, charging: false, at: now.addingTimeInterval(-60)),
+        ]
+        XCTAssertEqual(SpeakerBattery.freshlyRead(readings, now: now), ["BB-BB-BB-BB-BB-BB"])
+    }
 }

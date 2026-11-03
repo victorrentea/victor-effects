@@ -209,6 +209,18 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         connected.subtracting(read).subtracting(relinked).sorted().first
     }
 
+    /// A reading older than this no longer counts as "read" for the re-link —
+    /// the tablet's own dimming threshold (`ChargeChip.STALE_S`). Before
+    /// 2026-11-03 any reading counted, so yesterday's 100 % kept a speaker
+    /// that came back hidden from ever being re-linked: the chip stayed grey
+    /// all morning, 17 h old.
+    static let staleAfter: TimeInterval = 10 * 60
+
+    /// The MACs whose reading is still fresh. Pure.
+    static func freshlyRead(_ readings: [String: Reading], now: Date) -> Set<String> {
+        Set(readings.filter { now.timeIntervalSince($0.value.at) < staleAfter }.keys)
+    }
+
     /// The last resort when a connected JBL can't be reached over the Classic
     /// link or through an advert (2026-10-30). In that state no amount of waiting
     /// helps: the Go 4 had sent no adverts for hours, and bluetoothd had never
@@ -221,7 +233,7 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     private func relinkHidden() {
         let connected = Self.connectedSpeakerMacs()
         relinked.formIntersection(connected)
-        guard let mac = Self.relinkCandidate(connected: connected, read: Set(readings.keys), relinked: relinked),
+        guard let mac = Self.relinkCandidate(connected: connected, read: Self.freshlyRead(readings, now: Date()), relinked: relinked),
               let dev = IOBluetoothDevice(addressString: mac),
               let out = BluetoothOutput.outputDevices().first(where: { Self.mac(fromUID: $0.uid) == mac }) else { return }
         if BluetoothOutput.isRunningSomewhere(out.id) { return }  // retried next round

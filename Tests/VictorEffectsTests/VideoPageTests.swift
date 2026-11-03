@@ -160,7 +160,7 @@ final class VideoPageTests: XCTestCase {
     func testATapPlaysTheClipThroughTheAddonsRoute() {
         let (press, calls) = recorder { _ in "{\"ok\":true,\"startSeconds\":13,\"durationMs\":60000}" }
         let body = press.press(tile(1, "abc"))
-        XCTAssertEqual(calls(), ["/video/play/abc"])
+        XCTAssertEqual(calls(), ["/video/play/abc?gain=80"])
         XCTAssertTrue(body.contains("\"action\":\"play\""), body)
         XCTAssertTrue(body.contains("\"durationMs\":60000"), body)
         XCTAssertEqual(press.playing?.id, "abc")
@@ -173,7 +173,7 @@ final class VideoPageTests: XCTestCase {
         let (press, calls) = recorder { _ in "{\"ok\":true,\"durationMs\":60000}" }
         press.press(tile(1, "abc"))
         let body = press.press(tile(1, "abc"))
-        XCTAssertEqual(calls(), ["/video/play/abc", "/video/stop"])
+        XCTAssertEqual(calls(), ["/video/play/abc?gain=80", "/video/stop"])
         XCTAssertTrue(body.contains("\"action\":\"stop\""), body)
         XCTAssertNil(press.playing)
     }
@@ -184,7 +184,7 @@ final class VideoPageTests: XCTestCase {
         let (press, calls) = recorder { _ in "{\"ok\":true,\"durationMs\":60000}" }
         press.press(tile(1, "abc"))
         press.press(tile(2, "def"))
-        XCTAssertEqual(calls(), ["/video/play/abc", "/video/play/def"])
+        XCTAssertEqual(calls(), ["/video/play/abc?gain=80", "/video/play/def?gain=80"])
         XCTAssertEqual(press.playing?.id, "def")
     }
 
