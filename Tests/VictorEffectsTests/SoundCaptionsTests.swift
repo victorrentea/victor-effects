@@ -81,6 +81,20 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.heldToBeRead(noise), noise, "nothing said, nothing to hold")
     }
 
+    /// A line is up half a second before its first word; the words keep their
+    /// place in the clip, and so does the moment the line leaves.
+    func testALineGoesUpBeforeItIsSung() {
+        let line = CaptionLine(at: 2, text: "Let it be", seconds: 3, words: [1, 1.5, 2])
+        let up = line.ahead
+        XCTAssertEqual(up.at, 2.5, accuracy: 0.001)
+        XCTAssertEqual(up.at + up.seconds, 5, accuracy: 0.001)
+        XCTAssertEqual(up.words.map { up.at + $0 }, [3, 3.5, 4])
+        XCTAssertEqual(CaptionLine(at: 0, text: "Hello", seconds: 3, words: [0.2]).ahead.at, 0,
+                       "never before the clip")
+        let noise = CaptionLine(at: 0, text: "[wolf howling]", seconds: 4)
+        XCTAssertEqual(noise.ahead, noise)
+    }
+
     /// The roll-up: the newest row sits at the foot, the older ones above it.
     func testRowsRollUpFromTheFoot() {
         XCTAssertEqual(SoundCaptions.rollUp(heights: [60, 110, 60], gap: 8), [186, 68, 0])

@@ -230,6 +230,17 @@ struct CaptionLine: Equatable {
     let text: String
     var seconds: TimeInterval
     var words: [TimeInterval] = []
+
+    /// The line as it goes on the glass: `SoundCaptions.leadIn` before its
+    /// first word is heard, whenever its cue is (never before the clip). `at`
+    /// stays the reviewed cue everywhere else, the key of `wordTimes`. A line
+    /// nobody timed goes up on its cue.
+    var ahead: CaptionLine {
+        guard let first = words.first else { return self }
+        let up = max(0, at + first - SoundCaptions.leadIn)
+        let early = at - up
+        return CaptionLine(at: up, text: text, seconds: seconds + early, words: words.map { $0 + early })
+    }
 }
 
 extension SoundCaptions {
@@ -242,6 +253,9 @@ extension SoundCaptions {
     /// under this one instead of taking its place. An untimed sung line,
     /// whose last word nobody knows, gets the same second past the next one.
     static let readHold: TimeInterval = 1
+    /// A said line is on the glass this long before its first word is heard
+    /// (Victor, 2026-11-04: half a second before it is sung).
+    static let leadIn: TimeInterval = 0.5
     /// The rows on the glass at once. A fast song would otherwise stack past
     /// the slide's body; the next line pushes the oldest out early.
     static let maxRows = 3
@@ -421,8 +435,9 @@ final class CaptionPanel: NSPanel {}
 /// tell from the white).
 ///
 /// - **A roll-up, not a swap** (Victor, 2026-11-04: "read from somewhere, don't
-///   let it leave the screen fast"). Each line is its own row, its own pill. A
-///   new line comes in at the bottom and pushes the others up; a row whose
+///   let it leave the screen fast"). Each line is its own row, its own pill. The
+///   first line just fades in, fast, on the standard position; a line arriving
+///   over another rises from below and pushes the others up; a row whose
 ///   time is up fades out where it stands, so a line stays for its `readHold`
 ///   while the next one is already being sung under it, and the bottom row
 ///   never moves because of the one above it going (Victor, 2026-11-04: a
@@ -459,7 +474,9 @@ enum CaptionOverlay {
     static let rollSeconds: TimeInterval = 0.25
     /// Between two rows.
     static let rowGap: CGFloat = 8
-    /// How far a new row rises as it comes in.
+    /// The first row on an empty stage has nothing to push: a quick fade.
+    static let firstRowFade: TimeInterval = 0.12
+    /// How far a row rises as it comes in under another.
     static let rowTravel: CGFloat = 36
     /// The stage reaches this far under the first row, or a row rising from
     /// below would be cut off by the panel's edge. Taken off the panel's
@@ -531,7 +548,7 @@ enum CaptionOverlay {
         clearRows(over: 0.15)   // a newer press: the old song's rows do not stay to be read
         let current = track
         let start = DispatchTime.now() + delay
-        for line in lines {
+        for line in lines.map(\.ahead) {
             guard line.at + delay > 0 else { show(line.text, seconds: line.seconds, words: line.words, on: screen); continue }
             DispatchQueue.main.asyncAfter(deadline: start + line.at) {
                 guard current == track, SubtitlesSwitch.isOn else { return }
@@ -636,17 +653,18 @@ enum CaptionOverlay {
         // The row that has no room leaves now, not when its time is up.
         while rows.count >= SoundCaptions.maxRows { leave(rows[0], over: rollSeconds) }
 
+        let first = rows.isEmpty
         let row = Row(box: box, height: rowSize.height)
         let centre = stage.bounds.midX
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        box.position = CGPoint(x: centre, y: stageFoot - rowTravel)
+        box.position = CGPoint(x: centre, y: first ? stageFoot : stageFoot - rowTravel)
         box.opacity = 0
         stage.addSublayer(box)
         CATransaction.commit()
         rows.append(row)
         relay()
-        fadeIn(box)
+        fadeIn(box, over: first ? firstRowFade : rollSeconds)
 
         panel?.orderFrontRegardless()
         panel.map { setOnGlass(CGWindowID($0.windowNumber)) }
@@ -702,7 +720,7 @@ enum CaptionOverlay {
         box.add(roll, forKey: "roll")
     }
 
-    private static func fadeIn(_ box: CALayer) {
+    private static func fadeIn(_ box: CALayer, over seconds: TimeInterval) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         box.opacity = 1
@@ -710,7 +728,7 @@ enum CaptionOverlay {
         let fade = CABasicAnimation(keyPath: "opacity")
         fade.fromValue = 0
         fade.toValue = 1
-        fade.duration = rollSeconds
+        fade.duration = seconds
         box.add(fade, forKey: "fade")
     }
 
