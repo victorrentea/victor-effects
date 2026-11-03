@@ -9,7 +9,7 @@ final class SoundCaptionsTests: XCTestCase {
 
     func testSongsAndNoisesComeFromTheTable() {
         XCTAssertEqual(SoundCaptions.caption(for: "62_lionel_richie.mp3"),
-                       "♪ Hello, is it me you're looking for? ♪")
+                       "Hello, is it me you're looking for?")
         XCTAssertEqual(SoundCaptions.caption(for: "04_wolf.mp3"), "[wolf howling]")
     }
 
@@ -41,11 +41,11 @@ final class SoundCaptionsTests: XCTestCase {
     /// each one staying up until it has been read, under the next one coming in.
     func testASongFlowsLineByLine() {
         let track = SoundCaptions.schedule(for: "76_sfx_118.mp3", clipSeconds: 6.55)
-        XCTAssertEqual(track.map(\.text), ["♪ Wasn't me ♪",
-                                           "♪ Heard the words that I told her ♪",
-                                           "♪ Wasn't me ♪",
-                                           "♪ Heard the screams getting louder ♪",
-                                           "♪ Wasn't me ♪"])
+        XCTAssertEqual(track.map(\.text), ["Wasn't me",
+                                           "Heard the words that I told her",
+                                           "Wasn't me",
+                                           "Heard the screams getting louder",
+                                           "Wasn't me"])
         XCTAssertEqual(track[1].seconds, 1.58 + SoundCaptions.lastWordSweep + SoundCaptions.readHold, accuracy: 0.001,
                        "until its last word is full, plus a second to read it")
         XCTAssertGreaterThan(track[1].at + track[1].seconds, track[2].at, "the next line comes in under it")
@@ -53,34 +53,28 @@ final class SoundCaptionsTests: XCTestCase {
                        "a two-word line still stays up long enough to read")
     }
 
-    /// Music is music with or without words (Victor, 2026-11-04): the room
-    /// reads the ♪ before it reads the line, so an instrumental is never a
-    /// [noise].
-    func testInstrumentalMusicCarriesTheNote() {
-        let instrumentals = ["14_universal.mp3", "19_fail.mp3", "20_fail2.mp3", "41_love_hearts.mp3",
-                             "42_saxophone.mp3", "43_dun.mp3", "54_piano.mp3", "60_sfx_100.mp3",
-                             "70_cavalry.mp3", "84_eclipse.mp3"]
-        for asset in instrumentals {
-            let line = SoundCaptions.table[asset] ?? ""
-            XCTAssertTrue(line.hasPrefix("♪ ") && line.hasSuffix(" ♪"), "\(asset): \(line)")
-        }
-        for (asset, line) in SoundCaptions.table where line.hasPrefix("[") {
-            XCTAssertFalse(line.lowercased().contains("music"), "\(asset) is music captioned as a noise: \(line)")
+    /// No subtitle carries a music note (Victor, 2026-11-04), whichever way
+    /// a line reaches the glass.
+    func testNoCaptionCarriesAMusicNote() {
+        for asset in SoundCaptions.table.keys {
+            for line in SoundCaptions.schedule(for: asset, clipSeconds: 20) {
+                XCTAssertFalse(line.text.contains { "♪♫♬🎵".contains($0) }, "\(asset): \(line.text)")
+            }
         }
     }
 
     func testASongWithAnIntroOpensOnItsTitle() {
         let track = SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2)
-        XCTAssertEqual(track.first?.text, "♪ Let it be ♪")
+        XCTAssertEqual(track.first?.text, "Let it be")
         XCTAssertEqual(track.first?.at, 0)
         XCTAssertEqual(track.first!.seconds, 2.3 + SoundCaptions.readHold, accuracy: 0.001)
-        XCTAssertEqual(track[1].text, "♪ When I find myself in times of trouble ♪")
+        XCTAssertEqual(track[1].text, "When I find myself in times of trouble")
     }
 
     /// No more words, no more line: it does not wait for the clip to end, or
     /// for the next line, whichever comes first.
     func testALineLeavesAfterItsWordsNotAfterTheClip() {
-        let line = CaptionLine(at: 0, text: "♪ Let it be ♪", seconds: 6, words: [0, 1, 2])
+        let line = CaptionLine(at: 0, text: "Let it be", seconds: 6, words: [0, 1, 2])
         XCTAssertEqual(SoundCaptions.heldToBeRead(line).seconds,
                        2 + SoundCaptions.lastWordSweep + SoundCaptions.readHold, accuracy: 0.001)
         let noise = CaptionLine(at: 0, text: "[wolf howling]", seconds: 4)
@@ -126,41 +120,40 @@ final class SoundCaptionsTests: XCTestCase {
 
     // MARK: the karaoke fill
 
-    /// ♪ and a lone dash are not words: the opening ♪ fills with the first
-    /// word, the closing one with the last, so the line ends all yellow.
+    /// A lone dash is not a word, so it never needs a time of its own.
     func testWordsAreTokensWithALetter() {
-        let text = "♪ Oops, I did it again ♪"
+        let text = "Oops, — I did it again"
         XCTAssertEqual(SoundCaptions.wordEnds(text).count, 5)
-        XCTAssertEqual((text as NSString).substring(to: SoundCaptions.wordEnds(text)[0]), "♪ Oops,")
+        XCTAssertEqual((text as NSString).substring(to: SoundCaptions.wordEnds(text)[0]), "Oops,")
         XCTAssertEqual(SoundCaptions.wordEnds("[wolf howling]").count, 2)
     }
 
     /// A soft hyphen times a long sung word by the syllable, and the room
     /// never sees it: the line is as wide as without it.
     func testASoftHyphenSplitsSyllablesAndDrawsNothing() {
-        let text = "♪ Hal\u{AD}le\u{AD}lu\u{AD}jah! ♪"
+        let text = "Hal\u{AD}le\u{AD}lu\u{AD}jah!"
         XCTAssertEqual(SoundCaptions.wordEnds(text).map { (text as NSString).substring(to: $0) },
-                       ["♪ Hal", "♪ Hal\u{AD}le", "♪ Hal\u{AD}le\u{AD}lu", "♪ Hal\u{AD}le\u{AD}lu\u{AD}jah!"])
+                       ["Hal", "Hal\u{AD}le", "Hal\u{AD}le\u{AD}lu", "Hal\u{AD}le\u{AD}lu\u{AD}jah!"])
         func width(_ s: String) -> CGFloat {
             CTLineGetTypographicBounds(CTLineCreateWithAttributedString(CaptionOverlay.label(s, color: .white)), nil, nil, nil)
         }
-        XCTAssertEqual(width(text), width("♪ Hallelujah! ♪"), accuracy: 0.01)
+        XCTAssertEqual(width(text), width("Hallelujah!"), accuracy: 0.01)
     }
 
     /// Each word WIPES from left to right while it is said — up to the next
     /// word's start, so a held note fills slowly — never jumps in whole.
     func testEachWordSweepsUntilTheNextIsHeard() {
-        let text = "♪ Let it be ♪"   // ends: 5 ("♪ Let"), 8, 11
+        let text = "Let it be"   // ends: 3, 6, 9
         let path = SoundCaptions.fill(text, words: [0.5, 1.0, 1.2], seconds: 4)
         XCTAssertEqual(path.map(\.t), [0, 0.5, 1.0, 1.2, 1.2 + SoundCaptions.lastWordSweep])
-        XCTAssertEqual(path.map(\.offset), [0, 0, 5, 8, text.utf16.count])
+        XCTAssertEqual(path.map(\.offset), [0, 0, 3, 6, text.utf16.count])
     }
 
     /// A long gap is a pause, not a held note: the word is full before it.
     func testAWordDoesNotCrawlThroughAPause() {
-        let path = SoundCaptions.fill("♪ Hello is it me ♪", words: [0, 4, 4.3, 4.6], seconds: 6)
+        let path = SoundCaptions.fill("Hello is it me", words: [0, 4, 4.3, 4.6], seconds: 6)
         XCTAssertEqual(path[1].t, SoundCaptions.maxWordSweep)
-        XCTAssertEqual(path[1].offset, 7, "\"♪ Hello\" is full")
+        XCTAssertEqual(path[1].offset, 5, "\"Hello\" is full")
         XCTAssertEqual(path[2].t, 4, "and waits for \"is\"")
         XCTAssertEqual(path.map(\.t), path.map(\.t).sorted())
     }
@@ -204,7 +197,7 @@ final class SoundCaptionsTests: XCTestCase {
     func testUntimedHasNoFill() {
         XCTAssertTrue(SoundCaptions.fill("[wolf howling]", words: [], seconds: 3).isEmpty)
         let colour = { (s: NSAttributedString) in s.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor }
-        XCTAssertEqual(colour(CaptionOverlay.label("♪ Let it be ♪", color: CaptionOverlay.upcomingColor)), CaptionOverlay.upcomingColor)
+        XCTAssertEqual(colour(CaptionOverlay.label("Let it be", color: CaptionOverlay.upcomingColor)), CaptionOverlay.upcomingColor)
     }
 
     /// The generated table only fires on a cue with the same start AND word

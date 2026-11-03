@@ -117,9 +117,10 @@ also hides a caption already on screen; a video already playing keeps the
 state it started with.
 
 While on, each soundboard press puts a subtitle at the bottom of the overlay screen, for
-whoever in the room (or on the call) cannot hear the joke: `♪ Hello, is it me
-you're looking for? ♪` for a song, `♪ Piano music ♪` for music without words
-(Victor, 2026-11-04: wherever music plays, the note shows), `[wolf howling]` for a noise.
+whoever in the room (or on the call) cannot hear the joke: `Hello, is it me
+you're looking for?` for a song, `[wolf howling]` or `[piano music]` for a noise or
+music without words. **No subtitle carries a ♪** (Victor, 2026-11-04; addons strips it
+from the `.srt` lines as it parses them, the files themselves are untouched).
 `SoundCaptions` holds the text, `CaptionOverlay` draws it.
 
 - **On the press, not the play.** `EffectsRouter` calls
@@ -198,7 +199,7 @@ you're looking for? ♪` for a song, `♪ Piano music ♪` for music without wor
   starts being said until the next word is heard, so a held note fills slowly,
   capped at `SoundCaptions.maxWordSweep` (2 s — a longer gap is a pause, and the
   word is full before it); the last word sweeps in `lastWordSweep` (0.6 s). The
-  opening ♪ / quote goes with the first word, the closing one with the last, so
+  opening quote goes with the first word, the closing one with the last, so
   a line ends all yellow. **A word sung over seconds is timed by the syllable**
   (2026-10-23, Hallelujah: "split it into syllables, the second one fills too
   fast" — it was the line's last word, so it got `lastWordSweep` for a 3.4 s

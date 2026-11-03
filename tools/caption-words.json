@@ -2,7 +2,7 @@
  "05_guess_whos_back.mp3": [
   {
    "at": 0,
-   "text": "♪ Guess who's back, back again ♪",
+   "text": "Guess who's back, back again",
    "words": [
     0.02,
     0.24,
@@ -15,7 +15,7 @@
   },
   {
    "at": 4,
-   "text": "♪ Shady's back, tell a friend ♪",
+   "text": "Shady's back, tell a friend",
    "words": [
     4.14,
     4.77,
@@ -28,7 +28,7 @@
   },
   {
    "at": 7.9,
-   "text": "♪ Guess who's back, guess who's back ♪",
+   "text": "Guess who's back, guess who's back",
    "words": [
     8.47,
     8.68,
@@ -59,7 +59,7 @@
  "09_ave_maria.mp3": [
   {
    "at": 0,
-   "text": "♪ Ave Maria ♪",
+   "text": "Ave Maria",
    "words": [
     1.33,
     4.05
@@ -69,7 +69,7 @@
   },
   {
    "at": 12.6,
-   "text": "♪ Jungfrau mild ♪",
+   "text": "Jungfrau mild",
    "words": [
     12.66,
     17.12
@@ -122,7 +122,7 @@
  "28_who_let_dogs_out.mp3": [
   {
    "at": 0,
-   "text": "♪ Who let the dogs out? ♪",
+   "text": "Who let the dogs out?",
    "words": [
     0.03,
     0.24,
@@ -137,7 +137,7 @@
  "29_gangnam_style.mp3": [
   {
    "at": 0,
-   "text": "♪ Oppa Gangnam Style ♪",
+   "text": "Oppa Gangnam Style",
    "words": [
     0.92,
     1.39,
@@ -161,7 +161,7 @@
  "35_cant_touch_this.mp3": [
   {
    "at": 0,
-   "text": "♪ Can't touch this ♪",
+   "text": "Can't touch this",
    "words": [
     0.06,
     0.27,
@@ -174,7 +174,7 @@
  "36_bad_habits.mp3": [
   {
    "at": 0,
-   "text": "♪ My bad habits lead to late nights endin' alone ♪",
+   "text": "My bad habits lead to late nights endin' alone",
    "words": [
     0.3,
     0.52,
@@ -191,7 +191,7 @@
   },
   {
    "at": 3.6,
-   "text": "♪ Conversations with a stranger I barely know ♪",
+   "text": "Conversations with a stranger I barely know",
    "words": [
     4.33,
     5.33,
@@ -206,7 +206,7 @@
   },
   {
    "at": 7.5,
-   "text": "♪ Swearin' this will be the last, but it probably won't ♪",
+   "text": "Swearin' this will be the last, but it probably won't",
    "words": [
     8.07,
     8.63,
@@ -226,7 +226,7 @@
  "37_rainbow.mp3": [
   {
    "at": 2.8,
-   "text": "♪ Somewhere over the rainbow ♪",
+   "text": "Somewhere over the rainbow",
    "words": [
     2.84,
     5.77,
@@ -238,7 +238,7 @@
   },
   {
    "at": 10.0,
-   "text": "♪ Way up high ♪",
+   "text": "Way up high",
    "words": [
     10.08,
     11.0,
@@ -251,7 +251,7 @@
  "38_imagine.mp3": [
   {
    "at": 0,
-   "text": "♪ Imagine all the people ♪",
+   "text": "Imagine all the people",
    "words": [
     0.1,
     0.89,
@@ -263,7 +263,7 @@
   },
   {
    "at": 5.7,
-   "text": "♪ Living for today ♪",
+   "text": "Living for today",
    "words": [
     5.89,
     7.41,
@@ -276,7 +276,7 @@
  "38b_dreamer.mp3": [
   {
    "at": 0,
-   "text": "♪ I'm just a dreamer ♪",
+   "text": "I'm just a dreamer",
    "words": [
     0.81,
     1.19,
@@ -288,7 +288,7 @@
   },
   {
    "at": 3.5,
-   "text": "♪ I dream my life away ♪",
+   "text": "I dream my life away",
    "words": [
     4.57,
     4.95,
@@ -303,7 +303,7 @@
  "39_skull_boom.mp3": [
   {
    "at": 2.35,
-   "text": "♪ Hier kommt die Son­ne ♪",
+   "text": "Hier kommt die Son­ne",
    "words": [
     2.85,
     3.8,
@@ -331,7 +331,7 @@
  "46_michael_buble.mp3": [
   {
    "at": 0,
-   "text": "♪ It's beginning to look a lot like Christmas ♪",
+   "text": "It's beginning to look a lot like Christmas",
    "words": [
     0.07,
     0.46,
@@ -347,7 +347,7 @@
   },
   {
    "at": 5.8,
-   "text": "♪ Everywhere you go ♪",
+   "text": "Everywhere you go",
    "words": [
     6.33,
     7.85,
@@ -360,7 +360,7 @@
  "46b_my_way.mp3": [
   {
    "at": 0,
-   "text": "♪ I did it my way ♪",
+   "text": "I did it my way",
    "words": [
     0.83,
     1.45,
@@ -387,7 +387,7 @@
  "61_hallelujah.mp3": [
   {
    "at": 0,
-   "text": "♪ Hal­le­lu­jah! Hal­le­lu­jah! ♪",
+   "text": "Hal­le­lu­jah! Hal­le­lu­jah!",
    "words": [
     0.25,
     0.9,
@@ -403,7 +403,7 @@
   },
   {
    "at": 8.5,
-   "text": "♪ Hal­le­lu­jah! Hal­le­lu­jah! ♪",
+   "text": "Hal­le­lu­jah! Hal­le­lu­jah!",
    "words": [
     8.58,
     9.3,
@@ -421,7 +421,7 @@
  "62_lionel_richie.mp3": [
   {
    "at": 0,
-   "text": "♪ Hello… ♪",
+   "text": "Hello…",
    "words": [
     1.1
    ],
@@ -430,7 +430,7 @@
   },
   {
    "at": 4.4,
-   "text": "♪ Is it me you're looking for? ♪",
+   "text": "Is it me you're looking for?",
    "words": [
     4.53,
     4.79,
@@ -483,7 +483,7 @@
  "71_one_more_time.mp3": [
   {
    "at": 0,
-   "text": "♪ One more try… ♪",
+   "text": "One more try…",
    "words": [
     0.89,
     1.35,
@@ -494,7 +494,7 @@
   },
   {
    "at": 2.3,
-   "text": "♪ I didn't know how much I loved you ♪",
+   "text": "I didn't know how much I loved you",
    "words": [
     2.84,
     3.0,
@@ -510,7 +510,7 @@
   },
   {
    "at": 6.4,
-   "text": "♪ One more try… ♪",
+   "text": "One more try…",
    "words": [
     7.33,
     7.76,
@@ -521,7 +521,7 @@
   },
   {
    "at": 8.7,
-   "text": "♪ Let me put my arms around you ♪",
+   "text": "Let me put my arms around you",
    "words": [
     9.33,
     9.55,
@@ -538,7 +538,7 @@
  "72_if_tomorrow.mp3": [
   {
    "at": 0,
-   "text": "♪ If tomorrow never comes ♪",
+   "text": "If tomorrow never comes",
    "words": [
     0.44,
     0.83,
@@ -550,7 +550,7 @@
   },
   {
    "at": 5.8,
-   "text": "♪ Will she know how much I loved her? ♪",
+   "text": "Will she know how much I loved her?",
    "words": [
     6.8,
     7.0,
@@ -581,7 +581,7 @@
  "74_oops.mp3": [
   {
    "at": 0,
-   "text": "♪ Oh baby, baby ♪",
+   "text": "Oh baby, baby",
    "words": [
     0.04,
     0.49,
@@ -592,7 +592,7 @@
   },
   {
    "at": 1.3,
-   "text": "♪ Oops, I did it again ♪",
+   "text": "Oops, I did it again",
    "words": [
     1.76,
     2.39,
@@ -605,7 +605,7 @@
   },
   {
    "at": 4.1,
-   "text": "♪ I played with your heart ♪",
+   "text": "I played with your heart",
    "words": [
     5.1,
     5.53,
@@ -618,7 +618,7 @@
   },
   {
    "at": 6.8,
-   "text": "♪ Got lost in the game ♪",
+   "text": "Got lost in the game",
    "words": [
     7.78,
     8.08,
@@ -649,7 +649,7 @@
  "76_sfx_118.mp3": [
   {
    "at": 0,
-   "text": "♪ Wasn't me ♪",
+   "text": "Wasn't me",
    "words": [
     0.36,
     0.66
@@ -659,7 +659,7 @@
   },
   {
    "at": 0.7,
-   "text": "♪ Heard the words that I told her ♪",
+   "text": "Heard the words that I told her",
    "words": [
     1.02,
     1.17,
@@ -674,7 +674,7 @@
   },
   {
    "at": 2.4,
-   "text": "♪ Wasn't me ♪",
+   "text": "Wasn't me",
    "words": [
     2.88,
     3.19
@@ -684,7 +684,7 @@
   },
   {
    "at": 3.3,
-   "text": "♪ Heard the screams getting louder ♪",
+   "text": "Heard the screams getting louder",
    "words": [
     3.55,
     3.69,
@@ -697,7 +697,7 @@
   },
   {
    "at": 4.7,
-   "text": "♪ Wasn't me ♪",
+   "text": "Wasn't me",
    "words": [
     5.43,
     5.79
@@ -709,7 +709,7 @@
  "77_maui.mp3": [
   {
    "at": 0,
-   "text": "♪ Well, anyway, let me say you're welcome ♪",
+   "text": "Well, anyway, let me say you're welcome",
    "words": [
     0.38,
     0.72,
@@ -724,7 +724,7 @@
   },
   {
    "at": 3.3,
-   "text": "♪ For the wonderful world you know ♪",
+   "text": "For the wonderful world you know",
    "words": [
     3.33,
     4.19,
@@ -738,7 +738,7 @@
   },
   {
    "at": 6.5,
-   "text": "♪ Hey, it's okay ♪",
+   "text": "Hey, it's okay",
    "words": [
     7.47,
     7.7,
@@ -751,7 +751,7 @@
  "80_7_rings.mp3": [
   {
    "at": 0,
-   "text": "♪ I want it, I got it ♪",
+   "text": "I want it, I got it",
    "words": [
     0.03,
     0.25,
@@ -767,7 +767,7 @@
  "81_let_it_be.mp3": [
   {
    "at": 2.3,
-   "text": "♪ When I find myself in times of trouble ♪",
+   "text": "When I find myself in times of trouble",
    "words": [
     3.01,
     3.24,
@@ -783,7 +783,7 @@
   },
   {
    "at": 6.3,
-   "text": "♪ Mother Mary comes to me ♪",
+   "text": "Mother Mary comes to me",
    "words": [
     6.61,
     7.01,
@@ -796,7 +796,7 @@
   },
   {
    "at": 9,
-   "text": "♪ Speaking words of wisdom ♪",
+   "text": "Speaking words of wisdom",
    "words": [
     9.76,
     10.64,
@@ -808,7 +808,7 @@
   },
   {
    "at": 11.9,
-   "text": "♪ Let it be ♪",
+   "text": "Let it be",
    "words": [
     12.53,
     12.77,
@@ -821,7 +821,7 @@
  "81b_let_go.mp3": [
   {
    "at": 0,
-   "text": "♪ Let go ♪",
+   "text": "Let go",
    "words": [
     1.63,
     2.03
@@ -846,7 +846,7 @@
  "83_yummy.mp3": [
   {
    "at": 0,
-   "text": "♪ Yeah, you got that yummy-yum ♪",
+   "text": "Yeah, you got that yummy-yum",
    "words": [
     0.98,
     1.2,
@@ -859,7 +859,7 @@
   },
   {
    "at": 2.9,
-   "text": "♪ That yummy-yum ♪",
+   "text": "That yummy-yum",
    "words": [
     3.19,
     3.46
@@ -869,7 +869,7 @@
   },
   {
    "at": 4.6,
-   "text": "♪ That yummy-yummy ♪",
+   "text": "That yummy-yummy",
    "words": [
     4.86,
     5.13
@@ -881,7 +881,7 @@
  "88_all_you_need_is_love.mp3": [
   {
    "at": 0,
-   "text": "♪ All you need is love ♪",
+   "text": "All you need is love",
    "words": [
     1.04,
     1.4,

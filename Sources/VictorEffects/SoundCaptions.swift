@@ -3,9 +3,9 @@ import QuartzCore
 
 /// Closed captions for the soundboard: a half-transparent subtitle at the bottom
 /// of the overlay screen, for whoever in the room — or on the call — cannot hear
-/// the joke. Songs show the line that is sung (♪ … ♪), an instrumental names the
-/// music inside the same notes (♪ Piano music ♪), everything else names the
-/// noise the way TV captions do ([wolf howling]).
+/// the joke. Songs show the line that is sung, plain (no ♪ in any subtitle,
+/// Victor, 2026-11-04), everything else names the noise or the music the way
+/// TV captions do ([wolf howling], [piano music]).
 ///
 /// Only while the ✓ Subtitles row is on (`SubtitlesSwitch`, off by default).
 ///
@@ -28,22 +28,22 @@ enum SoundCaptions {
         "02_siren.mp3":               "[siren wailing]",
         "03_explosion.mp3":           "[explosion]",
         "04_wolf.mp3":                "[wolf howling]",
-        "05_guess_whos_back.mp3":     "♪ Guess who's back, back again ♪",
-        "06_copyright_cartoon.mp3":   "♪ Pink Panther theme ♪",
+        "05_guess_whos_back.mp3":     "Guess who's back, back again",
+        "06_copyright_cartoon.mp3":   "[Pink Panther theme]",
         "07_animated_phone.mp3":      "\"What does this button do?\"",
         "08_scream_man.mp3":          "[man screaming]",
-        "09_ave_maria.mp3":           "♪ Ave Maria ♪",
+        "09_ave_maria.mp3":           "Ave Maria",
         "10_red_phone.mp3":           "[phone ringing]",
         "11_fire.mp3":                "[fire crackling]",
         "12_cricket.mp3":             "[crickets chirping]",
         "13_heartbeat.mp3":           "[heart beating]",
-        "14_universal.mp3":           "♪ Universal fanfare ♪",
+        "14_universal.mp3":           "[Universal fanfare]",
         "15_flatline.mp3":            "[flatline beep]",
         "16_magic_wand.mp3":          "[magic sparkles]",
         "17_my_precious.mp3":         "\"My precious…\"",
         "18_chainsaw.mp3":            "[chainsaw revving]",
-        "19_fail.mp3":                "♪ Sad trombone ♪",
-        "20_fail2.mp3":               "♪ Sad trombone ♪",
+        "19_fail.mp3":                "[sad trombone]",
+        "20_fail2.mp3":               "[sad trombone]",
         "20_storm.mp3":               "[thunderstorm]",
         "21_sfx_41.mp3":              "\"Isn't that cute? BUT IT'S WRONG!\"",
         "22_minigun.mp3":             "[minigun firing]",
@@ -52,45 +52,45 @@ enum SoundCaptions {
         "25_dark_door.mp3":           "[knocking]",
         "26_drum.mp3":                "[drum roll]",
         "27_clapping.mp3":            "[applause]",
-        "28_who_let_dogs_out.mp3":    "♪ Who let the dogs out? ♪",
-        "29_gangnam_style.mp3":       "♪ Oppa Gangnam Style ♪",
+        "28_who_let_dogs_out.mp3":    "Who let the dogs out?",
+        "29_gangnam_style.mp3":       "Oppa Gangnam Style",
         "30_cow.mp3":                 "[cow mooing]",
         "31_tarzan.mp3":              "[Tarzan yell]",
         "32_sheep.mp3":               "[sheep bleating]",
         "33_yee_har.mp3":             "\"Yee-haw!\"",
         "33b_ay.mp3":                 "\"Ay, ay, ay, ay!\"",
         "34_phoenix.mp3":             "[phoenix screeching]",
-        "35_cant_touch_this.mp3":     "♪ Can't touch this ♪",
-        "36_bad_habits.mp3":          "♪ My bad habits lead to late nights ♪",
-        "37_rainbow.mp3":             "♪ Somewhere over the rainbow ♪",
-        "38_imagine.mp3":             "♪ Imagine all the people ♪",
-        "38b_dreamer.mp3":            "♪ I'm just a dreamer ♪",
+        "35_cant_touch_this.mp3":     "Can't touch this",
+        "36_bad_habits.mp3":          "My bad habits lead to late nights",
+        "37_rainbow.mp3":             "Somewhere over the rainbow",
+        "38_imagine.mp3":             "Imagine all the people",
+        "38b_dreamer.mp3":            "I'm just a dreamer",
         "39_skull_boom.mp3":          "[boom]",
         "40_joker.mp3":               "[maniacal laughter]",
-        "41_love_hearts.mp3":         "♪ Romantic music ♪",
-        "42_saxophone.mp3":           "♪ Sultry saxophone ♪",
-        "43_dun.mp3":                 "♪ Dun dun DUNNN ♪",
+        "41_love_hearts.mp3":         "[romantic music]",
+        "42_saxophone.mp3":           "[sultry saxophone]",
+        "43_dun.mp3":                 "[dun dun DUNNN]",
         "44_small_dog.mp3":           "[small dog yapping]",
         "45_the_mask.mp3":            "\"Somebody stop me!\"",
-        "46_michael_buble.mp3":       "♪ It's beginning to look a lot like Christmas ♪",
-        "46b_my_way.mp3":             "♪ I did it my way ♪",
+        "46_michael_buble.mp3":       "It's beginning to look a lot like Christmas",
+        "46b_my_way.mp3":             "I did it my way",
         "47_dog_bark.mp3":            "[dog barking]",
         "48_rooster.mp3":             "[rooster crowing]",
         "49_wrong.mp3":               "[wrong-answer buzzer]",
         "50_gong.mp3":                "[gong]",
-        "51_beethoven.mp3":           "♪ Da-da-da-DUM ♪",
+        "51_beethoven.mp3":           "[Da-da-da-DUM]",
         "52_saw.mp3":                 "[sawing]",
         "53_rain.mp3":                "[money raining]",
-        "54_piano.mp3":               "♪ Piano music ♪",
-        "55_star_wars.mp3":           "♪ Star Wars theme ♪",
+        "54_piano.mp3":               "[piano music]",
+        "55_star_wars.mp3":           "[Star Wars theme]",
         "55b_tsunami.mp3":            "[tsunami]",
         "56_door_open.mp3":           "[door creaking open]",
         "57_checkmark.mp3":           "[success chime]",
         "58_cat.mp3":                 "[cat meowing]",
         "59_game_over.mp3":           "\"Game over\"",
-        "60_sfx_100.mp3":             "♪ Dramatic singing ♪",
-        "61_hallelujah.mp3":          "♪ Hallelujah ♪",
-        "62_lionel_richie.mp3":       "♪ Hello, is it me you're looking for? ♪",
+        "60_sfx_100.mp3":             "[dramatic singing]",
+        "61_hallelujah.mp3":          "Hallelujah",
+        "62_lionel_richie.mp3":       "Hello, is it me you're looking for?",
         "63_air_horn.mp3":            "[air horn]",
         "64_fbi.mp3":                 "\"FBI! Open up!\"",
         "65_school_bell.mp3":         "[bell ringing]",
@@ -98,26 +98,26 @@ enum SoundCaptions {
         "67_sfx_109.mp3":             "\"Eww, brother, eww!\"",
         "68_pig.mp3":                 "[pig oinking]",
         "69_scream_ghost.mp3":        "\"Wazzuuup!\"",
-        "70_cavalry.mp3":             "♪ Cavalry bugle charge ♪",
-        "71_one_more_time.mp3":       "♪ One more try… ♪",
-        "72_if_tomorrow.mp3":         "♪ If tomorrow never comes ♪",
+        "70_cavalry.mp3":             "[cavalry bugle charge]",
+        "71_one_more_time.mp3":       "One more try…",
+        "72_if_tomorrow.mp3":         "If tomorrow never comes",
         "73_counter_strike.mp3":      "\"Go, go, go!\"",
-        "74_oops.mp3":                "♪ Oops, I did it again ♪",
+        "74_oops.mp3":                "Oops, I did it again",
         "75_sfx_117.mp3":             "\"May I have your attention, please?\"",
-        "76_sfx_118.mp3":             "♪ Wasn't me ♪",
-        "77_maui.mp3":                "♪ You're welcome! ♪",
+        "76_sfx_118.mp3":             "Wasn't me",
+        "77_maui.mp3":                "You're welcome!",
         "78_projector.mp3":           "[film projector whirring]",
         "79_door.mp3":                "[door slams]",
-        "80_7_rings.mp3":             "♪ I want it, I got it ♪",
-        "81_let_it_be.mp3":           "♪ Let it be ♪",
-        "81b_let_go.mp3":             "♪ Let go ♪",
+        "80_7_rings.mp3":             "I want it, I got it",
+        "81_let_it_be.mp3":           "Let it be",
+        "81b_let_go.mp3":             "Let go",
         "82_over_and_out.mp3":        "\"Over and out.\"",
-        "83_yummy.mp3":               "♪ Yummy, yummy, yummy ♪",
-        "84_eclipse.mp3":             "♪ Epic music ♪",
-        "85_joy.mp3":                 "♪ Ode to Joy ♪",
+        "83_yummy.mp3":               "Yummy, yummy, yummy",
+        "84_eclipse.mp3":             "[epic music]",
+        "85_joy.mp3":                 "[Ode to Joy]",
         "86_doorbell.mp3":            "[doorbell]",
         "87_grenade.mp3":             "[grenade explodes]",
-        "88_all_you_need_is_love.mp3": "♪ All you need is love ♪",
+        "88_all_you_need_is_love.mp3": "All you need is love",
         "89_fireworks.mp3":           "[fireworks]",
         "90_breaking-glass.mp3":      "[glass shattering]",
         "91_sinking.mp3":             "[ship sinking]",
@@ -126,8 +126,7 @@ enum SoundCaptions {
     /// Songs whose words are sung line by line: each line goes up at the
     /// second it starts in the clip (a Whisper pass with word timestamps over
     /// `soundsDir`, then checked against the song's real lyrics where Whisper
-    /// misheard — "Shaney's back" is Shady's). Written bare: `schedule` wraps
-    /// them in ♪ … ♪. A song NOT here keeps its one line from `table`, and so
+    /// misheard — "Shaney's back" is Shady's). A song NOT here keeps its one line from `table`, and so
     /// does a clip whose lines would all read the same (who let the dogs out,
     /// can't touch this) — a line that never changes needs no clock.
     static let lyrics: [String: [(at: TimeInterval, text: String)]] = [
@@ -256,7 +255,7 @@ extension SoundCaptions {
         guard let sung = lyrics[asset], !sung.isEmpty else {
             return [heldToBeRead(withWords(CaptionLine(at: 0, text: first, seconds: lifetime(clipSeconds: clipSeconds)), asset: asset))]
         }
-        var cues = sung.map { (at: $0.at, text: "♪ \($0.text) ♪") }
+        var cues = sung.map { (at: $0.at, text: $0.text) }
         if cues[0].at >= titleLeadIn { cues.insert((at: 0, text: first), at: 0) }
         return cues.indices.map { i in
             let at = cues[i].at
@@ -298,9 +297,8 @@ extension SoundCaptions {
     // word at the moment it is pronounced"; then "left to right, progressively")
 
     /// Where each word of `text` ends, in UTF-16 offsets — a word being a
-    /// whitespace-separated token with a letter or digit in it, so ♪ and a
-    /// lone dash are not words: the opening ♪ lights up with the first word,
-    /// the closing one with the last (`litLength`). A soft hyphen (U+00AD,
+    /// whitespace-separated token with a letter or digit in it, so a lone
+    /// dash is not a word: it lights up with the next word. A soft hyphen (U+00AD,
     /// `syllable`) splits a word into syllables timed one by one — a word sung
     /// over seconds (Victor, 2026-10-23: "split Hallelujah into syllables") —
     /// and draws nothing.
@@ -331,7 +329,7 @@ extension SoundCaptions {
     /// joined by straight lines. Every word WIPES left to right over the time
     /// it is said (Victor, 2026-10-23: "progressively, syllable by syllable,
     /// not all at once") — from the end of the previous word, so the space and
-    /// the opening ♪ go with the first word and the closing ♪ with the last.
+    /// an opening quote go with the first word and a closing one with the last.
     static func fill(_ text: String, words: [TimeInterval], seconds: TimeInterval) -> [(t: TimeInterval, offset: Int)] {
         let ends = wordEnds(text)
         guard !words.isEmpty, words.count == ends.count else { return [] }
