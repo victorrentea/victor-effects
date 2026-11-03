@@ -300,6 +300,21 @@
    "note": "'I' 4.57 after silence; 'dream' after dr dip ~4.95; 'my' = start of m (merged with dream's m) ~5.64; 'life' l dip ~6.05 (head-cut has 'life' by 6.2); 'away' vowel after the f gap 6.82-6.92 (head-cut has 'a(way)' by 7.1). MMS 'away' 7.29 was mid-word."
   }
  ],
+ "39_skull_boom.mp3": [
+  {
+   "at": 2.35,
+   "text": "♪ Hier kommt die Son­ne ♪",
+   "words": [
+    2.85,
+    3.8,
+    4.98,
+    5.8,
+    6.62
+   ],
+   "confidence": "medium",
+   "note": "Slowed Rammstein 'Sonne' (edit 2aSHYRN3AVU; clip 0 = 34.94 s, cross-correlated). Whisper on the isolated voice of the WHOLE edit: Hier 2.44, kommt 3.84, die 5.24, Sonne 6.02. Voice onsets 3.8, 4.98, 6.64; loudness steps up at 2.85 (Hier) and returns at 5.8 (Son) after a dip. Whisper on the clip alone hears nonsense: no run-up."
+  }
+ ],
  "45_the_mask.mp3": [
   {
    "at": 0,

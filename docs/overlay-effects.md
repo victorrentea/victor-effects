@@ -161,19 +161,28 @@ you're looking for? ♪` for a song, `♪ Piano music ♪` for music without wor
     magnifies a ghost into its picture until addons excludes it. The panel is
     made at launch (`CaptionOverlay.prepare()`) and titled `Victor Effects
     caption`, so addons can find it in `SCShareableContent` by owner + title.
-- **Lives as long as the clip, 2.5 s minimum, 6 s maximum** — long enough to
+- **A noise lives as long as the clip, 2.5 s minimum, 6 s maximum** — long enough to
   read a blip, short enough that a 37 s theme does not park a line over the
   slides. It ends itself; `stopAll` (the pre-press stop, the 🛑, a suspend)
-  only hides it early, and a newer press replaces it.
-- **Songs flow line by line** (2026-10-10). A song in `SoundCaptions.lyrics`
-  is a *track*: each sung line goes up at the second it starts in the clip, so
-  the room reads the words as they are sung, not one line for the whole clip.
-  A song whose first word comes ≥ 1 s in opens on its `table` line as a title
-  (Let it be, Ave Maria). A line holds until the next one is due + 0.5 s
-  handover (so they swap in place, no fade between them), or `maxSeconds` if
-  the next is further away — an instrumental gap goes blank. The last line
-  lives like a single caption. `CaptionOverlay.play` schedules the lines;
-  `hide()` (stop-all, the 🛑, a newer press, Subtitles off) cancels the ones
+  only hides it early, and a newer press clears it.
+- **Songs roll up, line by line** (2026-10-10, roll-up 2026-11-04: "I want to read
+  it from somewhere, not have it leave the screen fast"). A song in
+  `SoundCaptions.lyrics` is a *track*: each sung line goes up at the second it
+  starts in the clip. Every line is its own row and pill: a new one comes in at
+  the bottom and pushes the others up, and a row whose time is up floats on
+  upward and fades out alone. **A said line stays `readHold` (1 s) after its
+  fill ends**, however soon the next line comes (it arrives underneath) and
+  however long the clip goes on (no more words, the line goes;
+  `heldToBeRead`), never under `minSeconds`. An untimed line stays until 1 s
+  past the next one, `maxSeconds` if that is further away. `maxRows` (3) is the
+  stack's limit: a fourth line pushes the oldest out early. The canvas is a
+  half-screen stage in one panel, so nothing resizes the window while rows
+  move; `CaptionOverlay.placement` still places it, and `stageFoot` keeps the
+  bottom row at the same `bottomInset` while leaving room to rise into it. A
+  song whose first word comes ≥ 1 s in opens on its `table` line as a title
+  (Let it be, Ave Maria, 💀 #39's [boom] before "Hier kommt die Sonne").
+  `CaptionOverlay.play` schedules the lines;
+  `hide()` (stop-all, the 🛑, Subtitles off) and a newer press clear the rows and cancel the ones
   still queued. **Stopping just that tile** (a re-tap, the panel, the
   tablet's `/sound/stopped/<file>`, `/alarm/stop` for the siren) takes its
   caption down at once too — `hide(asset:)`, scoped to the track's own clip so

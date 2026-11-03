@@ -147,6 +147,11 @@ enum SoundCaptions {
                                    (5.7, "Living for today")],
         "38b_dreamer.mp3":        [(0, "I'm just a dreamer"),
                                    (3.5, "I dream my life away")],
+        // Rammstein, "Sonne", from a slowed edit: the clip is 34.94 s into it,
+        // so the opening second stays on the table's [boom], the drop. The
+        // words are stretched over the five seconds they are sung in; Whisper
+        // only heard them with the edit's own run-up (2026-11-04).
+        "39_skull_boom.mp3":      [(2.35, "Hier kommt die Son\u{AD}ne")],
         "46_michael_buble.mp3":   [(0, "It's beginning to look a lot like Christmas"),
                                    (5.8, "Everywhere you go")],
         // The clip ends at 17.1 s (2.5 s fade-out from 14.6 s, 2026-10-22): the
@@ -224,7 +229,7 @@ enum SoundCaptions {
 struct CaptionLine: Equatable {
     let at: TimeInterval
     let text: String
-    let seconds: TimeInterval
+    var seconds: TimeInterval
     var words: [TimeInterval] = []
 }
 
@@ -232,9 +237,15 @@ extension SoundCaptions {
     /// A song whose first word comes later than this opens on its `table`
     /// line, so the screen says what is playing while the intro does.
     static let titleLeadIn: TimeInterval = 1
-    /// A sung line stays up this much past the next line's start, so the next
-    /// one REPLACES it instead of fading in after it faded out.
-    static let handover: TimeInterval = 0.5
+    /// A said line stays up this long after its last word is full (Victor,
+    /// 2026-11-04: "to get to read it"). Lines overlap for that second, which
+    /// is what the roll-up (`CaptionOverlay`) is for: the next line comes in
+    /// under this one instead of taking its place. An untimed sung line,
+    /// whose last word nobody knows, gets the same second past the next one.
+    static let readHold: TimeInterval = 1
+    /// The rows on the glass at once. A fast song would otherwise stack past
+    /// the slide's body; the next line pushes the oldest out early.
+    static let maxRows = 3
 
     /// The whole track for a press. Every line ends itself — a sung line when
     /// the next one is due (or after `maxSeconds`, so an instrumental gap goes
@@ -243,7 +254,7 @@ extension SoundCaptions {
     static func schedule(for asset: String, clipSeconds: TimeInterval?) -> [CaptionLine] {
         guard let first = caption(for: asset) else { return [] }
         guard let sung = lyrics[asset], !sung.isEmpty else {
-            return [withWords(CaptionLine(at: 0, text: first, seconds: lifetime(clipSeconds: clipSeconds)), asset: asset)]
+            return [heldToBeRead(withWords(CaptionLine(at: 0, text: first, seconds: lifetime(clipSeconds: clipSeconds)), asset: asset))]
         }
         var cues = sung.map { (at: $0.at, text: "♪ \($0.text) ♪") }
         if cues[0].at >= titleLeadIn { cues.insert((at: 0, text: first), at: 0) }
@@ -252,12 +263,34 @@ extension SoundCaptions {
             let seconds: TimeInterval
             if i + 1 < cues.count {
                 let gap = cues[i + 1].at - at
-                seconds = gap <= maxSeconds ? gap + handover : maxSeconds
+                seconds = gap <= maxSeconds ? gap + readHold : maxSeconds
             } else {
                 seconds = lifetime(clipSeconds: clipSeconds.map { $0 - at })
             }
             return CaptionLine(at: at, text: cues[i].text, seconds: seconds)
-        }.map { withWords($0, asset: asset) }
+        }.map { heldToBeRead(withWords($0, asset: asset)) }
+    }
+
+    /// A timed line lives by its words, not by the clock of the track: until
+    /// its fill ends, plus `readHold` to read it, however long the clip goes
+    /// on after (no more words, the line goes) and however soon the next line
+    /// arrives (it rolls in underneath). Never under `minSeconds`.
+    static func heldToBeRead(_ line: CaptionLine) -> CaptionLine {
+        guard let last = line.words.last else { return line }
+        var held = line
+        held.seconds = max(last + lastWordSweep + readHold, minSeconds)
+        return held
+    }
+
+    /// Where each row of the roll-up sits, newest at the bottom: `heights`
+    /// oldest first, the answer the same way, in points above the stack's
+    /// foot. Pure, so the order of the rows is testable without a screen.
+    static func rollUp(heights: [CGFloat], gap: CGFloat) -> [CGFloat] {
+        var y: CGFloat = 0
+        return heights.reversed().map { h in
+            defer { y += h + gap }
+            return y
+        }.reversed()
     }
 
     // MARK: the karaoke fill (Victor, 2026-10-23: "TikTok style, yellow on
@@ -382,13 +415,19 @@ enum SubtitlesSwitch {
 /// captions.
 final class CaptionPanel: NSPanel {}
 
-/// The subtitle itself: one borderless panel, reused, centred near the bottom
-/// of the glass, the same size and in the same place whatever else is going on
-/// (Victor, 2026-10-14). The pill is a **55 % black** the slide shows
-/// through; the letters on it are opaque (until 2026-10-23 the whole caption
+/// The subtitle itself: one borderless panel, reused, near the bottom of the
+/// glass, the same size and in the same place whatever else is going on
+/// (Victor, 2026-10-14). The pills are a **55 % black** the slide shows
+/// through; the letters on them are opaque (until 2026-10-23 the whole caption
 /// sat at 50 %, and the karaoke yellow washed out to a cream nobody could
 /// tell from the white).
 ///
+/// - **A roll-up, not a swap** (Victor, 2026-11-04: "read from somewhere, don't
+///   let it leave the screen fast"). Each line is its own row, its own pill. A
+///   new line comes in at the bottom and pushes the others up; a row whose
+///   time is up floats on upward and fades out by itself, so a line stays for
+///   its `readHold` while the next one is already being sung under it. No more
+///   words, no more rows.
 /// - **Painted last.** Its window level (`windowLevel`) is above every other
 ///   window this app opens — the overlay, the whip, the edge flash, even the
 ///   peek mascot — so no effect can cover it. It stays an ordinary window: Zoom
@@ -396,16 +435,15 @@ final class CaptionPanel: NSPanel {}
 /// - **Left out of our own screenshots**, so a screenshot effect (💀 #39, 🎼,
 ///   🚔, 💓…) never zooms a frozen copy of it under the live one.
 /// - **Pinned through the zooms.** macOS ⌥-scroll magnifies the framebuffer,
-///   this panel included, so the caption is laid out at its rest size and then
+///   this panel included, so the stage is laid out at its rest size and then
 ///   scaled down by the zoom factor and centred on the slice on the glass —
 ///   re-placed at 30 Hz while it is up, so a pan or a zoom mid-caption does not
 ///   leave it behind. The other zoom (⌥⇧, `ShareZoom` in addons) is a window
 ///   *under* this one, so it needs nothing here.
 ///
-/// A new caption replaces the one on screen; `hide()` is what `stopAll` calls.
-/// Neither is what ends it: every `show` schedules its own removal (the
-/// self-termination rule), and a removal that finds a newer caption up does
-/// nothing.
+/// A new press clears the rows of the old one; `hide()` is what `stopAll` calls.
+/// Neither is what ends a row: every `show` schedules its own removal (the
+/// self-termination rule), and a removal that finds its row gone does nothing.
 enum CaptionOverlay {
     /// The pill's black. The text is drawn opaque over it.
     static let pillAlpha: CGFloat = 0.55
@@ -418,6 +456,16 @@ enum CaptionOverlay {
     static let windowLevel = NSWindow.Level(rawValue: EffectsLevel.overlay.rawValue + 2)
     static let followInterval: TimeInterval = 1.0 / 30
     static let fadeOutSeconds: TimeInterval = 0.4
+    /// How long the rows take to make room for a new one.
+    static let rollSeconds: TimeInterval = 0.25
+    /// Between two rows.
+    static let rowGap: CGFloat = 8
+    /// How far a new row rises as it comes in, and a leaving one as it goes.
+    static let rowTravel: CGFloat = 36
+    /// The stage reaches this far under the first row, or a row rising from
+    /// below would be cut off by the panel's edge. Taken off the panel's
+    /// origin, so the row itself sits at `bottomInset` as it always did.
+    static let stageFoot: CGFloat = rowTravel + 4
     /// The said words: a saturated, opaque yellow…
     static let litColor = NSColor(srgbRed: 1, green: 0.8, blue: 0, alpha: 1)
     /// …on words still to come dimmed to a grey, so the step from one to the
@@ -426,8 +474,16 @@ enum CaptionOverlay {
     /// a title) is never dimmed: it is plain white throughout.
     static let upcomingColor = NSColor(white: 1, alpha: 0.55)
 
+    /// One line on the glass.
+    private final class Row {
+        let box: CALayer
+        let height: CGFloat
+        init(box: CALayer, height: CGFloat) { self.box = box; self.height = height }
+    }
+
     private static var panel: CaptionPanel?
-    private static var generation = 0
+    /// Oldest first; the last one is the bottom row.
+    private static var rows: [Row] = []
     /// Bumped by every new track and every `hide()`: a sung line still queued
     /// from a song that was stopped, or replaced by another press, finds it
     /// moved and stays down.
@@ -437,7 +493,7 @@ enum CaptionOverlay {
     /// (or its natural end, reported late) leaves a newer caption alone.
     private static var trackAsset: String?
     /// What is up now, kept to re-place it when the zoom moves.
-    private static var shown: (box: CALayer, restSize: CGSize, screen: CGRect, visible: CGRect)?
+    private static var shown: (stage: CALayer, restSize: CGSize, screen: CGRect, visible: CGRect)?
     private static var follower: Timer?
 
     /// The caption's window while it is on the glass, nil otherwise. Read off
@@ -473,6 +529,7 @@ enum CaptionOverlay {
                      asset: String? = nil) {
         track += 1
         trackAsset = asset
+        clearRows(over: 0.15)   // a newer press: the old song's rows do not stay to be read
         let current = track
         let start = DispatchTime.now() + delay
         for line in lines {
@@ -542,9 +599,6 @@ enum CaptionOverlay {
     }
 
     static func show(_ text: String, seconds: TimeInterval, words: [TimeInterval] = [], on screen: NSScreen) {
-        generation += 1
-        let gen = generation
-
         // Laid out once at the rest size; the zoom only ever scales it.
         let label = Self.label(text, color: words.isEmpty ? .white : upcomingColor)
         let maxTextWidth = screen.frame.width * 0.8
@@ -552,22 +606,13 @@ enum CaptionOverlay {
             with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading]).size
         let padH: CGFloat = 26, padV: CGFloat = 12
-        let restSize = CGSize(width: ceil(textSize.width) + 2 * padH,
-                              height: ceil(textSize.height) + 2 * padV)
+        let rowSize = CGSize(width: ceil(textSize.width) + 2 * padH,
+                             height: ceil(textSize.height) + 2 * padV)
 
-        let panel = self.panel ?? makePanel()
-        self.panel = panel
-        // The next sung line over a caption still up swaps in place: a fade
-        // from zero there would blink between every two lines of a song.
-        let replacing = panel.isVisible && (panel.contentView?.layer?.opacity ?? 0) > 0
-
-        let view = NSView(frame: NSRect(origin: .zero, size: restSize))
-        view.wantsLayer = true
-        guard let layer = view.layer else { return }
+        let stage = stage(on: screen)
         let box = CALayer()
-        box.anchorPoint = .zero
-        box.bounds = CGRect(origin: .zero, size: restSize)
-        box.position = .zero
+        box.anchorPoint = CGPoint(x: 0.5, y: 0)
+        box.bounds = CGRect(origin: .zero, size: rowSize)
         box.backgroundColor = NSColor.black.withAlphaComponent(pillAlpha).cgColor
         box.cornerRadius = 14
         let textLayer = CATextLayer()
@@ -588,30 +633,124 @@ enum CaptionOverlay {
             lit.mask = sweep(lit.string as! NSAttributedString, in: lit.frame.size, path: path)
             box.addSublayer(lit)
         }
-        layer.addSublayer(box)
 
-        // A fresh view per caption, so a fade still running on the previous
-        // one (the pre-press stop-all hides it) cannot touch this one.
-        panel.contentView = view
-        shown = (box, restSize, screen.frame, .null)
-        place(screen: screen)
-        layer.opacity = 1
-        if !replacing {
-            let fadeIn = CABasicAnimation(keyPath: "opacity")
-            fadeIn.fromValue = 0
-            fadeIn.toValue = 1
-            fadeIn.duration = 0.15
-            layer.add(fadeIn, forKey: "fadeIn")
-        }
-        panel.orderFrontRegardless()
-        setOnGlass(CGWindowID(panel.windowNumber))
+        // The row that has no room leaves now, not when its time is up.
+        while rows.count >= SoundCaptions.maxRows { leave(rows[0], over: rollSeconds) }
+
+        let row = Row(box: box, height: rowSize.height)
+        let centre = stage.bounds.midX
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        box.position = CGPoint(x: centre, y: stageFoot - rowTravel)
+        box.opacity = 0
+        stage.addSublayer(box)
+        CATransaction.commit()
+        rows.append(row)
+        relay()
+        fadeIn(box)
+
+        panel?.orderFrontRegardless()
+        panel.map { setOnGlass(CGWindowID($0.windowNumber)) }
         startFollowing(screen)
 
-        let fadeOut = fadeOutSeconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, seconds - fadeOut)) {
-            guard gen == generation else { return }
-            fade(over: fadeOut, generation: gen)
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, seconds - fadeOutSeconds)) {
+            guard rows.contains(where: { $0 === row }) else { return }
+            leave(row, over: fadeOutSeconds)
         }
+    }
+
+    /// The layer every row hangs from, made when the first row goes up and
+    /// dropped with the last: a full-width canvas, so a row changing width or
+    /// a row floating up never resizes the window under the others.
+    private static func stage(on screen: NSScreen) -> CALayer {
+        if let shown { return shown.stage }
+        let panel = self.panel ?? makePanel()
+        self.panel = panel
+        let restSize = CGSize(width: screen.frame.width, height: screen.frame.height * 0.5)
+        let view = NSView(frame: NSRect(origin: .zero, size: restSize))
+        view.wantsLayer = true
+        let stage = CALayer()
+        stage.anchorPoint = .zero
+        stage.bounds = CGRect(origin: .zero, size: restSize)
+        stage.position = .zero
+        view.layer?.addSublayer(stage)
+        panel.contentView = view
+        shown = (stage, restSize, screen.frame, .null)
+        place(screen: screen)
+        return stage
+    }
+
+    /// Slides every row to its place in the stack.
+    private static func relay() {
+        let ys = SoundCaptions.rollUp(heights: rows.map(\.height), gap: rowGap)
+        for (row, y) in zip(rows, ys) { slide(row.box, toY: stageFoot + y) }
+    }
+
+    /// Explicit, from wherever the row is now: a roll that starts during the
+    /// previous one must carry on from the screen, not jump.
+    private static func slide(_ box: CALayer, toY y: CGFloat, over seconds: TimeInterval = rollSeconds) {
+        let from = box.presentation()?.position ?? box.position
+        let to = CGPoint(x: box.position.x, y: y)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        box.position = to
+        CATransaction.commit()
+        let roll = CABasicAnimation(keyPath: "position")
+        roll.fromValue = NSValue(point: from)
+        roll.toValue = NSValue(point: to)
+        roll.duration = seconds
+        roll.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        box.add(roll, forKey: "roll")
+    }
+
+    private static func fadeIn(_ box: CALayer) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        box.opacity = 1
+        CATransaction.commit()
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 0
+        fade.toValue = 1
+        fade.duration = rollSeconds
+        box.add(fade, forKey: "fade")
+    }
+
+    /// A row goes: up and out, whatever is below it staying where it is. The
+    /// rows above it, if it was not the top one, close the gap. The panel
+    /// leaves the screen with its last row.
+    private static func leave(_ row: Row, over seconds: TimeInterval) {
+        guard let i = rows.firstIndex(where: { $0 === row }) else { return }
+        let hadRowsAbove = i > 0
+        rows.remove(at: i)
+        if hadRowsAbove { relay() }
+        let box = row.box
+        CATransaction.begin()
+        CATransaction.setCompletionBlock {
+            box.removeFromSuperlayer()
+            if rows.isEmpty { panelDown() }
+        }
+        slide(box, toY: box.position.y + rowTravel, over: seconds)
+        let from = box.presentation()?.opacity ?? box.opacity
+        CATransaction.setDisableActions(true)
+        box.opacity = 0
+        let out = CABasicAnimation(keyPath: "opacity")
+        out.fromValue = from
+        out.toValue = 0
+        out.duration = seconds
+        box.add(out, forKey: "fade")
+        CATransaction.commit()
+    }
+
+    private static func clearRows(over seconds: TimeInterval) {
+        for row in rows { leave(row, over: seconds) }
+    }
+
+    /// The last row is gone. Unless another press got in during its fade.
+    private static func panelDown() {
+        guard rows.isEmpty else { return }
+        panel?.orderOut(nil)
+        panel?.contentView = NSView()
+        stopFollowing()
     }
 
     /// Puts the caption on the slice that is on the glass now. A no-op while
@@ -621,12 +760,13 @@ enum CaptionOverlay {
         let visible = ScreenZoom.visibleRect(in: screen.frame, of: screen)
         guard visible != current.visible else { return }
         shown?.visible = visible
-        let (frame, k) = placement(restSize: current.restSize, visible: visible, screen: screen.frame)
+        var (frame, k) = placement(restSize: current.restSize, visible: visible, screen: screen.frame)
+        frame.origin.y -= stageFoot * k
         // No implicit animation: a 33 ms correction that eases reads as the
         // caption swimming after the pan.
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        current.box.setAffineTransform(CGAffineTransform(scaleX: k, y: k))
+        current.stage.setAffineTransform(CGAffineTransform(scaleX: k, y: k))
         CATransaction.commit()
         panel.setFrame(frame, display: true)
     }
@@ -650,9 +790,7 @@ enum CaptionOverlay {
     static func hide() {
         track += 1
         trackAsset = nil
-        guard let panel, panel.isVisible else { return }
-        generation += 1
-        fade(over: 0.2, generation: generation)
+        clearRows(over: 0.2)
     }
 
     /// One tile stopped (a re-tap, the panel, the tablet's `/sound/stopped`):
@@ -661,25 +799,6 @@ enum CaptionOverlay {
     static func hide(asset: String) {
         guard trackAsset == asset else { return }
         hide()
-    }
-
-    private static func fade(over seconds: TimeInterval, generation gen: Int) {
-        guard let panel, let layer = panel.contentView?.layer else { return }
-        // Explicit, not implicit: a view's backing layer has its implicit
-        // animations switched off, so a bare `opacity = 0` would just blink out.
-        CATransaction.begin()
-        CATransaction.setCompletionBlock {
-            guard gen == generation else { return }
-            panel.orderOut(nil)
-            stopFollowing()
-        }
-        let out = CABasicAnimation(keyPath: "opacity")
-        out.fromValue = layer.presentation()?.opacity ?? layer.opacity
-        out.toValue = 0
-        out.duration = seconds
-        layer.opacity = 0
-        layer.add(out, forKey: "fadeOut")
-        CATransaction.commit()
     }
 
     private static func makePanel() -> CaptionPanel {

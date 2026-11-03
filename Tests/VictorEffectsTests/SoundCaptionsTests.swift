@@ -38,7 +38,7 @@ final class SoundCaptionsTests: XCTestCase {
     }
 
     /// The point of the track: the words go up as they are sung, each line
-    /// overlapping the next by the handover so they swap instead of blinking.
+    /// each one staying up until it has been read, under the next one coming in.
     func testASongFlowsLineByLine() {
         let track = SoundCaptions.schedule(for: "76_sfx_118.mp3", clipSeconds: 6.55)
         XCTAssertEqual(track.map(\.text), ["♪ Wasn't me ♪",
@@ -46,9 +46,11 @@ final class SoundCaptionsTests: XCTestCase {
                                            "♪ Wasn't me ♪",
                                            "♪ Heard the screams getting louder ♪",
                                            "♪ Wasn't me ♪"])
-        XCTAssertEqual(track[0].seconds, 0.7 + SoundCaptions.handover, accuracy: 0.001)
-        XCTAssertEqual(track.last!.seconds, SoundCaptions.minSeconds, accuracy: 0.001,
-                       "the last line still stays up long enough to read")
+        XCTAssertEqual(track[1].seconds, 1.58 + SoundCaptions.lastWordSweep + SoundCaptions.readHold, accuracy: 0.001,
+                       "until its last word is full, plus a second to read it")
+        XCTAssertGreaterThan(track[1].at + track[1].seconds, track[2].at, "the next line comes in under it")
+        XCTAssertEqual(track.first!.seconds, SoundCaptions.minSeconds, accuracy: 0.001,
+                       "a two-word line still stays up long enough to read")
     }
 
     /// Music is music with or without words (Victor, 2026-11-04): the room
@@ -71,14 +73,25 @@ final class SoundCaptionsTests: XCTestCase {
         let track = SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2)
         XCTAssertEqual(track.first?.text, "♪ Let it be ♪")
         XCTAssertEqual(track.first?.at, 0)
-        XCTAssertEqual(track.first!.seconds, 2.3 + SoundCaptions.handover, accuracy: 0.001)
+        XCTAssertEqual(track.first!.seconds, 2.3 + SoundCaptions.readHold, accuracy: 0.001)
         XCTAssertEqual(track[1].text, "♪ When I find myself in times of trouble ♪")
     }
 
-    func testAnInstrumentalGapGoesBlank() {
-        let track = SoundCaptions.schedule(for: "61_hallelujah.mp3", clipSeconds: 17.1)
-        XCTAssertEqual(track[0].seconds, SoundCaptions.maxSeconds,
-                       "seven silent seconds do not keep the last Hallelujah on the slide")
+    /// No more words, no more line: it does not wait for the clip to end, or
+    /// for the next line, whichever comes first.
+    func testALineLeavesAfterItsWordsNotAfterTheClip() {
+        let line = CaptionLine(at: 0, text: "♪ Let it be ♪", seconds: 6, words: [0, 1, 2])
+        XCTAssertEqual(SoundCaptions.heldToBeRead(line).seconds,
+                       2 + SoundCaptions.lastWordSweep + SoundCaptions.readHold, accuracy: 0.001)
+        let noise = CaptionLine(at: 0, text: "[wolf howling]", seconds: 4)
+        XCTAssertEqual(SoundCaptions.heldToBeRead(noise), noise, "nothing said, nothing to hold")
+    }
+
+    /// The roll-up: the newest row sits at the foot, the older ones above it.
+    func testRowsRollUpFromTheFoot() {
+        XCTAssertEqual(SoundCaptions.rollUp(heights: [60, 110, 60], gap: 8), [186, 68, 0])
+        XCTAssertEqual(SoundCaptions.rollUp(heights: [60], gap: 8), [0])
+        XCTAssertEqual(SoundCaptions.rollUp(heights: [], gap: 8), [])
     }
 
     /// A line out of order would be shown and immediately replaced; a song
