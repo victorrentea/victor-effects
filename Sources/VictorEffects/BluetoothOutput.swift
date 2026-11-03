@@ -161,6 +161,50 @@ enum BluetoothOutput {
         return running != 0
     }
 
+    /// Apps that keep an output stream open while silent, so a device they hold
+    /// reads "running" all day. Wispr Flow's helper does (2026-11-03): with it
+    /// open the JBL was never idle, and the speaker-battery re-link that waits
+    /// for an idle speaker never ran — the 🔊 chip sat grey all morning.
+    static let silentOutputHolders = ["com.electron.wispr-flow"]
+
+    /// Bundle ids (or `pid <n>`) of the processes sending output right now,
+    /// minus `silentOutputHolders`. Not per device — CoreAudio does not say
+    /// which device a process feeds — so a caller pairs it with
+    /// `isRunningSomewhere`. Unreadable list → empty.
+    static func audibleOutputProcesses() -> [String] {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyProcessObjectList,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size) == noErr else { return [] }
+        var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &ids) == noErr else { return [] }
+        return ids.compactMap { p -> String? in
+            var a = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyIsRunningOutput,
+                                               mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            var running: UInt32 = 0
+            var s = UInt32(MemoryLayout<UInt32>.size)
+            guard AudioObjectGetPropertyData(p, &a, 0, nil, &s, &running) == noErr, running != 0 else { return nil }
+            a.mSelector = kAudioProcessPropertyBundleID
+            var cf: Unmanaged<CFString>?
+            s = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+            let bundle = AudioObjectGetPropertyData(p, &a, 0, nil, &s, &cf) == noErr
+                ? (cf?.takeRetainedValue() as String?) ?? "" : ""
+            if !bundle.isEmpty { return bundle }
+            a.mSelector = kAudioProcessPropertyPID
+            var pid: pid_t = 0
+            s = UInt32(MemoryLayout<pid_t>.size)
+            _ = AudioObjectGetPropertyData(p, &a, 0, nil, &s, &pid)
+            return "pid \(pid)"
+        }.filter { !isSilentHolder($0) }
+    }
+
+    /// Pure: is this bundle id one of `silentOutputHolders` (or a helper of one)?
+    static func isSilentHolder(_ bundle: String) -> Bool {
+        silentOutputHolders.contains { bundle == $0 || bundle.hasPrefix($0 + ".") }
+    }
+
     /// The current default output device's id, or 0 if unreadable.
     static func defaultOutputID() -> AudioDeviceID {
         let sys = AudioObjectID(kAudioObjectSystemObject)

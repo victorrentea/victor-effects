@@ -316,7 +316,7 @@ round read 60 %. So a round that finds nobody to visit re-links the connected
 speaker that has no *fresh* reading (`relinkCandidate`; fresh = under 10 min,
 the tablet's own grey threshold — on 2026-11-03 yesterday's 100 % counted as
 "read" and kept a speaker that reconnected hidden grey all morning): once per connection, only while
-nothing plays into it (`kAudioDevicePropertyDeviceIsRunningSomewhere`), and the
+nothing plays into it (`kAudioDevicePropertyDeviceIsRunningSomewhere` **and** an audible process behind it — `audibleOutputProcesses`, minus `silentOutputHolders`: Wispr Flow's helper holds the output open in silence all day, and on 2026-11-03 that alone kept the re-link from ever running; a skip now logs `🔊🔋 not re-linking … yet: audio running (<bundle ids>)` once), and the
 default output is put back if it was that speaker. The cost is ~6 s of the
 speaker gone and its reconnect beep, once; it logs `🔊🔋 re-linking …`.
 

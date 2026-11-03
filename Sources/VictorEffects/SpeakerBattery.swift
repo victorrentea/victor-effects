@@ -68,6 +68,8 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     private var lastEmptyRound = ""
     /// Speakers re-linked during their current connection (`relinkHidden`).
     private var relinked: Set<String> = []
+    /// The last "not re-linking yet" line, logged once per change of culprits.
+    private var lastRelinkSkip = ""
 
     func start() {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -236,7 +238,18 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         guard let mac = Self.relinkCandidate(connected: connected, read: Self.freshlyRead(readings, now: Date()), relinked: relinked),
               let dev = IOBluetoothDevice(addressString: mac),
               let out = BluetoothOutput.outputDevices().first(where: { Self.mac(fromUID: $0.uid) == mac }) else { return }
-        if BluetoothOutput.isRunningSomewhere(out.id) { return }  // retried next round
+        // Retried next round. "Running" alone is not "playing": an app that
+        // holds the output open in silence (Wispr Flow) would block this
+        // forever, so it only counts with an audible process behind it.
+        if BluetoothOutput.isRunningSomewhere(out.id) {
+            let audible = BluetoothOutput.audibleOutputProcesses()
+            if !audible.isEmpty {
+                let line = "🔊🔋 not re-linking \(mac) yet: audio running (\(audible.sorted().joined(separator: ", ")))"
+                if line != lastRelinkSkip { effectsInfo(line); lastRelinkSkip = line }
+                return
+            }
+        }
+        lastRelinkSkip = ""
         relinked.insert(mac)
         let wasDefault = BluetoothOutput.defaultOutputID() == out.id
         effectsInfo("🔊🔋 re-linking \(mac): hidden over Classic and BLE, and silent right now")

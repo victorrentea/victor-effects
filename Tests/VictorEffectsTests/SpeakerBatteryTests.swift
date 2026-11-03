@@ -75,6 +75,13 @@ final class SpeakerBatteryTests: XCTestCase {
         XCTAssertNil(SpeakerBattery.relinkCandidate(connected: [a], read: [a], relinked: []))
     }
 
+    func testWisprFlowHoldingTheOutputOpenIsNotPlaying() {
+        XCTAssertTrue(BluetoothOutput.isSilentHolder("com.electron.wispr-flow.helper"))
+        XCTAssertTrue(BluetoothOutput.isSilentHolder("com.electron.wispr-flow"))
+        XCTAssertFalse(BluetoothOutput.isSilentHolder("com.google.Chrome.helper"))
+        XCTAssertFalse(BluetoothOutput.isSilentHolder("com.electron.wispr-flowers"))
+    }
+
     func testAStaleReadingDoesNotCountAsRead() {
         let now = Date()
         let readings = [
