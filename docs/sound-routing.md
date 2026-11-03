@@ -327,6 +327,27 @@ learn its MAC (`toVisit`); a JBL that turns out to be somebody else's is not
 visited again. With two boxes connected the tablet gets the default output's,
 else the emptiest (`pick`).
 
+**Two boxes linked to each other** (2026-11-03). Two Go 4s linked by their
+own Auracast button play as one: only the first is connected to the Mac, the
+other takes the audio from it, refuses a page from the Mac (`openConnection`
+times out) and advertises non-connectable only — so it cannot be reached
+directly at all. It is reached *through* the first: the byte after `<len>`
+is the box's index in the link (`00` the one we talk to, `01` the linked
+one), and ~2 s after the first box's burst come, unasked, `01` frames with
+the linked box's battery, firmware and serial (no `0x48` MAC). Until this
+date the parser ignored that byte, so the linked box's 60 % overwrote the
+connected one's 45 % whenever both landed in one visit — the log's 45 ↔ 60
+flapping. Now `parseFrames` keeps them apart, a visit waits up to 3 s more
+for the `01` battery when token `0x4F` is not a clear `00` (`01` on both
+while linked; its unlinked value is a guess), and the linked box's reading is
+dropped once a visit sees `0x4F` = `00` or it is 10 min old.
+
+`/ping` carries a second chip: `speaker2ChargePct` / `speaker2Charging` /
+`speaker2ChargeAgeS` (same -1 when none) — the box linked to the first, else
+the other connected one (`pickBoth`). The first chip's three keys are
+unchanged, so a tablet that does not know `speaker2*` still shows the same
+box as before.
+
 **Grant.** CoreBluetooth needs `NSBluetoothAlwaysUsageDescription`
 (`build-app.sh` writes it) and asks for the Bluetooth permission the first
 time a JBL is connected — not before, the manager is created lazily. Denied →

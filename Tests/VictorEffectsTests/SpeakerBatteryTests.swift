@@ -90,4 +90,59 @@ final class SpeakerBatteryTests: XCTestCase {
         ]
         XCTAssertEqual(SpeakerBattery.freshlyRead(readings, now: now), ["BB-BB-BB-BB-BB-BB"])
     }
+
+    // MARK: two boxes linked to each other (2026-11-03, F3-69 linked to the other Go 4)
+
+    func testTheLinkedBoxsFramesAreKeptApart() {
+        var mine: [UInt8: [UInt8]] = [:], linked: [UInt8: [UInt8]] = [:]
+        for n in ["aa 12 03 00 44 2d", "aa 12 08 00 48 e8 26 cf c6 f3 69", "aa 12 03 00 4f 01",
+                  "aa 12 03 00 4f 01", "aa 12 06 01 4d 30 36 30 30", "aa 12 03 01 44 3c"] {
+            let f = SpeakerBattery.parseFrames(bytes(n))
+            mine.merge(f[0] ?? [:]) { _, new in new }
+            linked.merge(f[1] ?? [:]) { _, new in new }
+        }
+        XCTAssertEqual(SpeakerBattery.battery(mine)?.pct, 45)
+        XCTAssertEqual(SpeakerBattery.mac(mine), "E8-26-CF-C6-F3-69")
+        XCTAssertEqual(SpeakerBattery.battery(linked)?.pct, 60)
+        XCTAssertNil(SpeakerBattery.mac(linked))
+        XCTAssertTrue(SpeakerBattery.mayBeLinked(mine))
+    }
+
+    func testParseInfoNoLongerLetsTheLinkedBoxOverwriteTheBattery() {
+        let info = SpeakerBattery.parseInfo(bytes("aa 12 03 00 44 2d aa 12 03 01 44 3c"))
+        XCTAssertEqual(SpeakerBattery.battery(info)?.pct, 45)
+    }
+
+    func testAClearZeroMeansNotLinked() {
+        XCTAssertFalse(SpeakerBattery.mayBeLinked([0x4F: [0x00]]))
+    }
+
+    func testSecondChipIsTheLinkedBox() {
+        let (one, two) = SpeakerBattery.pickBoth(readings: [b: r(45)], linked: [b: r(60)],
+                                                 connectedMacs: [b], defaultMac: b)
+        XCTAssertEqual(one?.pct, 45)
+        XCTAssertEqual(two?.pct, 60)
+    }
+
+    func testSecondChipIsTheOtherConnectedBox() {
+        let (one, two) = SpeakerBattery.pickBoth(readings: [a: r(80), b: r(20)], linked: [:],
+                                                 connectedMacs: [a, b], defaultMac: a)
+        XCTAssertEqual(one?.pct, 80)
+        XCTAssertEqual(two?.pct, 20)
+    }
+
+    func testNoSpeakerNoChips() {
+        let (one, two) = SpeakerBattery.pickBoth(readings: [a: r(80)], linked: [a: r(60)],
+                                                 connectedMacs: [], defaultMac: nil)
+        XCTAssertNil(one)
+        XCTAssertNil(two)
+    }
+
+    func testPingKeepsTheOldKeysAndAddsTheSecond() {
+        let now = Date()
+        XCTAssertEqual(SpeakerBattery.fields("speaker2", nil, now),
+                       "\"speaker2ChargePct\":-1,\"speaker2Charging\":false,\"speaker2ChargeAgeS\":0")
+        XCTAssertEqual(SpeakerBattery.fields("speaker", .init(pct: 45, charging: true, at: now.addingTimeInterval(-5)), now),
+                       "\"speakerChargePct\":45,\"speakerCharging\":true,\"speakerChargeAgeS\":5")
+    }
 }

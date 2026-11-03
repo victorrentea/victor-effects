@@ -13,6 +13,12 @@ import IOBluetooth
 /// frames, `0x44` = battery (low 7 bits %, top bit charging), `0x48` = the
 /// speaker's classic MAC. `docs/sound-routing.md` → *Speaker battery*.
 ///
+/// **Two boxes linked to each other** (Auracast party, the Go 4's own button)
+/// answer through the one connected to the Mac: the byte after `<len>` is the
+/// box's index in the link, `00` the one we talk to, `01` the one linked to it
+/// — whose frames follow ~2 s later, unasked, with its battery but no MAC
+/// (confirmed 2026-11-03). Reported as the second chip, `speaker2*`.
+///
 /// **The speaker takes one control connection at a time**, so the phone's JBL
 /// app cannot connect while we hold it. Hence a short visit every
 /// `interval` — connect, ask, disconnect — never a held connection.
@@ -46,8 +52,15 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     private static let scanSeconds: TimeInterval = 6
     private static let visitSeconds: TimeInterval = 6
 
+    /// After the connected box has answered, how long a visit waits for the
+    /// box linked to it (whose frames came 2.0–2.1 s later every time).
+    private static let linkedGrace: TimeInterval = 3
+
     /// Main queue only (CoreBluetooth is created on it, `/ping` is served on it).
     private(set) var readings: [String: Reading] = [:]
+    /// The box linked to each connected one (keyed by the connected box's MAC):
+    /// it has no link to this Mac and does not say its MAC, only its battery.
+    private(set) var linkedReadings: [String: Reading] = [:]
     private var central: CBCentralManager?
     private var timer: Timer?
     private var busy = false
@@ -58,6 +71,8 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     private var queue: [CBPeripheral] = []
     private var current: CBPeripheral?
     private var currentFrames: [UInt8: [UInt8]] = [:]
+    private var currentLinked: [UInt8: [UInt8]] = [:]
+    private var lingering = false
     private var visitDeadline: DispatchWorkItem?
     private var loggedDenied = false
     /// How far the current visit got — logged when it ends without a reading,
@@ -81,12 +96,32 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
 
     /// The fields spliced into `/ping` — flat, like every other key there.
     /// `speakerChargePct` -1 = no connected JBL has been read.
+    /// `speaker2*` is the other box: the one linked to it, else the other
+    /// connected one (`pickBoth`); the same -1 when there is none.
     func pingFields(now: Date = Date()) -> String {
-        let r = Self.pick(readings: readings, connectedMacs: Self.connectedSpeakerMacs(),
-                          defaultMac: Self.mac(fromUID: BluetoothOutput.deviceUID(BluetoothOutput.defaultOutputID())))
-        guard let r else { return "\"speakerChargePct\":-1,\"speakerCharging\":false,\"speakerChargeAgeS\":0" }
-        return "\"speakerChargePct\":\(r.pct),\"speakerCharging\":\(r.charging),"
-            + "\"speakerChargeAgeS\":\(max(0, Int(now.timeIntervalSince(r.at))))"
+        let (first, second) = Self.pickBoth(
+            readings: readings, linked: linkedReadings, connectedMacs: Self.connectedSpeakerMacs(),
+            defaultMac: Self.mac(fromUID: BluetoothOutput.deviceUID(BluetoothOutput.defaultOutputID())))
+        return Self.fields("speaker", first, now) + "," + Self.fields("speaker2", second, now)
+    }
+
+    static func fields(_ prefix: String, _ r: Reading?, _ now: Date) -> String {
+        guard let r else { return "\"\(prefix)ChargePct\":-1,\"\(prefix)Charging\":false,\"\(prefix)ChargeAgeS\":0" }
+        return "\"\(prefix)ChargePct\":\(r.pct),\"\(prefix)Charging\":\(r.charging),"
+            + "\"\(prefix)ChargeAgeS\":\(max(0, Int(now.timeIntervalSince(r.at))))"
+    }
+
+    /// The tablet's two chips: the first is `pick`'s; the second is the box
+    /// linked to it, or — two boxes each connected to the Mac — the other
+    /// connected one. Pure.
+    static func pickBoth(readings: [String: Reading], linked: [String: Reading],
+                         connectedMacs: Set<String>, defaultMac: String?) -> (Reading?, Reading?) {
+        let live = readings.filter { connectedMacs.contains($0.key) }
+        guard let firstMac = (defaultMac.flatMap { live[$0] != nil ? $0 : nil })
+                ?? live.min(by: { $0.value.pct < $1.value.pct })?.key else { return (nil, nil) }
+        if let l = linked[firstMac] { return (live[firstMac], l) }
+        let other = live.filter { $0.key != firstMac }.min { $0.value.pct < $1.value.pct }?.value
+        return (live[firstMac], other)
     }
 
     /// Which reading the tablet shows: the speaker that is the Mac's default
@@ -128,19 +163,31 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// Splits one notification into `token → value` pairs. A notification may
     /// carry several `AA 12 <len> 00 <token> <value…>` frames back to back;
     /// `len` counts from the `00` to the end of the value.
-    static func parseInfo(_ bytes: [UInt8]) -> [UInt8: [UInt8]] {
-        var out: [UInt8: [UInt8]] = [:]
+    /// The byte at `<len>`+1 is which box of a link the frame is about
+    /// (`00` the one we talk to, `01` the one linked to it).
+    static func parseFrames(_ bytes: [UInt8]) -> [UInt8: [UInt8: [UInt8]]] {
+        var out: [UInt8: [UInt8: [UInt8]]] = [:]
         var i = 0
         while i + 5 <= bytes.count {
             guard bytes[i] == 0xAA, bytes[i + 1] == 0x12 else { i += 1; continue }
             let len = Int(bytes[i + 2])
             let end = i + 3 + len
             guard len >= 2, end <= bytes.count else { break }
-            out[bytes[i + 4]] = Array(bytes[(i + 5)..<end])
+            out[bytes[i + 3], default: [:]][bytes[i + 4]] = Array(bytes[(i + 5)..<end])
             i = end
         }
         return out
     }
+
+    /// Only the box we talk to. Until 2026-11-03 the index was ignored, so
+    /// the linked box's battery (60 %) overwrote the connected one's (45 %)
+    /// whenever its frames made it into the same visit.
+    static func parseInfo(_ bytes: [UInt8]) -> [UInt8: [UInt8]] { parseFrames(bytes)[0] ?? [:] }
+
+    /// Is the box we talk to linked to another? Token `0x4F`, `01` on both
+    /// Go 4s while linked (2026-11-03). Its value alone has not been seen yet,
+    /// so anything but a clear `00` counts as "maybe" and costs the 3 s wait.
+    static func mayBeLinked(_ info: [UInt8: [UInt8]]) -> Bool { info[0x4F]?.first != 0 }
 
     /// Battery token `0x44`: low 7 bits = %, top bit = charging.
     static func battery(_ info: [UInt8: [UInt8]]) -> (pct: Int, charging: Bool)? {
@@ -287,6 +334,8 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         let p = queue.removeFirst()
         current = p
         currentFrames = [:]
+        currentLinked = [:]
+        lingering = false
         stage = "connect"
         p.delegate = self
         c.connect(p)
@@ -311,6 +360,19 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             readings[mac] = Reading(pct: b.pct, charging: b.charging, at: Date())
             if old?.pct != b.pct || old?.charging != b.charging {
                 effectsInfo("🔊🔋 \(mac) \(b.pct)%\(b.charging ? " ⚡" : "")")
+            }
+            let oldLinked = linkedReadings[mac]
+            if let l = Self.battery(currentLinked) {
+                linkedReadings[mac] = Reading(pct: l.pct, charging: l.charging, at: Date())
+                if oldLinked?.pct != l.pct || oldLinked?.charging != l.charging {
+                    effectsInfo("🔊🔋 linked to \(mac): \(l.pct)%\(l.charging ? " ⚡" : "")")
+                }
+            } else if let o = oldLinked, !Self.mayBeLinked(currentFrames)
+                        || Date().timeIntervalSince(o.at) >= Self.staleAfter {
+                // Unlinked (or the link stopped answering): a second chip that
+                // only dims would keep promising a box that is gone.
+                linkedReadings[mac] = nil
+                effectsInfo("🔊🔋 \(mac) no longer linked to another box")
             }
         }
         visitNext()
@@ -376,11 +438,19 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
 
     func peripheral(_ p: CBPeripheral, didUpdateValueFor ch: CBCharacteristic, error: Error?) {
         guard let v = ch.value else { return }
-        currentFrames.merge(Self.parseInfo([UInt8](v))) { _, new in new }
+        let frames = Self.parseFrames([UInt8](v))
+        currentFrames.merge(frames[0] ?? [:]) { _, new in new }
+        currentLinked.merge(frames[1] ?? [:]) { _, new in new }
         // The burst ends with tokens past 0x48; once both answers are in,
-        // there is no reason to keep the phone's app locked out any longer.
-        if Self.mac(currentFrames) != nil, Self.battery(currentFrames) != nil {
+        // there is no reason to keep the phone's app locked out any longer —
+        // except for the linked box's, which arrive ~2 s later.
+        guard Self.mac(currentFrames) != nil, Self.battery(currentFrames) != nil else { return }
+        if Self.battery(currentLinked) != nil || !Self.mayBeLinked(currentFrames) {
             DispatchQueue.main.async { [weak self] in self?.endVisit(p) }
+        } else if !lingering, currentFrames[0x4F] != nil {
+            lingering = true
+            stage = "linked box"
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.linkedGrace) { [weak self] in self?.endVisit(p) }
         }
     }
 }
