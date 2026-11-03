@@ -342,6 +342,12 @@ for the `01` battery when token `0x4F` is not a clear `00` (`01` on both
 while linked; its unlinked value is a guess), and the linked box's reading is
 dropped once a visit sees `0x4F` = `00` or it is 10 min old.
 
+The re-link (*Hidden both ways* above) does not break the link: on
+2026-11-03, with both boxes linked and playing, the first box came back from
+a hidden reconnect only after a re-link, and the very next visit read both
+(45 % and 60 %), the two boxes still playing together. The only cost is the
+audio gap while the Mac's link is down.
+
 `/ping` carries a second chip: `speaker2ChargePct` / `speaker2Charging` /
 `speaker2ChargeAgeS` (same -1 when none) — the box linked to the first, else
 the other connected one (`pickBoth`). The first chip's three keys are
