@@ -431,6 +431,10 @@ enum CaptionOverlay {
     /// from a song that was stopped, or replaced by another press, finds it
     /// moved and stays down.
     private static var track = 0
+    /// The clip the current track belongs to: a stop of THAT tile takes the
+    /// caption down with its sound (`hide(asset:)`); a stop of another one
+    /// (or its natural end, reported late) leaves a newer caption alone.
+    private static var trackAsset: String?
     /// What is up now, kept to re-place it when the zoom moves.
     private static var shown: (box: CALayer, restSize: CGSize, screen: CGRect, visible: CGRect)?
     private static var follower: Timer?
@@ -464,8 +468,10 @@ enum CaptionOverlay {
     /// from `delay` from now — when the clip is first heard. Only the lines
     /// are scheduled here — each `show` still ends itself, so a track nobody
     /// stops dies with its last line.
-    static func play(_ lines: [CaptionLine], on screen: NSScreen, after delay: TimeInterval = 0) {
+    static func play(_ lines: [CaptionLine], on screen: NSScreen, after delay: TimeInterval = 0,
+                     asset: String? = nil) {
         track += 1
+        trackAsset = asset
         let current = track
         let start = DispatchTime.now() + delay
         for line in lines {
@@ -642,9 +648,18 @@ enum CaptionOverlay {
     /// with any sung lines still to come.
     static func hide() {
         track += 1
+        trackAsset = nil
         guard let panel, panel.isVisible else { return }
         generation += 1
         fade(over: 0.2, generation: generation)
+    }
+
+    /// One tile stopped (a re-tap, the panel, the tablet's `/sound/stopped`):
+    /// its words go with its sound, at once — the rest of a song's lines too.
+    /// Only if the caption is that tile's; a newer press's is left up.
+    static func hide(asset: String) {
+        guard trackAsset == asset else { return }
+        hide()
     }
 
     private static func fade(over seconds: TimeInterval, generation gen: Int) {

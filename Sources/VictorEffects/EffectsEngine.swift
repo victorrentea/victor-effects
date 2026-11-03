@@ -200,7 +200,10 @@ final class EffectsEngine {
         animator.startAlarmOverlay()
     }
 
-    func stopAlarm() { animator.stopAlarmOverlay() }
+    func stopAlarm() {
+        animator.stopAlarmOverlay()
+        CaptionOverlay.hide(asset: SoundboardPress.sirenAsset)
+    }
 
     /// The subtitle under a press (`SoundCaptions`). Called from the press
     /// routes, so it captions the tablet's local plays as well as this Mac's.
@@ -217,7 +220,7 @@ final class EffectsEngine {
         // track waits for that (2026-10-23: it led the voice by ~1.3 s).
         let delay = heardIn(asset)
         if delay > 0 { effectsInfo(String(format: "💬 caption %@ in %.0f ms (heard then)", asset, delay * 1000)) }
-        CaptionOverlay.play(lines, on: screen, after: delay)
+        CaptionOverlay.play(lines, on: screen, after: delay, asset: asset)
     }
 
     /// How long until a clip just routed to THIS Mac is actually heard: its
@@ -523,6 +526,7 @@ final class EffectsEngine {
     /// keep going. `stopAll` is still the panic button for everything.
     func stopTile(_ asset: String) {
         SoundManager.shared.stopTabletSound(tile: asset)
+        CaptionOverlay.hide(asset: asset)
         // A visual still waiting out the Bluetooth gap must not draw after this.
         for effect in Set([EffectsCatalog.effectName(forAsset: asset),
                            SoundEffectMap.pressEffect(for: asset)].compactMap { $0 }) {

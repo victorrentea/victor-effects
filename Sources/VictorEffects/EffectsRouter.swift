@@ -394,6 +394,9 @@ final class EffectsRouter {
             return .ok()
 
         case .soundStopped(let file):
+            // The words go with the sound, effect or not (Victor, 2026-11-03:
+            // "Hallelujah" stayed on screen after the tile was stopped).
+            CaptionOverlay.hide(asset: file)
             guard let effect = SoundEffectMap.stopEffect(for: file) else { return .ok("no-effect") }
             engine.runEffect(effect)
             return .ok()

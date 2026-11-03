@@ -173,7 +173,11 @@ you're looking for? ♪` for a song, `[wolf howling]` for a noise.
   the next is further away — an instrumental gap goes blank. The last line
   lives like a single caption. `CaptionOverlay.play` schedules the lines;
   `hide()` (stop-all, the 🛑, a newer press, Subtitles off) cancels the ones
-  still queued. Songs whose lines would all read the same (Who let the dogs
+  still queued. **Stopping just that tile** (a re-tap, the panel, the
+  tablet's `/sound/stopped/<file>`, `/alarm/stop` for the siren) takes its
+  caption down at once too — `hide(asset:)`, scoped to the track's own clip so
+  a late stop of an older press never blanks a newer one (2026-11-03: the
+  Hallelujah words stayed up after the sound was stopped). Songs whose lines would all read the same (Who let the dogs
   out, Can't touch this) stay one line.
 - **Karaoke fill, word by word** (Victor, 2026-10-23: "TikTok style, yellow on
   white, as it is said" — and "only colour a word at the moment it is
