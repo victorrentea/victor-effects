@@ -207,11 +207,12 @@ final class EffectsEngine {
 
     /// The subtitle under a press (`SoundCaptions`). Called from the press
     /// routes, so it captions the tablet's local plays as well as this Mac's.
-    /// A song in `SoundCaptions.lyrics` gets its words line by line, as sung.
+    /// A song in `SoundCaptions.lyrics` gets its words line by line, as sung;
+    /// a clip tuned in the karaoke tuner gets that track instead (`CaptionEdits`).
     /// Nothing at all while the ✓ Subtitles row is off (`SubtitlesSwitch`).
     func showCaption(for asset: String) {
         guard SubtitlesSwitch.isOn else { return }
-        let lines = SoundCaptions.schedule(for: asset, clipSeconds: SoundManager.shared.soundDuration(asset))
+        let lines = SoundCaptions.live(for: asset, clipSeconds: SoundManager.shared.soundDuration(asset))
         guard !lines.isEmpty else { return }
         if isSuspended { effectsInfo("⏸️ suspended — dropping caption for \(asset)"); return }
         guard let screen = Screens.overlayScreen() else { return }

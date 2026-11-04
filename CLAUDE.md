@@ -14,6 +14,7 @@ port.
 | sound routing | `docs/sound-routing.md` | `soundsDir`, the manifest, Bluetooth compensation |
 | HTTP contract | `docs/http-api.md` | every route, the webhook, `tiles.json` |
 | thumbnail panel | `docs/thumbnail-panel.md` | the right-⌘ soundboard grid |
+| 🎤 karaoke tuner | `docs/karaoke-tuner.md` | retiming captions on the web, `caption-edits.json`, `tools/karaoke-sync.py` |
 | testing | `docs/testing.md` | the `/test/*` hooks |
 | deploy | `docs/deployment.md` | build-app.sh, LaunchAgent, TCC, code signing |
 | install & release | `docs/install-and-release.md` | `install.sh` (what users run), `tools/release.sh`, what the clean-VM runs found |

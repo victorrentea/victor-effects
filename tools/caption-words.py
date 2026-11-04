@@ -12,6 +12,9 @@ starts being heard. It is written by REVIEW, not by a model's first guess:
 Whisper, vocal onsets, a spectrogram) and a reviewer settles every word on the
 picture (2026-10-23: Whisper alone lit "back again" 0.8 s into a silence).
 
+Victor's own retiming on the web does not pass through here: it lands in
+`~/.victor-effects/caption-edits.json` and wins over this table (docs/karaoke-tuner.md).
+
 Checks every cue against the running app (`GET /sounds/captions`) when it is up,
 so a line edited since its review is reported instead of silently generated.
 """

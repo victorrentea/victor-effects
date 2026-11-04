@@ -42,6 +42,8 @@ struct EffectsConfigValues: Equatable {
     /// rather than in `soundsDir`: that folder is a git checkout of the tablet
     /// repo, and a file rewritten on every press has no business being in it.
     var usageFile: String = "~/.victor-effects/usage.json"
+    /// What the karaoke tuner changed (`CaptionEdits`), written by `tools/karaoke-sync.py`.
+    var captionEditsFile: String = "~/.victor-effects/caption-edits.json"
 
     /// Append-only JSONL of every press (`PressLog`), one line each, for
     /// whoever wants to know *when* a clip was fired. Env
@@ -69,6 +71,7 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["overlayScreen"] as? String, !s.isEmpty { v.overlayScreen = s }
             if let a = obj["chargeEmoji"] as? [String], !a.isEmpty { v.chargeEmoji = a }
             if let s = obj["usageFile"] as? String, !s.isEmpty { v.usageFile = s }
+            if let s = obj["captionEditsFile"] as? String, !s.isEmpty { v.captionEditsFile = s }
             if let s = obj["pressLogFile"] as? String, !s.isEmpty { v.pressLogFile = s }
             if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
             if let s = obj["markedSpeakerMac"] as? String { v.markedSpeakerMac = s }

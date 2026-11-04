@@ -76,6 +76,8 @@ final class EffectsRouter {
         case tiles
         /// `GET /sounds/captions` — every grid asset's captions as the Mac shows them.
         case soundsCaptions
+        /// `GET /sounds/captions/base` — the same, without the karaoke tuner's edits.
+        case soundsCaptionsBase
         case tileImage(String)
         /// Hook points for the thumbnail panel (WI-4). Parsed here so the route
         /// table is complete and testable before the panel exists.
@@ -179,6 +181,7 @@ final class EffectsRouter {
         case "/alarm/stop":         return .alarmStop
         case "/tiles":              return .tiles
         case "/sounds/captions":    return .soundsCaptions
+        case "/sounds/captions/base": return .soundsCaptionsBase
         case "/usage":              return .usage
         case "/sound/gains":        return .soundGains
         case "/usage/reset":        return .usageReset
@@ -449,6 +452,9 @@ final class EffectsRouter {
 
         case .soundsCaptions:
             return .json(CaptionsExport.cachedJSON())
+
+        case .soundsCaptionsBase:
+            return .json(CaptionsExport.cachedJSON(base: true))
 
         case .tileImage(let rel):
             guard let img = TilesManifest.image(relativePath: rel) else { return .notFound }

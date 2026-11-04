@@ -275,7 +275,12 @@ extension SoundCaptions {
         }
         var cues = sung.map { (at: $0.at, text: $0.text) }
         if cues[0].at >= titleLeadIn { cues.insert((at: 0, text: first), at: 0) }
-        return cues.indices.map { i in
+        return track(cues, clipSeconds: clipSeconds).map { heldToBeRead(withWords($0, asset: asset)) }
+    }
+
+    /// Lines in a row: each one ends when the next is due, the last with the clip.
+    static func track(_ cues: [(at: TimeInterval, text: String)], clipSeconds: TimeInterval?) -> [CaptionLine] {
+        cues.indices.map { i in
             let at = cues[i].at
             let seconds: TimeInterval
             if i + 1 < cues.count {
@@ -285,7 +290,7 @@ extension SoundCaptions {
                 seconds = lifetime(clipSeconds: clipSeconds.map { $0 - at })
             }
             return CaptionLine(at: at, text: cues[i].text, seconds: seconds)
-        }.map { heldToBeRead(withWords($0, asset: asset)) }
+        }
     }
 
     /// A timed line lives by its words, not by the clock of the track: until
