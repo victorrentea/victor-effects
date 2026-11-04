@@ -84,7 +84,6 @@ enum SoundCaptions {
         "60_sfx_100.mp3":             "[dramatic singing]",
         "61_hallelujah.mp3":          "Hallelujah",
         "62_lionel_richie.mp3":       "Hello, is it me you're looking for?",
-        "63_air_horn.mp3":            "[air horn]",
         "64_fbi.mp3":                 "FBI! Open up!",
         "65_school_bell.mp3":         "[bell ringing]",
         "66_toilet.mp3":              "[toilet flushing]",
@@ -213,7 +212,7 @@ enum SoundCaptions {
     /// Tiles that say nothing, on purpose: the picture already does (Victor,
     /// 2026-11-04: a flatline on the screen needs no caption, and the same
     /// day no subtitle at all on the explosion, the red phone and the fire).
-    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3", "18_chainsaw.mp3", "44_small_dog.mp3", "49_wrong.mp3", "55b_tsunami.mp3"]
+    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3", "18_chainsaw.mp3", "44_small_dog.mp3", "49_wrong.mp3", "55b_tsunami.mp3", "63_air_horn.mp3"]
 
     /// Tiles whose press only raises the gun: nothing is heard yet, so the line
     /// waits for the first shot (Victor, 2026-11-04: "after they start firing").
