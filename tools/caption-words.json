@@ -44,7 +44,7 @@
  "07_animated_phone.mp3": [
   {
    "at": 0,
-   "text": "\"What does this button do?\"",
+   "text": "What does this button do?",
    "words": [
     1.8,
     2.08,
@@ -81,7 +81,7 @@
  "17_my_precious.mp3": [
   {
    "at": 0,
-   "text": "\"My precious…\"",
+   "text": "My precious…",
    "words": [
     0.4,
     1.98
@@ -93,7 +93,7 @@
  "21_sfx_41.mp3": [
   {
    "at": 0,
-   "text": "\"Isn't that cute? BUT IT'S WRONG!\"",
+   "text": "Isn't that cute? BUT IT'S WRONG!",
    "words": [
     1.27,
     1.64,
@@ -109,7 +109,7 @@
  "24_this_is_sparta.mp3": [
   {
    "at": 0,
-   "text": "\"THIS IS SPARTA!\"",
+   "text": "THIS IS SPARTA!",
    "words": [
     3.62,
     4.26,
@@ -150,7 +150,7 @@
  "33_yee_har.mp3": [
   {
    "at": 0,
-   "text": "\"Yee-haw!\"",
+   "text": "Yee-haw!",
    "words": [
     0.02
    ],
@@ -318,7 +318,7 @@
  "45_the_mask.mp3": [
   {
    "at": 0,
-   "text": "\"Somebody stop me!\"",
+   "text": "Somebody stop me!",
    "words": [
     1.39,
     2.57,
@@ -375,7 +375,7 @@
  "59_game_over.mp3": [
   {
    "at": 0,
-   "text": "\"Game over\"",
+   "text": "Game over",
    "words": [
     0.04,
     0.75
@@ -446,7 +446,7 @@
  "64_fbi.mp3": [
   {
    "at": 0,
-   "text": "\"FBI! Open up!\"",
+   "text": "FBI! Open up!",
    "words": [
     0.66,
     1.28,
@@ -459,7 +459,7 @@
  "67_sfx_109.mp3": [
   {
    "at": 0,
-   "text": "\"Eww, brother, eww!\"",
+   "text": "Eww, brother, eww!",
    "words": [
     0.04,
     2.87,
@@ -472,7 +472,7 @@
  "69_scream_ghost.mp3": [
   {
    "at": 0,
-   "text": "\"Wazzuuup!\"",
+   "text": "Wazzuuup!",
    "words": [
     0.37
    ],
@@ -568,7 +568,7 @@
  "73_counter_strike.mp3": [
   {
    "at": 0,
-   "text": "\"Go, go, go!\"",
+   "text": "Go, go, go!",
    "words": [
     0.15,
     0.5,
@@ -633,7 +633,7 @@
  "75_sfx_117.mp3": [
   {
    "at": 0,
-   "text": "\"May I have your attention, please?\"",
+   "text": "May I have your attention, please?",
    "words": [
     0.04,
     0.3,
@@ -833,7 +833,7 @@
  "82_over_and_out.mp3": [
   {
    "at": 0,
-   "text": "\"Over and out.\"",
+   "text": "Over and out.",
    "words": [
     0.05,
     0.33,

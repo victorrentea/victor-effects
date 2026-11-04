@@ -53,6 +53,18 @@ final class SoundCaptionsTests: XCTestCase {
                        "a two-word line still stays up long enough to read")
     }
 
+    /// A said line is not wrapped in quotes (Victor, 2026-11-04): the caption
+    /// is the line itself. An apostrophe is not a quote.
+    func testNoCaptionIsInQuotes() {
+        let quotes = CharacterSet(charactersIn: "\"“”„«»")
+        for (asset, text) in SoundCaptions.table {
+            XCTAssertNil(text.rangeOfCharacter(from: quotes), "\(asset): \(text)")
+        }
+        for (asset, lines) in SoundCaptions.lyrics {
+            for line in lines { XCTAssertNil(line.text.rangeOfCharacter(from: quotes), "\(asset): \(line.text)") }
+        }
+    }
+
     /// No subtitle carries a music note (Victor, 2026-11-04), whichever way
     /// a line reaches the glass.
     func testNoCaptionCarriesAMusicNote() {
