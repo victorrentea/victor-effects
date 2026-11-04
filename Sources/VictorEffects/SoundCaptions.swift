@@ -44,18 +44,18 @@ enum SoundCaptions {
         "20_storm.mp3":               "[thunderstorm]",
         "21_sfx_41.mp3":              "Isn't that cute? BUT IT'S WRONG!",
         "22_minigun.mp3":             "[AK47 firing]",
-        "23_radar.mp3":               "[radar ping]",
+        "23_radar.mp3":               "[sonar scanning]",
         "24_this_is_sparta.mp3":      "THIS IS SPARTA!",
-        "25_dark_door.mp3":           "[knocking]",
+        "25_dark_door.mp3":           "[violent knocking at the door]",
         "26_drum.mp3":                "[drum roll]",
         "27_clapping.mp3":            "[applause]",
         "28_who_let_dogs_out.mp3":    "Who let the dogs out?",
         "29_gangnam_style.mp3":       "Oppa Gangnam Style",
-        "30_cow.mp3":                 "[cow mooing]",
+        "30_cow.mp3":                 "🐮 [cow mooing]",
         "31_tarzan.mp3":              "[Tarzan yell]",
-        "32_sheep.mp3":               "[sheep bleating]",
+        "32_sheep.mp3":               "🐑 [sheep bleating]",
         "33_yee_har.mp3":             "Yee-haw!",
-        "33b_ay.mp3":                 "Ay, ay, ay, ay!",
+        "33b_ay.mp3":                 "Ay, ay, ay, ay, ay!",
         "34_phoenix.mp3":             "[phoenix screeching]",
         "35_cant_touch_this.mp3":     "Can't touch this",
         "36_bad_habits.mp3":          "My bad habits lead to late nights",
@@ -67,13 +67,11 @@ enum SoundCaptions {
         "41_love_hearts.mp3":         "[romantic music]",
         "42_saxophone.mp3":           "[sultry saxophone]",
         "43_dun.mp3":                 "[dun dun DUNNN]",
-        "44_small_dog.mp3":           "[small dog yapping]",
         "45_the_mask.mp3":            "Somebody stop me!",
         "46_michael_buble.mp3":       "It's beginning to look a lot like Christmas",
         "46b_my_way.mp3":             "I did it my way",
         "47_dog_bark.mp3":            "[dog barking]",
         "48_rooster.mp3":             "[rooster crowing]",
-        "49_wrong.mp3":               "[wrong-answer buzzer]",
         "50_gong.mp3":                "[gong]",
         "51_beethoven.mp3":           "[Da-da-da-DUM]",
         "52_saw.mp3":                 "[sawing]",
@@ -123,9 +121,10 @@ enum SoundCaptions {
     /// Songs whose words are sung line by line: each line goes up at the
     /// second it starts in the clip (a Whisper pass with word timestamps over
     /// `soundsDir`, then checked against the song's real lyrics where Whisper
-    /// misheard — "Shaney's back" is Shady's). A song NOT here keeps its one line from `table`, and so
-    /// does a clip whose lines would all read the same (who let the dogs out,
-    /// can't touch this) — a line that never changes needs no clock.
+    /// misheard — "Shaney's back" is Shady's). A song NOT here keeps its one
+    /// line from `table`. A line said again is listed again: each repetition
+    /// fills on its own clock (Victor, 2026-11-04, on the dogs and on "Can't
+    /// touch this", until then one line for the whole clip).
     static let lyrics: [String: [(at: TimeInterval, text: String)]] = [
         "05_guess_whos_back.mp3": [(0, "Guess who's back, back again"),
                                    (4.0, "Shady's back, tell a friend"),
@@ -142,7 +141,25 @@ enum SoundCaptions {
         // the fill holds with it (`lastWordEnd`, Victor, 2026-11-04).
         "09_ave_maria.mp3":       [(0, "Ave Maria"),
                                    (12.6, "Jungfrau mild")],
-        "36_bad_habits.mp3":      [(0, "My bad habits lead to late nights endin' alone"),
+        // The clip opens on the word the title answers, heard at 0.87 s, then
+        // strings until the shout at 3.62 (2026-11-04, on the voice).
+        "24_this_is_sparta.mp3":  [(0, "Madness?"),
+                                   (3.55, "THIS IS SPARTA!")],
+        // Five whos between the phrases, the fifth running under the next
+        // "Who let" (2026-11-04, on the voice). The last phrase has none after it.
+        "28_who_let_dogs_out.mp3": [(0, "Who let the dogs out?"),
+                                    (1.7, "Who, who, who, who, who!"),
+                                    (3.7, "Who let the dogs out?"),
+                                    (5.4, "Who, who, who, who, who!"),
+                                    (7.42, "Who let the dogs out?"),
+                                    (9.12, "Who, who, who, who, who!"),
+                                    (11.13, "Who let the dogs out?")],
+        // Said three times, 3.6 s apart. One line each, so it stays short on
+        // the glass and only the repetition being said fills (2026-11-04).
+        "35_cant_touch_this.mp3": [(0, "Can't touch this"),
+                                   (3.65, "Can't touch this"),
+                                   (7.28, "Can't touch this")],
+        "36_bad_habits.mp3":     [(0, "My bad habits lead to late nights endin' alone"),
                                    (3.6, "Conversations with a stranger I barely know"),
                                    (7.5, "Swearin' this will be the last, but it probably won't")],
         "37_rainbow.mp3":         [(2.8, "Somewhere over the rainbow"),
@@ -198,7 +215,7 @@ enum SoundCaptions {
     /// Tiles that say nothing, on purpose: the picture already does (Victor,
     /// 2026-11-04: a flatline on the screen needs no caption, and the same
     /// day no subtitle at all on the explosion, the red phone and the fire).
-    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3"]
+    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3", "44_small_dog.mp3", "49_wrong.mp3"]
 
     /// Tiles whose press only raises the gun: nothing is heard yet, so the line
     /// waits for the first shot (Victor, 2026-11-04: "after they start firing").
@@ -296,7 +313,9 @@ extension SoundCaptions {
             return [heldToBeRead(withWords(CaptionLine(at: 0, text: first, seconds: lifetime(clipSeconds: clipSeconds)), asset: asset))]
         }
         var cues = sung.map { (at: $0.at, text: $0.text) }
-        if cues[0].at >= titleLeadIn { cues.insert((at: 0, text: first), at: 0) }
+        // Not when the title IS the first sung line: it would sit there whole,
+        // unlit, before anyone sings it (Victor, 2026-11-04, the rainbow).
+        if cues[0].at >= titleLeadIn, cues[0].text != first { cues.insert((at: 0, text: first), at: 0) }
         return track(cues, clipSeconds: clipSeconds).map { heldToBeRead(withWords($0, asset: asset)) }
     }
 

@@ -101,6 +101,15 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertTrue(SoundCaptions.captionsAtPress("04_wolf.mp3"))
     }
 
+    /// A title equal to the first sung line would give the line away before it is sung.
+    func testATitleEqualToTheFirstLineIsNotShownFirst() {
+        let track = SoundCaptions.schedule(for: "37_rainbow.mp3", clipSeconds: 14)
+        XCTAssertEqual(track.first?.text, "Somewhere over the rainbow")
+        XCTAssertEqual(track.first?.at, 2.8)
+        XCTAssertEqual(SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2).first?.text, "Let it be",
+                       "a title that is not the line still opens the intro")
+    }
+
     /// A said line is not wrapped in quotes (Victor, 2026-11-04): the caption
     /// is the line itself. An apostrophe is not a quote.
     func testNoCaptionIsInQuotes() {

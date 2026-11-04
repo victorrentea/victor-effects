@@ -146,14 +146,24 @@
  "24_this_is_sparta.mp3": [
   {
    "at": 0,
+   "text": "Madness?",
+   "words": [
+    0.87
+   ],
+   "confidence": "high",
+   "note": "The clip opens on it: voice 0.87 on the vocal stem, /s/ noise 1.48-1.62, then only strings until 3.6. Whisper: 'Madness' on the mix (0.76-1.42) and on [1.0,3.5], 'My goodness' on some stem cuts. The question mark is the film line's spelling."
+  },
+  {
+   "at": 3.55,
    "text": "THIS IS SPARTA!",
    "words": [
     3.62,
     4.26,
     4.8
    ],
+   "lastWordEnd": 5.85,
    "confidence": "high",
-   "note": "Clip opens with an uncaptioned 'Madness?' (~0.9-1.6 s), then music; 'THIS' only at 3.62, so the line could go up ~3.4. Truncation: from 3.65 still 'This', from 4.2 'I'm Sparta', from 4.3 'is' gone (onset 4.26); [3.0,4.9] has no 'Sp', from 4.8 still 'Sparta', from 4.9 'Batter' -> s-onset ~4.80. MMS agrees within 0.05-0.1 (late)."
+   "note": "Truncation: from 3.65 still 'This', from 4.2 'I'm Sparta', from 4.3 'is' gone (onset 4.26); [3.0,4.9] has no 'Sp', from 4.8 still 'Sparta', from 4.9 'Batter' -> s-onset ~4.80. MMS agrees within 0.05-0.1 (late). 'ta' is held 5.38-5.85: [3.4,5.3]='THIS IS SPOT-', [3.4,5.8]='THIS IS SPARTA!'. The burst at 6.04 and what follows is the kick and the fall, no word."
   }
  ],
  "28_who_let_dogs_out.mp3": [
@@ -169,6 +179,84 @@
    ],
    "confidence": "high",
    "note": "First repetition (0-1.95 s). 'Who let' share the first voiced burst (0.03-0.45, t-closure 0.45-0.52): Whisper on [0,0.2] hears 'Ho', [0,0.3] 'Hooray'; from 0.3 still 'Let...', from 0.4 'And...' -> let ~0.24 (MMS 0.26, formant shift ~0.22). 'the' after the t-gap 0.52 ([0,0.5] has no 'the'), d of dogs 0.77 (from 0.78 'Dogs out'), out 1.28 ([0,1.2] ends at 'dog?', [0,1.4] has 'out'). MMS's 'out' at 3.6 grabbed the next repetition. 'let' medium, rest high."
+  },
+  {
+   "at": 1.7,
+   "text": "Who, who, who, who, who!",
+   "words": [
+    1.74,
+    2.44,
+    2.9,
+    3.22,
+    3.58
+   ],
+   "confidence": "high",
+   "note": "Five, not four: mel-spectrogram match against the clean who at 2.42 scores 0.81-0.96 on all fifteen (1.72 2.42 2.88 3.20 3.56, 5.44 6.14 6.60 6.92 7.27, 9.15 9.85 10.31 10.64 11.00; onset = peak + 0.02), each a fall from ~570 to ~400 Hz. The fifth runs under the start of the next 'Who let', and shows alone before the dip at 7.52. Whisper hears them as 'HOO!' on cuts; on the whole clip it swallows them into 'let'."
+  },
+  {
+   "at": 3.7,
+   "text": "Who let the dogs out?",
+   "words": [
+    3.76,
+    3.97,
+    4.24,
+    4.49,
+    4.98
+   ],
+   "confidence": "high",
+   "note": "Same phrase as the first, every 3.72 s: mel-spectrogram match against the first repetition, 'Who let' 0.65-0.83, 'the dogs' 0.78-0.86, 'out' 0.80-0.90; 'let' carried from the first repetition's offset, medium."
+  },
+  {
+   "at": 5.4,
+   "text": "Who, who, who, who, who!",
+   "words": [
+    5.46,
+    6.16,
+    6.62,
+    6.94,
+    7.29
+   ],
+   "confidence": "high",
+   "note": "Five, not four: mel-spectrogram match against the clean who at 2.42 scores 0.81-0.96 on all fifteen (1.72 2.42 2.88 3.20 3.56, 5.44 6.14 6.60 6.92 7.27, 9.15 9.85 10.31 10.64 11.00; onset = peak + 0.02), each a fall from ~570 to ~400 Hz. The fifth runs under the start of the next 'Who let', and shows alone before the dip at 7.52. Whisper hears them as 'HOO!' on cuts; on the whole clip it swallows them into 'let'."
+  },
+  {
+   "at": 7.42,
+   "text": "Who let the dogs out?",
+   "words": [
+    7.47,
+    7.68,
+    7.96,
+    8.21,
+    8.71
+   ],
+   "confidence": "high",
+   "note": "Same phrase as the first, every 3.72 s: mel-spectrogram match against the first repetition, 'Who let' 0.65-0.83, 'the dogs' 0.78-0.86, 'out' 0.80-0.90; 'let' carried from the first repetition's offset, medium."
+  },
+  {
+   "at": 9.12,
+   "text": "Who, who, who, who, who!",
+   "words": [
+    9.17,
+    9.87,
+    10.33,
+    10.66,
+    11.02
+   ],
+   "confidence": "high",
+   "note": "Five, not four: mel-spectrogram match against the clean who at 2.42 scores 0.81-0.96 on all fifteen (1.72 2.42 2.88 3.20 3.56, 5.44 6.14 6.60 6.92 7.27, 9.15 9.85 10.31 10.64 11.00; onset = peak + 0.02), each a fall from ~570 to ~400 Hz. The fifth runs under the start of the next 'Who let', and shows alone before the dip at 7.52. Whisper hears them as 'HOO!' on cuts; on the whole clip it swallows them into 'let'."
+  },
+  {
+   "at": 11.13,
+   "text": "Who let the dogs out?",
+   "words": [
+    11.18,
+    11.39,
+    11.67,
+    11.93,
+    12.41
+   ],
+   "confidence": "high",
+   "note": "Same phrase as the first, every 3.72 s: mel-spectrogram match against the first repetition, 'Who let' 0.65-0.83, 'the dogs' 0.78-0.86, 'out' 0.80-0.90; 'let' carried from the first repetition's offset, medium."
   }
  ],
  "29_gangnam_style.mp3": [
@@ -195,6 +283,21 @@
    "note": "One word: held 'Yeee' from 0.02 to 1.17 (voice energy rises 0.01-0.03), gap, 'haw' 1.25-2.0. Lit at the first syllable; Whisper agrees ('Yee' 0.0). MMS 0.83 was stretched over the held note."
   }
  ],
+ "33b_ay.mp3": [
+  {
+   "at": 0,
+   "text": "Ay, ay, ay, ay, ay!",
+   "words": [
+    0.18,
+    1.56,
+    2.56,
+    3.67,
+    5.07
+   ],
+   "confidence": "high",
+   "note": "Five distinct ays, one voice and no music: attacks at 0.18, 1.56 (a re-attack out of the dip at 1.52, 11 dB up, not out of silence), 2.56, 3.67, 5.07 on the mix's envelope; the last is over by 5.6. Whisper hears only 'AAAA'."
+  }
+ ],
  "35_cant_touch_this.mp3": [
   {
    "at": 0,
@@ -206,6 +309,28 @@
    ],
    "confidence": "high",
    "note": "Timed on the first repetition (0-0.8 s, spoken before the beat drops at 0.78); MMS had grabbed the second one (3.71/3.91/4.17), a third is at ~7.3. k-burst 0.06 in the mix; t-burst 0.26-0.29 (Whisper: [0,0.30] no 'touch', [0,0.35] 'can't tell', from 0.30 still 'Touch'); th 0.47 ([0,0.45] ends 'touch', [0,0.52] 'touch that', from 0.48 'Yes')."
+  },
+  {
+   "at": 3.65,
+   "text": "Can't touch this",
+   "words": [
+    3.71,
+    3.9,
+    4.17
+   ],
+   "confidence": "high",
+   "note": "Second repetition. k burst 3.71 on the stem; [3.5,4.1]='Can't touch', from 3.92 still 'Touch', [3.5,4.16] no 'this', [3.5,4.22] has it, from 4.2 'Yes'. Matches MMS (3.71/3.91/4.17)."
+  },
+  {
+   "at": 7.28,
+   "text": "Can't touch this",
+   "words": [
+    7.33,
+    7.5,
+    7.78
+   ],
+   "confidence": "high",
+   "note": "Third repetition. k burst 7.33; [7.1,7.55]='K2', [7.1,7.72]='Can't touch', from 7.45 still 'Touch', from 7.53 'Justice'; [7.1,7.78] no 'this', [7.1,7.85] has it, from 7.8 still 'this'."
   }
  ],
  "36_bad_habits.mp3": [
@@ -307,7 +432,8 @@
     8.3
    ],
    "confidence": "high",
-   "note": "Silence 3.5–5.85, then 'Li-ving' 5.89 (ving held 6.27–7.35), F of 'for' 7.41, T of 'today' 8.30 ('day' held from 8.70). Truncation [5.5,7.45]='Living', [7.45,10]='For today', [5.5,8.4]='Living for the'. Cue goes up 3.3 s before the voice — suggest ~5.7."
+   "note": "Silence 3.5–5.85, then 'Li-ving' 5.89 (ving held 6.27–7.35), F of 'for' 7.41, T of 'today' 8.30 ('day' held from 8.70). Truncation [5.5,7.45]='Living', [7.45,10]='For today', [5.5,8.4]='Living for the'. Cue goes up 3.3 s before the voice — suggest ~5.7. 'day' is held to 11.05 on the stem (plateau to 10.88, off-glide to 11.04, -60 dB by 11.12), rechecked 2026-11-04: T stays 8.30, dip 8.28 ([8.28,9.6]='today', [8.34,9.6]='the day', [8.5,9.6]='day'). From 11.2 an uncaptioned 'Ah, ah'.",
+   "lastWordEnd": 11.05
   }
  ],
  "38b_dreamer.mp3": [
@@ -321,7 +447,8 @@
     1.86
    ],
    "confidence": "high",
-   "note": "Voice enters 0.81 (silence before). 'just' j at the 1.19 formant change (Whisper head-cut: absent at 1.1, present at 1.3); 'a' after the 'st' gap 1.50-1.60; 'dreamer' d burst after 1.82-1.88 closure."
+   "note": "Voice enters 0.81 (silence before). 'just' j at the 1.19 formant change (Whisper head-cut: absent at 1.1, present at 1.3); 'a' after the 'st' gap 1.50-1.60; 'dreamer' d burst after 1.82-1.88 closure. 'mer' is held on 278 Hz to 3.74, where the stem falls 16 dB.",
+   "lastWordEnd": 3.74
   },
   {
    "at": 3.5,
@@ -334,7 +461,8 @@
     6.93
    ],
    "confidence": "medium",
-   "note": "'I' 4.57 after silence; 'dream' after dr dip ~4.95; 'my' = start of m (merged with dream's m) ~5.64; 'life' l dip ~6.05 (head-cut has 'life' by 6.2); 'away' vowel after the f gap 6.82-6.92 (head-cut has 'a(way)' by 7.1). MMS 'away' 7.29 was mid-word."
+   "note": "'I' 4.57 after silence; 'dream' after dr dip ~4.95; 'my' = start of m (merged with dream's m) ~5.64; 'life' l dip ~6.05 (head-cut has 'life' by 6.2); 'away' vowel after the f gap 6.82-6.92 (head-cut has 'a(way)' by 7.1). MMS 'away' 7.29 was mid-word. 'way' is held on 261 Hz and fades out by 9.0 (-35 dB at 8.96, -47 at 9.04).",
+   "lastWordEnd": 9.0
   }
  ],
  "39_skull_boom.mp3": [
@@ -380,7 +508,8 @@
     3.27
    ],
    "confidence": "high",
-   "note": "Head/tail Whisper cuts bound 'look' to 1.20-1.30 and 'like' <2.30; 'a' after k burst 1.55; 'lot' ~1.87 (MMS agrees, weakest one, ±0.08); 'like' l attack after the t gap 2.12-2.18 (MMS 2.46 = vowel); 'Christmas' k burst 3.27. 'Christmas' is held to ~5.6."
+   "note": "Head/tail Whisper cuts bound 'look' to 1.20-1.30 and 'like' <2.30; 'a' after k burst 1.55; 'lot' ~1.87 (MMS agrees, weakest one, ±0.08); 'like' l attack after the t gap 2.12-2.18 (MMS 2.46 = vowel); 'Christmas' k burst 3.27. 'Christmas' is held to ~5.6. The final s: 5-12 kHz on the stem jumps 22 dB at 5.36 as the voiced 'ma' ends, drops 12 dB at 5.60-5.62; the mix's cymbals do not hide it.",
+   "lastWordEnd": 5.6
   },
   {
    "at": 5.8,
@@ -406,7 +535,8 @@
     5.48
    ],
    "confidence": "medium",
-   "note": "I/did/it/my high (head-cuts: did in (1.30,1.55], it in (1.72,1.85], my in (2.6,2.9]); the 1.9-2.6 hum is reverb of 'it'. 'my' is held 2.70-~5.3; 'way' = w glide (formants drop) ~5.45-5.6, vowel at 5.62 — onset 5.48 ±0.1. Whisper 'way' 2.92 was wrong."
+   "note": "I/did/it/my high (head-cuts: did in (1.30,1.55], it in (1.72,1.85], my in (2.6,2.9]); the 1.9-2.6 hum is reverb of 'it'. 'my' is held 2.70-~5.3; 'way' = w glide (formants drop) ~5.45-5.6, vowel at 5.62 — onset 5.48 ±0.1. Whisper 'way' 2.92 was wrong. 'way' is held after the pitch step 170 to 145 Hz at 5.6, down to 6.7 where the stem falls away (-31 dB at 6.68, -44 at 6.76).",
+   "lastWordEnd": 6.7
   }
  ],
  "59_game_over.mp3": [

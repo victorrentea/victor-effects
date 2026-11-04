@@ -190,8 +190,8 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
   tablet's `/sound/stopped/<file>`, `/alarm/stop` for the siren) takes its
   caption down at once too — `hide(asset:)`, scoped to the track's own clip so
   a late stop of an older press never blanks a newer one (2026-11-03: the
-  Hallelujah words stayed up after the sound was stopped). Songs whose lines would all read the same (Who let the dogs
-  out, Can't touch this) stay one line.
+  Hallelujah words stayed up after the sound was stopped). A line said again is listed again, each
+  repetition on its own clock (Who let the dogs out, Can't touch this: one line until 2026-11-04).
 - **Karaoke fill, word by word** (Victor, 2026-10-23: "TikTok style, yellow on
   white, as it is said" — and "only colour a word at the moment it is
   pronounced"). A sung or spoken line goes up dimmed (`upcomingColor`, white
