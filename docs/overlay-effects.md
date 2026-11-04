@@ -2431,6 +2431,12 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     picture is gone.
   - **Rehearsing:** `GET /effect/toilet-flush` plays the clip too, as it owns its audio.
     `GET /sound/play/66_toilet.mp3` is what the tile sends.
+  - **An open report (2026-11-04):** on the glass, water in a circle with black around it at
+    the end. Not reproduced. `screencapture` is black while the display is asleep or the
+    session locked, and a window capture is refused, so that check needs a lit, unlocked screen.
+    Ruled out offscreen, through `CARenderer` with the real `ToiletDrainLayer`, thread and
+    drawables (`testTheWaterCoversTheWholeOverlayOnTheRealPath`): drawable size, alpha,
+    compositing, the overlay at 1728×1117 and 1694×1095, and the capture's colour space.
 - **🎼 Beethoven's Fifth** (tile #51 `51_beethoven.mp3`, `showBeethoven`): the Retina is
   captured and then **lunges at the room three times on the three eighth notes**, each
   lunge bigger than the last and each giving a little of it back before the next, then

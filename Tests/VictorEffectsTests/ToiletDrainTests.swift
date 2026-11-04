@@ -488,6 +488,111 @@ final class ToiletDrainTests: XCTestCase {
         XCTAssertTrue(layer.isStopped)
     }
 
+    // MARK: - The real path: the layer, its thread, its drawables, composited
+
+    /// The layer as the app runs it: `ToiletDrainLayer` on an `EmojiAnimator`, its
+    /// own render thread presenting real drawables with `fit`'s real drawable size,
+    /// composited by Core Animation at Retina over a magenta desktop, so a gap in
+    /// the overlay cannot pass for water. The offscreen frames above stop at the
+    /// texture; this is the part of the road between that and the window server.
+    /// `spoil` is for the control.
+    private func composited(at t: Double, points: CGSize, spoil: (ToiletDrainLayer) -> Void = { _ in }) throws -> (px: [UInt8], w: Int, h: Int) {
+        let r = try renderer()
+        let scale: CGFloat = 2
+        let w = Int(points.width * scale), h = Int(points.height * scale)
+        let root = CALayer()
+        root.frame = CGRect(x: 0, y: 0, width: w, height: h)
+        root.backgroundColor = CGColor(red: 1, green: 0, blue: 1, alpha: 1)
+        root.actions = ["sublayers": NSNull()]
+        let host = CALayer()
+        host.anchorPoint = .zero
+        host.bounds = CGRect(origin: .zero, size: points)
+        host.position = .zero
+        host.transform = CATransform3DMakeScale(scale, scale, 1)
+        host.actions = ["sublayers": NSNull()]
+        root.addSublayer(host)
+        let animator = EmojiAnimator(hostLayer: host)
+        defer { animator.stopAllActiveEffects() }
+
+        let offscreen = OffscreenRenderer(device: r.device, root: root, width: w, height: h)
+        let layer = animator.addToiletFlushLayer(slice: ZoomSlice(unit: nil, rect: host.bounds), device: r.device, lasting: 10)
+        spoil(layer)
+        let image = picture(w, h)
+        layer.roll(with: r, picture: r.texture(from: image), space: image.colorSpace, clock0: CACurrentMediaTime() - t)
+        let deadline = Date(timeIntervalSinceNow: 2)
+        while layer.framesDrawn < 3, Date() < deadline { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01)) }
+        XCTAssertGreaterThanOrEqual(layer.framesDrawn, 3, "the render thread never drew")
+        CATransaction.flush()
+        return (offscreen.render(at: CACurrentMediaTime()), w, h)
+    }
+
+    /// Pixels of a composited frame that are not water: `gaps` is the magenta
+    /// desktop showing through, `black` is opaque nothing. Every 8th pixel, plus the
+    /// outermost rows and columns, where a mis-sized layer would show first.
+    private func notWater(_ px: [UInt8], _ w: Int, _ h: Int) -> (gaps: Int, black: Int) {
+        var gaps = 0, black = 0
+        func look(_ x: Int, _ y: Int) {
+            let i = (y * w + x) * 4
+            let (b, g, r) = (Int(px[i]), Int(px[i + 1]), Int(px[i + 2]))
+            if r > 150, b > 150, g < 110 { gaps += 1 }
+            if max(r, g, b) < 60 { black += 1 }
+        }
+        for y in stride(from: 0, to: h, by: 8) { for x in stride(from: 0, to: w, by: 8) { look(x, y) } }
+        for x in 0..<w { look(x, 0); look(x, h - 1) }
+        for y in 0..<h { look(0, y); look(w - 1, y) }
+        return (gaps, black)
+    }
+
+    /// The sizes that matter: the screen's, and the 1694×1095 the overlay window was
+    /// seen at on 2026-11-04, which no offscreen frame had been drawn at.
+    private let overlaySizes = [CGSize(width: 1728, height: 1117), CGSize(width: 1694, height: 1095)]
+
+    /// **At the end the water covers the whole overlay, on the real path.** Reported
+    /// on the glass as water in a circle with black around it, which the offscreen
+    /// sheets did not show. Not reproduced here; this holds the layer, its drawable
+    /// size, its alpha and its compositing to the promise, so that those are ruled
+    /// out for good. The control shrinks the layer, as a wrong size would: the check
+    /// does see a gap, and a pass means something.
+    func testTheWaterCoversTheWholeOverlayOnTheRealPath() throws {
+        for size in overlaySizes {
+            for t in [ToiletDrain.drained + 0.1, 5.0, ToiletDrain.settled - 0.05] {
+                let c = try composited(at: t, points: size)
+                let wrong = notWater(c.px, c.w, c.h)
+                XCTAssertEqual(wrong.gaps, 0, "\(size) at \(t) s")
+                XCTAssertEqual(wrong.black, 0, "\(size) at \(t) s")
+            }
+        }
+        let size = overlaySizes[0]
+        let c = try composited(at: 5.0, points: size) {
+            $0.frame = CGRect(x: 400, y: 250, width: size.width - 800, height: size.height - 500)
+        }
+        XCTAssertGreaterThan(notWater(c.px, c.w, c.h).gaps, 1000, "control")
+    }
+
+    /// The end state on the shader alone, at both real sizes: from the moment the
+    /// picture has gone, every pixel out to the corners and edges is opaque water,
+    /// bluer than it is red, at the same height of tone in the corners as in the
+    /// middle. A circle of water would fail the corners.
+    func testTheEndStateIsWaterToTheVeryCorners() throws {
+        let r = try renderer()
+        for size in overlaySizes {
+            let (w, h) = (Int(size.width) * 2, Int(size.height) * 2)
+            let texture = try XCTUnwrap(r.texture(from: picture(w, h)))
+            let out = target(r, w, h)
+            for t in [ToiletDrain.drained, 4.8, 5.1, ToiletDrain.settled] {
+                r.draw(t: t, picture: texture, into: out)?.waitUntilCompleted()
+                let px = bytes(out)
+                XCTAssertEqual(notWater(px, w, h).black, 0, "\(size) at \(t) s")
+                for (x, y) in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1), (w / 2, 0), (0, h / 2), (w / 2, h / 2)] {
+                    let i = (y * w + x) * 4
+                    XCTAssertEqual(px[i + 3], 255, "alpha at \(x),\(y), \(t) s")
+                    XCTAssertGreaterThan(px[i], px[i + 2], "blue over red at \(x),\(y), \(t) s")
+                    XCTAssertGreaterThan(px[i], 90, "tone at \(x),\(y), \(t) s")
+                }
+            }
+        }
+    }
+
     // MARK: - The promise
 
     /// In the play path, not the press path: a second trigger would flush twice.
