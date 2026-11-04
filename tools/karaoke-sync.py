@@ -28,6 +28,9 @@ EDITS = os.path.join(HOME, "caption-edits.json")
 PUBLISHED = os.path.join(HOME, "karaoke-published.txt")
 APP = os.environ.get("EFFECTS_URL", "http://127.0.0.1:55124")
 LABEL = "ro.victorrentea.karaoke-sync"
+# What the tuner calls a clip whose filename says nothing. The file keeps its name:
+# the tile, the tablet and the tests all hang off it.
+NAMES = {"67_sfx_109.mp3": "eww", "75_sfx_117.mp3": "attention"}
 
 
 def log(msg):
@@ -77,6 +80,7 @@ def catalog(base, folder):
         assets[asset] = {
             "durationSeconds": item["durationSeconds"],
             "sha": sha1(path),
+            **({"name": NAMES[asset]} if asset in NAMES else {}),
             "cues": [{"at": c["start"], "text": c["text"], "words": c.get("words", []),
                       **({"lastWordEnd": c["lastWordEnd"]} if "lastWordEnd" in c else {})} for c in item["cues"]],
         }
