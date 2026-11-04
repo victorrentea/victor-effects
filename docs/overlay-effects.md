@@ -2352,41 +2352,60 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     effect nobody can tell by looking.
 
 - **🚽 Toilet flush** (tile #66 `66_toilet.mp3` → `toilet-flush`, `showToiletFlush`, `ToiletDrain`,
-  `ToiletDrainRenderer`; 2026-11-04, Victor: a whirlwind that sucks the screen in, as if the
-  surface of the water were the screen, draining into a round hole in the centre, 10 % of the
-  screen). The desktop is the water: it winds up around the centre, faster near the hole and
-  faster as the clip goes on, is drawn inward and goes down a dark hole; the bowl stands empty
-  for a beat and fresh water brings the live desktop back from the middle outwards.
+  `ToiletDrainRenderer`). The desktop is the water: it winds up around the centre, faster
+  towards the middle and faster as the clip goes on, is drawn inward and collapses into its
+  own spiral. What is left is a water surface whose waves calm down, and then the whole screen
+  fades back to the live desktop at once.
+  - **There is no hole** (Victor, 2026-11-04). The first version went down a dark disc of 10 %
+    of the screen; he took it out entirely, so the eye reads the drain from the motion alone.
+    Nothing may darken towards the middle, because a dark disc or ring would stand in for the
+    hole: the light on the picture is the same on every ring (`testNoRingIsLitDifferently`), and
+    on a flat grey desktop no pixel of any frame goes dark
+    (`testThereIsNoDarkDiscOrRingAtAnyMoment`, with a real dark disc as its control). The centre
+    shows the picture wound into a tight spiral, foam streaks winding in with it. The hole used
+    to hide the middle, so the vortex's core is now small (~110 px at 3456×2234) and the
+    suction's term has no core at all: each halving of the radius winds more than the last.
   - **Not a rotation.** It is a sink plus a vortex. Water cannot be compressed, so every ring
-    loses the same `r²` (`sourceRadius`): the rings at the hole go first and the outer ones
-    crowd in behind them. The angular speed falls with the radius (`spin`, `1/r^1.15`, softer
-    than the textbook's `1/r²`, which left the corners nearly still), so straight lines wind
-    into spirals, and the hole is a hard round edge at exactly a tenth of the area. What has
-    gone down leaves the outer edge: a wobbling shoreline closes in from the corners over a
-    dry china bowl, down to the rim of the hole (`shoreline`).
+    loses the same `r²` (`sourceRadius`): the rings at the middle go first and the outer ones
+    crowd in behind them. The angular speed falls with the radius (`spin`, `1/r^0.85`, far softer
+    than the textbook's `1/r²`, which leaves the corners still), so straight lines wind into
+    spirals. What has gone down leaves the outer edge: a wobbling, foaming edge closes in from
+    the corners over the water left behind, down to a point (`shoreline`).
   - **The clip, measured** (5.08 s; ffmpeg, RMS and zero crossings in 100 ms and 20 ms
     windows, and a spectrogram): the valve swells at **0.45 s**, broadband rush at **1.3 s**,
     hiss until a low gurgle at **3.72 s** (zero crossings fall from 2 kHz to 300 Hz) in three
     pulses split by dips at 3.96 and 4.24, and a dead cut at **4.47 s** (−12.6 → −35 dB in
-    40 ms). So: the hole opens from the valve to the rush, spin and draw build through the
-    hiss with most of the picture still there (`drain` < 0.45), each pulse is a **gulp**
-    (`gulps`), and the last of the water goes on the cut. The 0.6 s of room tone left is the
-    desktop's way back, finished as the clip ends. AVFoundation reports 5.12 s for this file
-    (it counts the mp3's padding), ffmpeg 5.08 s.
+    40 ms). So: the water starts turning on the valve, spin and draw build through the hiss with
+    most of the picture still there (`drain` < 0.45), each pulse is a **gulp** (`gulps`), and the
+    last of the picture goes on the cut. AVFoundation reports 5.12 s for this file (it counts
+    the mp3's padding), ffmpeg 5.08 s.
+  - **The ending runs ~1 s past the audio, on purpose.** Only 0.6 s of room tone follows the
+    cut, too little for water to settle and then fade. From 4.47 s the waves fall away
+    (`calm`, 0.55 s to 1/e), the foam goes within a few tenths (`foamLeft`) so it reads as a surface
+    settling and not as a spiral dimming, and a ring wave set off by the last of the picture
+    runs out to the corners (`ringSlope`). At **5.45 s** the waves are at 17 %, still moving, and
+    the fade starts; at **6.05 s** the desktop is back, 0.97 s after the clip ends. The tile
+    reports that on-screen life as its duration (the 🔥 phoenix's reason: a re-tap only stops a
+    tile its client still thinks is playing), and `SoundEffectMap.onStop` has no entry for
+    it, so nothing cuts the calm when the clip finishes.
+  - **The fade is one number.** `fadeOut(t)` depends on the time alone, so every pixel has the
+    same alpha at every moment, checked on the table and on the shader's real frames
+    (`testTheFadeIsUniformOnTheGlass`). It replaced a return that opened from the centre.
   - **On the play path**, because of the gulps: `playSound` starts the audio and stamps
     `clock0` in one call (Bluetooth compensation included). **The capture does not hold them
     up**, unlike the 🚪 knocks 24 ms into their clips: nothing shows before the valve, so the
     tile answers at once and a capture of tens of ms simply joins the clock it finds. Every
     frame is computed from `clock0`, so a late frame is a skipped moment, not a slower flush.
   - **A fragment shader over a table of rings.** Metal, 3456×2234 on an M5 Max, release build:
-    **0.56 ms** a frame on average, 1.7 ms worst of 240, plus 0.1 ms to fill the table; a bare
-    `CIVortexDistortion` of the same picture cost 4 ms and has no inflow, no hole and a fixed
-    profile. A mesh cannot follow a warp this tight at the rim. All the flow is a function of
-    radius and time, so `ToiletDrain.fill` (pure, tested) writes one row per ring each frame and
-    the shader only reads them: **no second copy of the maths in Metal**. All it adds is what
-    is not radial, the swells and spiral foam, without `atan2`, which would put a seam in the
-    sampler's derivatives on the negative x axis. Mipmaps and 8× anisotropy keep the
-    squeezed rings from shimmering, and a mirror address mode hides the screenshot's edges.
+    **0.64 ms** a frame on average, 2 ms worst of 240, plus 0.05 ms to fill the table; a bare
+    `CIVortexDistortion` of the same picture cost 3.9 ms and has no inflow, no water and a fixed
+    profile. A mesh cannot follow a warp this tight near the middle. All the flow is a function
+    of radius and time, so `ToiletDrain.fill` (pure, tested) writes one row per ring each frame and
+    the shader only reads them: **no second copy of the flow in Metal**. All it adds is what is
+    not radial: the swells, the spiral foam and the crossing waves of the water left behind,
+    without `atan2`, which would put a seam in the sampler's derivatives on the negative x
+    axis. Mipmaps and 8× anisotropy keep the squeezed rings from shimmering, and a mirror
+    address mode hides the screenshot's edges.
   - **Its own thread.** `ToiletDrainLayer` is a transparent `CAMetalLayer` paced by
     `nextDrawable`, so a busy main thread cannot stutter it, on a `sliceHolder` like every
     screenshot effect, zoom included. The shader is built in `EmojiAnimator.init`, off the main
@@ -2397,18 +2416,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     first frame is byte-identical to the photograph (`testTheShaderAtRestGivesBackThePhotograph`),
     and the last is fully transparent, so taking the layer away 0.15 s later changes nothing.
   - **Ends by itself**, the render thread with it: `trackEffect` removes the layer, removal
-    stops the loop (`removeFromSuperlayer`), and the loop also stops at the clip's end if
-    nothing else came. A stop-all, a suspend (through stop-all) or a re-press take it off at
-    once; a capture still in flight finds the layer gone. While suspended the clip plays plain
+    stops the loop (`removeFromSuperlayer`), and the loop also stops at `fadeEnds` if nothing else
+    came. A stop-all, a suspend (through stop-all) or a re-press take it off at once; a
+    capture still in flight finds the layer gone. While suspended the clip plays plain
     (`playPathVisuals`, as for the rest of the play path).
   - **No Screen Recording** (checked first, because the capture would hand back the wallpaper
-    rather than fail) **or a failed capture:** a procedural sheet of water fades in over the live
-    desktop, 92 % opaque, drains the same way and leaves the same way. No Metal device: the clip
-    plays over an untouched desktop.
+    rather than fail) **or a failed capture:** the same water fades in over the live desktop, 92 %
+    opaque, swirls, calms and fades the same way. No Metal device: the clip plays over an
+    untouched desktop.
   - **Photographs the overlay's screen**, `Screens.overlayScreen()`, not the built-in panel as the
     older captures do, with the press caption left out (`CaptionSafeCapture`). The caption's
     window stays above it (`CaptionOverlay.windowLevel`), and the `[toilet flushing]` line
-    is unchanged. The real pointer stays live on top; a playing video freezes for 5 s.
+    is unchanged. The real pointer stays live on top; a playing video is frozen until the
+    picture is gone.
   - **Rehearsing:** `GET /effect/toilet-flush` plays the clip too, as it owns its audio.
     `GET /sound/play/66_toilet.mp3` is what the tile sends.
 - **🎼 Beethoven's Fifth** (tile #51 `51_beethoven.mp3`, `showBeethoven`): the Retina is

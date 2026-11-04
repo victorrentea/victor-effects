@@ -783,7 +783,7 @@ final class EffectsEngine {
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }
-        // Tile #66 (🚽 toilet): the desktop drains into a hole on the clip's own
+        // Tile #66 (🚽 toilet): the desktop swirls down the middle on the clip's own
         // arc, and is gone when its gurgle is — the visual owns the audio.
         if name == "66_toilet.mp3" {
             let duration = animator.showToiletFlush(playSound: true, volume: volume)

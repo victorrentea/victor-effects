@@ -7,15 +7,15 @@ import QuartzCore
 /// app, an offscreen target in the tests and nowhere else differently.
 ///
 /// **Why a fragment shader on the GPU**, measured at 3456×2234 on an M5 Max: this
-/// pass takes **~0.6 ms** a frame (worst of 240, 1.7 ms) and filling its table
-/// 0.09 ms; a bare `CIVortexDistortion` of the same picture takes 3.8 ms, and has
-/// no inflow, no hole and no way to shape the vortex. A mesh is out without
-/// measuring: at the rim the warp turns by more than a radian every few pixels of
-/// radius, far finer than a mesh rebuilt on the CPU every frame could follow.
+/// pass takes **~0.6 ms** a frame (worst of 240, 2 ms) and filling its table
+/// 0.05 ms; a bare `CIVortexDistortion` of the same picture takes 3.9 ms, and has
+/// no inflow, no water and no way to shape the vortex. A mesh is out without
+/// measuring: near the middle the warp turns by more than a radian every few pixels
+/// of radius, far finer than a mesh rebuilt on the CPU every frame could follow.
 ///
 /// The shader knows no flow maths. It reads the frame's table of rings
-/// (`ToiletDrain.Row`), and all it adds is the one thing that is not a function of
-/// the radius: the wobble of the surface around the circle.
+/// (`ToiletDrain.Row`), and all it adds is what is not a function of the radius:
+/// the wobble around the circle and the swells on the water left behind.
 final class ToiletDrainRenderer {
 
     /// Built once, off the main thread (`EmojiAnimator.init`): compiling the shader
@@ -43,6 +43,8 @@ final class ToiletDrainRenderer {
         var rows: Int32
         var hasPicture: Int32
         var atRest: Int32
+        var time: Float
+        var chop: Float
     }
 
     init?() {
@@ -117,7 +119,7 @@ final class ToiletDrainRenderer {
         return texture
     }
 
-    /// Draws the frame `t` seconds into the clip. With no `picture`, a sheet of
+    /// Draws the frame `t` seconds into the effect. With no `picture`, a sheet of
     /// water stands in for the photograph. Answers the finished command buffer.
     @discardableResult
     func draw(t: Double, picture: MTLTexture?, into target: MTLTexture,
@@ -145,7 +147,9 @@ final class ToiletDrainRenderer {
                                 ringsPerPixel: Float(1 / step),
                                 rows: Int32(Self.tableRows),
                                 hasPicture: picture == nil ? 0 : 1,
-                                atRest: atRest ? 1 : 0)
+                                atRest: atRest ? 1 : 0,
+                                time: Float(t),
+                                chop: Float(ToiletDrain.chop(t)))
 
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = target
@@ -171,8 +175,8 @@ final class ToiletDrainRenderer {
     #include <metal_stdlib>
     using namespace metal;
 
-    struct Row { float4 warp; float4 wave; float4 under; float4 mix; };
-    struct Uniforms { float2 size; float ringsPerPixel; int rows; int hasPicture; int atRest; };
+    struct Row { float4 warp; float4 wave; float4 mix; };
+    struct Uniforms { float2 size; float ringsPerPixel; int rows; int hasPicture; int atRest; float time; float chop; };
 
     vertex float4 drainVertex(uint id [[vertex_id]]) {
         float2 p = float2((id << 1) & 2, id & 2);
@@ -183,6 +187,29 @@ final class ToiletDrainRenderer {
     /// sin(nθ + phase), with the e^(inθ) already in hand: no atan2, so no seam
     /// along the negative x axis in the sampler's derivatives.
     static float wave(float2 turn, float phase) { return turn.y * cos(phase) + turn.x * sin(phase); }
+
+    /// The water left behind, at `q` px from the centre: crossing swells, lit by
+    /// their slope, `ring` being the slope a ring wave adds along `out`. All of it
+    /// scales with `chop`, so calm water is a flat colour with a slow sheen.
+    static float3 sea(float2 q, float height, float time, float chop, float2 out, float ring) {
+        const float4 swells[5] = {
+            float4( 3.1,  1.3, 1.4, 0.50), float4(-1.7,  3.9, 1.9, 0.36), float4( 6.3, -2.9, 2.6, 0.22),
+            float4(-8.1, -4.3, 3.3, 0.14), float4( 4.7,  9.7, 4.1, 0.09),
+        };
+        float2 unit = q / height;
+        float rise = 0;
+        float2 slope = 0;
+        for (int i = 0; i < 5; i++) {
+            float phase = dot(unit, swells[i].xy) * 2.2 + swells[i].z * time;
+            rise += swells[i].w * sin(phase);
+            slope += swells[i].w * swells[i].xy * cos(phase) * 0.42;
+        }
+        rise *= chop;
+        slope = slope * chop + out * ring;
+        float towards = dot(slope, float2(0.55, -0.83));
+        float3 colour = mix(float3(0.09, 0.36, 0.48), float3(0.19, 0.56, 0.66), saturate(0.5 + 0.55 * rise + 0.5 * towards));
+        return colour + 0.30 * pow(saturate(0.45 + 0.20 * towards), 7.0) * float3(0.85, 0.95, 1.0);
+    }
 
     fragment float4 drainFragment(float4 position [[position]],
                                   constant Uniforms& u [[buffer(0)]],
@@ -200,7 +227,6 @@ final class ToiletDrainRenderer {
         constant Row& b = table[below + 1];
         float4 warp = mix(a.warp, b.warp, part);
         float4 waves = mix(a.wave, b.wave, part);
-        float4 under = mix(a.under, b.under, part);
         float4 cover = mix(a.mix, b.mix, part);
 
         float2 z = r > 0.001 ? p / r : float2(1, 0);
@@ -214,32 +240,35 @@ final class ToiletDrainRenderer {
         float c = cos(warp.y), s = sin(warp.y);
         float2 q = radius * float2(z.x * c - z.y * s, z.x * s + z.y * c);
 
+        float3 left = sea(p, u.size.y, u.time, u.chop, z, cover.w);
+
         float3 water;
         if (u.hasPicture != 0) {
             water = picture.sample(filter, (q + u.size * 0.5) / u.size).rgb;
         } else {
-            // No photograph: a sheet of water, the swells drawn on it.
-            float swell = 0.5 + 0.5 * wave(z5, radius * 0.012);
-            water = mix(float3(0.05, 0.22, 0.34), float3(0.16, 0.50, 0.62), swell);
+            // No photograph: the same water, carried around by the same warp.
+            water = sea(q, u.size.y, u.time, u.chop, z, 0);
         }
         water *= warp.z;
-        water = mix(water, float3(0.07, 0.30, 0.42), warp.w);
+        water = mix(water, float3(0.16, 0.50, 0.62), warp.w);
 
-        // Foam: two families of spiral streaks, each one the sharp crest of a sine.
-        float crest = 0.5 + 0.5 * wave(z5, waves.y);
-        float fine = 0.5 + 0.5 * wave(z8, waves.y * 1.7 + 1.0);
-        float foam = waves.x * (pow(crest, 7.0) + 0.6 * pow(fine, 11.0));
-        water += foam * float3(0.82, 0.93, 1.0);
-
-        // The water's edge is never a clean circle, the hole's rim always is: the
-        // edge is read off a radius that wobbles, the rim off the true one.
+        // The picture's edge is never a clean circle: it is read off a radius that
+        // wobbles.
         float shaken = r + waves.z * 1.6 * (wave(z3, 0.4 * waves.w) + 0.6 * wave(z8, waves.w));
         float atShaken = clamp(shaken * u.ringsPerPixel, 0.0, float(u.rows) - 1.001);
         int shakenBelow = int(atShaken);
         float4 edge = mix(table[shakenBelow].mix, table[shakenBelow + 1].mix, atShaken - float(shakenBelow));
 
-        float3 colour = mix(under.rgb, water, edge.x * cover.w);
-        colour += edge.y * cover.w * float3(0.85, 0.95, 1.0);
+        float3 colour = mix(left, water, edge.x);
+
+        // Foam: two families of spiral streaks, each one the sharp crest of a sine.
+        // It rides the picture and the water alike, and shows the spiral winding in.
+        float crest = 0.5 + 0.5 * wave(z5, waves.y);
+        float fine = 0.5 + 0.5 * wave(z8, waves.y * 1.7 + 1.0);
+        float foam = waves.x * (pow(crest, 7.0) + 0.6 * pow(fine, 11.0));
+        colour += foam * float3(0.82, 0.93, 1.0);
+
+        colour += edge.y * float3(0.85, 0.95, 1.0);
         return float4(saturate(colour) * cover.z, cover.z);
     }
     """
@@ -304,10 +333,10 @@ final class ToiletDrainLayer: CAMetalLayer {
             while !run.isStopped {
                 let t = CACurrentMediaTime() - clock0
                 if t < 0 { Thread.sleep(forTimeInterval: min(-t, 0.005)); continue }
-                let last = t >= ToiletDrain.refillEnds
+                let last = t >= ToiletDrain.fadeEnds
                 autoreleasepool {
                     guard let drawable = nextDrawable() else { return }
-                    renderer.draw(t: last ? ToiletDrain.refillEnds : t, picture: picture,
+                    renderer.draw(t: last ? ToiletDrain.fadeEnds : t, picture: picture,
                                   into: drawable.texture, present: drawable)
                     run.frameDrawn()
                 }

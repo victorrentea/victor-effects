@@ -5767,14 +5767,16 @@ class EmojiAnimator {
         trackEffect("crt-shutdown", layer: layer, duration: CrtShutdown.totalDuration)
     }
 
-    // MARK: - 🚽 Toilet flush (tile #66): the desktop drains into a hole
+    // MARK: - 🚽 Toilet flush (tile #66): the desktop goes down the middle
 
     /// Sound and clock now, the picture as soon as it exists: the clip has nothing
     /// to see for its first 0.45 s (`ToiletDrain.valve`), so the capture joins the
     /// clock it finds without anyone waiting for it, the tile answers at once, and
     /// the visual stays on the clip because every frame is computed from `clock0`.
-    /// Returns what the clip reports, 0 when the Mac has no copy of it: the client
-    /// then plays its own, and the desktop still drains to about the right moment.
+    /// Returns the effect's on-screen life, the phoenix's reason: the water settles
+    /// ~1 s past the audio, and a tile only stops on a re-tap while its client thinks
+    /// it is playing. 0 when the Mac has no copy of the clip: the client then plays
+    /// its own, and the desktop still drains to about the right moment.
     @discardableResult
     func showToiletFlush(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
         _ = cancelIfRunning("toilet-flush", sound: playSound ? Self.toiletClip : nil)
@@ -5811,7 +5813,7 @@ class EmojiAnimator {
                 layer.roll(with: renderer, picture: picture, space: shot?.colorSpace, clock0: clock0)
             }
         }
-        return duration ?? 0
+        return duration.map { max($0, btComp + ToiletDrain.fadeEnds) } ?? 0
     }
 
     /// The flush's layer on the glass, tracked before the capture goes out so a
