@@ -38,4 +38,4 @@ whatever its `at` says, so the tuner only offers `at` on an untimed line.
 
 `karaoke/core.js` is a port of `wordEnds`, `fill`, `schedule` and `ahead`, so the
 preview is what the room sees. **A change to those constants has to be made there
-too** (`node karaoke/core.test.js`).
+too** (`node tools/karaoke/core.test.js`, there).
