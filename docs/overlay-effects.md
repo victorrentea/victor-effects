@@ -169,8 +169,9 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
 - **Songs roll up, line by line** (2026-10-10, roll-up 2026-11-04: "I want to read
   it from somewhere, not have it leave the screen fast"). A song in
   `SoundCaptions.lyrics` is a *track*: each sung line goes up at the second it
-  starts in the clip, **half a second before its first word is heard** (`leadIn`, `CaptionLine.ahead`;
-  `at` stays the reviewed cue). Every line is its own row and pill: the first one fades in fast on
+  starts in the clip, **one second before its fill starts** (`leadIn`, `CaptionLine.ahead`; `at` stays
+  the reviewed cue; an opening line leads as far as the press allows, the whole second when the
+  clip still has the Bluetooth delay ahead of it). Every line is its own row and pill: the first one fades in fast on
   the standard position, one arriving over another rises from below and pushes the others up, and a row whose time is up fades out
   where it stands, no swipe; the bottom row stays on its standard position meanwhile. **A said line stays `readHold` (1 s) after its
   fill ends**, however soon the next line comes (it arrives underneath) and

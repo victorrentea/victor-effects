@@ -232,12 +232,14 @@ struct CaptionLine: Equatable {
     var words: [TimeInterval] = []
 
     /// The line as it goes on the glass: `SoundCaptions.leadIn` before its
-    /// first word is heard, whenever its cue is (never before the clip). `at`
-    /// stays the reviewed cue everywhere else, the key of `wordTimes`. A line
-    /// nobody timed goes up on its cue.
-    var ahead: CaptionLine {
+    /// fill starts, whenever its cue is, but not before `earliest` (seconds
+    /// into the clip: negative while the clip is still on its way to the
+    /// speaker, so an opening line gets its lead too when there is time for
+    /// it). `at` stays the reviewed cue everywhere else, the key of
+    /// `wordTimes`. A line nobody timed goes up on its cue.
+    func ahead(earliest: TimeInterval = 0) -> CaptionLine {
         guard let first = words.first else { return self }
-        let up = max(0, at + first - SoundCaptions.leadIn)
+        let up = max(earliest, at + first - SoundCaptions.leadIn)
         let early = at - up
         return CaptionLine(at: up, text: text, seconds: seconds + early, words: words.map { $0 + early })
     }
@@ -253,9 +255,9 @@ extension SoundCaptions {
     /// under this one instead of taking its place. An untimed sung line,
     /// whose last word nobody knows, gets the same second past the next one.
     static let readHold: TimeInterval = 1
-    /// A said line is on the glass this long before its first word is heard
-    /// (Victor, 2026-11-04: half a second before it is sung).
-    static let leadIn: TimeInterval = 0.5
+    /// A said line is on the glass this long before its fill starts (Victor,
+    /// 2026-11-04: half a second, then "1 s before it starts colouring").
+    static let leadIn: TimeInterval = 1
     /// The rows on the glass at once. A fast song would otherwise stack past
     /// the slide's body; the next line pushes the oldest out early.
     static let maxRows = 3
@@ -547,10 +549,10 @@ enum CaptionOverlay {
         trackAsset = asset
         clearRows(over: 0.15)   // a newer press: the old song's rows do not stay to be read
         let current = track
-        let start = DispatchTime.now() + delay
-        for line in lines.map(\.ahead) {
+        let start = DispatchTime.now()
+        for line in lines.map({ $0.ahead(earliest: -delay) }) {
             guard line.at + delay > 0 else { show(line.text, seconds: line.seconds, words: line.words, on: screen); continue }
-            DispatchQueue.main.asyncAfter(deadline: start + line.at) {
+            DispatchQueue.main.asyncAfter(deadline: start + (line.at + delay)) {
                 guard current == track, SubtitlesSwitch.isOn else { return }
                 show(line.text, seconds: line.seconds, words: line.words, on: screen)
             }

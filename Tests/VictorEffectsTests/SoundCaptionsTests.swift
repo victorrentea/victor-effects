@@ -81,18 +81,25 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.heldToBeRead(noise), noise, "nothing said, nothing to hold")
     }
 
-    /// A line is up half a second before its first word; the words keep their
+    /// A line is up a second before its fill starts; the words keep their
     /// place in the clip, and so does the moment the line leaves.
     func testALineGoesUpBeforeItIsSung() {
         let line = CaptionLine(at: 2, text: "Let it be", seconds: 3, words: [1, 1.5, 2])
-        let up = line.ahead
-        XCTAssertEqual(up.at, 2.5, accuracy: 0.001)
+        let up = line.ahead()
+        XCTAssertEqual(up.at, 3 - SoundCaptions.leadIn, accuracy: 0.001)
         XCTAssertEqual(up.at + up.seconds, 5, accuracy: 0.001)
         XCTAssertEqual(up.words.map { up.at + $0 }, [3, 3.5, 4])
-        XCTAssertEqual(CaptionLine(at: 0, text: "Hello", seconds: 3, words: [0.2]).ahead.at, 0,
-                       "never before the clip")
         let noise = CaptionLine(at: 0, text: "[wolf howling]", seconds: 4)
-        XCTAssertEqual(noise.ahead, noise)
+        XCTAssertEqual(noise.ahead(), noise)
+    }
+
+    /// The opening line has nowhere to go before the press, but while the clip
+    /// is still on its way to the speaker it does get its lead.
+    func testAnOpeningLineLeadsAsFarAsThePress() {
+        let line = CaptionLine(at: 0, text: "Hello", seconds: 3, words: [0.2])
+        XCTAssertEqual(line.ahead().at, 0, "played here and now: up at once")
+        XCTAssertEqual(line.ahead(earliest: -1.5).at, 0.2 - SoundCaptions.leadIn, accuracy: 0.001)
+        XCTAssertEqual(line.ahead(earliest: -0.3).at, -0.3, accuracy: 0.001)
     }
 
     /// The roll-up: the newest row sits at the foot, the older ones above it.
