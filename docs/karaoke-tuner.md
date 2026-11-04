@@ -12,7 +12,8 @@ the Mac shut, and nothing of this app's HTTP surface is exposed to the internet.
 
 - **`tools/karaoke-sync.py`** runs every 2 minutes (LaunchAgent
   `ro.victorrentea.karaoke-sync`, `… install`, log in `/tmp/karaoke-sync.log`). Up:
-  the app's own cues and the clips, only when they moved. Down: the edits.
+  the app's own cues and the clips, only when they moved. Down: the edits. The clips
+  go over FTPS, because the host's firewall answers 403 to a binary POST.
 - **`CaptionEdits`** reads `caption-edits.json` on every press and reparses when the
   file moved. A clip listed there shows exactly those lines, no build, no restart.
   A broken file means no edits, never a silent press.

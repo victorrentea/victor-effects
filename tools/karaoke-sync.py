@@ -13,11 +13,14 @@ is gone costs only that half until the next round:
 2. **Down: what was tuned.** The edits land in `~/.victor-effects/caption-edits.json`,
    which the app re-reads on the next press (`CaptionEdits`). No build, no restart.
 
-Needs `~/.victor-effects/karaoke-site.json` ({"url": …, "token": …}), which
-`tools/karaoke/setup.py` in the victorrentea.ro repo writes. Standard library
-only: the LaunchAgent runs it on the system Python.
+The clips go up over FTPS, the rest over HTTPS: the host's firewall answers 403 to a
+binary POST, and FTPS reaches the private folder without passing through the web.
+
+Needs `~/.victor-effects/karaoke-site.json` (url, token, ftp), which
+`tools/karaoke/setup.py` in the victorrentea.ro repo writes, and `lftp`. Python's
+standard library only: the LaunchAgent runs it on the system Python.
 """
-import hashlib, json, os, plistlib, subprocess, sys, tempfile, urllib.error, urllib.request
+import hashlib, json, os, plistlib, shutil, subprocess, sys, tempfile, urllib.error, urllib.request
 
 HOME = os.path.expanduser("~/.victor-effects")
 SITE = os.path.join(HOME, "karaoke-site.json")
@@ -33,13 +36,26 @@ def log(msg):
 
 class Site:
     def __init__(self, conf):
-        self.url, self.token = conf["url"].rstrip("/"), conf["token"]
+        self.url, self.token, self.ftp = conf["url"].rstrip("/"), conf["token"], conf["ftp"]
 
     def call(self, action, data=None, query="", content_type="application/json"):
         req = urllib.request.Request(f"{self.url}/api.php?a={action}{query}", data=data, headers={
             "X-Sync-Token": self.token, "User-Agent": "karaoke-sync", "Content-Type": content_type})
         with urllib.request.urlopen(req, timeout=60) as r:
             return json.load(r)
+
+
+def upload(site, folder, names):
+    """The password goes by environment, the certificate is checked (ftp.host names the one it is issued to)."""
+    puts = "".join(f'put -O /karaoke-data/audio "{name}"\n' for name in names)
+    script = ("set ftp:ssl-force true; set ftp:ssl-protect-data true; set cmd:fail-exit true\n"
+              f"open --env-password -u {site.ftp['user']} {site.ftp['host']}\n"
+              f"mkdir -f /karaoke-data/audio\nlcd {folder}\n{puts}bye\n")
+    lftp = shutil.which("lftp") or "/opt/homebrew/bin/lftp"
+    r = subprocess.run([lftp], input=script, text=True, capture_output=True, timeout=600,
+                       env={**os.environ, "LFTP_PASSWORD": site.ftp["password"]})
+    if r.returncode:
+        raise OSError("lftp: " + (r.stdout + r.stderr).replace(site.ftp["user"], "<user>")[-400:])
 
 
 def sounds_dir():
@@ -79,11 +95,10 @@ def publish(site):
     if os.path.exists(PUBLISHED) and open(PUBLISHED).read().strip() == key:
         return
     have = site.call("sync-have")["have"]
-    for asset, item in assets.items():
-        if have.get(asset) != item["sha"]:
-            data = open(os.path.join(folder, asset), "rb").read()
-            site.call("sync-audio", data, f"&f={asset}", "application/octet-stream")
-            log(f"uploaded {asset} ({len(data)} bytes)")
+    changed = [asset for asset, item in assets.items() if have.get(asset) != item["sha"]]
+    if changed:
+        upload(site, folder, changed)
+        log(f"uploaded {len(changed)} clip(s)")
     site.call("sync-catalog", json.dumps({"assets": assets}).encode())
     with open(PUBLISHED, "w") as f:
         f.write(key)
