@@ -182,8 +182,9 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
   half-screen stage in one panel, so nothing resizes the window while rows
   move; `CaptionOverlay.placement` still places it, and `stageFoot` keeps the
   bottom row at the same `bottomInset` while leaving room to rise into it. A
-  song whose first word comes ≥ 1 s in opens on its `table` line as a title
-  (Let it be, Ave Maria, 💀 #39's [boom] before "Hier kommt die Sonne").
+  clip whose first word comes ≥ 1 s in opens on its `table` line only if that
+  line is a [noise] (💀 #39's [boom] before "Hier kommt die Sonne"): a song's
+  words wait for the song (2026-11-04, the rainbow, then Let It Be).
   `CaptionOverlay.play` schedules the lines;
   `hide()` (stop-all, the 🛑, Subtitles off) and a newer press clear the rows and cancel the ones
   still queued. **Stopping just that tile** (a re-tap, the panel, the
