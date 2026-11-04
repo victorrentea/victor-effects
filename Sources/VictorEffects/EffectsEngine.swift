@@ -399,6 +399,8 @@ final class EffectsEngine {
         case "toilet-flush":  animator.showToiletFlush(playSound: true)
         case "skull-boom":    _ = animator.showSkullBoom(playSound: false)
         case "wolf-howl":     animator.showWolfHowl()
+        case "cricket-moon":  animator.showCricketMoon()
+        case "cricket-moon/stop": animator.stopCricketMoon()
         case "small-dog":     animator.showSmallDog(playSound: false)
         case "elephant":      animator.showElephant()
         case "elephant/stop": animator.stopElephant()

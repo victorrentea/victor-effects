@@ -2902,6 +2902,61 @@ class EmojiAnimator {
         trackEffect("wolf-howl", layer: gifLayer, duration: total, sound: nil)
     }
 
+    // MARK: - Cricket and moon (tile #12 `12_cricket.mp3`)
+
+    /// See `CricketMoon`. The clip plays down the routed path, so this is silent;
+    /// a re-press ends it, the clip's length ends it anyway. Without the video the
+    /// tile stays what it was: a noise, and a log line.
+    func showCricketMoon() {
+        if cancelIfRunning(CricketMoon.effectName) { return }
+        guard let url = EffectsConfig.shared.assetURL(CricketMoon.videoName) else {
+            overlayError("\(CricketMoon.videoName) not in \(EffectsConfig.shared.assetsDir.path)")
+            return
+        }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let asset = AVURLAsset(url: url)
+        guard let track = asset.tracks(withMediaType: .video).first else {
+            overlayError("\(CricketMoon.videoName) has no video track")
+            return
+        }
+        let natural = track.naturalSize.applying(track.preferredTransform)
+        let life = CricketMoon.life(clip: CricketMoon.clipLength(),
+                                    video: CMTimeGetSeconds(asset.duration))
+
+        let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+        player.isMuted = true
+        player.actionAtItemEnd = .pause       // a longer clip holds the last frame
+        let video = AVPlayerLayer(player: player)
+        video.frame = CricketMoon.frame(in: bounds, video: CGSize(width: abs(natural.width),
+                                                                  height: abs(natural.height)))
+        video.videoGravity = .resizeAspect
+        video.pixelBufferAttributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        video.backgroundColor = NSColor.clear.cgColor
+        video.isOpaque = false
+
+        let container = CALayer()
+        container.frame = bounds
+        container.addSublayer(video)
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = [0, 1, 1, 0]
+        fade.keyTimes = CricketMoon.fadeKeyTimes(life: life).map { NSNumber(value: $0) }
+        fade.duration = life
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        container.add(fade, forKey: "cricketMoonFade")
+        stageLayer.addSublayer(container)
+
+        player.play()
+        trackEffect(CricketMoon.effectName, layer: container, duration: life)
+    }
+
+    /// `/sound/stopped` for the tile: an optimisation, `showCricketMoon` already
+    /// scheduled its own end. Taking the layer down releases the player with it.
+    func stopCricketMoon() {
+        _ = cancelIfRunning(CricketMoon.effectName)
+    }
+
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)
 
     static let smallDogSound = "44_small_dog.mp3"

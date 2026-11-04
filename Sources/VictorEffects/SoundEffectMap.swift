@@ -21,6 +21,10 @@ enum SoundEffectMap {
         // one howl lasting exactly the clip. Self-terminating and non-looping,
         // so no onStop entry.
         "04_wolf.mp3":           "wolf-howl",
+        // Tile 12 (🦗 cricket): the cricket, the moon and the stars in the same
+        // corner, as a keyed video the clip's length long. Ends itself; the onStop
+        // entry below is what takes it off when the sound is cut short.
+        "12_cricket.mp3":        "cricket-moon",
         "90_breaking-glass.mp3": "broken-glass",
         "59_game_over.mp3":      "game-over",
         "15_flatline.mp3":       "pulse",
@@ -192,6 +196,7 @@ enum SoundEffectMap {
         "29_gangnam_style.mp3":  "gangnam/stop",
         "06_copyright_cartoon.mp3": "magnifier/stop",
         "55_star_wars.mp3":      "star-wars/stop",
+        "12_cricket.mp3":        "cricket-moon/stop",
         "55b_tsunami.mp3":       "tsunami/stop",
         "26_drum.mp3":           "drum-roll/stop",
         "59_game_over.mp3":      "game-over/stop",

@@ -67,6 +67,8 @@ a CC BY take, `pray-hymn-long.mp3`, started shipping in Resources),
 sound effect" by Paracetamol Sounds, played once per claw — silent claws without it),
 `small-dog.gif` (🐕 #44, 2026-10-26: Maresch&Sturm's Dribbble shot "Basti is barking",
 BiRefNet-matted and re-timed to bark on the clip, `docs/overlay-effects.md`),
+`cricket-moon.mov` (🦗 tile 12, 2026-11-04: keyed by `tools/make-cricket-moon.py` out of a clip
+Victor generated with Gemini; the tile is plain noise without it),
 `pray-hymn-tablet.mp3` (47 s of the commercial recording the tablet's Ave
 Maria was cut from — preferred over the shipped take, 2026-10-21, `docs/whip.md`),
 `finger-snap.gif` (optional: a nicer snapping hand for 🫰 snap, which ships its

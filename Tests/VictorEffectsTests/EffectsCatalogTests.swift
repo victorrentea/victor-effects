@@ -17,7 +17,7 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 50 tiles, 49 of the 91 on layer A plus 55b (#66 gained the 🚽 flush on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 51 tiles, 50 of the 91 on layer A plus 55b (#12 gained the 🦗 cricket and moon on 2026-11-04; #66 gained the 🚽 flush on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
@@ -26,6 +26,7 @@ final class EffectsCatalogTests: XCTestCase {
         "08_scream_man.mp3":     "fear",
         "10_red_phone.mp3":      "phone-ring",
         "11_fire.mp3":           "fire",
+        "12_cricket.mp3":        "cricket-moon",   // 🦗 the cricket, the moon and the stars, bottom-left, for the clip
         "13_heartbeat.mp3":      "heartbeat",      // in-clip cue
         "14_universal.mp3":      "universal-minions", // in-clip cue
         "15_flatline.mp3":       "pulse",

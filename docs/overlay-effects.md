@@ -607,6 +607,39 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   full-screen wash. The layer's anchor is its **top edge** (`anchorPoint.y = 1`),
   so the shrink comes off the bottom and the band stays glued to the top of the
   screen — the same anchor the 1.5 s vertical-scale reveal grows down from.
+- **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
+  `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
+  the moon plus stars, on a transparent background, in the bottom-left corner"*): the silence
+  after a joke, with a witness. A cricket under a crescent moon and stars stands **flush in the
+  bottom-left corner**, 45 % of the screen's height (never over 60 % of its width), blinking at
+  the room, for **the clip's length read off the file** (the video's 9.46 s only if the clip
+  cannot be read; a longer clip holds the last frame). 0.25 s fade in, 0.35 s out. Silent here,
+  no audio track in the file: the clip plays down the routed path, this is a press-path visual
+  (the wolf's way). It schedules its own end; `/sound/stopped` (`onStop`), a re-press, stop-all
+  and a suspend (through stop-all) take it off sooner, and a suspended press draws nothing.
+  Same player as the 🔥 phoenix: **HEVC with alpha, colour premultiplied**, an `AVPlayerLayer`
+  on the zoom stage (227 frames as images would be most of a gigabyte; this is under 2 MB).
+  Without `assetsDir/cricket-moon.mov` the tile is what it was: a noise, plus a log line.
+  `/test/cricket-moon`, `/test/cricket-moon/stop`, `/effect/cricket-moon`.
+  `tools/make-cricket-moon.py` builds it, and what it had to work around is the film:
+  - **The landscape is cut in time, not keyed.** The hill and the blue sky exist for the first
+    half second and fade to pure black by frame 12. The hill runs under the feet, so the first
+    12 frames are dropped and the run starts with the scene already gone. That also leaves
+    227 frames against a 9.41 s clip.
+  - **Over black the picture already is the premultiplied foreground**, so only alpha is
+    computed: solid from a low threshold inward, and in the outer 4 px the pixel over the
+    brightest pixel near it, the real coverage of a bright shape over black. A plain luminance
+    ramp left the moon a dark line on white; a dark shape has no plateau to be a share of, so
+    the wing's top edge gets a ramp instead, or it came out serrated.
+  - **The open eyes are black on black**, so no key can see them, and a matte took them for
+    sky. They are two discs drawn into the alpha, measured on the first frames while the sky
+    was still blue behind them, following the white highlight as the head tilts.
+  - **The stars are held for the whole run.** The film only has them under the blue sky and
+    in its last 0.8 s, which would have shown them for a moment before the sound ended. They
+    are read off the last frames, put behind the cricket in every frame, and tinted the moon's
+    colour, since white stars vanish on a white slide (faint there even so).
+  - **The antennae are lifted** by up to 1.8×: the film's darkest lit thing, nearly gone on a
+    dark desktop otherwise.
 - **🌍 Universal minions** (tile #14 `14_universal.mp3` → `universal-minions`,
   `showUniversalMinions`): the tile's own clip is the Universal fanfare WITHOUT
   the animated logo — the animation arrives as a **matted frame sequence**
