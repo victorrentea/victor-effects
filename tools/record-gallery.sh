@@ -198,7 +198,7 @@ OWN_WINDOW="green-flash claude-peek whip"
 # to distort it. In --mode window they would smuggle Victor's actual desktop
 # INTO the overlay window's own pixels, which is the one thing window mode
 # exists to avoid.
-SCREEN_SAMPLING="broken-glass earthquake chainsaw heartbeat fbi-knock dark-door beethoven phone-ring"
+SCREEN_SAMPLING="broken-glass earthquake chainsaw heartbeat fbi-knock dark-door beethoven phone-ring toilet-flush"
 
 in_list() { case " $2 " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 skip_reason() {

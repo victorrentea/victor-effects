@@ -107,13 +107,13 @@ over a real editor window, cursor included.
 
 `--mode window` films **only the `OverlayPanel`**, alpha and all, composited over
 a still backdrop inside the recorder, so none of Victor's own windows are in the
-frames. It costs twelve effects, which the script skips by name and reason:
+frames. It costs thirteen effects, which the script skips by name and reason:
 
 - **their own window, not the panel** — whip, claude-peek, green-flash
   (`WhipOverlay`, `PeekMascot`, `EdgeFlash`);
 - **they copy the real screen into themselves** — broken-glass, earthquake,
-  chainsaw, heartbeat, fbi-knock, dark-door, beethoven, phone-ring, all through
-  `captureBuiltInDisplay*`. Filming the panel alone would smuggle the real
+  chainsaw, heartbeat, fbi-knock, dark-door, beethoven, phone-ring, toilet-flush, all
+  through `captureBuiltInDisplay*`. Filming the panel alone would smuggle the real
   desktop in *through the effect*, which is what the mode exists to prevent.
 
 Window mode changes what is recorded, not what is on screen: the effects still

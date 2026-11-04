@@ -164,6 +164,10 @@ enum SoundEffectMap {
         // each of them. Driven from the routed /sound/play path (onSoundPlay),
         // which plays the clip and stamps the zoom clock in one call; mapping the
         // press too would double-trigger it.
+        // 66_toilet.mp3 is NOT here, for the heartbeat's reason: the picture goes
+        // down on the three pulses of the gurgle, 3.72 s into the clip, and is gone
+        // when the clip's noise is. Driven from the routed /sound/play path
+        // (onSoundPlay); mapping the press too would double-trigger it.
         // 23_radar.mp3 is NOT here: the Mac owns the radar SFX, so the sonar
         // effect is driven from the routed /sound/play path (onSoundPlay),
         // which plays the beep-synced audio itself — mapping the press too
@@ -222,6 +226,7 @@ enum SoundEffectMap {
         "51_beethoven.mp3":   "beethoven",   // 🎼 six hits 0.11 s apart
         "39_skull_boom.mp3":  "skull-boom",  // 💀 cranium blows off on the drop, 0.5 s in
         "44_small_dog.mp3":   "small-dog",   // 🐕 mouth + jump on ten barks, the first 0.22 s in
+        "66_toilet.mp3":      "toilet-flush", // 🚽 the desktop drains on the gurgle, 3.72 s in
     ]
 
     /// Every sound that makes something happen ON THE DESKTOP when its tile is

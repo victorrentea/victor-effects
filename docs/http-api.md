@@ -35,7 +35,7 @@ press cannot drift apart.
 |---|---|---|
 | `GET /ping` | `{"ok":true,"app":"victor-effects","effectsVersion":"<build>","soundsHash":"…","tilesHash":"…","effectsHash":"…","usageHash":"…","gainsHash":"…","speakerChargePct":<0–100 or -1>,"speakerCharging":<bool>,"speakerChargeAgeS":<s>,"tabletVolume":<0–100>,"panelMonitor":<bool>}` | See **the /ping contract** below |
 | `GET /sounds/manifest` | `{name: sha256}` over `soundsDir/*.mp3` | **503** `{"error":"soundsDir unreadable"}` when the folder is gone |
-| `GET /sound/play/<file>?vol=N` | `{"ok":true,"durationMs":N}` | **404** `{"ok":false,"reason":"unknown-sound"}`. Seven files take a paired-visual path, and a few are **alternating pairs** — one press, two clips in turn (#19/#20), with the duration of the file actually played. Both in `docs/sound-routing.md` |
+| `GET /sound/play/<file>?vol=N` | `{"ok":true,"durationMs":N}` | **404** `{"ok":false,"reason":"unknown-sound"}`. Several files take a paired-visual path, and a few are **alternating pairs** — one press, two clips in turn (#19/#20), with the duration of the file actually played. Both in `docs/sound-routing.md` |
 | `GET /sound/volume/<pct>` | `ok` | player level, not system volume |
 | `GET /sound/stop/<asset>` | `ok` | ⏹ That **tile** pressed again while it runs: its clip (`SoundManager.stopTabletSound(tile:)`), its desktop effect (`EmojiAnimator.stopEffect(named:)` under its catalogue name) and its looping stop-effect end — every other tile keeps running. Since 2026-10-29 tiles **overlap**: `/sound/play` replaces only the same tile's clip, and neither the tablet nor the panel sends `/effect/stop-all` before a press any more (stop-all stays the 🛑 panic button) |
 | `GET /sound/running/<asset>` | `{"running":<bool>}` | ♾️ For the **open-ended** tiles only — #11 fire, #18 chainsaw, #22 minigun (until Escape), #41 love hands (until the click, ≤ 30 s), #3 bombs (while planted) — `OpenEndedTiles`: their length is not known at the press, so the `durationMs` their `/sound/play` answers is only how long the tile looks lit. Their `/sound/play` also carries **`"open":true`** (not while suspended: then only the plain clip plays); the tablet then draws a spinning green ring with no number and polls this once a second until `false`. **404** `{"ok":false,"reason":"not-open-ended"}` for any other tile |
@@ -130,7 +130,7 @@ the badge appear with no tablet redeploy.
 
 Two test files hold this together, and both are guards rather than copies:
 
-- `EffectsCatalogTests` writes the 48-name set out BY HAND. It is the only place
+- `EffectsCatalogTests` writes the 50-name set out BY HAND. It is the only place
   that says which tiles are *supposed* to animate the desktop, so adding an
   effect costs a deliberate second edit and the diff says so out loud.
 - `SoundEffectMapDriftTests` PARSES `EffectsEngine.swift` — `fireEffect`'s switch

@@ -2350,6 +2350,66 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     silent (`🚪 dark door: screen capture failed…`), because that is the one thing about this
     effect nobody can tell by looking.
 
+- **🚽 Toilet flush** (tile #66 `66_toilet.mp3` → `toilet-flush`, `showToiletFlush`, `ToiletDrain`,
+  `ToiletDrainRenderer`; 2026-11-04, Victor: a whirlwind that sucks the screen in, as if the
+  surface of the water were the screen, draining into a round hole in the centre, 10 % of the
+  screen). The desktop is the water: it winds up around the centre, faster near the hole and
+  faster as the clip goes on, is drawn inward and goes down a dark hole; the bowl stands empty
+  for a beat and fresh water brings the live desktop back from the middle outwards.
+  - **Not a rotation.** It is a sink plus a vortex. Water cannot be compressed, so every ring
+    loses the same `r²` (`sourceRadius`): the rings at the hole go first and the outer ones
+    crowd in behind them. The angular speed falls with the radius (`spin`, `1/r^1.15`, softer
+    than the textbook's `1/r²`, which left the corners nearly still), so straight lines wind
+    into spirals, and the hole is a hard round edge at exactly a tenth of the area. What has
+    gone down leaves the outer edge: a wobbling shoreline closes in from the corners over a
+    dry china bowl, down to the rim of the hole (`shoreline`).
+  - **The clip, measured** (5.08 s; ffmpeg, RMS and zero crossings in 100 ms and 20 ms
+    windows, and a spectrogram): the valve swells at **0.45 s**, broadband rush at **1.3 s**,
+    hiss until a low gurgle at **3.72 s** (zero crossings fall from 2 kHz to 300 Hz) in three
+    pulses split by dips at 3.96 and 4.24, and a dead cut at **4.47 s** (−12.6 → −35 dB in
+    40 ms). So: the hole opens from the valve to the rush, spin and draw build through the
+    hiss with most of the picture still there (`drain` < 0.45), each pulse is a **gulp**
+    (`gulps`), and the last of the water goes on the cut. The 0.6 s of room tone left is the
+    desktop's way back, finished as the clip ends. AVFoundation reports 5.12 s for this file
+    (it counts the mp3's padding), ffmpeg 5.08 s.
+  - **On the play path**, because of the gulps: `playSound` starts the audio and stamps
+    `clock0` in one call (Bluetooth compensation included). **The capture does not hold them
+    up**, unlike the 🚪 knocks 24 ms into their clips: nothing shows before the valve, so the
+    tile answers at once and a capture of tens of ms simply joins the clock it finds. Every
+    frame is computed from `clock0`, so a late frame is a skipped moment, not a slower flush.
+  - **A fragment shader over a table of rings.** Metal, 3456×2234 on an M5 Max, release build:
+    **0.56 ms** a frame on average, 1.7 ms worst of 240, plus 0.1 ms to fill the table; a bare
+    `CIVortexDistortion` of the same picture cost 4 ms and has no inflow, no hole and a fixed
+    profile. A mesh cannot follow a warp this tight at the rim. All the flow is a function of
+    radius and time, so `ToiletDrain.fill` (pure, tested) writes one row per ring each frame and
+    the shader only reads them: **no second copy of the maths in Metal**. All it adds is what
+    is not radial, the swells and spiral foam, without `atan2`, which would put a seam in the
+    sampler's derivatives on the negative x axis. Mipmaps and 8× anisotropy keep the
+    squeezed rings from shimmering, and a mirror address mode hides the screenshot's edges.
+  - **Its own thread.** `ToiletDrainLayer` is a transparent `CAMetalLayer` paced by
+    `nextDrawable`, so a busy main thread cannot stutter it, on a `sliceHolder` like every
+    screenshot effect, zoom included. The shader is built in `EmojiAnimator.init`, off the main
+    thread.
+  - **No seam, either end.** The bytes stay in the capture's own colour space and the layer is
+    told that space. Before the valve the shader reads texels straight rather than sampling:
+    through the sampler a hard edge came out 9 levels off, from a hair of mip blend. That
+    first frame is byte-identical to the photograph (`testTheShaderAtRestGivesBackThePhotograph`),
+    and the last is fully transparent, so taking the layer away 0.15 s later changes nothing.
+  - **Ends by itself**, the render thread with it: `trackEffect` removes the layer, removal
+    stops the loop (`removeFromSuperlayer`), and the loop also stops at the clip's end if
+    nothing else came. A stop-all, a suspend (through stop-all) or a re-press take it off at
+    once; a capture still in flight finds the layer gone. While suspended the clip plays plain
+    (`playPathVisuals`, as for the rest of the play path).
+  - **No Screen Recording** (checked first, because the capture would hand back the wallpaper
+    rather than fail) **or a failed capture:** a procedural sheet of water fades in over the live
+    desktop, 92 % opaque, drains the same way and leaves the same way. No Metal device: the clip
+    plays over an untouched desktop.
+  - **Photographs the overlay's screen**, `Screens.overlayScreen()`, not the built-in panel as the
+    older captures do, with the press caption left out (`CaptionSafeCapture`). The caption's
+    window stays above it (`CaptionOverlay.windowLevel`), and the `[toilet flushing]` line
+    is unchanged. The real pointer stays live on top; a playing video freezes for 5 s.
+  - **Rehearsing:** `GET /effect/toilet-flush` plays the clip too, as it owns its audio.
+    `GET /sound/play/66_toilet.mp3` is what the tile sends.
 - **🎼 Beethoven's Fifth** (tile #51 `51_beethoven.mp3`, `showBeethoven`): the Retina is
   captured and then **lunges at the room three times on the three eighth notes**, each
   lunge bigger than the last and each giving a little of it back before the next, then

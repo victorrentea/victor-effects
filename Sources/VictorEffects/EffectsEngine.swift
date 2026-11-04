@@ -395,6 +395,8 @@ final class EffectsEngine {
         // 📺 The tail of game-over, addressable on its own so the closing can be
         // rehearsed without sitting through the picture and the clip first.
         case "crt-shutdown":  animator.showCrtShutdown()
+        // 🚽 Owns its audio: the desktop goes down on the gurgle INSIDE the clip.
+        case "toilet-flush":  animator.showToiletFlush(playSound: true)
         case "skull-boom":    _ = animator.showSkullBoom(playSound: false)
         case "wolf-howl":     animator.showWolfHowl()
         case "small-dog":     animator.showSmallDog(playSound: false)
@@ -674,7 +676,7 @@ final class EffectsEngine {
 
     /// `GET /sound/play/<file>`. Returns the JSON body, or nil for 404.
     ///
-    /// Eight tiles are not plain playback: their visual has to start from the
+    /// Several tiles are not plain playback: their visual has to start from the
     /// same call as their audio because the cue lives at a fixed offset INSIDE
     /// the clip, and a separately-clocked visual slides off it.
     func playSound(_ name: String, volumePct: Int?) -> String? {
@@ -778,6 +780,13 @@ final class EffectsEngine {
         // Tile #51 (🎼 Beethoven): six hits 0.11 s apart.
         if name == "51_beethoven.mp3" {
             let duration = animator.showBeethoven(playSound: true, volume: volume)
+            guard duration > 0 else { return nil }
+            return remember(Int(duration * 1000))
+        }
+        // Tile #66 (🚽 toilet): the desktop drains into a hole on the clip's own
+        // arc, and is gone when its gurgle is — the visual owns the audio.
+        if name == "66_toilet.mp3" {
+            let duration = animator.showToiletFlush(playSound: true, volume: volume)
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }
