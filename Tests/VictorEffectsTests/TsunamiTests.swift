@@ -1,4 +1,7 @@
+import AppKit
 import CoreGraphics
+import Metal
+import QuartzCore
 import XCTest
 @testable import VictorEffects
 
@@ -42,6 +45,90 @@ final class TsunamiTests: XCTestCase {
         XCTAssertEqual(Tsunami.totalDuration(clip: 7.3), 7.3)
         XCTAssertGreaterThanOrEqual(Tsunami.totalDuration(clip: 1),
                                     Tsunami.frontEnters + Tsunami.frontCrosses * Double(1 + Tsunami.bodyShare))
+    }
+
+    /// `/compact` comes up only after the water has left, and its three blinks
+    /// are over as the dark starts to fade, on the real clip and on a short one.
+    func testThePromptLivesBetweenTheWaveAndTheFade() {
+        let waveGone = Tsunami.frontEnters + Tsunami.frontCrosses + Tsunami.spriteExit
+        for clip in [7.3, 1] {
+            let total = Tsunami.totalDuration(clip: clip)
+            let w = Tsunami.promptWindow(waveGone: waveGone, total: total)
+            XCTAssertGreaterThan(w.start, waveGone)
+            XCTAssertEqual(w.end, total - Tsunami.fadeOut, accuracy: 1e-9)
+            XCTAssertGreaterThanOrEqual((w.end - w.start) / Double(Tsunami.cursorBlinks), 0.5,
+                                        "a blink faster than this reads as a flicker")
+        }
+    }
+
+    /// Rendered, because a layer tree only tells what was asked for: nothing on
+    /// the glass before its time, the cursor lit, dark, lit again at the instants
+    /// the track says, dead centre, and the whole prompt leaving with the dark.
+    /// Leaves `tsunami-compact.png` in the temp directory to look at.
+    func testTheCommandIsThereDeadCentreAndItsCursorBlinks() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("no Metal device") }
+        let w = 1440, h = 900, total = 7.3
+        let red = try XCTUnwrap(CGContext(data: nil, width: 4, height: 4, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        red.setFillColor(CGColor(red: 0.8, green: 0, blue: 0, alpha: 1))
+        red.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+
+        let root = CALayer()
+        root.frame = CGRect(x: 0, y: 0, width: w, height: h)
+        root.backgroundColor = NSColor(white: 0.18, alpha: 1).cgColor // the desktop the fade gives back
+        root.actions = ["sublayers": NSNull()]
+        let clock0 = CACurrentMediaTime()
+        root.addSublayer(Tsunami.makeLayer(in: root.bounds, prepared: .init(shot: try XCTUnwrap(red.makeImage())),
+                                           clock0: clock0, total: total, scale: 2))
+        // Renderer first: a tree committed before it exists never reaches it.
+        let renderer = OffscreenRenderer(device: device, root: root, width: w, height: h)
+        CATransaction.flush()
+
+        func frame(_ t: Double) -> (bytes: [UInt8], box: (minX: Int, maxX: Int, count: Int)) {
+            let bytes = renderer.render(at: clock0 + t)
+            var minX = w, maxX = 0, count = 0
+            for y in (h / 2 - 80)..<(h / 2 + 80) {
+                for x in (w / 2 - 260)..<(w / 2 + 260) {
+                    let i = (y * w + x) * 4
+                    if bytes[i] > 200, bytes[i + 1] > 200, bytes[i + 2] > 200 {
+                        count += 1; minX = min(minX, x); maxX = max(maxX, x)
+                    }
+                }
+            }
+            return (bytes, (minX, maxX, count))
+        }
+
+        // The drawn wave: gone at 0.35 + 2.5 × 1.714, so the prompt is up from
+        // about 4.73 and each of the three on/off pairs takes about 0.56 s.
+        let window = Tsunami.promptWindow(waveGone: Tsunami.frontEnters + Tsunami.frontCrosses * Double(1 + Tsunami.bodyShare * 1.7),
+                                          total: total)
+        let step = (window.end - window.start) / Double(2 * Tsunami.cursorBlinks)
+        XCTAssertEqual(frame(0.2).box.count, 0, "nothing before the wave")
+        for n in 0..<Tsunami.cursorBlinks {
+            let lit = frame(window.start + (Double(2 * n) + 0.5) * step).box
+            let dark = frame(window.start + (Double(2 * n) + 1.5) * step).box
+            XCTAssertGreaterThan(dark.count, 500, "blink \(n + 1): the text stays while the cursor is off")
+            XCTAssertGreaterThan(lit.count, dark.count + 1000, "blink \(n + 1): the cursor is a solid block")
+            XCTAssertEqual((lit.minX + lit.maxX) / 2, w / 2, accuracy: 6, "blink \(n + 1): text and cursor are centred")
+        }
+        let afterBlinks = frame(window.end + 0.05).box
+        XCTAssertGreaterThan(afterBlinks.count, 1500, "the cursor stays lit as the fade starts")
+        XCTAssertEqual(frame(total - 0.1).box.count, 0, "gone with the dark")
+
+        let lit = frame(window.start + 0.5 * step).bytes
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tsunami-compact.png")
+        renderer.writePNG(lit, crop: CGRect(x: 0, y: 0, width: w, height: h), to: url)
+        print("🌊 /compact frame: \(url.path)")
+    }
+
+    /// Exactly three times dark, lit first, on the even grid discrete mode wants.
+    func testTheCursorGoesDarkThreeTimes() {
+        let track = Tsunami.cursorTrack(blinks: Tsunami.cursorBlinks)
+        XCTAssertEqual(track.values, [1, 0, 1, 0, 1, 0])
+        XCTAssertEqual(track.keyTimes.count, track.values.count + 1)
+        XCTAssertEqual(track.keyTimes.first, 0)
+        XCTAssertEqual(track.keyTimes.last, 1)
     }
 
     /// The filmed wave's front, read off its frames: the rightmost pixel each

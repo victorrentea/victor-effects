@@ -15,7 +15,9 @@ import QuartzCore
 /// yet, so what the wave leaves behind is the washed copy, wet for a moment,
 /// then dry. Nothing is torn off — the wave sweeps it (Victor, 2026-10-30: "nu
 /// mai rupe ecranul ci doar mătură ecranul cu valul"). Clean until the clip
-/// ends, then the real screen fades back.
+/// ends, then the real screen fades back. On the black meanwhile, dead centre, a
+/// `/compact` with its cursor blinking three times: that is what the wave was
+/// (Victor, 2026-11-04).
 ///
 /// The clip is the tablet's (routed, so the visual is silent), and it was made
 /// for this timeline: the roar starts and pans left → right exactly while the
@@ -35,8 +37,9 @@ enum Tsunami {
     /// The wet sheen over the washed screen dries off in this window.
     /// The washed screen hands back to the real one over the clip's last stretch.
     static let fadeOut: Double = 0.8
-    /// However short the clip, the black gets a look before the screen is back.
-    static let shortestRun: Double = 5.8
+    /// However short the clip, the black gets a look and the cursor its three
+    /// blinks before the screen is back.
+    static let shortestRun: Double = 7.0
 
     /// On-screen length: the clip, but never shorter than the wave needs to
     /// cross, leave and dry.
@@ -49,6 +52,81 @@ enum Tsunami {
         guard let url = SoundManager.shared.soundURL(for: sound) else { return fallbackClip }
         let d = AVURLAsset(url: url).duration
         return d.isNumeric && CMTimeGetSeconds(d) > 0 ? CMTimeGetSeconds(d) : fallbackClip
+    }
+
+    // MARK: The command left on the black
+
+    static let command = "/compact"
+    static let cursorBlinks = 3
+    /// The black shows alone this long after the water has left the glass.
+    static let promptSettle: Double = 0.1
+    /// The text's height, as a share of the screen's: read from the back of a room.
+    static let promptSizeShare: CGFloat = 0.06
+
+    /// The prompt's life: up once the water is gone, the cursor's last blink
+    /// done as the fade starts, so it leaves with the dark and not before it.
+    static func promptWindow(waveGone: Double, total: Double) -> (start: Double, end: Double) {
+        (waveGone + promptSettle, total - fadeOut)
+    }
+
+    /// One on-and-off per blink, evenly, as a discrete keyframe track: `keyTimes`
+    /// holds one more entry than `values`, the shape discrete mode asks for.
+    /// The layer's own opacity is 1, so the cursor stays lit once the track ends.
+    static func cursorTrack(blinks: Int) -> (values: [Float], keyTimes: [Double]) {
+        let steps = 2 * blinks
+        return ((0..<steps).map { $0 % 2 == 0 ? 1 : 0 },
+                (0...steps).map { Double($0) / Double(steps) })
+    }
+
+    /// JetBrains Mono where it is installed, else Courier New, which every Mac has.
+    private static func promptFont(size: CGFloat) -> NSFont {
+        NSFont(name: "JetBrainsMono-Regular", size: size)
+            ?? NSFont(name: "CourierNewPSMT", size: size)
+            ?? .monospacedSystemFont(ofSize: size, weight: .regular)
+    }
+
+    /// The command and a block cursor as one group centred in `bounds`, hidden
+    /// until `window.start`.
+    private static func makePrompt(in bounds: CGRect, window: (start: Double, end: Double),
+                                   clock0: CFTimeInterval, scale: CGFloat) -> CALayer {
+        let font = promptFont(size: bounds.height * promptSizeShare)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
+        let text = NSAttributedString(string: command, attributes: attributes)
+        let textSize = text.size()
+        let cell = NSAttributedString(string: "0", attributes: attributes).size().width
+
+        let group = CALayer()
+        group.bounds = CGRect(x: 0, y: 0, width: ceil(textSize.width) + cell, height: ceil(textSize.height))
+        group.position = CGPoint(x: bounds.midX, y: bounds.midY)
+        group.opacity = 0
+        let up = CABasicAnimation(keyPath: "opacity")
+        up.fromValue = 0
+        up.toValue = 1
+        up.beginTime = clock0 + window.start
+        up.duration = 0.08
+        up.fillMode = .forwards
+        up.isRemovedOnCompletion = false
+        group.add(up, forKey: "up")
+
+        let label = CATextLayer()
+        label.frame = CGRect(x: 0, y: 0, width: ceil(textSize.width), height: ceil(textSize.height))
+        label.string = text
+        label.contentsScale = scale
+        group.addSublayer(label)
+
+        let cursor = CALayer()
+        cursor.frame = CGRect(x: ceil(textSize.width), y: 0, width: cell, height: ceil(textSize.height))
+        cursor.backgroundColor = NSColor.white.cgColor
+        let track = cursorTrack(blinks: cursorBlinks)
+        let blink = CAKeyframeAnimation(keyPath: "opacity")
+        blink.values = track.values
+        blink.keyTimes = track.keyTimes.map { NSNumber(value: $0) }
+        blink.calculationMode = .discrete
+        blink.beginTime = clock0 + window.start
+        blink.duration = window.end - window.start
+        cursor.add(blink, forKey: "blink")
+        group.addSublayer(cursor)
+        return group
     }
 
     // MARK: The filmed wave (optional drop-in)
@@ -268,7 +346,14 @@ enum Tsunami {
         before.mask = mask
         root.addSublayer(before)
 
-        // 4. Back to the real screen.
+        // 4. The command the wave was, on the black once the water is gone,
+        // under the wave's z so a straggling tail would pass over it.
+        let prompt = makePrompt(in: bounds, window: promptWindow(waveGone: frontEnters + slide.duration, total: total),
+                                clock0: clock0, scale: scale)
+        prompt.zPosition = 7
+        root.addSublayer(prompt)
+
+        // 5. Back to the real screen.
         let out = CABasicAnimation(keyPath: "opacity")
         out.fromValue = 1
         out.toValue = 0

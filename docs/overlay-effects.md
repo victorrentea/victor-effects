@@ -976,7 +976,11 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   pieces flung into the crest): the capture on top is masked to whatever the water has not
   reached, the mask's edge riding with the wave just behind its water on every row. What the
   wave leaves stays black until the clip ends (7.3 s, read off the file), with the real screen fading back over the
-  last 0.8 s. The clip is **our own, synthesized with ffmpeg** (brown-noise rumble, pink-noise
+  last 0.8 s. **On that black, dead centre, the command the wave was: `/compact`** (2026-11-04,
+  Victor) in JetBrains Mono (Courier New where it is not installed), white, 6 % of the screen's
+  height, with a block cursor. It comes up 0.1 s after the water has left the glass and the cursor
+  blinks **three times** across the time left before the fade (`promptWindow`, ~0.8 s a blink on
+  the filmed wave), staying lit as the dark takes the text away with it. The clip is **our own, synthesized with ffmpeg** (brown-noise rumble, pink-noise
   roar, a thump as it breaks, a hissing foam tail) and made for this timeline: the roar starts
   and **pans L → R exactly over the 2.5 s crossing**; re-cut it and those two numbers move.
   Silent here (the tablet routes the clip); re-press, stop-all, `/test/tsunami/stop` end it.
@@ -1015,7 +1019,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     edge: the 540-point concave polygon was tessellated with a diagonal wedge of the screen
     already swept before the wave arrived (found offscreen with CARenderer, 2026-10-31, with
     the GIF's frames too). The lip crosses the glass on the same 2.5 s, then the wave leaves in
-    `spriteExit` 1.2 s, so the black has the clip's last ~2.5 s to itself. Without the
+    `spriteExit` 1.2 s, so the black and the `/compact` have the clip's last ~2.5 s to themselves. Without the
     frames, the drawn breaker as above.
 - **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
   `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
