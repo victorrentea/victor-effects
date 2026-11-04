@@ -224,6 +224,20 @@ final class SoundCaptionsTests: XCTestCase {
     /// The generated table only fires on a cue with the same start AND word
     /// count; edit a lyric without rerunning `tools/caption-words.py` and that
     /// line silently goes back to the even pace. This says which one.
+    /// The dash lights up with the syllable before it, and every syllable of
+    /// the chorus reaches the screen timed: a count that drifts drops the fill.
+    func testYummyFillsSyllableBySyllable() {
+        let track = SoundCaptions.schedule(for: "83_yummy.mp3", clipSeconds: 7.1)
+        XCTAssertEqual(track.map(\.words.count), [7, 4, 5])
+        let line = track[1]
+        XCTAssertEqual(line.text.replacingOccurrences(of: "\u{AD}", with: ""), "That yummy-yum")
+        let path = SoundCaptions.fill(line.text, words: line.words, seconds: line.seconds)
+        let myEnds = SoundCaptions.wordEnds(line.text)[2]
+        XCTAssertEqual(String(decoding: Array(line.text.utf16)[0..<myEnds], as: UTF16.self).last, "-")
+        let reached = path.first { $0.offset == myEnds }
+        XCTAssertEqual(reached?.t ?? -1, 4.06 - line.at, accuracy: 0.001, "\"my-\" is full when \"yum\" starts")
+    }
+
     func testEveryHeardCueStillMatchesItsLine() {
         for (asset, cues) in SoundCaptions.wordTimes {
             let track = SoundCaptions.schedule(for: asset, clipSeconds: 30)

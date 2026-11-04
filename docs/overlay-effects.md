@@ -225,6 +225,12 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
     word on that evidence into **`tools/caption-words.json`**, the source of
     truth. `tools/caption-words.py` turns it into `SoundCaptionWords.swift`
     and refuses a cue the running app no longer serves.
+  - **A karaoke video is a second reference, not the answer** (2026-11-04, 🍬 #83
+    Yummy, the first clip done this way, after its nine onsets read as trash). The clip
+    was found in the song by cross-correlation, the backing track synced the
+    video's clock to the clip, and the wipe edge tracked frame by frame gave the
+    word starts. A wipe leads the voice by ~0.1 s and runs linearly inside a word,
+    so the syllables and the final say still come from the voice's pitch and onsets.
   - **The clock is the room's ear, not the press** (2026-10-23, "still not in
     sync with the laptop"). The word times are seconds into the *clip*, but a
     clip routed to this Mac is heard well after its `/sound/pressed`: the

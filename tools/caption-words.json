@@ -846,36 +846,43 @@
  "83_yummy.mp3": [
   {
    "at": 0,
-   "text": "Yeah, you got that yummy-yum",
+   "text": "Yeah, you got that yum­my-­yum",
    "words": [
-    0.98,
-    1.2,
+    0.94,
+    1.18,
     1.39,
     1.6,
-    1.84
+    1.83,
+    2.01,
+    2.42
    ],
    "confidence": "high",
-   "note": "Clean syllable gaps + pitch steps (A->C at 1.21, 'g' at 1.39, voiceless gap 1.58-1.62, 't' gap 1.80-1.85). MMS on tight window agrees within 0.03 except yummy (1.87). Whisper runs ~0.15 s early here."
+   "note": "Heard times, settled on the Demucs voice (pyin pitch + onsets). Cross-checked on the Sing King karaoke video (youtu.be/NxQYcM0Kw2Q): same three lines; backing track puts clip 0 at 15.103 s of it (3 of 4 bands agree), and its green wipe, tracked frame by frame, starts this line's words at 0.85/1.08/1.28/1.51/1.75/-/2.48. The wipe leads the voice by ~0.08 and is linear inside a word, so it cannot place 'my': that is the G->A pitch step at 2.01. 'yum' falls back to G at 2.42 and is held to ~3.12."
   },
   {
-   "at": 2.9,
-   "text": "That yummy-yum",
+   "at": 3.19,
+   "text": "That yum­my-­yum",
    "words": [
     3.19,
-    3.46
+    3.46,
+    3.62,
+    4.06
    ],
-   "confidence": "medium",
-   "note": "2.45-3.17 is the held 'yum' of line 1. 'That' = the F note after the dip at 3.19 (MMS 3.23; Whisper 3.00 but Whisper is ~0.15-0.2 early on this clip); 'yum' after the gap at 3.45, same G->A->G shape as line 1's yummy-yum."
+   "confidence": "high",
+   "note": "Heard times, settled on the Demucs voice (pyin pitch + onsets). Cross-checked on the Sing King karaoke video (youtu.be/NxQYcM0Kw2Q): same three lines; backing track puts clip 0 at 15.103 s of it (3 of 4 bands agree), and its green wipe, tracked frame by frame, starts this line's words at 3.15/3.38/-/4.22. 'That' = F after the dip at 3.19; 'my' = G->A step at 3.62; 'yum' = A->G at 4.06, held to ~4.78. The wipe is 0.16 late on that last 'yum': the voice wins. Bars repeat every ~1.645 s, matching line 1 and 3."
   },
   {
-   "at": 4.6,
-   "text": "That yummy-yummy",
+   "at": 4.87,
+   "text": "That yum­my-­yum­my",
    "words": [
-    4.86,
-    5.13
+    4.87,
+    5.11,
+    5.27,
+    5.72,
+    5.93
    ],
-   "confidence": "medium",
-   "note": "4.1-4.85 is the held 'yum' of line 2. 'That' = F note after dip at 4.85-4.89 (Whisper 4.68, ~0.2 early); 'yummy-yummy' after the 't' gap 5.09-5.13 (MMS 5.13); 2nd 'yummy' at ~5.73."
+   "confidence": "high",
+   "note": "Heard times, settled on the Demucs voice (pyin pitch + onsets). Cross-checked on the Sing King karaoke video (youtu.be/NxQYcM0Kw2Q): same three lines; backing track puts clip 0 at 15.103 s of it (3 of 4 bands agree), and its green wipe, tracked frame by frame, starts this line's words at 4.78/4.98/-/5.82/-. 'my' = G->A step at 5.27; 2nd 'yum' = A->G at 5.72; last 'my' = onset at 5.93 after the dip at 5.90, held to ~6.52 (wipe ends 6.59)."
   }
  ],
  "88_all_you_need_is_love.mp3": [

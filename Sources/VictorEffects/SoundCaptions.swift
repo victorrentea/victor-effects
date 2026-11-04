@@ -183,9 +183,11 @@ enum SoundCaptions {
                                    (6.3, "Mother Mary comes to me"),
                                    (9.0, "Speaking words of wisdom"),
                                    (11.9, "Let it be")],
-        "83_yummy.mp3":           [(0, "Yeah, you got that yummy-yum"),
-                                   (2.9, "That yummy-yum"),
-                                   (4.6, "That yummy-yummy")],
+        // Sung yum-my-yum on G-A-G with the last one held, so each syllable is
+        // timed (U+00AD). Reviewed 2026-11-04 on the voice and the karaoke video.
+        "83_yummy.mp3":           [(0, "Yeah, you got that yum\u{AD}my-\u{AD}yum"),
+                                   (3.19, "That yum\u{AD}my-\u{AD}yum"),
+                                   (4.87, "That yum\u{AD}my-\u{AD}yum\u{AD}my")],
     ]
 
     /// The caption for a press. A tile added to
