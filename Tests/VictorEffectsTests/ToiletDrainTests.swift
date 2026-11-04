@@ -4,13 +4,26 @@ import Metal
 import XCTest
 @testable import VictorEffects
 
-/// 🚽 The flush, checked without a screen, a capture or a speaker: the flow is
+/// 🚽 The flush, checked without a screen, a capture or a speaker: the shape is
 /// numbers in `ToiletDrain`, and the frames come off a Metal texture the renderer
 /// is handed like any other.
 final class ToiletDrainTests: XCTestCase {
 
     private let g = ToiletDrain.Geometry(width: 3456, height: 2234)
-    private let everyMoment = stride(from: -0.1, through: 5.3, by: 0.01).map { $0 }
+    private let everyMoment = stride(from: -0.1, through: 6.2, by: 0.01).map { $0 }
+
+    // MARK: - The bowl
+
+    /// The size that was decided, from the short side, so a wider screen gets more
+    /// black and not a bigger or an oval bowl.
+    func testTheBowlIsADecidedShareOfTheShortSide() {
+        XCTAssertEqual(ToiletDrain.bowlShare, 0.31)
+        XCTAssertEqual(g.bowl, 0.31 * 2234, accuracy: 1e-9)
+        let wide = ToiletDrain.Geometry(width: 5120, height: 2160)
+        XCTAssertEqual(wide.bowl, 0.31 * 2160, accuracy: 1e-9)
+        let tall = ToiletDrain.Geometry(width: 1000, height: 1600)
+        XCTAssertEqual(tall.bowl, 310, accuracy: 1e-9)
+    }
 
     // MARK: - Against the clip
 
@@ -23,18 +36,15 @@ final class ToiletDrainTests: XCTestCase {
         XCTAssertLessThan(ToiletDrain.drained, ToiletDrain.clipSeconds)
     }
 
-    /// The calming does not fit in the 0.6 s of room tone, so it runs past the
-    /// audio, knowingly: by under a second, and the show still ends itself.
-    func testTheEndingRunsPastTheClipByUnderASecond() {
-        XCTAssertLessThan(ToiletDrain.drained, ToiletDrain.settled)
+    /// The bowl sits long enough to be seen, and that is the only reason the end
+    /// runs past the audio: by under a second, and the show still ends itself.
+    func testTheBowlIsSeenAndTheTailIsShort() {
+        XCTAssertGreaterThanOrEqual(ToiletDrain.settled - ToiletDrain.drained, 0.9)
         XCTAssertLessThan(ToiletDrain.settled, ToiletDrain.fadeEnds)
-        XCTAssertGreaterThan(ToiletDrain.fadeEnds, ToiletDrain.clipSeconds)
-        XCTAssertLessThan(ToiletDrain.fadeEnds - ToiletDrain.clipSeconds, 1)
+        XCTAssertLessThan(ToiletDrain.fadeEnds - ToiletDrain.clipSeconds, 0.9)
         XCTAssertGreaterThan(ToiletDrain.totalSeconds, ToiletDrain.fadeEnds, "the removal must land after the last frame")
     }
 
-    /// The clip on this machine is the one that was measured. Skipped where the
-    /// tablet's assets are not.
     /// AVFoundation counts the mp3's encoder padding, ffmpeg does not: 5.12 s to
     /// its 5.08 s.
     func testTheClipIsTheOneThatWasMeasured() throws {
@@ -44,33 +54,30 @@ final class ToiletDrainTests: XCTestCase {
         XCTAssertEqual(seconds, ToiletDrain.clipSeconds, accuracy: 0.05, "new recording: measure the cues in ToiletDrain again")
     }
 
-    /// Nothing is gone before the valve, everything is the moment the clip goes
-    /// quiet, and water never comes back up.
-    func testTheDrainOnlyEverGoesDown() {
-        XCTAssertEqual(ToiletDrain.drain(ToiletDrain.valve), 0)
-        XCTAssertEqual(ToiletDrain.drain(ToiletDrain.drained), 1)
-        XCTAssertEqual(ToiletDrain.drain(ToiletDrain.drained - 1e-9), 1, accuracy: 1e-6, "no jump into the last frame")
-        let values = everyMoment.map(ToiletDrain.drain)
-        XCTAssertEqual(values, values.sorted())
+    // MARK: - The shrink
+
+    /// Past the corners until the valve, the bowl when the clip goes quiet, and it
+    /// only ever closes.
+    func testTheCircleCloses() {
+        XCTAssertGreaterThan(ToiletDrain.radius(ToiletDrain.valve, g), g.reach)
+        XCTAssertEqual(ToiletDrain.radius(ToiletDrain.drained, g), g.bowl, accuracy: 1e-6)
+        XCTAssertEqual(ToiletDrain.radius(5.5, g), g.bowl, accuracy: 1e-6)
+        let radii = everyMoment.map { ToiletDrain.radius($0, g) }
+        XCTAssertEqual(radii, radii.sorted(by: >))
     }
 
-    /// The picture goes down on the gulps: each takes more per second than the
-    /// hiss before it did, and most of the screen is still there when the gurgle
-    /// starts, or there would be nothing left to swallow.
-    func testThePictureGoesDownOnTheGulps() {
-        let hissRate = (ToiletDrain.drain(ToiletDrain.gurgle) - ToiletDrain.drain(ToiletDrain.rush))
-            / (ToiletDrain.gurgle - ToiletDrain.rush)
+    /// Timed to the clip: moving on the rush, whole on the screen before the
+    /// gurgle, and each gulp is seen to tighten it.
+    func testTheShrinkFollowsTheRushAndTheGurgle() {
+        XCTAssertGreaterThan(ToiletDrain.shrink(ToiletDrain.rush), 0.1)
+        XCTAssertLessThan(ToiletDrain.radius(ToiletDrain.gurgle, g), g.height / 2)
         for gulp in ToiletDrain.gulps {
-            let rate = (ToiletDrain.drain(gulp.to) - ToiletDrain.drain(gulp.from)) / (gulp.to - gulp.from)
-            XCTAssertGreaterThan(rate, 2 * hissRate)
+            XCTAssertLessThan(ToiletDrain.radius(gulp.to, g), ToiletDrain.radius(gulp.from, g) - 0.02 * g.bowl)
         }
-        XCTAssertLessThan(ToiletDrain.drain(ToiletDrain.gurgle), 0.45)
     }
 
-    // MARK: - The flow
-
-    /// Before the valve the warp is the identity, so the photograph lands on the
-    /// desktop without a seam.
+    /// At rest the warp is the identity, so the photograph lands on the desktop
+    /// without a seam.
     func testAtRestEveryPixelIsItself() {
         for t in [-0.1, 0, ToiletDrain.valve] {
             for (x, y) in [(100.0, 50.0), (-1500.0, 900.0), (3.0, -1.0)] {
@@ -81,111 +88,95 @@ final class ToiletDrainTests: XCTestCase {
         }
     }
 
-    /// Incompressible: every ring has lost the same area. A plain zoom-out would
-    /// lose area in proportion to the radius.
-    func testTheSuctionConservesArea() {
-        let t = 3.0
-        let lost = { (r: Double) in pow(ToiletDrain.sourceRadius(r, t, self.g), 2) - r * r }
-        XCTAssertGreaterThan(lost(300), 0)
-        XCTAssertEqual(lost(300), lost(1500), accuracy: 1e-3)
-    }
-
-    /// Faster towards the middle, at every moment the water is moving: with no hole
-    /// to look at, this is what says "drain".
-    func testItTurnsFasterTowardsTheMiddle() {
-        for t in [1.5, 2.5, 3.5, 4.2] {
-            let radii = stride(from: g.reach, to: g.core, by: -100).map { $0 }.reversed().map { $0 }
-            let speeds = radii.map { ToiletDrain.angularSpeed($0, t, g) }
-            XCTAssertEqual(speeds, speeds.sorted(by: >), "at \(t) s")
-            XCTAssertGreaterThan(speeds[0], 3 * speeds[speeds.count - 1], "at \(t) s")
+    /// The whole screen fits: on the rim of the bowl the picture has reached its
+    /// own edge, in every direction, so nothing is cropped away.
+    func testTheWholeScreenFitsInTheCircle() {
+        let t = ToiletDrain.gurgle
+        let rim = ToiletDrain.radius(t, g)
+        for degrees in stride(from: 0.0, to: 360, by: 15) {
+            let a = degrees * .pi / 180
+            let p = ToiletDrain.source(of: rim * cos(a), rim * sin(a), t, g)
+            let reached = (p.x * p.x + p.y * p.y).squareRoot()
+            XCTAssertEqual(reached, ToiletDrain.extent(p.x / reached, p.y / reached, g), accuracy: 1, "at \(degrees)°")
         }
     }
 
-    /// Grows over the clip at every radius, and even the corners go around, or the
-    /// whole picture would not be seen to turn.
-    func testTheSpinGrowsOverTheClip() {
-        let times = stride(from: 1.0, to: ToiletDrain.gurgle, by: 0.25).map { $0 }
-        for r in [g.core, 5 * g.core, g.reach] {
-            let speeds = times.map { ToiletDrain.angularSpeed(r, $0, g) }
-            XCTAssertEqual(speeds, speeds.sorted(), "at r = \(r)")
+    /// No gap inside the circle at any angle: everything that can be seen comes
+    /// from inside the picture, however far it has turned.
+    func testThereIsNoGapInsideTheCircle() {
+        for t in [1.0, 1.6, 2.2, 2.8, 3.3] {
+            let rim = ToiletDrain.radius(t, g)
+            for x in stride(from: -g.width / 2, through: g.width / 2, by: 90) {
+                for y in stride(from: -g.height / 2, through: g.height / 2, by: 90) {
+                    let r = (x * x + y * y).squareRoot()
+                    guard r > 1, r < rim, r < ToiletDrain.extent(x / r, y / r, g) else { continue }
+                    let p = ToiletDrain.source(of: x, y, t, g)
+                    XCTAssertLessThanOrEqual(abs(p.x), g.width / 2 + 1, "at \(x),\(y), \(t) s")
+                    XCTAssertLessThanOrEqual(abs(p.y), g.height / 2 + 1, "at \(x),\(y), \(t) s")
+                }
+            }
         }
-        XCTAssertGreaterThan(ToiletDrain.spin(g.reach, ToiletDrain.drained, g), .pi)
     }
 
-    /// The difference from a rotation: two radii turned by different angles, so
-    /// straight lines have wound into a spiral.
-    func testItWindsARotationWouldNot() {
-        let twist = ToiletDrain.spin(0.1 * g.reach, 3, g) - ToiletDrain.spin(0.4 * g.reach, 3, g)
-        XCTAssertGreaterThan(twist, 2 * .pi, "not one full turn between the two rings")
+    // MARK: - The turn
+
+    /// Fewer rotations: a little over one turn in all, more of it inside the circle
+    /// than before it, and it stops with the picture.
+    func testItTurnsOnlyALittle() {
+        XCTAssertEqual(ToiletDrain.turn(ToiletDrain.valve), 0)
+        XCTAssertLessThan(ToiletDrain.turn(ToiletDrain.drained), 1.25 * 2 * .pi)
+        XCTAssertGreaterThan(ToiletDrain.turn(ToiletDrain.drained), .pi)
+        let whole = everyMoment.first { ToiletDrain.radius($0, g) < g.height / 2 } ?? 0
+        XCTAssertLessThan(ToiletDrain.turn(whole), 0.5 * ToiletDrain.turn(ToiletDrain.drained))
+        XCTAssertEqual(ToiletDrain.turn(5), ToiletDrain.turn(ToiletDrain.drained))
     }
 
-    /// The spiral tightens into the middle and all the way in: each halving of the
-    /// radius winds more than the one outside it, and the middle does not go flat.
-    func testTheSpiralTightensIntoTheMiddle() {
-        let t = 3.7
-        let radii = (0..<6).map { g.reach / pow(2, Double($0)) }
-        let wound = zip(radii, radii.dropFirst()).map { ToiletDrain.spin($1, t, g) - ToiletDrain.spin($0, t, g) }
-        XCTAssertEqual(wound, wound.sorted(), "\(wound)")
-        XCTAssertGreaterThan(wound[wound.count - 1], 3)
+    /// Not a spiral: the middle is ahead of the rim by a fraction of the turn, not
+    /// by turns.
+    func testItDoesNotWindIntoASpiral() {
+        let t = ToiletDrain.gurgle
+        let rim = ToiletDrain.radius(t, g)
+        XCTAssertLessThan(ToiletDrain.spin(0, t, g) - ToiletDrain.spin(rim, t, g), 0.4 * ToiletDrain.turn(t))
+        XCTAssertLessThan(ToiletDrain.spin(0, t, g) - ToiletDrain.spin(rim, t, g), .pi)
     }
 
-    /// Counter-clockwise on the glass: the water right of the centre moves up, so
-    /// a pixel above the centre shows what was to its right.
+    /// Counter-clockwise on the glass: what was right of the centre moves up, so a
+    /// pixel above the centre shows what was to its right.
     func testItTurnsCounterClockwise() {
-        // Soon after the valve the angle is still small enough to read.
-        let t = ToiletDrain.valve + 0.1
-        let p = ToiletDrain.source(of: 0, -500, t, g)
-        XCTAssertGreaterThan(p.x, 0, "y is down: this pixel is above the centre")
+        XCTAssertGreaterThan(ToiletDrain.source(of: 0, -500, 1.5, g).x, 0, "y is down: this pixel is above the centre")
     }
 
-    /// The picture's edge starts at the corners and ends at a point: it goes down
-    /// the middle without anything there to go down.
-    func testTheShorelineClosesToAPoint() {
-        XCTAssertGreaterThanOrEqual(ToiletDrain.shoreline(0, g), g.reach)
-        XCTAssertEqual(ToiletDrain.shoreline(ToiletDrain.drained, g), 0)
-        let edge = everyMoment.map { ToiletDrain.shoreline($0, g) }
-        XCTAssertEqual(edge, edge.sorted(by: >))
-    }
+    // MARK: - The water
 
-    // MARK: - The ending
-
-    /// Waves on the water left behind fall from the last gulp, and "settled a
-    /// little" is not flat: they are small but still moving when the fade starts.
-    func testTheWavesCalmDown() {
-        XCTAssertEqual(ToiletDrain.chop(ToiletDrain.drained), 1)
-        let moments = stride(from: ToiletDrain.drained, through: ToiletDrain.fadeEnds, by: 0.05).map { $0 }
-        let heights = moments.map(ToiletDrain.chop)
-        XCTAssertEqual(heights, heights.sorted(by: >))
-        XCTAssertLessThan(ToiletDrain.chop(ToiletDrain.settled), 0.25)
-        XCTAssertGreaterThan(ToiletDrain.chop(ToiletDrain.settled), 0.05)
-    }
-
-    /// The whirlpool's foam is gone long before the fade: the ending is a surface
-    /// settling, not a spiral dimming.
-    func testTheFoamIsGoneBeforeTheWaterSettles() {
-        XCTAssertEqual(ToiletDrain.foamLeft(ToiletDrain.drained), 1)
-        XCTAssertLessThan(ToiletDrain.foamLeft(ToiletDrain.drained + 0.5), 0.05)
-    }
-
-    /// The ring wave starts with the last of the picture and reaches the corners
-    /// while there is still water to see it on.
-    func testTheRingWaveCrossesTheScreenBeforeTheFade() {
-        for r in [10.0, 500, 2000] { XCTAssertEqual(ToiletDrain.ringSlope(r, ToiletDrain.drained, g), 0) }
-        XCTAssertNotEqual(ToiletDrain.ringSlope(g.reach * 0.9, ToiletDrain.settled, g), 0)
-        XCTAssertEqual(ToiletDrain.ringSlope(g.reach, ToiletDrain.drained + 0.1, g), 0, "it has not got there yet")
-    }
-
-    /// "At once, uniformly": the fade is one number, for every ring, at every
-    /// moment, and only ever goes down.
-    func testTheFadeIsTheSameEverywhere() {
-        for t in stride(from: ToiletDrain.drained, through: ToiletDrain.fadeEnds + 0.1, by: 0.05) {
-            let alphas = Set(rows(at: t).map(\.mix.z))
-            XCTAssertEqual(alphas, [Float(ToiletDrain.fadeOut(t))], "at \(t) s")
+    /// None until the circle is whole on the screen, all of it on the dead cut, and
+    /// each gulp takes a bite.
+    func testTheWaterReplacesThePicture() {
+        XCTAssertEqual(ToiletDrain.water(2.8), 0)
+        XCTAssertEqual(ToiletDrain.water(ToiletDrain.drained), 1, accuracy: 1e-9)
+        XCTAssertEqual(ToiletDrain.water(5), 1, accuracy: 1e-9)
+        let values = everyMoment.map(ToiletDrain.water)
+        XCTAssertEqual(values, values.sorted())
+        for gulp in ToiletDrain.gulps {
+            XCTAssertGreaterThan(ToiletDrain.water(gulp.to) - ToiletDrain.water(gulp.from), 0.15)
         }
-        XCTAssertEqual(ToiletDrain.fadeOut(ToiletDrain.settled), 1)
-        XCTAssertEqual(ToiletDrain.fadeOut(ToiletDrain.fadeEnds), 0)
-        let values = everyMoment.map(ToiletDrain.fadeOut)
-        XCTAssertEqual(values, values.sorted(by: >))
+    }
+
+    /// The waves fall from the last gulp to a gentle tremble and stay there: the
+    /// bowl never goes flat, not even in the fade.
+    func testTheWaterTremblesGentlyForGood() {
+        XCTAssertEqual(ToiletDrain.chop(ToiletDrain.drained), 1)
+        let heights = stride(from: ToiletDrain.drained, through: ToiletDrain.fadeEnds, by: 0.05).map(ToiletDrain.chop)
+        XCTAssertEqual(heights, heights.sorted(by: >))
+        XCTAssertLessThan(ToiletDrain.chop(ToiletDrain.settled), ToiletDrain.gentle + 0.05)
+        XCTAssertGreaterThanOrEqual(ToiletDrain.chop(ToiletDrain.fadeEnds), ToiletDrain.gentle)
+        XCTAssertGreaterThan(ToiletDrain.gentle, 0.2, "too flat to see tremble from the back of a room")
+    }
+
+    /// The ring starts with the last of the picture, stays in the bowl and dies.
+    func testTheRingWaveDies() {
+        for r in [10.0, 300, 600] { XCTAssertEqual(ToiletDrain.ringSlope(r, ToiletDrain.drained, g), 0) }
+        XCTAssertNotEqual(ToiletDrain.ringSlope(0.5 * g.bowl, ToiletDrain.drained + 0.4, g), 0)
+        XCTAssertEqual(ToiletDrain.ringSlope(0.5 * g.bowl, 20, g), 0, accuracy: 1e-6)
     }
 
     // MARK: - The table
@@ -197,36 +188,45 @@ final class ToiletDrainTests: XCTestCase {
         return rows
     }
 
-    /// At rest the table says "the photograph, untouched" for every ring out to
-    /// the corners: no water tint, no foam, no shadow, nothing of the water.
+    /// At rest the table says "the photograph, untouched" for every ring out to the
+    /// corners: no turn, no mask, no water.
     func testTheFirstFrameIsThePhotographAndNothingElse() {
         let table = rows(at: 0)
-        // The last rows of the table are past the corners, where no pixel lands.
         for row in table[0..<Int(Double(table.count - 1) / 1.01)] {
-            XCTAssertEqual(row.warp.z, 1, "light")
-            XCTAssertEqual(row.warp.w, 0, "tint")
-            XCTAssertEqual(row.wave.x, 0, "foam")
-            XCTAssertEqual(row.wave.z, 0, "ripple")
-            XCTAssertEqual(row.mix.x, 1, "water cover")
-            XCTAssertEqual(row.mix.y, 0, accuracy: 1e-6, "edge foam")
-            XCTAssertEqual(row.mix.z, 1, "alpha")
-            XCTAssertEqual(row.mix.w, 0, "ring wave")
+            XCTAssertEqual(row.warp.x, 0, "spin")
+            XCTAssertEqual(row.warp.y, 1, "inside the circle")
+            XCTAssertEqual(row.warp.w, 0, "ring wave")
+            XCTAssertLessThan(row.wash.x, 0.12, "no water")
+            XCTAssertEqual(row.wash.y, 1, "alpha")
         }
     }
 
-    /// Nothing is darkened by ring: a dark centre would stand in for a hole.
-    func testNoRingIsLitDifferently() {
-        for t in stride(from: 0, through: ToiletDrain.drained, by: 0.1) {
-            XCTAssertEqual(Set(rows(at: t).map(\.warp.z)).count, 1, "at \(t) s")
-        }
+    /// Outside the bowl the mask is exactly 0 from a pixel past the rim: no glow.
+    func testTheMaskStopsDeadAtTheRim() {
+        let table = rows(at: 5)
+        let step = g.reach * 1.01 / 511
+        for (i, row) in table.enumerated() where Double(i) * step > g.bowl + 1 { XCTAssertEqual(row.warp.y, 0) }
+        for (i, row) in table.enumerated() where Double(i) * step < g.bowl - 1 { XCTAssertEqual(row.warp.y, 1) }
     }
 
-    /// With no photograph the first frame is the live desktop, and the water fades
-    /// in over it rather than appearing, and leaves the same way as ever.
-    func testWithNoPictureTheWaterFadesIn() {
-        for row in rows(at: 0, picture: false) { XCTAssertEqual(row.mix.z, 0) }
-        XCTAssertGreaterThan(rows(at: ToiletDrain.rush, picture: false)[400].mix.z, 0.8)
-        for row in rows(at: ToiletDrain.fadeEnds, picture: false) { XCTAssertEqual(row.mix.z, 0) }
+    /// "At once, uniformly": the fade is one number, for every ring, at every
+    /// moment, and only ever goes down.
+    func testTheFadeIsTheSameEverywhere() {
+        for t in stride(from: ToiletDrain.drained, through: ToiletDrain.fadeEnds + 0.1, by: 0.05) {
+            XCTAssertEqual(Set(rows(at: t).map(\.wash.y)), [Float(ToiletDrain.fadeOut(t))], "at \(t) s")
+        }
+        XCTAssertEqual(ToiletDrain.fadeOut(ToiletDrain.settled), 1)
+        XCTAssertEqual(ToiletDrain.fadeOut(ToiletDrain.fadeEnds), 0)
+        let values = everyMoment.map(ToiletDrain.fadeOut)
+        XCTAssertEqual(values, values.sorted(by: >))
+    }
+
+    /// With no photograph the first frame is the live desktop: the black and the
+    /// water fade in over it rather than appearing, and leave the same way as ever.
+    func testWithNoPictureItFadesIn() {
+        for row in rows(at: 0, picture: false) { XCTAssertEqual(row.wash.y, 0) }
+        XCTAssertGreaterThan(rows(at: ToiletDrain.rush, picture: false)[400].wash.y, 0.8)
+        for row in rows(at: ToiletDrain.fadeEnds, picture: false) { XCTAssertEqual(row.wash.y, 0) }
     }
 
     // MARK: - Real frames, on a texture
@@ -238,15 +238,12 @@ final class ToiletDrainTests: XCTestCase {
         return renderer.device.makeTexture(descriptor: d)!
     }
 
-    /// A busy picture: a gradient, so that any shift of a pixel changes its value.
-    private func picture(_ w: Int, _ h: Int) -> CGImage {
+    private func image(_ w: Int, _ h: Int, _ pixel: (Int, Int) -> (UInt8, UInt8, UInt8)) -> CGImage {
         var data = [UInt8](repeating: 255, count: w * h * 4)
         for y in 0..<h {
             for x in 0..<w {
                 let i = (y * w + x) * 4
-                data[i] = UInt8((x * 7) % 256)
-                data[i + 1] = UInt8((y * 11) % 256)
-                data[i + 2] = UInt8((x + y) % 256)
+                (data[i + 2], data[i + 1], data[i]) = pixel(x, y)
             }
         }
         let context = data.withUnsafeMutableBytes {
@@ -255,6 +252,11 @@ final class ToiletDrainTests: XCTestCase {
                       bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
         }
         return context.makeImage()!
+    }
+
+    /// A busy picture: any shift of a pixel changes its value.
+    private func picture(_ w: Int, _ h: Int) -> CGImage {
+        image(w, h) { x, y in (UInt8((x + y) % 256), UInt8((y * 11) % 256), UInt8((x * 7) % 256)) }
     }
 
     private func bytes(_ t: MTLTexture) -> [UInt8] {
@@ -268,85 +270,118 @@ final class ToiletDrainTests: XCTestCase {
         return r
     }
 
+    private func frame(_ r: ToiletDrainRenderer, at t: Double, _ w: Int, _ h: Int, picture: CGImage? = nil) throws -> [UInt8] {
+        let out = target(r, w, h)
+        let texture = try XCTUnwrap(r.texture(from: picture ?? self.picture(w, h)))
+        r.draw(t: t, picture: texture, into: out)?.waitUntilCompleted()
+        return bytes(out)
+    }
+
     /// The first frame is byte for byte the photograph: the promise that it lands
     /// on the desktop with no seam, checked on the shader rather than on the table.
     func testTheShaderAtRestGivesBackThePhotograph() throws {
         let r = try renderer()
-        let image = picture(320, 200)
-        let texture = try XCTUnwrap(r.texture(from: image))
-        let out = target(r, 320, 200)
-        r.draw(t: 0, picture: texture, into: out)?.waitUntilCompleted()
+        let shot = picture(320, 200)
+        let got = try frame(r, at: 0, 320, 200, picture: shot)
 
         let context = CGContext(data: nil, width: 320, height: 200, bitsPerComponent: 8, bytesPerRow: 320 * 4,
-                                space: image.colorSpace!,
+                                space: shot.colorSpace!,
                                 bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
-        context.draw(image, in: CGRect(x: 0, y: 0, width: 320, height: 200))
+        context.draw(shot, in: CGRect(x: 0, y: 0, width: 320, height: 200))
         let expected = Array(UnsafeBufferPointer(start: context.data!.assumingMemoryBound(to: UInt8.self), count: 320 * 200 * 4))
-        let got = bytes(out)
         let off = zip(got, expected).map { abs(Int($0) - Int($1)) }
         XCTAssertEqual(off.max(), 0, "\(off.filter { $0 > 0 }.count) of \(off.count) bytes differ")
     }
 
-    /// One grey over the whole picture, so whatever is dark in a frame was put there
-    /// by the effect.
-    private func grey(_ w: Int, _ h: Int) -> CGImage {
-        let context = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
-        context.setFillColor(gray: 0.5, alpha: 1)
-        context.fill(CGRect(x: 0, y: 0, width: w, height: h))
-        return context.makeImage()!
-    }
-
-    /// The darkest pixel of a frame, undoing the alpha: a fading frame is not dark.
-    private func darkest(_ px: [UInt8]) -> Int {
-        var least = 255
-        for i in stride(from: 0, to: px.count, by: 4) {
-            let alpha = max(Int(px[i + 3]), 1)
-            least = min(least, max(Int(px[i]), Int(px[i + 1]), Int(px[i + 2])) * 255 / alpha)
-        }
-        return least
-    }
-
-    /// **There is no hole, at any moment.** On a flat grey desktop every pixel of
-    /// every frame stays bright: no dark disc, no dark ring, nowhere on the screen.
-    /// The control is a real dark disc in the picture: the check does see one.
-    func testThereIsNoDarkDiscOrRingAtAnyMoment() throws {
+    /// The squeeze is the one piece of maths that has to live in the shader as well,
+    /// because it depends on the direction. A picture whose colour says where each
+    /// pixel came from holds the two copies together.
+    func testTheShaderSamplesWhereTheMathsSays() throws {
         let r = try renderer()
-        let (w, h) = (480, 300)
-        let out = target(r, w, h)
-
-        let context = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
-        context.draw(grey(w, h), in: CGRect(x: 0, y: 0, width: w, height: h))
-        context.setFillColor(gray: 0, alpha: 1)
-        context.fillEllipse(in: CGRect(x: 190, y: 100, width: 100, height: 100))
-        r.draw(t: 0, picture: r.texture(from: context.makeImage()!), into: out)?.waitUntilCompleted()
-        XCTAssertLessThan(darkest(bytes(out)), 100, "control")
-
-        let texture = try XCTUnwrap(r.texture(from: grey(w, h)))
-        for t in stride(from: 0, through: ToiletDrain.fadeEnds, by: 0.1) {
-            r.draw(t: t, picture: texture, into: out)?.waitUntilCompleted()
-            XCTAssertGreaterThan(darkest(bytes(out)), 100, "at \(t) s")
+        let (w, h) = (1024, 640)
+        let ramp = image(w, h) { x, y in (UInt8(x * 255 / (w - 1)), UInt8(y * 255 / (h - 1)), 0) }
+        let geometry = ToiletDrain.Geometry(width: Double(w), height: Double(h))
+        for t in [1.8, 2.6] {
+            let px = try frame(r, at: t, w, h, picture: ramp)
+            for (x, y) in [(120, 80), (-160, 90), (60, -150), (-90, -120), (200, -40), (30, 160)] {
+                let s = ToiletDrain.source(of: Double(x), Double(y), t, geometry)
+                let i = ((y + h / 2) * w + x + w / 2) * 4
+                XCTAssertEqual(Double(px[i + 2]), 255 * (s.x + 512) / 1023, accuracy: 6, "red at \(x),\(y), \(t) s")
+                XCTAssertEqual(Double(px[i + 1]), 255 * (s.y + 320) / 639, accuracy: 6, "green at \(x),\(y), \(t) s")
+            }
         }
     }
 
-    /// Once the last of the picture has gone, the screen is water and nothing else:
-    /// two opposite pictures give the same frame, and it is blue.
-    func testNothingOfThePictureIsLeftOnTheWater() throws {
+    /// **True black around the bowl.** Every pixel past the rim is exactly (0, 0, 0)
+    /// and opaque, on a wide screen and a 16:10 one, from the moment the bowl forms
+    /// until the fade: no glow and no vignette bleeding out of it.
+    func testEverythingOutsideTheBowlIsTrueBlack() throws {
+        let r = try renderer()
+        for (w, h) in [(960, 400), (480, 300)] {
+            let bowl = 0.31 * Double(min(w, h))
+            for t in [ToiletDrain.drained, 4.9, ToiletDrain.settled] {
+                let px = try frame(r, at: t, w, h)
+                var wrong = 0
+                for y in 0..<h {
+                    for x in 0..<w {
+                        let dx = Double(x) + 0.5 - Double(w) / 2, dy = Double(y) + 0.5 - Double(h) / 2
+                        guard (dx * dx + dy * dy).squareRoot() > bowl + 1.5 else { continue }
+                        let i = (y * w + x) * 4
+                        if px[i] != 0 || px[i + 1] != 0 || px[i + 2] != 0 || px[i + 3] != 255 { wrong += 1 }
+                    }
+                }
+                XCTAssertEqual(wrong, 0, "\(w)×\(h) at \(t) s")
+            }
+        }
+    }
+
+    /// Round on a wide screen, counted in pixels: walking out from the centre along
+    /// 48 directions, the water stops at the same radius within a pixel and a half,
+    /// the decided one. An oval from an aspect ratio would miss by a third.
+    func testTheCircleIsRoundOnAWideScreen() throws {
+        let r = try renderer()
+        let (w, h) = (1600, 660)
+        let px = try frame(r, at: 5, w, h)
+        let bowl = 0.31 * Double(h)
+        for step in 0..<48 {
+            let a = Double(step) * 2 * .pi / 48
+            var edge = 0.0
+            for d in stride(from: bowl * 0.8, to: bowl * 1.3, by: 0.25) {
+                let x = Int(Double(w) / 2 + d * cos(a)), y = Int(Double(h) / 2 + d * sin(a))
+                let i = (y * w + x) * 4
+                if max(px[i], px[i + 1], px[i + 2]) > 8 { edge = d }
+            }
+            XCTAssertEqual(edge, bowl, accuracy: 1.5, "at \(step * 360 / 48)°")
+        }
+    }
+
+    /// In the bowl state the screen is water and nothing else: two opposite pictures
+    /// give the same frame, and it is blue.
+    func testNothingOfThePictureIsLeftInTheBowl() throws {
         let r = try renderer()
         let (w, h) = (240, 150)
-        let one = try XCTUnwrap(r.texture(from: picture(w, h)))
-        let other = try XCTUnwrap(r.texture(from: grey(w, h)))
-        let out = target(r, w, h)
         let t = ToiletDrain.drained + 0.3
-        r.draw(t: t, picture: one, into: out)?.waitUntilCompleted()
-        let first = bytes(out)
-        r.draw(t: t, picture: other, into: out)?.waitUntilCompleted()
-        XCTAssertEqual(first.elementsEqual(bytes(out)), true)
-        let centre = (h / 2 * w + w / 2) * 4
-        XCTAssertGreaterThan(first[centre], first[centre + 2], "BGRA: more blue than red")
+        let first = try frame(r, at: t, w, h)
+        let second = try frame(r, at: t, w, h, picture: image(w, h) { _, _ in (128, 128, 128) })
+        XCTAssertTrue(first.elementsEqual(second))
+        let centre = ((h / 2 + 20) * w + w / 2) * 4
+        XCTAssertGreaterThan(Int(first[centre]), Int(first[centre + 2]) + 60, "BGRA: well more blue than red")
+    }
+
+    /// The bowl trembles: moments apart the water differs, and the black does not.
+    func testTheWaterMovesAndTheBlackDoesNot() throws {
+        let r = try renderer()
+        let (w, h) = (480, 300)
+        let one = try frame(r, at: 5.2, w, h)
+        let two = try frame(r, at: 5.3, w, h)
+        var moved = 0
+        for x in stride(from: 150, to: 330, by: 3) {
+            let i = (150 * w + x) * 4
+            if abs(Int(one[i]) - Int(two[i])) > 1 { moved += 1 }
+            XCTAssertEqual(one[(5 * w + x) * 4], 0)
+            XCTAssertEqual(two[(5 * w + x) * 4], 0)
+        }
+        XCTAssertGreaterThan(moved, 20)
     }
 
     /// Spread between the most and the least covered pixel of a frame.
@@ -355,22 +390,17 @@ final class ToiletDrainTests: XCTestCase {
         return (alphas.max() ?? 0) - (alphas.min() ?? 0)
     }
 
-    /// The whole screen fades at once, on the shader's real frames, waves and all;
-    /// and the frame before the fade covers everything. The control proves the
-    /// check sees a frame that is not uniform: the return from the centre this
-    /// replaced would have failed it.
+    /// The whole screen fades at once on the shader's real frames: the bowl and the
+    /// black on one alpha. The control proves the check sees a frame that is not
+    /// uniform, such as the return from the centre this replaced.
     func testTheFadeIsUniformOnTheGlass() throws {
         var lopsided = [UInt8](repeating: 255, count: 16)
         lopsided[7] = 40
         XCTAssertGreaterThan(alphaSpread(lopsided), 200, "control")
 
         let r = try renderer()
-        let (w, h) = (480, 300)
-        let texture = try XCTUnwrap(r.texture(from: picture(w, h)))
-        let out = target(r, w, h)
-        for t in stride(from: ToiletDrain.drained, through: ToiletDrain.fadeEnds, by: 0.05) {
-            r.draw(t: t, picture: texture, into: out)?.waitUntilCompleted()
-            XCTAssertEqual(alphaSpread(bytes(out)), 0, "at \(t) s")
+        for t in stride(from: ToiletDrain.settled, through: ToiletDrain.fadeEnds, by: 0.1) {
+            XCTAssertEqual(alphaSpread(try frame(r, at: t, 480, 300)), 0, "at \(t) s")
         }
     }
 
@@ -384,8 +414,7 @@ final class ToiletDrainTests: XCTestCase {
     }
 
     /// What a frame costs at the full Retina size: the number the choice of a
-    /// fragment shader rests on. A few frames of the clip are left in `$TMPDIR`
-    /// to look at.
+    /// fragment shader rests on.
     func testFrameTimeAtRetinaSize() throws {
         let r = try renderer()
         let (w, h) = (3456, 2234)
@@ -491,11 +520,8 @@ final class ToiletDrainTests: XCTestCase {
     // MARK: - The real path: the layer, its thread, its drawables, composited
 
     /// The layer as the app runs it: `ToiletDrainLayer` on an `EmojiAnimator`, its
-    /// own render thread presenting real drawables with `fit`'s real drawable size,
-    /// composited by Core Animation at Retina over a magenta desktop, so a gap in
-    /// the overlay cannot pass for water. The offscreen frames above stop at the
-    /// texture; this is the part of the road between that and the window server.
-    /// `spoil` is for the control.
+    /// own render thread presenting real drawables, composited by Core Animation at
+    /// Retina over a magenta desktop, so a gap in the overlay cannot pass for black.
     private func composited(at t: Double, points: CGSize, spoil: (ToiletDrainLayer) -> Void = { _ in }) throws -> (px: [UInt8], w: Int, h: Int) {
         let r = try renderer()
         let scale: CGFloat = 2
@@ -517,8 +543,8 @@ final class ToiletDrainTests: XCTestCase {
         let offscreen = OffscreenRenderer(device: r.device, root: root, width: w, height: h)
         let layer = animator.addToiletFlushLayer(slice: ZoomSlice(unit: nil, rect: host.bounds), device: r.device, lasting: 10)
         spoil(layer)
-        let image = picture(w, h)
-        layer.roll(with: r, picture: r.texture(from: image), space: image.colorSpace, clock0: CACurrentMediaTime() - t)
+        let shot = picture(w, h)
+        layer.roll(with: r, picture: r.texture(from: shot), space: shot.colorSpace, clock0: CACurrentMediaTime() - t)
         let deadline = Date(timeIntervalSinceNow: 2)
         while layer.framesDrawn < 3, Date() < deadline { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01)) }
         XCTAssertGreaterThanOrEqual(layer.framesDrawn, 3, "the render thread never drew")
@@ -526,71 +552,37 @@ final class ToiletDrainTests: XCTestCase {
         return (offscreen.render(at: CACurrentMediaTime()), w, h)
     }
 
-    /// Pixels of a composited frame that are not water: `gaps` is the magenta
-    /// desktop showing through, `black` is opaque nothing. Every 8th pixel, plus the
-    /// outermost rows and columns, where a mis-sized layer would show first.
-    private func notWater(_ px: [UInt8], _ w: Int, _ h: Int) -> (gaps: Int, black: Int) {
-        var gaps = 0, black = 0
+    /// Pixels of the overlay's rim and corners where the desktop shows through.
+    private func gaps(_ px: [UInt8], _ w: Int, _ h: Int) -> Int {
+        var found = 0
         func look(_ x: Int, _ y: Int) {
             let i = (y * w + x) * 4
-            let (b, g, r) = (Int(px[i]), Int(px[i + 1]), Int(px[i + 2]))
-            if r > 150, b > 150, g < 110 { gaps += 1 }
-            if max(r, g, b) < 60 { black += 1 }
+            if px[i + 2] > 150, px[i] > 150 { found += 1 }
         }
         for y in stride(from: 0, to: h, by: 8) { for x in stride(from: 0, to: w, by: 8) { look(x, y) } }
         for x in 0..<w { look(x, 0); look(x, h - 1) }
         for y in 0..<h { look(0, y); look(w - 1, y) }
-        return (gaps, black)
+        return found
     }
 
-    /// The sizes that matter: the screen's, and the 1694×1095 the overlay window was
-    /// seen at on 2026-11-04, which no offscreen frame had been drawn at.
-    private let overlaySizes = [CGSize(width: 1728, height: 1117), CGSize(width: 1694, height: 1095)]
-
-    /// **At the end the water covers the whole overlay, on the real path.** Reported
-    /// on the glass as water in a circle with black around it, which the offscreen
-    /// sheets did not show. Not reproduced here; this holds the layer, its drawable
-    /// size, its alpha and its compositing to the promise, so that those are ruled
-    /// out for good. The control shrinks the layer, as a wrong size would: the check
-    /// does see a gap, and a pass means something.
-    func testTheWaterCoversTheWholeOverlayOnTheRealPath() throws {
-        for size in overlaySizes {
-            for t in [ToiletDrain.drained + 0.1, 5.0, ToiletDrain.settled - 0.05] {
-                let c = try composited(at: t, points: size)
-                let wrong = notWater(c.px, c.w, c.h)
-                XCTAssertEqual(wrong.gaps, 0, "\(size) at \(t) s")
-                XCTAssertEqual(wrong.black, 0, "\(size) at \(t) s")
-            }
+    /// The bowl through Core Animation, with the layer's real drawable size and
+    /// alpha: black to the very corners, blue in the middle, no desktop showing
+    /// anywhere. The control shrinks the layer: the check does see a gap.
+    func testTheBowlOnTheRealPath() throws {
+        let size = CGSize(width: 1728, height: 1117)
+        let c = try composited(at: 5.0, points: size)
+        XCTAssertEqual(gaps(c.px, c.w, c.h), 0)
+        for (x, y) in [(0, 0), (c.w - 1, 0), (0, c.h - 1), (c.w - 1, c.h - 1)] {
+            let i = (y * c.w + x) * 4
+            XCTAssertEqual(Array(c.px[i..<(i + 3)]), [0, 0, 0], "corner \(x),\(y)")
         }
-        let size = overlaySizes[0]
-        let c = try composited(at: 5.0, points: size) {
+        let centre = ((c.h / 2 + 40) * c.w + c.w / 2) * 4
+        XCTAssertGreaterThan(Int(c.px[centre]), Int(c.px[centre + 2]) + 60, "BGRA: blue water in the middle")
+
+        let spoiled = try composited(at: 5.0, points: size) {
             $0.frame = CGRect(x: 400, y: 250, width: size.width - 800, height: size.height - 500)
         }
-        XCTAssertGreaterThan(notWater(c.px, c.w, c.h).gaps, 1000, "control")
-    }
-
-    /// The end state on the shader alone, at both real sizes: from the moment the
-    /// picture has gone, every pixel out to the corners and edges is opaque water,
-    /// bluer than it is red, at the same height of tone in the corners as in the
-    /// middle. A circle of water would fail the corners.
-    func testTheEndStateIsWaterToTheVeryCorners() throws {
-        let r = try renderer()
-        for size in overlaySizes {
-            let (w, h) = (Int(size.width) * 2, Int(size.height) * 2)
-            let texture = try XCTUnwrap(r.texture(from: picture(w, h)))
-            let out = target(r, w, h)
-            for t in [ToiletDrain.drained, 4.8, 5.1, ToiletDrain.settled] {
-                r.draw(t: t, picture: texture, into: out)?.waitUntilCompleted()
-                let px = bytes(out)
-                XCTAssertEqual(notWater(px, w, h).black, 0, "\(size) at \(t) s")
-                for (x, y) in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1), (w / 2, 0), (0, h / 2), (w / 2, h / 2)] {
-                    let i = (y * w + x) * 4
-                    XCTAssertEqual(px[i + 3], 255, "alpha at \(x),\(y), \(t) s")
-                    XCTAssertGreaterThan(px[i], px[i + 2], "blue over red at \(x),\(y), \(t) s")
-                    XCTAssertGreaterThan(px[i], 90, "tone at \(x),\(y), \(t) s")
-                }
-            }
-        }
+        XCTAssertGreaterThan(gaps(spoiled.px, spoiled.w, spoiled.h), 1000, "control")
     }
 
     // MARK: - The promise

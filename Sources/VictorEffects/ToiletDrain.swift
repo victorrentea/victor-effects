@@ -1,41 +1,33 @@
 import Foundation
 import simd
 
-/// 🚽 The flush, as numbers: the desktop is the surface of the water, and it goes
-/// down the middle of the screen.
+/// 🚽 The flush, as numbers: the whole screen shrinks into a round bowl in the
+/// middle, with black around it, and what it was turns into the water in the bowl.
 ///
-/// **There is no hole** (Victor, 2026-11-04: first a dark disc, then none at all).
-/// The eye reads the drain from the motion alone: the picture collapses into its
-/// own spiral, which tightens and speeds up into the middle. So nothing here may
-/// darken towards the centre: a dark disc or ring would stand in for a hole.
+/// **The design is Victor's, 2026-11-04**, after a screen-filling whirlpool and a
+/// drain that he turned down. In order:
 ///
-/// Everything the picture does depends on **the distance from the centre and the
-/// time**, and on nothing else, which is what keeps this file pure and the shader
-/// dumb: for each frame `fill` writes a table with one `Row` per ring of pixels,
-/// and `ToiletDrainRenderer` only looks the ring up. There is no second copy of
-/// this maths in Metal, so what the tests here pin is what lands on the glass.
+/// 1. The whole desktop shrinks into a circle, on clean black. It turns only a
+///    little: a spiral filling the screen is exactly what this is not.
+/// 2. Inside the circle it keeps turning and is washed over by blue water.
+/// 3. The bowl: water trembling gently with small waves, black still around it.
+/// 4. The whole screen fades back to the desktop at once, one alpha for every pixel.
 ///
-/// **The flow is a bath drain's, not a rotation:**
+/// **Black is true black.** Outside the circle every pixel is `(0, 0, 0)` and opaque:
+/// no glow, no vignette, nothing that fades towards it. All the shading of the bowl
+/// lives inside the rim, and the rim is a pixel and a half of antialiasing.
 ///
-/// - *Inward:* water cannot be compressed, so a sink takes the same area at any
-///   radius and `r²` falls by the same amount everywhere (`sourceRadius`). The
-///   picture is not scaled down: the rings nearest the middle go first, and the
-///   outer ones crowd in behind them.
-/// - *Around:* a vortex turns faster the nearer the middle (`spin`), so straight
-///   lines wind up into spirals. A rotation would keep them straight, and this
-///   difference is the whole gag.
-/// - *The shoreline:* what has gone down is gone from the outer edge, so the
-///   picture's edge closes in from the corners (`shoreline`) over the water left
-///   behind it, and shrinks to a point in the middle.
+/// **The whole screen fits.** A rectangle does not fit in a circle by scaling:
+/// scaled to its diagonal it leaves gaps, scaled to its height it is cropped. So each
+/// direction is squeezed by how far the screen's edge is that way (`extent`,
+/// `squeeze`), which puts the edge of the desktop on the rim all the way around. It
+/// is 1 until the rim gets there, so at rest the warp is the identity.
 ///
-/// **The ending** is that water: its waves calm down (`calm`), and once it has
-/// settled a little the whole screen fades to the live desktop at once (`fadeOut`).
-///
-/// **Against the clip.** `66_toilet.mp3` is measured, 5.08 s, and it has three
-/// parts you can see in a spectrogram: a valve, a long hiss, a gurgle cut dead.
-/// The picture goes down on the gurgle's three gulps, and the last of it is gone
-/// the instant the clip's noise is. The calming cannot fit in the 0.6 s of room tone
-/// left, so the end runs ~1 s past the audio, in silence, as settling water does.
+/// **Against the clip.** `66_toilet.mp3` is measured, 5.08 s: a valve, a long hiss, a
+/// gurgle cut dead. The shrink runs through the hiss and lands on the gurgle, whose
+/// three pulses tighten the circle the last of the way and wash the picture out.
+/// The picture is gone the instant the clip's noise is. The bowl then has to be seen,
+/// which the 0.6 s of room tone cannot do alone: the end runs 0.82 s past the audio.
 enum ToiletDrain {
 
     // MARK: - The clip (measured with ffmpeg in 100 ms and 20 ms windows)
@@ -51,22 +43,17 @@ enum ToiletDrain {
     /// The hiss gives way to a low boom (zero crossings fall from 2 kHz to 300 Hz).
     static let gurgle: Double = 3.72
     /// Where each of the gurgle's three pulses starts and ends, between the dips
-    /// at 3.96 and 4.24. Each one is a swallow of picture.
-    static let gulps: [(from: Double, to: Double, share: Double)] = [
-        (3.72, 3.98, 0.16), (4.03, 4.26, 0.15), (4.30, 4.47, 0.13),
-    ]
-    /// −12.6 dB to −35 dB inside 40 ms: the bowl is empty, and so is the picture.
+    /// at 3.96 and 4.24.
+    static let gulps: [(from: Double, to: Double)] = [(3.72, 3.98), (4.03, 4.26), (4.30, 4.47)]
+    /// −12.6 dB to −35 dB inside 40 ms: the last of the picture is gone with it.
     static let drained: Double = 4.47
 
     // MARK: - The ending (past the clip's 5.08 s: this part is silent on purpose)
 
-    /// Seconds for the waves to fall to 1/e after the last of the picture goes.
-    static let calmTime: Double = 0.55
-    /// "Once the water has settled a little": the fade starts here, with the waves
-    /// at ~17 %, still moving, so it does not read as a freeze before the fade.
-    static let settled: Double = 5.45
-    /// The whole screen is the desktop again, 0.97 s after the clip's last sound.
-    static let fadeEnds: Double = 6.05
+    /// The bowl alone on the screen for 0.93 s, long enough to be seen as one.
+    static let settled: Double = 5.40
+    /// The whole screen is the desktop again, 0.82 s after the clip's last sound.
+    static let fadeEnds: Double = 5.90
     /// The layer outlives the last visible frame by this much, so the frame it
     /// leaves on is an empty one and the removal is never what gives the desktop
     /// back.
@@ -74,22 +61,23 @@ enum ToiletDrain {
     /// What `trackEffect` is given: the rule that every show ends itself.
     static let totalSeconds: Double = fadeEnds + tailAllowance
 
-    // MARK: - The screen
+    // MARK: - The screen and the bowl
+
+    /// The bowl's radius, of the screen's short side: a circle 62 % of the screen's
+    /// height across, ~19 % of a 16:10 screen's area. Big enough to read as a bowl
+    /// of water from the back of a room, small enough that the black is a frame.
+    static let bowlShare: Double = 0.31
 
     /// Everything in pixels of the picture being drawn.
     struct Geometry {
         let width: Double
         let height: Double
 
-        /// Centre to corner: the last water to arrive at the middle.
+        /// Centre to corner.
         var reach: Double { (width * width + height * height).squareRoot() / 2 }
-        /// The vortex's core. Small, and it draws nothing: the rings inside it only
-        /// stop speeding up, which keeps the middle's angle finite.
-        var core: Double { ToiletDrain.coreShare * reach }
+        /// One radius, in pixels on both axes, so it is round on any aspect ratio.
+        var bowl: Double { ToiletDrain.bowlShare * min(width, height) }
     }
-
-    /// Of `reach`: ~110 px at 3456×2234.
-    static let coreShare: Double = 0.055
 
     /// Smooth 0…1 from `from` to `to`, which may run downhill.
     static func smooth(_ from: Double, _ to: Double, _ x: Double) -> Double {
@@ -97,185 +85,148 @@ enum ToiletDrain {
         return u * u * (3 - 2 * u)
     }
 
-    // MARK: - Down
-
-    /// Share of the steady draw in the whole drain; the three gulps are the rest.
-    private static var steadyShare: Double { 1 - gulps.reduce(0) { $0 + $1.share } }
-
-    /// How much of the picture has gone, 0…1: a draw that accelerates with the
-    /// hiss, and a swallow on each pulse of the gurgle. Strictly the picture's
-    /// clock: exactly 0 before the valve, exactly 1 the moment the clip goes quiet.
-    static func drain(_ t: Double) -> Double {
-        guard t > valve else { return 0 }
-        guard t < drained else { return 1 }
-        let steady = steadyShare * pow((t - valve) / (drained - valve), 2.0)
-        return steady + gulps.reduce(0) { $0 + $1.share * smooth($1.from, $1.to, t) }
+    /// Sum of one smooth step per pulse of the gurgle, each worth `share`.
+    private static func onGulps(_ t: Double, share: Double) -> Double {
+        gulps.reduce(0) { $0 + share * smooth($1.from, $1.to, t) }
     }
 
-    /// The `r²` that has gone down the middle, in px².
-    private static func sunk(_ t: Double, _ g: Geometry) -> Double { drain(t) * g.reach * g.reach }
+    // MARK: - The shrink
 
-    /// Which ring of the photograph is at radius `r` at `t`: every ring has lost
-    /// the same `r²`, so the water near the middle has travelled furthest in radius
-    /// and the area it covers is conserved. The identity before the valve.
-    static func sourceRadius(_ r: Double, _ t: Double, _ g: Geometry) -> Double {
-        (r * r + sunk(t, g)).squareRoot()
+    /// What each gulp takes of the way to the bowl: the circle is whole on the
+    /// screen well before the gurgle, and each pulse is seen to tighten it.
+    private static let gulpShrink: Double = 0.04
+
+    /// How far the shrink has got, 0…1: through the hiss, then the gulps.
+    static func shrink(_ t: Double) -> Double {
+        (1 - 3 * gulpShrink) * smooth(valve, gurgle, t) + onGulps(t, share: gulpShrink)
     }
 
-    /// The radius the picture still reaches. At the corners until the valve; 0 when
-    /// `drain` is 1, so the last of it goes down a point.
-    static func shoreline(_ t: Double, _ g: Geometry) -> Double {
-        max(0, g.reach * g.reach - sunk(t, g)).squareRoot()
+    /// The circle's radius at `t`: off the corners until the valve, the bowl from
+    /// the moment the clip goes quiet.
+    static func radius(_ t: Double, _ g: Geometry) -> Double {
+        let start = g.reach * 1.01
+        return start + (g.bowl - start) * shrink(t)
+    }
+
+    /// Softness of the screen's corners in `extent`. A true rectangle (∞) would
+    /// crease the picture along its diagonals; 8 rounds the corners only just.
+    static let cornerPower: Double = 8
+
+    /// How far the screen's edge is from the centre along the unit direction
+    /// `(dx, dy)`: a rounded rectangle, in polar form.
+    static func extent(_ dx: Double, _ dy: Double, _ g: Geometry) -> Double {
+        let across = pow(abs(dx) / (g.width / 2), cornerPower) + pow(abs(dy) / (g.height / 2), cornerPower)
+        return pow(across, -1 / cornerPower)
+    }
+
+    /// How much the picture is squeezed along the turned direction `(tx, ty)`, for
+    /// the pixels along the screen direction `(dx, dy)`: the edge of what can be seen
+    /// that way, the circle or the screen, whichever is nearer, lands on the edge of
+    /// the picture. So there is never a gap inside the circle at any angle, and with
+    /// no turn and a circle past the corners it is exactly 1.
+    static func squeeze(_ tx: Double, _ ty: Double, along dx: Double, _ dy: Double,
+                        _ t: Double, _ g: Geometry) -> Double {
+        extent(tx, ty, g) / min(radius(t, g), extent(dx, dy, g))
     }
 
     // MARK: - Around
 
-    /// Radians the water at the very middle has turned at the end, ~13 turns.
-    static let centreTurn: Double = 82
-    /// The angular speed falls as `1/r^0.85`, far softer than the `1/r²` of the
-    /// textbook's free vortex: that one leaves the corners still, and the whole
-    /// picture has to be seen going around.
-    static let vortexFalloff: Double = 0.85
-    /// Exponent on the clock: the speed itself grows through the whole clip.
-    static let spinUp: Double = 2.7
-    /// How tightly the suction alone winds the picture, radians per e-fold of
-    /// `r²`. This term has no core, so it is what keeps the spiral tightening right
-    /// into the middle, where a hole used to hide the question.
-    static let suctionWind: Double = 1.1
+    /// Radians the picture has turned by the time it is gone: a little over a turn,
+    /// most of it once it is inside the circle. A little is the brief: the eye has
+    /// to read a screen shrinking, not a spiral.
+    static let totalTurn: Double = 7
+    /// How much more the middle has turned than the rim: enough to look like water
+    /// carrying it, far too little to wind it up.
+    static let twist: Double = 0.35
 
-    /// Turned so far at the very middle, radians.
-    static func centreAngle(_ t: Double) -> Double {
+    /// Turned so far at the rim, counter-clockwise on the glass. Exactly 0 before
+    /// the valve, and it stops with the picture.
+    static func turn(_ t: Double) -> Double {
         guard t > valve else { return 0 }
-        return centreTurn * pow(min(t, drained) - valve, spinUp) / pow(drained - valve, spinUp)
+        return totalTurn * pow((min(t, drained) - valve) / (drained - valve), 2.6)
     }
 
-    /// What share of the middle's turn the water at `r` does.
-    static func vortexShare(_ r: Double, _ g: Geometry) -> Double {
-        1 / (1 + pow(r / g.core, vortexFalloff))
-    }
-
-    /// The photograph's angle under radius `r` lags the screen by this much,
-    /// counter-clockwise on the glass, radians. Exactly 0 before the valve.
+    /// The photograph's angle under radius `r` lags the screen by this much.
     static func spin(_ r: Double, _ t: Double, _ g: Geometry) -> Double {
-        let vortex = centreAngle(t) * vortexShare(r, g)
-        let wind = suctionWind * log((r * r + sunk(t, g) + 1) / (r * r + 1))
-        return vortex + wind
-    }
-
-    /// Angular speed of the water at `r`, radians a second, numerically: what the
-    /// eye reads, and the promise under test (faster inward, faster later).
-    static func angularSpeed(_ r: Double, _ t: Double, _ g: Geometry) -> Double {
-        let dt = 1.0 / 240
-        return (spin(r, t + dt, g) - spin(r, t, g)) / dt
+        turn(t) * (1 + twist * max(0, 1 - r / radius(t, g)))
     }
 
     /// One pixel of the screen, offset `(x, y)` from the centre with y down, to the
-    /// photograph's offset. Only the tests call it: the shader runs the same
-    /// rotation on the same two table entries.
+    /// photograph's offset: turn, then squeeze along the turned direction. The
+    /// shader runs these same steps on the same `spin`, `extent` and `radius`, and
+    /// `testTheShaderSamplesWhereTheMathsSays` holds it to them.
     static func source(of x: Double, _ y: Double, _ t: Double, _ g: Geometry) -> (x: Double, y: Double) {
         let r = (x * x + y * y).squareRoot()
         guard r > 0 else { return (0, 0) }
-        let scale = sourceRadius(r, t, g) / r
         let a = spin(r, t, g)
-        return (scale * (x * cos(a) - y * sin(a)), scale * (x * sin(a) + y * cos(a)))
+        let qx = x * cos(a) - y * sin(a), qy = x * sin(a) + y * cos(a)
+        let s = squeeze(qx / r, qy / r, along: x / r, y / r, t, g)
+        return (s * qx, s * qy)
     }
 
-    // MARK: - The ending
+    // MARK: - The water
 
-    /// 1 until the last of the picture has gone, then falling away for good.
-    static func calm(_ t: Double) -> Double {
-        t <= drained ? 1 : exp(-(t - drained) / calmTime)
+    /// How much of the picture the water has replaced, 0…1: it creeps in once the
+    /// circle is whole on the screen, and each gulp takes a bite. Exactly 1 on the
+    /// clip's dead cut.
+    static func water(_ t: Double) -> Double {
+        0.46 * smooth(2.9, gurgle, t) + onGulps(t, share: 0.18)
     }
 
-    /// How hard the whirlpool is working, 0…1: it shows with the rush, is full when
-    /// the gurgle starts, and dies down with the water.
-    static func funnel(_ t: Double) -> Double { smooth(valve, gurgle, t) * calm(t) }
+    /// Height of the waves that never quite stop: "trembles gently".
+    static let gentle: Double = 0.42
 
-    /// The whirlpool's foam, gone within a few tenths of the last gulp: left to
-    /// fade with the waves it is a pinwheel over the water, and the ending has to
-    /// read as a surface settling, not as the spiral dimming.
-    static func foamLeft(_ t: Double) -> Double {
-        smooth(valve, gurgle, t) * (t <= drained ? 1 : exp(-(t - drained) / 0.16))
+    /// Height of the waves, 0…1: at their highest on the last gulp, then falling
+    /// to `gentle` and staying there, through the fade.
+    static func chop(_ t: Double) -> Double {
+        t <= drained ? 1 : gentle + (1 - gentle) * exp(-(t - drained) / 0.35)
     }
 
-    /// Height of the waves on the water left behind, 0…1.
-    static func chop(_ t: Double) -> Double { (0.35 + 0.65 * smooth(valve, gurgle, t)) * calm(t) }
+    /// The ring the last of the picture sets off in the bowl, running from the
+    /// middle to the rim: its slope, which is what lights a wave. Dying with `chop`.
+    static func ringSlope(_ r: Double, _ t: Double, _ g: Geometry) -> Double {
+        guard t > drained else { return 0 }
+        let front = (t - drained) * g.bowl / 0.45
+        let length = 0.24 * g.bowl
+        let trail = smooth(front, front - length, r)
+        let dying = (chop(t) - gentle) / (1 - gentle)
+        return 1.4 * dying * trail * smooth(0, 0.14 * g.bowl, r) * sin(2 * .pi * (front - r) / length)
+    }
 
     /// How much of the overlay is left, the same number for every pixel on the
     /// screen: that is all "at once, uniformly" asks of this function.
     static func fadeOut(_ t: Double) -> Double { 1 - smooth(settled, fadeEnds, t) }
 
-    /// The ring wave the last of the picture sets off as it goes down: a train
-    /// running out from the middle to the corners, as a stone in a pond. Its slope,
-    /// which is what lights a wave; 0 before the moment and dying with the water.
-    static func ringSlope(_ r: Double, _ t: Double, _ g: Geometry) -> Double {
-        guard t > drained else { return 0 }
-        let front = (t - drained) * g.reach / 0.7
-        let length = 0.15 * g.reach
-        let trail = smooth(front, front - length, r)
-        return 2.4 * calm(t) * trail * sin(2 * .pi * (front - r) / length)
-    }
-
     // MARK: - The table
 
-    /// One ring of pixels, in the layout the shader reads. Three `float4`s.
+    /// One ring of pixels, in the layout the shader reads. Two `float4`s.
     struct Row {
-        /// `source radius, spin, light on the picture, water tint`
+        /// `spin, inside the circle (1) or outside (0), nearness to the rim, ring slope`
         var warp = SIMD4<Float>(repeating: 0)
-        /// `foam strength, foam phase, ripple px, ripple phase`
-        var wave = SIMD4<Float>(repeating: 0)
-        /// `picture cover, foam at its edge, alpha, ring wave's slope`
-        var mix = SIMD4<Float>(repeating: 0)
-    }
-
-    /// The foam's turn: the spin's, and it runs on into the calm instead of
-    /// stopping dead when the clock of `centreAngle` does.
-    private static func foamTurn(_ t: Double) -> Double {
-        guard t > drained else { return centreAngle(t) }
-        let speed = centreTurn * spinUp / (drained - valve)
-        return centreTurn + speed * calmTime * (1 - calm(t))
+        /// `the water's reach on this ring, alpha, 0, 0`
+        var wash = SIMD4<Float>(repeating: 0)
     }
 
     /// Writes one frame's rings. `picture` false is the no-Screen-Recording run:
-    /// there is no photograph, so the water fades in over the live desktop instead
-    /// of replacing it.
+    /// there is no photograph, so the black and the water fade in over the live
+    /// desktop instead of replacing it.
     static func fill(_ rows: UnsafeMutableBufferPointer<Row>, step: Double, t: Double,
                      geometry g: Geometry, picture: Bool) {
-        let depth = funnel(t)
-        let foam = foamLeft(t)
-        let shore = shoreline(t, g)
-        let alpha = (picture ? 1 : smooth(0, rush, t) * 0.92) * fadeOut(t)
-        let turned = foamTurn(t) * 0.42
-        let gone = smooth(drained - 0.05, drained, t)
-        let band = g.reach * 0.02
-        let edgeShows = smooth(valve, rush, t)
+        let rim = radius(t, g)
+        let alpha = (picture ? 1 : smooth(valve, rush, t) * 0.92) * fadeOut(t)
+        let flooded = water(t)
 
         for i in rows.indices {
             let r = Double(i) * step
-            let near = exp(-r / (0.5 * g.reach))
-            let tight = 3.2 * log((r + g.core) / (0.5 * g.reach))
-
             var row = Row()
-            row.warp.x = Float(sourceRadius(r, t, g))
-            row.warp.y = Float(spin(r, t, g))
-            // Evenly over the screen, never more towards the middle: that would be
-            // the dark disc this effect is not allowed to have.
-            row.warp.z = Float(1 - 0.10 * depth)
-            row.warp.w = Float(depth * (0.12 + 0.30 * near))
-
-            row.wave.x = Float(foam * (0.08 + 0.42 * near))
-            row.wave.y = Float(-tight * 5 + 3.5 * turned)
-            row.wave.z = Float(depth * 0.012 * g.reach * (0.4 + near))
-            row.wave.w = Float(-tight * 3 + 9 * t)
-
-            // The picture's edge, parked beyond the corners by `band` at rest so
-            // the first frames are the photograph and nothing else.
-            let wet = smooth(shore + 2 * band, shore, r)
-            let foamLine = exp(-pow((r - shore - band) / (band * 0.9), 2))
-            row.mix.x = Float(wet * (1 - gone))
-            row.mix.y = Float(foamLine * edgeShows * 0.75 * (1 - gone))
-            row.mix.z = Float(alpha)
-            row.mix.w = Float(ringSlope(r, t, g))
+            row.warp.x = Float(spin(r, t, g))
+            // A pixel and a half of antialiasing, and then nothing at all.
+            row.warp.y = Float(smooth(rim + 0.75, rim - 0.75, r))
+            row.warp.z = Float(smooth(rim * 0.86, rim, r))
+            row.warp.w = Float(ringSlope(r, t, g))
+            // Comes in from the rim, its front broken up by the waves in the shader.
+            row.wash.x = Float(flooded * 1.9 - 0.4 + 0.5 * (min(1, r / rim) - 0.5))
+            row.wash.y = Float(alpha)
             rows[i] = row
         }
     }

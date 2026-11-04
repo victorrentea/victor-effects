@@ -2352,64 +2352,75 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     effect nobody can tell by looking.
 
 - **🚽 Toilet flush** (tile #66 `66_toilet.mp3` → `toilet-flush`, `showToiletFlush`, `ToiletDrain`,
-  `ToiletDrainRenderer`). The desktop is the water: it winds up around the centre, faster
-  towards the middle and faster as the clip goes on, is drawn inward and collapses into its
-  own spiral. What is left is a water surface whose waves calm down, and then the whole screen
-  fades back to the live desktop at once.
-  - **There is no hole** (Victor, 2026-11-04). The first version went down a dark disc of 10 %
-    of the screen; he took it out entirely, so the eye reads the drain from the motion alone.
-    Nothing may darken towards the middle, because a dark disc or ring would stand in for the
-    hole: the light on the picture is the same on every ring (`testNoRingIsLitDifferently`), and
-    on a flat grey desktop no pixel of any frame goes dark
-    (`testThereIsNoDarkDiscOrRingAtAnyMoment`, with a real dark disc as its control). The centre
-    shows the picture wound into a tight spiral, foam streaks winding in with it. The hole used
-    to hide the middle, so the vortex's core is now small (~110 px at 3456×2234) and the
-    suction's term has no core at all: each halving of the radius winds more than the last.
-  - **Not a rotation.** It is a sink plus a vortex. Water cannot be compressed, so every ring
-    loses the same `r²` (`sourceRadius`): the rings at the middle go first and the outer ones
-    crowd in behind them. The angular speed falls with the radius (`spin`, `1/r^0.85`, far softer
-    than the textbook's `1/r²`, which leaves the corners still), so straight lines wind into
-    spirals. What has gone down leaves the outer edge: a wobbling, foaming edge closes in from
-    the corners over the water left behind, down to a point (`shoreline`).
-  - **The clip, measured** (5.08 s; ffmpeg, RMS and zero crossings in 100 ms and 20 ms
-    windows, and a spectrogram): the valve swells at **0.45 s**, broadband rush at **1.3 s**,
-    hiss until a low gurgle at **3.72 s** (zero crossings fall from 2 kHz to 300 Hz) in three
-    pulses split by dips at 3.96 and 4.24, and a dead cut at **4.47 s** (−12.6 → −35 dB in
-    40 ms). So: the water starts turning on the valve, spin and draw build through the hiss with
-    most of the picture still there (`drain` < 0.45), each pulse is a **gulp** (`gulps`), and the
-    last of the picture goes on the cut. AVFoundation reports 5.12 s for this file (it counts
-    the mp3's padding), ffmpeg 5.08 s.
-  - **The ending runs ~1 s past the audio, on purpose.** Only 0.6 s of room tone follows the
-    cut, too little for water to settle and then fade. From 4.47 s the waves fall away
-    (`calm`, 0.55 s to 1/e), the foam goes within a few tenths (`foamLeft`) so it reads as a surface
-    settling and not as a spiral dimming, and a ring wave set off by the last of the picture
-    runs out to the corners (`ringSlope`). At **5.45 s** the waves are at 17 %, still moving, and
-    the fade starts; at **6.05 s** the desktop is back, 0.97 s after the clip ends. The tile
-    reports that on-screen life as its duration (the 🔥 phoenix's reason: a re-tap only stops a
-    tile its client still thinks is playing), and `SoundEffectMap.onStop` has no entry for
-    it, so nothing cuts the calm when the clip finishes.
-  - **The fade is one number.** `fadeOut(t)` depends on the time alone, so every pixel has the
-    same alpha at every moment, checked on the table and on the shader's real frames
-    (`testTheFadeIsUniformOnTheGlass`). It replaced a return that opened from the centre.
+  `ToiletDrainRenderer`). The whole screen shrinks into a circle in the middle, on clean black,
+  turning only a little. Inside the circle the desktop keeps turning and is washed over by blue
+  water, until the circle is a bowl of water trembling gently with small waves, black still
+  around it. Then the whole screen fades back to the desktop at once.
+  - **Victor's design, 2026-11-04, the third.** A whirlpool filling the screen down a dark hole,
+    then the same with no hole and a calming sea, were both turned down: too many
+    rotations, and a spiral is not what he wanted to see. Hence `totalTurn` of a little over one
+    turn, most of it inside the circle, and `twist` keeping the middle a fraction ahead of the
+    rim so nothing winds up.
+  - **The bowl: 62 % of the screen's height across** (`bowlShare`, radius 0.31 of the short side,
+    ~19 % of a 16:10 screen's area): big enough to read as a bowl from the back of a room, small
+    enough that the black is a frame. One radius in pixels on both axes, so it is round on any
+    aspect ratio (`testTheCircleIsRoundOnAWideScreen`).
+  - **True black.** Every pixel past the rim is `(0, 0, 0)` and opaque: no glow, no vignette
+    (`testEverythingOutsideTheBowlIsTrueBlack`). The shader returns before any shading out there,
+    the rim is a pixel and a half of antialiasing, and the bowl's own shading (the water
+    deepening against the wall, the light caught on the far side) stays inside it.
+  - **The whole screen fits in the circle.** A rectangle does not, by scaling: scaled to its diagonal
+    it leaves gaps, scaled to its height it is cropped. So each direction is squeezed by how
+    far the picture's edge is that way, against how far you can see that way, the circle or the
+    screen, whichever is nearer (`extent`, `squeeze`). The desktop's edge sits on the rim all the
+    way around, with no gap at any angle, and with no turn and the circle past the corners that
+    ratio is exactly 1, so at rest it is the identity. `extent` is a rounded rectangle (power 8): a
+    true one creases the picture along its diagonals.
+  - **The water is circular ripples**, six points of them interfering. Straight sine waves
+    crossing at fixed angles were tried first and wove a plaid. They are lit by their slope, which
+    is what makes them read as a surface. The last of the picture sets off one ring across the
+    bowl (`ringSlope`), and the waves fall to `gentle` and stay there through the fade, so the bowl
+    never goes flat.
+  - **The clip, measured** (5.08 s; ffmpeg, RMS and zero crossings in 100 ms and 20 ms windows,
+    and a spectrogram): the valve swells at **0.45 s**, broadband rush at **1.3 s**, hiss until
+    a low gurgle at **3.72 s** (zero crossings fall from 2 kHz to 300 Hz) in three pulses split by
+    dips at 3.96 and 4.24, and a dead cut at **4.47 s** (−12.6 → −35 dB in 40 ms). AVFoundation
+    reports 5.12 s for this file (it counts the mp3's padding), ffmpeg 5.08 s.
+  - **The timeline:**
+    - 0–0.45 s: the desktop, byte for byte.
+    - 0.45–3.72 s: the shrink, through the rush and the hiss. The circle is whole on the screen by
+      ~2.9 s, and the turn comes mostly after that.
+    - 2.9–4.47 s: the water comes in from the rim. Each of the three gulps takes a bite of the
+      picture and tightens the circle by 4 %; the picture and the shrink both end on the cut.
+    - 4.47–5.40 s: the bowl alone, 0.93 s.
+    - 5.40–5.90 s: the fade, **0.82 s past the clip**. The 0.6 s of room tone cannot hold the bowl
+      and a fade, so this is the shortest tail that lets the bowl be seen. The tile reports that
+      on-screen life as its duration (the 🔥 phoenix's reason: a re-tap only stops a tile its client
+      still thinks is playing), and `SoundEffectMap.onStop` has no entry for it, so nothing
+      cuts the bowl when the clip finishes.
+  - **The fade is one number.** `fadeOut(t)` depends on the time alone, so every pixel, the black
+    included, has the same alpha at every moment (`testTheFadeIsUniformOnTheGlass`). It replaced
+    a return that opened from the centre.
   - **On the play path**, because of the gulps: `playSound` starts the audio and stamps
     `clock0` in one call (Bluetooth compensation included). **The capture does not hold them
     up**, unlike the 🚪 knocks 24 ms into their clips: nothing shows before the valve, so the
     tile answers at once and a capture of tens of ms simply joins the clock it finds. Every
     frame is computed from `clock0`, so a late frame is a skipped moment, not a slower flush.
   - **A fragment shader over a table of rings.** Metal, 3456×2234 on an M5 Max, release build:
-    **0.64 ms** a frame on average, 2 ms worst of 240, plus 0.05 ms to fill the table; a bare
-    `CIVortexDistortion` of the same picture cost 3.9 ms and has no inflow, no water and a fixed
-    profile. A mesh cannot follow a warp this tight near the middle. All the flow is a function
-    of radius and time, so `ToiletDrain.fill` (pure, tested) writes one row per ring each frame and
-    the shader only reads them: **no second copy of the flow in Metal**. All it adds is what is
-    not radial: the swells, the spiral foam and the crossing waves of the water left behind,
-    without `atan2`, which would put a seam in the sampler's derivatives on the negative x
-    axis. Mipmaps and 8× anisotropy keep the squeezed rings from shimmering, and a mirror
-    address mode hides the screenshot's edges.
+    **0.72 ms** a frame on average, 1.9 ms worst of 240, plus 0.03 ms to fill the table; a bare
+    `CIVortexDistortion` of the same picture cost 3.9–7.3 ms, and it can neither fit a rectangle in
+    a circle nor draw water. What is a function of radius and time comes from `ToiletDrain.fill` (pure, tested),
+    one row per ring each frame. The squeeze depends on the direction, so it lives in the shader
+    as well as in `ToiletDrain.source`, and `testTheShaderSamplesWhereTheMathsSays` holds the two
+    together with a picture whose colour says where each pixel came from. There is no
+    `atan2`, which would put a seam in the sampler's derivatives. Mipmaps and 8× anisotropy
+    keep the squeezed picture from shimmering, and past the picture's edge the sampler's border is
+    the same opaque black.
   - **Its own thread.** `ToiletDrainLayer` is a transparent `CAMetalLayer` paced by
     `nextDrawable`, so a busy main thread cannot stutter it, on a `sliceHolder` like every
     screenshot effect, zoom included. The shader is built in `EmojiAnimator.init`, off the main
-    thread.
+    thread. `testTheBowlOnTheRealPath` runs that layer, its thread and its drawables through
+    `CARenderer`.
   - **No seam, either end.** The bytes stay in the capture's own colour space and the layer is
     told that space. Before the valve the shader reads texels straight rather than sampling:
     through the sampler a hard edge came out 9 levels off, from a hair of mip blend. That
@@ -2421,9 +2432,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     capture still in flight finds the layer gone. While suspended the clip plays plain
     (`playPathVisuals`, as for the rest of the play path).
   - **No Screen Recording** (checked first, because the capture would hand back the wallpaper
-    rather than fail) **or a failed capture:** the same water fades in over the live desktop, 92 %
-    opaque, swirls, calms and fades the same way. No Metal device: the clip plays over an
-    untouched desktop.
+    rather than fail) **or a failed capture:** no photograph, so the black and the water fade in
+    over the live desktop, 92 % opaque, and the bowl forms and fades the same way. No Metal
+    device: the clip plays over an untouched desktop.
   - **Photographs the overlay's screen**, `Screens.overlayScreen()`, not the built-in panel as the
     older captures do, with the press caption left out (`CaptionSafeCapture`). The caption's
     window stays above it (`CaptionOverlay.windowLevel`), and the `[toilet flushing]` line
@@ -2431,12 +2442,6 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     picture is gone.
   - **Rehearsing:** `GET /effect/toilet-flush` plays the clip too, as it owns its audio.
     `GET /sound/play/66_toilet.mp3` is what the tile sends.
-  - **An open report (2026-11-04):** on the glass, water in a circle with black around it at
-    the end. Not reproduced. `screencapture` is black while the display is asleep or the
-    session locked, and a window capture is refused, so that check needs a lit, unlocked screen.
-    Ruled out offscreen, through `CARenderer` with the real `ToiletDrainLayer`, thread and
-    drawables (`testTheWaterCoversTheWholeOverlayOnTheRealPath`): drawable size, alpha,
-    compositing, the overlay at 1728×1117 and 1694×1095, and the capture's colour space.
 - **🎼 Beethoven's Fifth** (tile #51 `51_beethoven.mp3`, `showBeethoven`): the Retina is
   captured and then **lunges at the room three times on the three eighth notes**, each
   lunge bigger than the last and each giving a little of it back before the next, then

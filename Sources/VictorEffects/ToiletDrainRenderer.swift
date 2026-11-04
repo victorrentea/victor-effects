@@ -7,15 +7,14 @@ import QuartzCore
 /// app, an offscreen target in the tests and nowhere else differently.
 ///
 /// **Why a fragment shader on the GPU**, measured at 3456×2234 on an M5 Max: this
-/// pass takes **~0.6 ms** a frame (worst of 240, 2 ms) and filling its table
-/// 0.05 ms; a bare `CIVortexDistortion` of the same picture takes 3.9 ms, and has
-/// no inflow, no water and no way to shape the vortex. A mesh is out without
-/// measuring: near the middle the warp turns by more than a radian every few pixels
-/// of radius, far finer than a mesh rebuilt on the CPU every frame could follow.
+/// pass takes **~0.7 ms** a frame (worst of 240, 1.9 ms) and filling its table
+/// 0.03 ms; a bare `CIVortexDistortion` of the same picture takes 3.9–7.3 ms, and has
+/// no way to fit a rectangle in a circle and no water. A mesh would crease along
+/// the squeeze and cost a rebuild on the CPU every frame.
 ///
-/// The shader knows no flow maths. It reads the frame's table of rings
-/// (`ToiletDrain.Row`), and all it adds is what is not a function of the radius:
-/// the wobble around the circle and the swells on the water left behind.
+/// What is a function of the radius comes from the frame's table of rings
+/// (`ToiletDrain.Row`). The shader adds what depends on the direction, the squeeze
+/// (held to `ToiletDrain.source` by a test), and the waves on the water.
 final class ToiletDrainRenderer {
 
     /// Built once, off the main thread (`EmojiAnimator.init`): compiling the shader
@@ -45,6 +44,9 @@ final class ToiletDrainRenderer {
         var atRest: Int32
         var time: Float
         var chop: Float
+        var rim: Float
+        var bowl: Float
+        var corner: Float
     }
 
     init?() {
@@ -64,11 +66,11 @@ final class ToiletDrainRenderer {
         samples.minFilter = .linear
         samples.magFilter = .linear
         samples.mipFilter = .linear
-        // The picture folds into itself past the shoreline of the photograph's
-        // rectangle: a mirror keeps a surface there, with no edge to give away
-        // that the water was a screenshot.
-        samples.sAddressMode = .mirrorRepeat
-        samples.tAddressMode = .mirrorRepeat
+        // A turned rectangle shows its corners: past the picture's edge is the same
+        // black as around the circle, not a repeat of the desktop.
+        samples.sAddressMode = .clampToBorderColor
+        samples.tAddressMode = .clampToBorderColor
+        samples.borderColor = .opaqueBlack
         samples.maxAnisotropy = 8
         guard let sampler = device.makeSamplerState(descriptor: samples) else { return nil }
 
@@ -149,7 +151,10 @@ final class ToiletDrainRenderer {
                                 hasPicture: picture == nil ? 0 : 1,
                                 atRest: atRest ? 1 : 0,
                                 time: Float(t),
-                                chop: Float(ToiletDrain.chop(t)))
+                                chop: Float(ToiletDrain.chop(t)),
+                                rim: Float(ToiletDrain.radius(t, geometry)),
+                                bowl: Float(geometry.bowl),
+                                corner: Float(ToiletDrain.cornerPower))
 
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = target
@@ -175,40 +180,41 @@ final class ToiletDrainRenderer {
     #include <metal_stdlib>
     using namespace metal;
 
-    struct Row { float4 warp; float4 wave; float4 mix; };
-    struct Uniforms { float2 size; float ringsPerPixel; int rows; int hasPicture; int atRest; float time; float chop; };
+    struct Row { float4 warp; float4 wash; };
+    struct Uniforms { float2 size; float ringsPerPixel; int rows; int hasPicture; int atRest;
+                      float time; float chop; float rim; float bowl; float corner; };
 
     vertex float4 drainVertex(uint id [[vertex_id]]) {
         float2 p = float2((id << 1) & 2, id & 2);
         return float4(p * 2 - 1, 0, 1);
     }
 
-    static float2 times(float2 a, float2 b) { return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
-    /// sin(nθ + phase), with the e^(inθ) already in hand: no atan2, so no seam
-    /// along the negative x axis in the sampler's derivatives.
-    static float wave(float2 turn, float phase) { return turn.y * cos(phase) + turn.x * sin(phase); }
-
-    /// The water left behind, at `q` px from the centre: crossing swells, lit by
-    /// their slope, `ring` being the slope a ring wave adds along `out`. All of it
-    /// scales with `chop`, so calm water is a flat colour with a slow sheen.
-    static float3 sea(float2 q, float height, float time, float chop, float2 out, float ring) {
-        const float4 swells[5] = {
-            float4( 3.1,  1.3, 1.4, 0.50), float4(-1.7,  3.9, 1.9, 0.36), float4( 6.3, -2.9, 2.6, 0.22),
-            float4(-8.1, -4.3, 3.3, 0.14), float4( 4.7,  9.7, 4.1, 0.09),
+    /// The water at `p` px from the centre, in units of the bowl: circular ripples
+    /// from a few points scattered over it, interfering. Straight waves crossing at
+    /// fixed angles would weave a plaid; a bowl's waves are rounds. Lit by their
+    /// slope, `ring` being what a ring wave adds along `out`. `patch` is their height
+    /// before `chop`.
+    static float3 sea(float2 p, float bowl, float time, float chop, float2 out, float ring, thread float& patch) {
+        const float4 drops[6] = {
+            float4(-0.62,  0.38, 17.0, 5.3), float4( 0.71, -0.27, 23.0, 6.1), float4( 0.19,  0.83, 29.0, 7.3),
+            float4(-0.33, -0.91, 37.0, 8.9), float4( 1.37,  0.74, 13.0, 4.1), float4(-1.21, -0.58, 47.0, 10.7),
         };
-        float2 unit = q / height;
+        float2 unit = p / bowl;
         float rise = 0;
         float2 slope = 0;
-        for (int i = 0; i < 5; i++) {
-            float phase = dot(unit, swells[i].xy) * 2.2 + swells[i].z * time;
-            rise += swells[i].w * sin(phase);
-            slope += swells[i].w * swells[i].xy * cos(phase) * 0.42;
+        for (int i = 0; i < 6; i++) {
+            float2 from = unit - drops[i].xy;
+            float away = length(from) + 0.001;
+            float phase = drops[i].z * away - drops[i].w * time;
+            float height = 0.34 / (1.0 + float(i) * 0.25);
+            rise += height * sin(phase);
+            slope += height * cos(phase) * drops[i].z * 0.035 * from / away;
         }
-        rise *= chop;
+        patch = rise;
         slope = slope * chop + out * ring;
         float towards = dot(slope, float2(0.55, -0.83));
-        float3 colour = mix(float3(0.09, 0.36, 0.48), float3(0.19, 0.56, 0.66), saturate(0.5 + 0.55 * rise + 0.5 * towards));
-        return colour + 0.30 * pow(saturate(0.45 + 0.20 * towards), 7.0) * float3(0.85, 0.95, 1.0);
+        float3 colour = mix(float3(0.02, 0.16, 0.46), float3(0.08, 0.40, 0.80), saturate(0.5 + 0.10 * rise * chop + 0.55 * towards));
+        return colour + 0.70 * pow(saturate(0.46 + 0.42 * towards), 10.0) * float3(0.80, 0.92, 1.0);
     }
 
     fragment float4 drainFragment(float4 position [[position]],
@@ -226,50 +232,41 @@ final class ToiletDrainRenderer {
         constant Row& a = table[below];
         constant Row& b = table[below + 1];
         float4 warp = mix(a.warp, b.warp, part);
-        float4 waves = mix(a.wave, b.wave, part);
-        float4 cover = mix(a.mix, b.mix, part);
+        float4 wash = mix(a.wash, b.wash, part);
+        float alpha = wash.y;
+        if (warp.y <= 0.0) { return float4(0, 0, 0, alpha); }
 
         float2 z = r > 0.001 ? p / r : float2(1, 0);
-        float2 z2 = times(z, z);
-        float2 z3 = times(z2, z);
-        float2 z5 = times(z3, z2);
-        float2 z8 = times(z5, z3);
+        float c = cos(warp.x), s = sin(warp.x);
+        float2 turned = float2(z.x * c - z.y * s, z.x * s + z.y * c);
 
-        // The surface is not a flat disc: three lazy swells ride around it.
-        float radius = warp.x + waves.z * wave(z3, waves.w);
-        float c = cos(warp.y), s = sin(warp.y);
-        float2 q = radius * float2(z.x * c - z.y * s, z.x * s + z.y * c);
+        // `ToiletDrain.extent` and `squeeze`: the edge of what can be seen this way,
+        // the circle or the screen, lands on the picture's edge.
+        float2 half_size = u.size * 0.5;
+        float2 across = pow(abs(turned) / half_size, float2(u.corner));
+        float2 screen = pow(abs(z) / half_size, float2(u.corner));
+        float extent = pow(across.x + across.y, -1.0 / u.corner);
+        float visible = min(u.rim, pow(screen.x + screen.y, -1.0 / u.corner));
+        float2 q = turned * r * extent / visible;
 
-        float3 left = sea(p, u.size.y, u.time, u.chop, z, cover.w);
+        float patch;
+        float3 water = sea(p, u.bowl, u.time, u.chop, z, warp.w, patch);
+        float flood = smoothstep(0.12, 0.88, wash.x + 0.12 * patch);
 
-        float3 water;
-        if (u.hasPicture != 0) {
-            water = picture.sample(filter, (q + u.size * 0.5) / u.size).rgb;
-        } else {
-            // No photograph: the same water, carried around by the same warp.
-            water = sea(q, u.size.y, u.time, u.chop, z, 0);
+        float3 colour = water;
+        if (u.hasPicture != 0 && flood < 1.0) {
+            colour = mix(picture.sample(filter, (q + half_size) / u.size).rgb, water, flood);
         }
-        water *= warp.z;
-        water = mix(water, float3(0.16, 0.50, 0.62), warp.w);
 
-        // The picture's edge is never a clean circle: it is read off a radius that
-        // wobbles.
-        float shaken = r + waves.z * 1.6 * (wave(z3, 0.4 * waves.w) + 0.6 * wave(z8, waves.w));
-        float atShaken = clamp(shaken * u.ringsPerPixel, 0.0, float(u.rows) - 1.001);
-        int shakenBelow = int(atShaken);
-        float4 edge = mix(table[shakenBelow].mix, table[shakenBelow + 1].mix, atShaken - float(shakenBelow));
+        // The bowl's side, all of it inside the rim: the water deepens against the
+        // wall and catches the light on the far side. Only on water, so the
+        // picture's edge stays the picture's.
+        float light = saturate(dot(z, float2(-0.5, 0.87)));
+        float wall = warp.z * flood;
+        colour *= 1.0 - 0.55 * wall * wall;
+        colour += 0.30 * wall * wall * wall * light * light * float3(0.75, 0.90, 1.0);
 
-        float3 colour = mix(left, water, edge.x);
-
-        // Foam: two families of spiral streaks, each one the sharp crest of a sine.
-        // It rides the picture and the water alike, and shows the spiral winding in.
-        float crest = 0.5 + 0.5 * wave(z5, waves.y);
-        float fine = 0.5 + 0.5 * wave(z8, waves.y * 1.7 + 1.0);
-        float foam = waves.x * (pow(crest, 7.0) + 0.6 * pow(fine, 11.0));
-        colour += foam * float3(0.82, 0.93, 1.0);
-
-        colour += edge.y * float3(0.85, 0.95, 1.0);
-        return float4(saturate(colour) * cover.z, cover.z);
+        return float4(saturate(colour) * warp.y * alpha, alpha);
     }
     """
 }
