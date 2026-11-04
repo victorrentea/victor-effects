@@ -35,8 +35,8 @@ enum SirenLamp {
 
     /// The box Victor drew on the screen for it (2026-10-05, for the siren), as fractions of
     /// the overlay: from 13.9 % to 45 % of the width, the bottom 29.5 % of the
-    /// height. Not flush with the left edge — the 🔔 fire alarm (#65) owns that
-    /// corner.
+    /// height. Not flush with the left edge: the 🔔 fire alarm (#65) owned that
+    /// corner then (it moved top-left on 2026-11-04); the lamp stayed where drawn.
     static let boxLeft: CGFloat = 0.139
     static let boxRight: CGFloat = 0.45
     static let boxHeight: CGFloat = 0.295

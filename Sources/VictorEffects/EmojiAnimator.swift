@@ -9835,7 +9835,7 @@ class EmojiAnimator {
         CATransaction.commit()
     }
 
-    // MARK: - Fire alarm GIF (bottom-left corner)
+    // MARK: - Fire alarm GIF (top-left, `FireAlarm`)
 
     func showFireAlarm(playSound: Bool = true) {
         if cancelIfRunning("fire-alarm", sound: playSound ? "65_school_bell.mp3" : nil) { return }
@@ -9860,16 +9860,8 @@ class EmojiAnimator {
             totalDuration += delay
         }
 
-        let bounds = hostLayer.bounds
-        // Size: ~31% of screen width (26% × 1.2 — grown 20% toward interior per user request)
-        let size = bounds.width * 0.312
-        // Bottom-left corner with small margin
-        let margin: CGFloat = 20
-        let x = margin
-        let y = margin  // y=0 is bottom in flipped coordinates
-
         let gifLayer = CALayer()
-        gifLayer.frame = CGRect(x: x, y: y, width: size, height: size)
+        gifLayer.frame = FireAlarm.frame(in: hostLayer.bounds)
         gifLayer.contentsGravity = .resizeAspect
         if let first = images.first { gifLayer.contents = first }
         stageLayer.addSublayer(gifLayer)

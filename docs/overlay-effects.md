@@ -509,6 +509,13 @@ running. An effect whose `off` never comes is one that outlived its moment;
 an `on` after a `🛑` or a `⏸️` is one that got in through a door the gate
 missed. Overlays that live outside `activeEffects` (the 🕳️ iris, the 🪚
 chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
+- **🔔 Fire alarm** (tile #65 `65_school_bell.mp3` → `fire-alarm`,
+  `showFireAlarm` + `FireAlarm.swift`): the ringing bell, `fire-alarm.gif`
+  (`assetsDir`), for 4.72 s. Since 2026-11-04 it stands **top-left**, in the box
+  Victor drew: 104–481 × 102–537 on the 1920 × 1080 overlay, kept as fractions.
+  It was 31 % of the width in the bottom-left corner. The **bell** is what fits
+  the box, not the 400 × 400 canvas: `FireAlarm.bell` is the bell's union over
+  all 92 frames, and the transparent margin hangs outside the box.
 - **🚨 Siren lamp** (tile #63 `63_air_horn.mp3` → `siren-lamp`,
   `showSirenLamp` + `SirenLamp.swift`, 2026-10-05): a rotating red beacon
   standing on the bottom edge, left of centre, for the length of the clip
@@ -524,8 +531,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   0.647 s (`period`), measured on `02_siren.mp3` — 5.17 s of exactly eight
   identical bursts — and kept, since the air horn has no beat of its own; the
   file's frame delays are ignored. The box — 13.9 %–45 % of the width, bottom
-  29.5 % — is the one Victor drew on the screen (the very corner is the 🔔 fire
-  alarm's, #65); the lamp is drawn at **1.7×** what fits it (2× asked for, then
+  29.5 % — is the one Victor drew on the screen (clear of the very corner, then
+  the 🔔 fire alarm's, #65); the lamp is drawn at **1.7×** what fits it (2× asked for, then
   15 % taken back on seeing it), nudged 5 % of the width left (`nudgeLeft`; the
   glow may run off the left edge, the base does not), with its grey **base on
   the bottom edge**: the bottom 78 of the asset's 301 rows are glow spilling
