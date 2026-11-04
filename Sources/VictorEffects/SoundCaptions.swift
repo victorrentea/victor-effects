@@ -64,7 +64,7 @@ enum SoundCaptions {
         "39_skull_boom.mp3":          "[boom]",
         "40_joker.mp3":               "[maniacal laughter]",
         "41_love_hearts.mp3":         "[romantic music]",
-        "42_saxophone.mp3":           "[sultry saxophone]",
+        "42_saxophone.mp3":           "🎷 Careless Whisper",
         "43_dun.mp3":                 "[dun dun DUNNN]",
         "45_the_mask.mp3":            "Somebody stop me!",
         "46_michael_buble.mp3":       "It's beginning to look a lot like Christmas",
