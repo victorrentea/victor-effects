@@ -243,20 +243,22 @@ final class RainStormTests: XCTestCase {
     /// interrupted (stop-all, a re-press) leaves the desktop under a white
     /// sheet with nothing left running to take it off.
     func testAStrikeBeginsAndEndsInvisible() {
-        XCTAssertEqual(RainStorm.flashOpacities.count, RainStorm.flashKeyTimes.count)
-        XCTAssertEqual(RainStorm.flashOpacities.first, 0)
-        XCTAssertEqual(RainStorm.flashOpacities.last, 0)
-        XCTAssertEqual(RainStorm.flashKeyTimes.first, 0)
-        XCTAssertEqual(RainStorm.flashKeyTimes.last, 1.0)
-        XCTAssertEqual(RainStorm.flashKeyTimes.map { $0.doubleValue },
-                       RainStorm.flashKeyTimes.map { $0.doubleValue }.sorted())
+        for strike in RainStorm.strikes {
+            XCTAssertEqual(strike.opacities.count, strike.keyTimes.count)
+            XCTAssertEqual(strike.opacities.first, 0)
+            XCTAssertEqual(strike.opacities.last, 0)
+            XCTAssertEqual(strike.keyTimes.first, 0)
+            XCTAssertEqual(strike.keyTimes.last, 1.0)
+            XCTAssertEqual(strike.keyTimes.map { $0.doubleValue },
+                           strike.keyTimes.map { $0.doubleValue }.sorted())
+        }
     }
 
     /// Two strikes are separate keyframe animations on ONE layer, so an overlap
     /// would not blend — the later one would simply win and the earlier one
     /// would stop mid-stroke.
     func testStrikesNeverOverlap() {
-        let onsets = RainStorm.thunderOnsets
+        let onsets = RainStorm.strikes.map(\.at)
         XCTAssertEqual(onsets, onsets.sorted())
         for (a, b) in zip(onsets, onsets.dropFirst()) {
             XCTAssertGreaterThan(b - a, RainStorm.flashSeconds, "strikes at \(a)s and \(b)s overlap")
@@ -265,10 +267,78 @@ final class RainStormTests: XCTestCase {
 
     /// Every roll has to be inside the clip: a flash scheduled past the end
     /// fires over a screen the storm has already left.
-    func testEveryThunderRollIsInsideTheClip() {
-        XCTAssertGreaterThan(RainStorm.thunderOnsets.first ?? 0, 0)
-        XCTAssertLessThan((RainStorm.thunderOnsets.last ?? 0) + RainStorm.flashSeconds,
-                          RainStorm.fallbackDuration)
+    func testEveryStrikeIsInsideTheClip() {
+        XCTAssertGreaterThan(RainStorm.strikes.first?.at ?? 0, 0)
+        XCTAssertEqual(RainStorm.strikes(within: RainStorm.fallbackDuration).count, RainStorm.strikes.count)
+    }
+
+    /// The starter pack's clip is 10 s long: the storm ends sooner, and a strike
+    /// still running at the end would flash in the fade-out.
+    func testAShorterClipLosesTheStrikesPastItsEnd() {
+        let kept = RainStorm.strikes(within: 10.03)
+        XCTAssertEqual(kept.map(\.at), [2.60, 3.45, 5.40, 9.35])
+        XCTAssertTrue(RainStorm.strikes(within: 2).isEmpty)
+    }
+
+    /// Victor's *"not a metronome"*, as numbers: the gaps spread widely around
+    /// their mean, there is a real lull, and no two gaps in a row match.
+    func testTheLightningIsNotAMetronome() {
+        let onsets = RainStorm.strikes.map(\.at)
+        let gaps = zip(onsets, onsets.dropFirst()).map { $1 - $0 }
+        let mean = gaps.reduce(0, +) / Double(gaps.count)
+        let spread = (gaps.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(gaps.count)).squareRoot()
+        XCTAssertGreaterThan(spread / mean, 0.4)
+        XCTAssertGreaterThan(gaps.max() ?? 0, 3 * (gaps.min() ?? 0))
+        for (a, b) in zip(gaps, gaps.dropFirst()) {
+            XCTAssertGreaterThan(abs(a - b), 0.1, "two equal gaps in a row")
+        }
+    }
+
+    /// Occasional, not a strobe: the whole clip stays well under one a second.
+    func testTheLightningIsOccasional() {
+        XCTAssertLessThan(Double(RainStorm.strikes.count), RainStorm.fallbackDuration / 1.5)
+    }
+
+    /// A strike's strength is a fraction of the cap, and the cap is what keeps a
+    /// dark room from flinching. Moving it past 0.5 is a decision, not a tweak.
+    func testNoStrikeIsHarderThanTheCap() {
+        XCTAssertLessThanOrEqual(RainStorm.flashPeak, 0.5)
+        XCTAssertEqual(RainStorm.strikes.map(\.strength).max(), 1)
+        XCTAssertLessThan(RainStorm.flashFloor, 1)
+        for strike in RainStorm.strikes {
+            XCTAssertLessThanOrEqual(strike.opacities.max() ?? 1, RainStorm.flashPeak)
+            XCTAssertGreaterThan(strike.opacities.max() ?? 0, 0)
+        }
+    }
+
+    /// Never more than three strokes inside any one second, wherever the second
+    /// starts — the photosensitivity line, not a matter of taste.
+    func testNoSecondCarriesMoreThanThreeStrokes() {
+        let strokes = RainStorm.strikes.flatMap(\.strokeTimes)
+        for start in strokes {
+            let inWindow = strokes.filter { $0 >= start && $0 < start + 1 }.count
+            XCTAssertLessThanOrEqual(inWindow, RainStorm.maxStrokesPerSecond, "from \(start)s")
+        }
+    }
+
+    /// The lightning ends with the order, not with the fade under it: the 1.4 s
+    /// after a stop must not hold another flash.
+    func testAStopTakesBackTheStrikesStillToCome() throws {
+        let host = CALayer()
+        host.frame = CGRect(x: 0, y: 0, width: 1000, height: 600)
+        let animator = EmojiAnimator(hostLayer: host)
+        defer { animator.stopAllActiveEffects() }
+        animator.showStorm()
+
+        func flash(_ layer: CALayer) -> CALayer? {
+            if layer.name == RainStorm.flashLayerName { return layer }
+            return layer.sublayers?.lazy.compactMap(flash).first
+        }
+        let layer = try XCTUnwrap(flash(host))
+        XCTAssertEqual(layer.animationKeys()?.count ?? 0,
+                       RainStorm.strikes(within: RainStorm.fallbackDuration).count, "the clip's own length may differ")
+        animator.stopStorm()
+        XCTAssertNil(layer.animationKeys(), "a stopped storm must not flash again")
     }
 
     // MARK: - The timeline
@@ -280,7 +350,7 @@ final class RainStormTests: XCTestCase {
         XCTAssertLessThan(RainStorm.rainLeadIn, lastCloudLands,
                           "the rain should start while the band is still closing, not after it")
         XCTAssertGreaterThan(RainStorm.rainLeadIn, 0)
-        XCTAssertLessThan(RainStorm.darkenSeconds, RainStorm.thunderOnsets.first ?? 0,
+        XCTAssertLessThan(RainStorm.darkenSeconds, RainStorm.strikes.first?.at ?? 0,
                           "the desktop should be dark by the first roll of thunder")
         XCTAssertLessThan(lastCloudLands + RainStorm.rainRampSeconds, RainStorm.fallbackDuration,
                           "the storm must reach full downpour well inside the clip")

@@ -885,7 +885,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   **The gloom** is a black layer ramping to **0.62** over 2.4 s. Not black — what is being
   darkened is a live demo and the room still has to be able to read it, the same trade
   `TvStatic.defaultAlpha` makes. The ramp is deliberately **over before the first roll of
-  thunder** (2.70 s): a screen still visibly darkening when the lightning goes off reads
+  thunder** (2.60 s): a screen still visibly darkening when the lightning goes off reads
   as the flash dimming the desktop, which is backwards.
 
   **The rain falls between two POINTS, and that is the whole lesson.** The first cut was a
@@ -917,15 +917,41 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   identity-guarded against `activeEffects["storm"]` and invalidated by `clearStorm`, or it
   would keep dropping rain into a detached layer for as long as the app runs.
 
-  **The lightning** fires on `thunderOnsets` — 2.70 / 5.45 / 9.40 / 14.45 s, measured off
-  the clip with a 50 ms RMS envelope, keeping the four loudest rolls and dropping two that
-  sat inside another's tail. One strike is a **stutter, not a fade**
-  (`[0, 0.55, 0.08, 0.38, 0.05, 0]` over 0.55 s): real lightning is two or three strokes a
-  few tens of ms apart, and a single smooth ramp looks like someone turning a lamp on. It
-  begins and ends at fully transparent, which is what keeps an interrupted strike from
-  leaving the desktop under a white sheet with nothing running to take it off; and the
-  onsets are spaced further apart than a strike lasts, because two keyframe animations on
-  one layer do not blend — the later one simply wins and the earlier one stops mid-stroke.
+  **The lightning is the recording's own irregularity** (`RainStorm.strikes`; reworked
+  2026-11-04, Victor: *"occasional lightning, not a metronome"*). Nine strikes at 2.60 /
+  3.45 / 5.40 / 9.35 / 11.80 / 13.60 / 14.45 / 15.05 / 16.60 s, each where a roll starts to
+  rise out of the rain (20–300 Hz RMS, 100 ms frames, on the tablet's mp3). The gaps run
+  from 0.6 s to almost 4 s because the storm's do; a random schedule would have been
+  irregular and wrong. The list is fixed, so every press is the same storm: that is what
+  stays on the thunder. It replaced four strikes of equal strength, and 11.40 and 12.35 are
+  left out because they sit inside 11.80's roll. **The starter pack's `20_storm.mp3` is a
+  different, 10 s recording**: `strikes(within:)` drops what would finish past the clip, and
+  the four that remain are not on its thunder.
+
+  One strike is a **stutter, not a fade**: real lightning is often two or three strokes a
+  few tens of ms apart, and a single smooth ramp looks like someone turning a lamp on. So
+  the near rolls get two strokes (`[0, 1, 0.15, 0.7, 0.09, 0]` × strength over 0.55 s) and
+  the distant ones a single one, at 0.45–1 of `flashPeak` by how loud the roll is, which is
+  a second irregularity, in brightness. Every strike begins and ends at fully transparent,
+  which is what keeps an interrupted one from leaving the desktop under a white sheet with
+  nothing running to take it off; and the onsets are spaced further apart than a strike
+  lasts, because two keyframe animations on one layer do not blend — the later one simply
+  wins and the earlier one stops mid-stroke.
+
+  **It must not hurt.** The old flash was white at 0.55 flat across the screen, which took a
+  dark editor's dimmed pixels from 0.07 to 0.43 in one frame. `flashPeak` is 0.45 now, only
+  the loudest roll reaches it, and only at the top edge: the flash is a **gradient** coming
+  out of the clouds, down to `flashFloor` (0.4) of that at the bottom, so the sky takes the
+  light and the demo a part of it. Rendered, the loudest strike takes the middle of a dark
+  screen from 0.07 to 0.34 and a light slide from 0.51 to 0.64. No second carries more than
+  **three strokes**, wherever it starts (the photosensitivity line, WCAG 2.3.1), which is
+  why a strike under a second from a double is a single. Tests hold the cap and the count.
+
+  **It ends with the storm.** Every strike is a CoreAnimation animation booked on the flash
+  layer at the press, so there is no timer to outlive anything; and `clearStorm` takes the
+  ones still to come off the layer **at once** rather than leaving them to the container:
+  the stop's fade lasts 1.4 s, plenty for one more flash out of a storm told to end. The
+  natural end needs nothing, no strike runs past the clip.
 
   This is the one in-clip-cue effect driven from the **press** path rather than from
   `playSound`, and that is deliberate. Every roll in this recording swells over ~300 ms,
@@ -2402,6 +2428,34 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - `bombBlastFrame` / `bombBlastImpactPoint` exist so the bomb aims at the very pixel the
     fireball will cover. Deriving that point from a second copy of the arithmetic is
     exactly how the two drift.
+
+- **☢️ The blast shakes the whole picture** (`BombShake`, 2026-11-04, Victor: the screen
+  shakes a little with the explosion and for a bit after). Half a second from
+  `explosionBlastOnset`, at most 0.7 % of the screen width (~12 pt), starting from rest on
+  the fireball's first frame and dying to exactly zero. Only the full-screen bomb: an aimed
+  strike is a small thing happening on the desktop, not to it.
+  - **An overlay cannot move the display**, so what shakes is a photograph of the desktop
+    laid over the real one, with the fireball on top — the 💀 skull boom's trick without its
+    black backdrop or its 4 % zoom. A photograph at rest is pixel-identical to the desktop
+    under it, so it comes and goes without a seam, and the sliver a shake opens at the edge
+    shows that same desktop. The real pointer stays live on top.
+  - **The photograph is taken 0.25 s before the bomb enters** (`captureLead`, so 0.5 s after
+    the press), off the main thread. It cannot wait for the blast: by then the bomb is on the
+    glass and would hang in the picture as a ghost under the fireball. The price is a
+    picture ~1 s old, which only a playing video could give away. It is skipped once a click
+    has made the run an aimed one.
+  - **One clock.** The fireball's `contents` animation and the shake are added in the same
+    transaction with no `beginTime`, so CoreAnimation stamps both with the commit's time:
+    the shake cannot drift from the picture, and it has no timer of its own to jitter. One
+    additive `position` keyframe animation, the same for the fireball and the photograph, run
+    by the window server: no per-frame work and no zoom-stage arithmetic. The offset is a
+    fraction of the width each is given, so under a zoom both shake the same on the glass.
+  - **Degrades to the fireball shaking alone**: no Screen Recording (checked first, because
+    the capture would hand back the wallpaper rather than fail), a failed capture, or one
+    that comes back after the blast.
+  - **Ends by itself.** The photograph removes itself when the shake does; it is also on
+    `_bombBlasts`, so stop-all, a suspend (which goes through stop-all), Escape and a
+    re-press take it off with the run, and an epoch check drops a capture still in flight.
 
 - **☢️ Aiming is opt-in, and the screen announces the deadline.** `bombAutoDropDelay` is
   `explosionWhistleForeground`, i.e. **the instant the big bomb clears the top edge**:

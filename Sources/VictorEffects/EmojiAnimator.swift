@@ -216,6 +216,7 @@ class EmojiAnimator {
     private var _bombSessionActive = false
     private var _bombPlantedAny = false               // false → the big bomb may still be the one that lands
     private var _bombBigDropped = false               // true → the big one is falling; aiming is over
+    private var _bombShakeShot: (image: CGImage, slice: ZoomSlice)?   // the desktop before the big bomb, for the blast to shake
     private var _bombInputTap: CFMachPort?
     private var _bombInputTapSource: CFRunLoopSource?
 
@@ -3658,6 +3659,57 @@ class EmojiAnimator {
                   self._bombSessionActive, !self._bombPlantedAny else { return }
             self.dropFullScreenBomb()
         }
+        // The picture the blast will shake, taken while nothing of this run is on
+        // the glass yet. Skipped once a click has made the run an aimed one.
+        DispatchQueue.main.asyncAfter(deadline: .now() + BombShake.captureDelay) { [weak self] in
+            guard let self, self._bombEpoch == epoch,
+                  self._bombSessionActive, !self._bombPlantedAny else { return }
+            self.captureBombShakeShot(epoch: epoch)
+        }
+    }
+
+    /// Photograph the desktop for `shakeTheWholePicture`, off the main thread: this
+    /// runs inside the whistle, and a stall here would land on the bomb's fall. A
+    /// failed capture, or none allowed, costs the desktop its share of the shake and
+    /// nothing else: the fireball shakes alone. Checked rather than attempted, because
+    /// without Screen Recording the capture does not fail, it hands back the wallpaper.
+    private func captureBombShakeShot(epoch: Int) {
+        guard CGPreflightScreenCaptureAccess() else { return }
+        let slice = ZoomSlice.current(in: hostLayer.bounds)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let shot = slice.crop(Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay())
+            DispatchQueue.main.async {
+                guard let self, self._bombEpoch == epoch, let shot else { return }
+                self._bombShakeShot = (shot, slice)
+            }
+        }
+    }
+
+    /// ☢️ The blast shakes the picture: the fireball and, under it, the photograph
+    /// of the desktop (`BombShake`). Called in the same breath as the fireball's
+    /// first frame, so the two begin in one transaction on one clock.
+    ///
+    /// The photograph removes itself. It is also on `_bombBlasts`, so a stop-all, a
+    /// suspend, Escape or a re-press takes it with the rest of the run.
+    func shakeTheWholePicture(fireball: CALayer, shot: (image: CGImage, slice: ZoomSlice)?) {
+        fireball.add(BombShake.animation(width: hostLayer.bounds.width), forKey: BombShake.animationKey)
+        guard let (image, slice) = shot else { return }
+
+        let picture = CALayer()
+        picture.frame = slice.local
+        picture.contents = image
+        picture.contentsGravity = .resizeAspectFill
+        picture.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        sliceHolder(slice).addSublayer(picture)
+        _ = stageLayer   // back on top: the holder just landed over the fireball
+        picture.add(BombShake.animation(width: slice.rect.width), forKey: BombShake.animationKey)
+        _bombBlasts.append(picture)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + BombShake.seconds) { [weak self, weak picture] in
+            guard let picture else { return }
+            picture.removeFromSuperlayer()
+            self?._bombBlasts.removeAll { $0 === picture }
+        }
     }
 
     /// End the whole bombardment: every planted target, every bomb still in the
@@ -3676,6 +3728,7 @@ class EmojiAnimator {
         _bombPending = 0
         _bombPlantedAny = false
         _bombBigDropped = false
+        _bombShakeShot = nil
         stopBombInputCapture()
 
         let layers: [CALayer] = _bombPlanted + _bombFalling + _bombStrikeLayers + _bombBlasts
@@ -4017,6 +4070,10 @@ class EmojiAnimator {
         layer.contents = first
         (fullScreen ? stageLayer : hostLayer).addSublayer(layer)
         _bombBlasts.append(layer)
+        if fullScreen {
+            shakeTheWholePicture(fireball: layer, shot: _bombShakeShot)
+            _bombShakeShot = nil
+        }
 
         let anim = CAKeyframeAnimation(keyPath: "contents")
         anim.values = images
@@ -9155,9 +9212,14 @@ class EmojiAnimator {
     /// which cannot be misread and can be asserted without opening a window.
     private var stormRainTimer: Timer?
 
+    /// The layer the lightning flashes on, kept so a stop can take the strikes
+    /// still to come off it: the container's fade lasts 1.4 s, plenty for one more
+    /// flash out of a storm that has been told to end.
+    private var stormFlash: CALayer?
+
     /// ⛈️ Four clouds slide in from both sides onto the top edge, the desktop
     /// dims under them, and rain falls out of the cloud base for as long as the
-    /// clip plays — with lightning on the thunder rolls.
+    /// clip plays — with lightning, irregular, on the thunder rolls.
     ///
     /// One container holds all four parts (dark, clouds, flash, rain) so the
     /// end is a single fade and `stopAllActiveEffects` needs no special case
@@ -9253,21 +9315,27 @@ class EmojiAnimator {
             layer.add(sway, forKey: "stormDrift")
         }
 
-        // 3. Lightning, one stutter per thunder roll in the clip. Above the
-        // clouds: a flash that lit the desktop but not the sky it came out of
-        // would read as a monitor glitch.
-        let flash = CALayer()
+        // 3. Lightning on the clip's thunder rolls, each one its own strength.
+        // Above the clouds: a flash that lit the desktop but not the sky it came
+        // out of would read as a monitor glitch. Every strike is booked here, on
+        // this layer, so there is no timer to outlive the storm; `clearStorm`
+        // takes back the ones still to come.
+        let flash = CAGradientLayer()
+        flash.name = RainStorm.flashLayerName
         flash.frame = bounds
-        flash.backgroundColor = NSColor.white.cgColor
+        flash.colors = [NSColor(white: 1, alpha: RainStorm.flashFloor).cgColor, NSColor.white.cgColor]
+        flash.startPoint = CGPoint(x: 0.5, y: 0)   // the bottom edge, y up
+        flash.endPoint = CGPoint(x: 0.5, y: 1)
         flash.opacity = 0
         container.addSublayer(flash)
-        for onset in RainStorm.thunderOnsets where onset + RainStorm.flashSeconds < clip {
-            let strike = CAKeyframeAnimation(keyPath: "opacity")
-            strike.values = RainStorm.flashOpacities
-            strike.keyTimes = RainStorm.flashKeyTimes
-            strike.duration = RainStorm.flashSeconds
-            strike.beginTime = CACurrentMediaTime() + onset
-            flash.add(strike, forKey: "stormFlash\(onset)")
+        stormFlash = flash
+        for strike in RainStorm.strikes(within: clip) {
+            let stutter = CAKeyframeAnimation(keyPath: "opacity")
+            stutter.values = strike.opacities
+            stutter.keyTimes = strike.keyTimes
+            stutter.duration = RainStorm.flashSeconds
+            stutter.beginTime = CACurrentMediaTime() + strike.at
+            flash.add(stutter, forKey: "stormFlash\(strike.at)")
         }
 
         // 4. The rain, ramping up rather than switching on: the tick rate is
@@ -9364,6 +9432,9 @@ class EmojiAnimator {
         // the app runs.
         stormRainTimer?.invalidate()
         stormRainTimer = nil
+        // The lightning ends with the order, not with the fade under it.
+        stormFlash?.removeAllAnimations()
+        stormFlash = nil
         guard let container = activeEffects["storm"] else { return }
         activeEffects.removeValue(forKey: "storm")
         guard fadeDuration > 0 else { container.removeFromSuperlayer(); return }
