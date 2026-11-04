@@ -70,7 +70,7 @@ enum SoundCaptions {
         "46_michael_buble.mp3":       "It's beginning to look a lot like Christmas",
         "46b_my_way.mp3":             "I did it my way",
         "47_dog_bark.mp3":            "[dog barking]",
-        "48_rooster.mp3":             "[rooster crowing]",
+        "48_rooster.mp3":             "🐓 [rooster crowing]",
         "50_gong.mp3":                "[gong]",
         "51_beethoven.mp3":           "[Da-da-da-DUM]",
         "52_saw.mp3":                 "[sawing]",
@@ -88,9 +88,8 @@ enum SoundCaptions {
         "65_school_bell.mp3":         "[bell ringing]",
         "66_toilet.mp3":              "[toilet flushing]",
         "67_sfx_109.mp3":             "Eww, brother, eww!",
-        "68_pig.mp3":                 "[pig oinking]",
+        "68_pig.mp3":                 "🐷 [pig oinking]",
         "69_scream_ghost.mp3":        "Wazzuuup!",
-        "70_cavalry.mp3":             "[cavalry bugle charge]",
         "71_one_more_time.mp3":       "One more try…",
         "72_if_tomorrow.mp3":         "If tomorrow never comes",
         "73_counter_strike.mp3":      "Go, go, go!",
@@ -98,8 +97,7 @@ enum SoundCaptions {
         "75_sfx_117.mp3":             "May I have your attention, please?",
         "76_sfx_118.mp3":             "Wasn't me",
         "77_maui.mp3":                "You're welcome!",
-        "78_projector.mp3":           "[film projector whirring]",
-        "79_door.mp3":                "[door slams]",
+        "79_door.mp3":                "[door creaking]",
         "80_7_rings.mp3":             "I want it, I got it",
         "81_let_it_be.mp3":           "Let it be",
         "81b_let_go.mp3":             "Let go",
@@ -108,10 +106,8 @@ enum SoundCaptions {
         "84_eclipse.mp3":             "[epic music]",
         "85_joy.mp3":                 "[Ode to Joy]",
         "86_doorbell.mp3":            "[doorbell]",
-        "87_grenade.mp3":             "[grenade explodes]",
+        "87_grenade.mp3":             "Fire in the hole!",
         "88_all_you_need_is_love.mp3": "All you need is love",
-        "89_fireworks.mp3":           "[fireworks]",
-        "90_breaking-glass.mp3":      "[glass shattering]",
         "91_sinking.mp3":             "[ship sinking]",
     ]
 
@@ -180,6 +176,11 @@ enum SoundCaptions {
                                    (8.5, "Hal\u{AD}le\u{AD}lu\u{AD}jah! Hal\u{AD}le\u{AD}lu\u{AD}jah!")],
         "62_lionel_richie.mp3":   [(0, "Hello…"),
                                    (4.4, "Is it me you're looking for?")],
+        // Spoken three times, with only music between them and after (2026-11-04,
+        // on the voice): the second and third lines were never in the table.
+        "67_sfx_109.mp3":         [(0, "Eww, brother, eww!"),
+                                   (5.45, "What's that?"),
+                                   (8.63, "What's that, brother?")],
         "71_one_more_time.mp3":   [(0, "One more try…"),
                                    (2.3, "I didn't know how much I loved you"),
                                    (6.4, "One more try…"),
@@ -190,6 +191,11 @@ enum SoundCaptions {
                                    (1.3, "Oops, I did it again"),
                                    (4.1, "I played with your heart"),
                                    (6.8, "Got lost in the game")],
+        // The sentence twice, a slow deep take and a normal one, then the threat
+        // (2026-11-04, on the voice).
+        "75_sfx_117.mp3":         [(0, "May I have your attention, please?"),
+                                   (3.05, "May I have your attention, please?"),
+                                   (4.85, "We're gonna have a problem here")],
         "76_sfx_118.mp3":         [(0, "Wasn't me"),
                                    (0.7, "Heard the words that I told her"),
                                    (2.4, "Wasn't me"),
@@ -198,21 +204,39 @@ enum SoundCaptions {
         "77_maui.mp3":            [(0, "Well, anyway, let me say you're welcome"),
                                    (3.3, "For the wonderful world you know"),
                                    (6.5, "Hey, it's okay")],
+        // Four times the hook, then the verse (2026-11-04, on the voice).
+        "80_7_rings.mp3":         [(0, "I want it, I got it"),
+                                   (1.7, "I want it, I got it"),
+                                   (3.42, "I want it, I got it"),
+                                   (5.12, "I want it, I got it"),
+                                   (6.7, "You like my hair?"),
+                                   (8.46, "Gee, thanks, just bought it"),
+                                   (10.24, "I see it, I like it"),
+                                   (12.0, "I want it, I got it, yeah")],
         "81_let_it_be.mp3":       [(2.3, "When I find myself in times of trouble"),
                                    (6.3, "Mother Mary comes to me"),
                                    (9.0, "Speaking words of wisdom"),
                                    (11.9, "Let it be")],
+        // Her, then him the same melody an octave down, as its own line (2026-11-04).
+        "81b_let_go.mp3":         [(0, "Let go"),
+                                   (8.72, "Let go")],
         // Sung yum-my-yum on G-A-G with the last one held, so each syllable is
         // timed (U+00AD). Reviewed 2026-11-04 on the voice and the karaoke video.
         "83_yummy.mp3":           [(0, "Yeah, you got that yum\u{AD}my-\u{AD}yum"),
                                    (3.19, "That yum\u{AD}my-\u{AD}yum"),
                                    (4.87, "That yum\u{AD}my-\u{AD}yum\u{AD}my")],
+        "88_all_you_need_is_love.mp3": [(0, "All you need is love"),
+                                        (5.7, "All you need is love")],
+        // The wording is the video snippet's subtitles, not Whisper's, which hears
+        // thinking both times; the mp3 starts 26.87 s into that video (2026-11-04).
+        "91_sinking.mp3":         [(0, "We are sinking! We're sinking!"),
+                                   (4.0, "What are you thinking about?")],
     ]
 
     /// Tiles that say nothing, on purpose: the picture already does (Victor,
     /// 2026-11-04: a flatline on the screen needs no caption, and the same
     /// day no subtitle at all on the explosion, the red phone and the fire).
-    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3", "18_chainsaw.mp3", "44_small_dog.mp3", "49_wrong.mp3", "55b_tsunami.mp3", "63_air_horn.mp3"]
+    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3", "18_chainsaw.mp3", "44_small_dog.mp3", "49_wrong.mp3", "55b_tsunami.mp3", "63_air_horn.mp3", "70_cavalry.mp3", "78_projector.mp3", "89_fireworks.mp3", "90_breaking-glass.mp3"]
 
     /// Tiles whose press only raises the gun: nothing is heard yet, so the line
     /// waits for the first shot (Victor, 2026-11-04: "after they start firing").
@@ -284,8 +308,9 @@ struct CaptionLine: Equatable {
 }
 
 extension SoundCaptions {
-    /// A song whose first word comes later than this opens on its `table`
-    /// line, so the screen says what is playing while the intro does.
+    /// A clip whose first word comes later than this opens on its `table`
+    /// line if that line is a [noise], so the screen says what is heard
+    /// while the intro plays. A song's words wait for the song.
     static let titleLeadIn: TimeInterval = 1
     /// A said line stays up this long after its last word is full (Victor,
     /// 2026-11-04: "to get to read it"). Lines overlap for that second, which
@@ -310,9 +335,9 @@ extension SoundCaptions {
             return [heldToBeRead(withWords(CaptionLine(at: 0, text: first, seconds: lifetime(clipSeconds: clipSeconds)), asset: asset))]
         }
         var cues = sung.map { (at: $0.at, text: $0.text) }
-        // Not when the title IS the first sung line: it would sit there whole,
-        // unlit, before anyone sings it (Victor, 2026-11-04, the rainbow).
-        if cues[0].at >= titleLeadIn, cues[0].text != first { cues.insert((at: 0, text: first), at: 0) }
+        // Only a [noise]: sung words would sit there whole, unlit, before anyone
+        // sings them (Victor, 2026-11-04, the rainbow, then Let It Be).
+        if cues[0].at >= titleLeadIn, first.hasPrefix("[") { cues.insert((at: 0, text: first), at: 0) }
         return track(cues, clipSeconds: clipSeconds).map { heldToBeRead(withWords($0, asset: asset)) }
     }
 

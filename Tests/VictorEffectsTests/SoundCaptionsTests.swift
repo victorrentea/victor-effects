@@ -17,7 +17,6 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.caption(for: "92_door_open.mp3"), "[door open]")
         XCTAssertEqual(SoundCaptions.caption(for: "99b_dreamer.mp3"), "[dreamer]")
         XCTAssertEqual(SoundCaptions.caption(for: "alarm.mp3"), "[alarm]")
-        XCTAssertEqual(SoundCaptions.caption(for: "90_breaking-glass.mp3"), "[glass shattering]")
         XCTAssertEqual(SoundCaptions.fallback(for: "99_breaking-glass.mp3"), "[breaking glass]")
     }
 
@@ -101,13 +100,14 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertTrue(SoundCaptions.captionsAtPress("04_wolf.mp3"))
     }
 
-    /// A title equal to the first sung line would give the line away before it is sung.
-    func testATitleEqualToTheFirstLineIsNotShownFirst() {
-        let track = SoundCaptions.schedule(for: "37_rainbow.mp3", clipSeconds: 14)
-        XCTAssertEqual(track.first?.text, "Somewhere over the rainbow")
-        XCTAssertEqual(track.first?.at, 2.8)
-        XCTAssertEqual(SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2).first?.text, "Let it be",
-                       "a title that is not the line still opens the intro")
+    /// Sung words wait to be sung: only a [noise] opens a long intro.
+    func testOnlyANoiseOpensALongIntro() {
+        let rainbow = SoundCaptions.schedule(for: "37_rainbow.mp3", clipSeconds: 14)
+        XCTAssertEqual(rainbow.first?.text, "Somewhere over the rainbow")
+        XCTAssertEqual(rainbow.first?.at, 2.8)
+        let letItBe = SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2)
+        XCTAssertEqual(letItBe.first?.text, "When I find myself in times of trouble")
+        XCTAssertEqual(SoundCaptions.schedule(for: "39_skull_boom.mp3", clipSeconds: 10).first?.text, "[boom]")
     }
 
     /// A said line is not wrapped in quotes (Victor, 2026-11-04): the caption
@@ -130,14 +130,6 @@ final class SoundCaptionsTests: XCTestCase {
                 XCTAssertFalse(line.text.contains { "♪♫♬🎵".contains($0) }, "\(asset): \(line.text)")
             }
         }
-    }
-
-    func testASongWithAnIntroOpensOnItsTitle() {
-        let track = SoundCaptions.schedule(for: "81_let_it_be.mp3", clipSeconds: 15.2)
-        XCTAssertEqual(track.first?.text, "Let it be")
-        XCTAssertEqual(track.first?.at, 0)
-        XCTAssertEqual(track.first!.seconds, 2.3 + SoundCaptions.readHold, accuracy: 0.001)
-        XCTAssertEqual(track[1].text, "When I find myself in times of trouble")
     }
 
     /// No more words, no more line: it does not wait for the clip to end, or

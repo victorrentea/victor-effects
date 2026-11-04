@@ -633,7 +633,31 @@
     3.24
    ],
    "confidence": "high",
-   "note": "Eww 0.04-0.8; b-voicing 2.87 (burst 2.935, MMS b 2.92); second 'eww' sharp attack 3.24 after a 3.17-3.24 gap. Audio goes on with uncaptioned 'What's that?' (5.5) and 'What's that, brother?' (8.7)."
+   "note": "Eww 0.04-0.86; b-voicing 2.87 (burst 2.935, MMS b 2.92); second 'eww' sharp attack 3.24 after a 3.17-3.24 gap, held to 4.14 (-30 dB at 4.12, -34 at 4.16).",
+   "lastWordEnd": 4.14
+  },
+  {
+   "at": 5.45,
+   "text": "What's that?",
+   "words": [
+    5.5,
+    5.72
+   ],
+   "lastWordEnd": 6.25,
+   "confidence": "high",
+   "note": "Voice 5.50 on the stem after silence; 'that' after the dip at 5.72: [5.4,5.72]=\"What's the-\", from 5.72 still 'That!', from 5.78 'I bet!'. 'that' held to 6.25 (-24 dB at 6.24, -36 at 6.28)."
+  },
+  {
+   "at": 8.63,
+   "text": "What's that, brother?",
+   "words": [
+    8.68,
+    8.94,
+    9.17
+   ],
+   "lastWordEnd": 9.72,
+   "confidence": "high",
+   "note": "Voice 8.68 after silence; 'that' after the dip at 8.92: [8.6,8.92]='What the-', from 8.94 'That brother!'; 'brother' release after the dip at 9.16: from 9.1 'brother', from 9.18 'Blah blah!', and held to 9.72 (-33 dB there, -44 at 9.76). Gaps 0.9-2.85, 4.2-5.45, 6.3-8.6 and the end are music: Whisper on the raw and the gain-raised cuts of mix, voice and music stems finds no words."
   }
  ],
  "69_scream_ghost.mp3": [
@@ -810,7 +834,36 @@
     1.37
    ],
    "confidence": "high",
-   "note": "The clip says the line TWICE: a slow deep version 0.04-1.7 and a normal one 3.08-4.75 (then an uncaptioned 'We're gonna have a problem here' 4.88-5.8). Timed the first, right after at=0 (MMS had grabbed the 2nd: 3.11...). Tail on [t,2.2]: 0.3='I have', 0.37='Have', 0.62='Your', 0.86='..tention', 1.38='Please'; MMS on [0,2] gives 0.06/0.34/0.40/0.69/0.83/1.35."
+   "note": "The clip says the line TWICE, a slow deep take 0.04-1.7 and a normal one, then the problem line. Timed the first, right after at=0 (MMS had grabbed the 2nd: 3.11...). Tail on [t,2.2]: 0.3='I have', 0.37='Have', 0.62='Your', 0.86='..tention', 1.38='Please'; MMS on [0,2] gives 0.06/0.34/0.40/0.69/0.83/1.35."
+  },
+  {
+   "at": 3.05,
+   "text": "May I have your attention, please?",
+   "words": [
+    3.11,
+    3.26,
+    3.33,
+    3.61,
+    3.8,
+    4.31
+   ],
+   "confidence": "high",
+   "note": "Second take. Voice 3.11 after silence; from 3.26 'I have', from 3.34 'have', from 3.62 still 'your', from 3.66 'attention'; [3.0,4.3] has no 'please', [3.0,4.36] has it, dip at 4.28. 'attention' carried from the first take's 0.84 at the same 2.96 s offset, the dips matching."
+  },
+  {
+   "at": 4.85,
+   "text": "We're gonna have a problem here",
+   "words": [
+    4.9,
+    4.99,
+    5.15,
+    5.27,
+    5.35,
+    5.7
+   ],
+   "lastWordEnd": 5.9,
+   "confidence": "high",
+   "note": "Whisper on mix and stem both end on 'here', so it stays in. Heads from 4.85: 5.02 'We're gonna-', 5.2 'have-' (not at 5.14), 5.34 'a-' (not at 5.26), 5.5 'problem', 5.76 'here' (not at 5.7); tails: from 5.34 still 'problem', from 5.7 still 'here', from 5.74 gone. Voice over by 5.9."
   }
  ],
  "76_sfx_118.mp3": [
@@ -928,7 +981,104 @@
     1.32
    ],
    "confidence": "medium",
-   "note": "First of four repetitions. Dense stacked vocal, so I fitted the 140-BPM 8th-note grid (beats at 0.245/0.675/1.105/1.535 from the kick+clap in the mix): I . want . it ... I . got . it. MMS (want 0.24-0.26, got 1.11-1.13, it 1.33) and librosa onsets (0.05, 0.28, 0.77, 1.14) agree; the next bar repeats exactly 1.71 s later (onsets 1.76, 2.0, 2.6, 2.81). Whisper's want 0.08 is early."
+   "note": "First of four repetitions, then the verse. Dense stacked vocal, so I fitted the 140-BPM 8th-note grid (beats at 0.245/0.675/1.105/1.535 from the kick+clap in the mix): I . want . it ... I . got . it. MMS (want 0.24-0.26, got 1.11-1.13, it 1.33) and librosa onsets (0.05, 0.28, 0.77, 1.14) agree; the next bar repeats exactly 1.71 s later (onsets 1.76, 2.0, 2.6, 2.81). Whisper's want 0.08 is early."
+  },
+  {
+   "at": 1.7,
+   "text": "I want it, I got it",
+   "words": [
+    1.75,
+    1.97,
+    2.18,
+    2.6,
+    2.82,
+    3.04
+   ],
+   "confidence": "medium",
+   "note": "Second bar, 1.714 s on the same grid; stem onsets 1.76 2.0 2.6 2.81. Whisper's word ends sit just after each onset here, as on the first bar (1.80 2.08 2.28 2.66 2.88 3.14)."
+  },
+  {
+   "at": 3.42,
+   "text": "I want it, I got it",
+   "words": [
+    3.48,
+    3.7,
+    3.9,
+    4.32,
+    4.55,
+    4.76
+   ],
+   "confidence": "medium",
+   "note": "Third bar; stem onsets 3.51 3.72 4.32 4.57, Whisper ends 3.50 3.76 4.02 4.40 4.64 4.86. Stacked harmonies make the tails useless here."
+  },
+  {
+   "at": 5.12,
+   "text": "I want it, I got it",
+   "words": [
+    5.19,
+    5.4,
+    5.61,
+    6.03,
+    6.25,
+    6.46
+   ],
+   "confidence": "medium",
+   "note": "Fourth bar; stem onsets 5.2 5.43 6.04 6.25, Whisper ends 5.22 5.48 5.72 6.06 6.24 6.56."
+  },
+  {
+   "at": 6.7,
+   "text": "You like my hair?",
+   "words": [
+    6.74,
+    6.96,
+    7.19,
+    7.76
+   ],
+   "confidence": "high",
+   "note": "Stem onset 6.73, Whisper 'you' ends 6.70. Tails to 8.2: from 6.85 still 'You', from 7.0 'like', from 7.2 'My hair'; 'my' is held to the rise at 7.76, and from 7.8 nothing."
+  },
+  {
+   "at": 8.46,
+   "text": "Gee, thanks, just bought it",
+   "words": [
+    8.52,
+    8.82,
+    9.46,
+    9.72,
+    9.85
+   ],
+   "confidence": "medium",
+   "note": "Tails to 9.25: from 8.5 'Gee, thanks', from 8.55 'Thanks'; dip 8.76-8.80 then 'thanks'. 'just' from 9.47 still, from 9.50 gone. Whisper on the stem says bought (0.76); the mix's 'got' is 0.29. Bought/it share 9.72-9.88, split on the small dip at 9.84, medium."
+  },
+  {
+   "at": 10.24,
+   "text": "I see it, I like it",
+   "words": [
+    10.29,
+    10.52,
+    10.74,
+    11.13,
+    11.38,
+    11.57
+   ],
+   "confidence": "medium",
+   "note": "Same rhythm as the chorus, I at the bar's start: rises at 10.28 and 10.56, tails from 10.26 'I see it', from 10.38 'See ya'; second half stem onsets 11.12 11.4 11.56, from 11.12 'I like it', from 11.2 gone."
+  },
+  {
+   "at": 12.0,
+   "text": "I want it, I got it, yeah",
+   "words": [
+    12.06,
+    12.26,
+    12.47,
+    12.88,
+    13.11,
+    13.32,
+    13.56
+   ],
+   "lastWordEnd": 13.78,
+   "confidence": "medium",
+   "note": "Stem onsets 12.07 12.24, 12.89 13.1; 'it' 13.32 from the first bar's spacing. Yeah is the burst 13.56-13.76: Whisper on the whole stem says yeah, the cuts yup and yo."
   }
  ],
  "81_let_it_be.mp3": [
@@ -994,7 +1144,18 @@
     2.03
    ],
    "confidence": "high",
-   "note": "Voice starts at 1.63 (silence before). 'Let' is sung over two notes (1.63, 1.82); Whisper on [1.4,2.04] hears no 'go', on [2.04,..] nothing, so 'go' starts at the g closure ~2.0-2.05. Whisper hears 'Let go of me' on 2.1-2.9 (melisma or extra words not in the caption)."
+   "note": "Voice starts at 1.63 (silence before). 'Let' is sung over two notes (1.63, 1.82); Whisper on [1.4,2.04] hears no 'go', on [2.04,..] nothing, so 'go' starts at the g closure ~2.0-2.05. Whisper's 'of me' on the stem is the melisma of 'go': the mix says only 'Let go'."
+  },
+  {
+   "at": 8.72,
+   "text": "Let go",
+   "words": [
+    8.78,
+    9.2
+   ],
+   "lastWordEnd": 9.68,
+   "confidence": "medium",
+   "note": "The man's repeat, the woman's melody exactly an octave down: 165 Hz against her 330 on 'let', 248 against her 496 on 'go'. Let 8.80-9.04, g closure 9.08-9.16, go 9.20-9.48 with a tail to 9.68. Whisper never hears the words here ('And go!' at best), so this rests on pitch and envelope."
   }
  ],
  "82_over_and_out.mp3": [
@@ -1052,6 +1213,20 @@
    "note": "Heard times, settled on the Demucs voice (pyin pitch + onsets). Cross-checked on the Sing King karaoke video (youtu.be/NxQYcM0Kw2Q): same three lines; backing track puts clip 0 at 15.103 s of it (3 of 4 bands agree), and its green wipe, tracked frame by frame, starts this line's words at 4.78/4.98/-/5.82/-. 'my' = G->A step at 5.27; 2nd 'yum' = A->G at 5.72; last 'my' = onset at 5.93 after the dip at 5.90, held to ~6.52 (wipe ends 6.59)."
   }
  ],
+ "87_grenade.mp3": [
+  {
+   "at": 0,
+   "text": "Fire in the hole!",
+   "words": [
+    0.22,
+    0.57,
+    0.64,
+    0.72
+   ],
+   "confidence": "high",
+   "note": "Whisper on mix and stem: Fire in the hole! The burst at 0.05 is the pin, no word. Tails: from 0.2 'Fire', from 0.3 'We're in the hole'; from 0.56 'in the', from 0.62 'the home', from 0.68 'Ha ha'; dip 0.68 then 'hole' 0.72."
+  }
+ ],
  "88_all_you_need_is_love.mp3": [
   {
    "at": 0,
@@ -1064,7 +1239,50 @@
     2.56
    ],
    "confidence": "high",
-   "note": "Sung on one pitch; boundaries from formants: /j/ F2 rise ~1.40, nasal dip 1.55-1.65 then /i:/ (MMS 'need' 1.65, score 0.9), 'd' closure gap 2.00-2.03, 's' fricative 2.37-2.53 then 'love' (MMS 2.59). Line is sung a 2nd time at 5.76-7.6, no cue covers it (cue ends 6.0)."
+   "note": "Sung on one pitch; boundaries from formants: /j/ F2 rise ~1.40, nasal dip 1.55-1.65 then /i:/ (MMS 'need' 1.65, score 0.9), 'd' closure gap 2.00-2.03, 's' fricative 2.37-2.53 then 'love' (MMS 2.59). 'love' ends 3.02 (-31 dB at 3.00, -33 at 3.04).",
+   "lastWordEnd": 3.02
+  },
+  {
+   "at": 5.7,
+   "text": "All you need is love",
+   "words": [
+    5.76,
+    6.1,
+    6.35,
+    6.76,
+    7.29
+   ],
+   "lastWordEnd": 7.74,
+   "confidence": "high",
+   "note": "Second time, the first one 4.72 s later: voice 5.76, nasal dip 6.32-6.36 for 'need', d closure 6.72, 's' then 'love' rising from 7.28, ending 7.74 (-27 dB at 7.72, -34 at 7.76)."
+  }
+ ],
+ "91_sinking.mp3": [
+  {
+   "at": 0,
+   "text": "We are sinking! We're sinking!",
+   "words": [
+    0.7,
+    1.13,
+    1.32,
+    1.7,
+    1.96
+   ],
+   "confidence": "medium",
+   "note": "Text from the video snippet's subtitles, cue at 27.48 s there. mp3 = video - 26.87 s (cross-correlation r 0.86, both halves of the clip agree). Radio voice in static. We 0.70; tail from 1.22 loses 'We', head to 1.38 has 'We have'; /s/ of sinking from 1.32; dip 1.64-1.68 then We're; second /s/ at the dip 1.96, vowel 2.04. Whisper hears thinking, the punchline of the next line; the subtitle has it right."
+  },
+  {
+   "at": 4.0,
+   "text": "What are you thinking about?",
+   "words": [
+    4.07,
+    4.31,
+    4.54,
+    5.6,
+    6.25
+   ],
+   "confidence": "high",
+   "note": "Same subtitles, cue at 30.48 s there (the voice comes 0.47 s later). What 4.07, dip 4.28, are 4.31 (head to 4.36 'What the-'), you 4.54 where the pitch steps to 270 (head to 4.68 'how you'), silence, thinking 5.60, k closure 6.20-6.24, a 6.25, bout 6.44 to 6.76."
   }
  ]
 }
