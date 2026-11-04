@@ -127,7 +127,7 @@ that reason.
 | `assetsDir` | `~/.victor-effects/assets` | optional extra images a few effects want (see below) |
 | `eventWebhook` | *(none)* | fire-and-forget `GET <url>?type=…` for cross-app gestures |
 | `bluetoothSpeakerNameMatch` | *(empty = off)* | substring of a Bluetooth speaker's name to keep awake between sounds |
-| `markedSpeakerMac` | *(empty = off)* | Bluetooth address of the speaker to mark with `*` on the tablet's battery chip, for two boxes that look alike |
+| `markedSpeakerMac` | *(empty = off)* | Bluetooth address of the speaker to mark with ① on the tablet's battery chip, for two boxes that look alike |
 | `overlayScreen` | `builtin` | `builtin` \| `main` \| a substring of a screen's name |
 | `chargeEmoji` | `["☕"]` | emoji that charge up under the cursor and pop |
 | `addonsBaseURL` | `http://127.0.0.1:55123` | where the **addons** app answers. The panel's 🎬 video page is built from its `GET /videos` and plays through its `GET /video/play/<id>` — the two routes it does *not* proxy back here. Empty switches the video page off, which is the right setting on a Mac with no addons app |
