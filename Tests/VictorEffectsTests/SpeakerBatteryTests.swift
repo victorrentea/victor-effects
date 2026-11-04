@@ -43,6 +43,26 @@ final class SpeakerBatteryTests: XCTestCase {
     private let a = "E8-26-CF-C6-97-0B", b = "E8-26-CF-C6-F3-69"
     private func r(_ pct: Int) -> SpeakerBattery.Reading { .init(pct: pct, charging: false, at: Date()) }
 
+    func testMarkFollowsTheBoxNotTheChip() {
+        // The marked box connected: it is the first chip, the linked one is not it.
+        XCTAssertTrue(SpeakerBattery.marks(firstMac: a, hasSecond: true, marked: a) == (true, false))
+        // The other box connected: the marked one is the linked, MAC-less second chip.
+        XCTAssertTrue(SpeakerBattery.marks(firstMac: b, hasSecond: true, marked: a) == (false, true))
+    }
+
+    func testLoneUnmarkedBoxOrNoConfigShowsNoMark() {
+        XCTAssertTrue(SpeakerBattery.marks(firstMac: b, hasSecond: false, marked: a) == (false, false))
+        XCTAssertTrue(SpeakerBattery.marks(firstMac: a, hasSecond: true, marked: "") == (false, false))
+        XCTAssertTrue(SpeakerBattery.marks(firstMac: nil, hasSecond: false, marked: a) == (false, false))
+    }
+
+    func testPingFieldsCarryTheMark() {
+        let reading = SpeakerBattery.Reading(pct: 60, charging: false, at: Date(timeIntervalSince1970: 0))
+        XCTAssertTrue(SpeakerBattery.fields("speaker2", reading, Date(timeIntervalSince1970: 5), marked: true)
+            .hasSuffix("\"speaker2Marked\":true"))
+        XCTAssertTrue(SpeakerBattery.fields("speaker2", nil, Date()).hasSuffix("\"speaker2Marked\":false"))
+    }
+
     func testDefaultOutputWins() {
         let got = SpeakerBattery.pick(readings: [a: r(80), b: r(20)], connectedMacs: [a, b], defaultMac: a)
         XCTAssertEqual(got?.pct, 80)
@@ -141,8 +161,8 @@ final class SpeakerBatteryTests: XCTestCase {
     func testPingKeepsTheOldKeysAndAddsTheSecond() {
         let now = Date()
         XCTAssertEqual(SpeakerBattery.fields("speaker2", nil, now),
-                       "\"speaker2ChargePct\":-1,\"speaker2Charging\":false,\"speaker2ChargeAgeS\":0")
+                       "\"speaker2ChargePct\":-1,\"speaker2Charging\":false,\"speaker2ChargeAgeS\":0,\"speaker2Marked\":false")
         XCTAssertEqual(SpeakerBattery.fields("speaker", .init(pct: 45, charging: true, at: now.addingTimeInterval(-5)), now),
-                       "\"speakerChargePct\":45,\"speakerCharging\":true,\"speakerChargeAgeS\":5")
+                       "\"speakerChargePct\":45,\"speakerCharging\":true,\"speakerChargeAgeS\":5,\"speakerMarked\":false")
     }
 }

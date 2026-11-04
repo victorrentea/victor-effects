@@ -48,6 +48,11 @@ struct EffectsConfigValues: Equatable {
     /// `VICTOR_EFFECTS_PRESS_LOG` overrides it.
     var pressLogFile: String = "~/.victor-effects/presses.jsonl"
 
+    /// The Bluetooth address of the speaker wearing a physical mark, when two
+    /// boxes look the same: its chip on the tablet gets the same mark
+    /// (`SpeakerBattery.marks`). Empty = no mark. `:` or `-`, either case.
+    var markedSpeakerMac: String = ""
+
     /// Pure parser — the tests drive this with literal JSON and a literal
     /// environment, so no test ever depends on what is on this machine.
     static func parse(jsonData: Data?, env: [String: String] = [:]) -> EffectsConfigValues {
@@ -66,6 +71,7 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["usageFile"] as? String, !s.isEmpty { v.usageFile = s }
             if let s = obj["pressLogFile"] as? String, !s.isEmpty { v.pressLogFile = s }
             if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
+            if let s = obj["markedSpeakerMac"] as? String { v.markedSpeakerMac = s }
         }
         // Env wins over the file: it is how you start a second copy on another
         // port without editing the config the running one shares.
@@ -150,6 +156,11 @@ final class EffectsConfig {
     var bluetoothSpeakerNameMatch: String { values.bluetoothSpeakerNameMatch }
     var overlayScreen: String { values.overlayScreen }
     var chargeEmoji: [String] { values.chargeEmoji }
+    /// Written the way CoreAudio writes a MAC in a UID, like `SpeakerBattery`'s.
+    var markedSpeakerMac: String {
+        values.markedSpeakerMac.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: ":", with: "-").uppercased()
+    }
     /// Trailing slash trimmed once, here, so every caller can write
     /// `"\(addonsBaseURL)/videos"` and none of them has to think about it.
     var addonsBaseURL: String {

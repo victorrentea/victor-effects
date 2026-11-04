@@ -354,6 +354,13 @@ the other connected one (`pickBoth`). The first chip's three keys are
 unchanged, so a tablet that does not know `speaker2*` still shows the same
 box as before.
 
+Two identical boxes need telling apart, so `markedSpeakerMac` in the config
+names the one wearing a physical mark, and `speakerMarked` / `speaker2Marked`
+say which chip it is; the tablet draws a `*` before that chip's icon (Victor,
+2026-11-04). A position would not do: the first chip is whichever box the Mac
+holds. The linked box never says its MAC, so `marks` reads the second chip as
+"the other one", which assumes two boxes in total.
+
 **Grant.** CoreBluetooth needs `NSBluetoothAlwaysUsageDescription`
 (`build-app.sh` writes it) and asks for the Bluetooth permission the first
 time a JBL is connected — not before, the manager is created lazily. Denied →

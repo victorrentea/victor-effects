@@ -98,17 +98,35 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// `speakerChargePct` -1 = no connected JBL has been read.
     /// `speaker2*` is the other box: the one linked to it, else the other
     /// connected one (`pickBoth`); the same -1 when there is none.
+    /// `speakerMarked` / `speaker2Marked`: that chip is the box wearing the
+    /// physical mark (`marks`).
     func pingFields(now: Date = Date()) -> String {
-        let (first, second) = Self.pickBoth(
-            readings: readings, linked: linkedReadings, connectedMacs: Self.connectedSpeakerMacs(),
-            defaultMac: Self.mac(fromUID: BluetoothOutput.deviceUID(BluetoothOutput.defaultOutputID())))
-        return Self.fields("speaker", first, now) + "," + Self.fields("speaker2", second, now)
+        let connected = Self.connectedSpeakerMacs()
+        let defaultMac = Self.mac(fromUID: BluetoothOutput.deviceUID(BluetoothOutput.defaultOutputID()))
+        let (first, second) = Self.pickBoth(readings: readings, linked: linkedReadings,
+                                            connectedMacs: connected, defaultMac: defaultMac)
+        let (mark1, mark2) = Self.marks(
+            firstMac: Self.firstMac(readings: readings, connectedMacs: connected, defaultMac: defaultMac),
+            hasSecond: second != nil, marked: EffectsConfig.shared.markedSpeakerMac)
+        return Self.fields("speaker", first, now, marked: mark1) + ","
+            + Self.fields("speaker2", second, now, marked: mark2)
     }
 
-    static func fields(_ prefix: String, _ r: Reading?, _ now: Date) -> String {
-        guard let r else { return "\"\(prefix)ChargePct\":-1,\"\(prefix)Charging\":false,\"\(prefix)ChargeAgeS\":0" }
+    static func fields(_ prefix: String, _ r: Reading?, _ now: Date, marked: Bool = false) -> String {
+        guard let r else { return "\"\(prefix)ChargePct\":-1,\"\(prefix)Charging\":false,\"\(prefix)ChargeAgeS\":0,\"\(prefix)Marked\":false" }
         return "\"\(prefix)ChargePct\":\(r.pct),\"\(prefix)Charging\":\(r.charging),"
-            + "\"\(prefix)ChargeAgeS\":\(max(0, Int(now.timeIntervalSince(r.at))))"
+            + "\"\(prefix)ChargeAgeS\":\(max(0, Int(now.timeIntervalSince(r.at)))),\"\(prefix)Marked\":\(marked)"
+    }
+
+    /// Which chip is the box wearing the physical mark. The first chip's MAC
+    /// is known. The second may be a linked box, which never says its MAC, so
+    /// it counts as "the other one": there are two boxes, and it is marked
+    /// when the first is not. Which box is first follows the Mac's connection,
+    /// so the mark cannot be tied to a chip's position. Pure.
+    static func marks(firstMac: String?, hasSecond: Bool, marked: String) -> (first: Bool, second: Bool) {
+        guard !marked.isEmpty, let firstMac else { return (false, false) }
+        let first = firstMac == marked
+        return (first, hasSecond && !first)
     }
 
     /// The tablet's two chips: the first is `pick`'s; the second is the box
@@ -117,11 +135,18 @@ final class SpeakerBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     static func pickBoth(readings: [String: Reading], linked: [String: Reading],
                          connectedMacs: Set<String>, defaultMac: String?) -> (Reading?, Reading?) {
         let live = readings.filter { connectedMacs.contains($0.key) }
-        guard let firstMac = (defaultMac.flatMap { live[$0] != nil ? $0 : nil })
-                ?? live.min(by: { $0.value.pct < $1.value.pct })?.key else { return (nil, nil) }
+        guard let firstMac = firstMac(readings: readings, connectedMacs: connectedMacs,
+                                      defaultMac: defaultMac) else { return (nil, nil) }
         if let l = linked[firstMac] { return (live[firstMac], l) }
         let other = live.filter { $0.key != firstMac }.min { $0.value.pct < $1.value.pct }?.value
         return (live[firstMac], other)
+    }
+
+    /// The first chip's box: the default output, else the emptiest connected. Pure.
+    static func firstMac(readings: [String: Reading], connectedMacs: Set<String>, defaultMac: String?) -> String? {
+        let live = readings.filter { connectedMacs.contains($0.key) }
+        return (defaultMac.flatMap { live[$0] != nil ? $0 : nil })
+            ?? live.min(by: { $0.value.pct < $1.value.pct })?.key
     }
 
     /// Which reading the tablet shows: the speaker that is the Mac's default
