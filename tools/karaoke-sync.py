@@ -30,7 +30,7 @@ APP = os.environ.get("EFFECTS_URL", "http://127.0.0.1:55124")
 LABEL = "ro.victorrentea.karaoke-sync"
 # What the tuner calls a clip whose filename says nothing. The file keeps its name:
 # the tile, the tablet and the tests all hang off it.
-NAMES = {"67_sfx_109.mp3": "eww", "75_sfx_117.mp3": "attention"}
+NAMES = {"67_sfx_109.mp3": "eww", "75_sfx_117.mp3": "attention", "76_sfx_118.mp3": "wasnt-me"}
 
 
 def log(msg):
