@@ -290,6 +290,37 @@ final class ToiletDrainTests: XCTestCase {
         XCTAssertEqual(bytes(out).max(), 0)
     }
 
+    /// Largest difference between a frame and its own mirror image, left to right.
+    private func mirrorDifference(_ px: [UInt8], width w: Int, height h: Int) -> Int {
+        var worst = 0
+        for y in 0..<h {
+            for x in 0..<(w / 2) {
+                let a = (y * w + x) * 4, b = (y * w + (w - 1 - x)) * 4
+                for channel in 0..<4 { worst = max(worst, abs(Int(px[a + channel]) - Int(px[b + channel]))) }
+            }
+        }
+        return worst
+    }
+
+    /// The desktop comes back evenly around the centre, whatever the picture was:
+    /// on the way back the frame is the bowl and a round hole in the overlay, so
+    /// any straight edge seen through it belongs to the live desktop underneath.
+    /// The frame in mid-swirl is the control: the same check does see a lopsided
+    /// picture, so a pass here means something.
+    func testTheDesktopComesBackEvenlyAroundTheCentre() throws {
+        let r = try renderer()
+        let (w, h) = (480, 300)
+        let texture = try XCTUnwrap(r.texture(from: picture(w, h)))
+        let out = target(r, w, h)
+
+        for t in stride(from: ToiletDrain.drained, through: ToiletDrain.refillEnds, by: 0.05) {
+            r.draw(t: t, picture: texture, into: out)?.waitUntilCompleted()
+            XCTAssertLessThanOrEqual(mirrorDifference(bytes(out), width: w, height: h), 1, "at \(t) s")
+        }
+        r.draw(t: 3, picture: texture, into: out)?.waitUntilCompleted()
+        XCTAssertGreaterThan(mirrorDifference(bytes(out), width: w, height: h), 40, "control")
+    }
+
     /// What a frame costs at the full Retina size: the number the choice of a
     /// fragment shader rests on. A few frames of the clip are left in `$TMPDIR`
     /// to look at.
