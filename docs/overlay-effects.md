@@ -1263,7 +1263,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   screen edges. Head and tail are **one keyframe opacity track**, not two animations, so the
   fade-out can never begin before the fade-in has finished on a short clip.
 
-- **🔫 Minigun → Counter-Strike AK-47** (sfx #22 `22_minigun.mp3` → `bullet-holes`,
+- **🔫 Minigun → Counter-Strike AK-47** (its caption, `[AK47 firing]`, is the one that does not
+  come with the press: the press raises the gun in silence, so the line goes up on the session's
+  first shot, `SoundCaptions.captionedAtFirstShot`) (sfx #22 `22_minigun.mp3` → `bullet-holes`,
   `showBulletHoles`). **A session, not a burst, since 2026-09-23.** Victor: the gun should
   stand still when it appears and fire — noise and bullets — *only while the mouse button
   is held*, taking the clicks away from the app underneath.

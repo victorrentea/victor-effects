@@ -249,6 +249,9 @@ class EmojiAnimator {
     private var _minigunPendingCut: DispatchWorkItem?
     private var _minigunPulledAt: CFTimeInterval = 0
     private var _minigunBloom: CGFloat = 0            // rounds of spray "heat" — 0 = dead accurate
+    private var _minigunHasFired = false              // this gun's first shot brings its caption
+    /// The first shot of a gun brought up by the tile; its caption is the engine's.
+    var onFirstMinigunShot: (() -> Void)?
     private var _minigunReleasedAt: CFTimeInterval = 0
     private var _minigunDrawPlayer: AVAudioPlayer?
 
@@ -4629,6 +4632,7 @@ class EmojiAnimator {
         _minigunArmedAt = now
         _minigunLastActivity = now
         _minigunBloom = 0
+        _minigunHasFired = false
         _minigunReleasedAt = now
         _minigunLastMouseX = mousePointInHostLayer().x
         startMinigunReticle()
@@ -4746,6 +4750,10 @@ class EmojiAnimator {
         // awake) and no shared-pool "already playing, skip".
         _minigunPendingCut?.cancel(); _minigunPendingCut = nil
         _minigunFireSound?.fire()
+        if !_minigunHasFired {
+            _minigunHasFired = true
+            onFirstMinigunShot?()
+        }
         overlayInfo("🔫 trigger pulled")
     }
 

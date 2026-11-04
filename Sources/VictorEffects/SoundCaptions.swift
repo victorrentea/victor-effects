@@ -43,7 +43,7 @@ enum SoundCaptions {
         "20_fail2.mp3":               "[sad trombone]",
         "20_storm.mp3":               "[thunderstorm]",
         "21_sfx_41.mp3":              "Isn't that cute? BUT IT'S WRONG!",
-        "22_minigun.mp3":             "[minigun firing]",
+        "22_minigun.mp3":             "[AK47 firing]",
         "23_radar.mp3":               "[radar ping]",
         "24_this_is_sparta.mp3":      "THIS IS SPARTA!",
         "25_dark_door.mp3":           "[knocking]",
@@ -199,6 +199,13 @@ enum SoundCaptions {
     /// 2026-11-04: a flatline on the screen needs no caption, and the same
     /// day no subtitle at all on the explosion, the red phone and the fire).
     static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3"]
+
+    /// Tiles whose press only raises the gun: nothing is heard yet, so the line
+    /// waits for the first shot (Victor, 2026-11-04: "after they start firing").
+    static let captionedAtFirstShot: Set<String> = ["22_minigun.mp3"]
+
+    /// Whether the press itself puts the caption up.
+    static func captionsAtPress(_ asset: String) -> Bool { !captionedAtFirstShot.contains(asset) }
 
     /// The caption for a press. A tile added to
     /// `tiles.json` before anyone wrote its line still gets one, made from its

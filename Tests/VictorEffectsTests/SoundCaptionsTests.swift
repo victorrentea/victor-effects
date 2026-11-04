@@ -94,6 +94,13 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(ahead.at + (ahead.lastWordEnd ?? 0), 11.2, accuracy: 0.001, "going up early moves no moment in the clip")
     }
 
+    /// The press only raises the gun, in silence: the line comes with the shot.
+    func testTheGunIsCaptionedAtItsFirstShotNotItsPress() {
+        XCTAssertEqual(SoundCaptions.caption(for: "22_minigun.mp3"), "[AK47 firing]")
+        XCTAssertFalse(SoundCaptions.captionsAtPress("22_minigun.mp3"))
+        XCTAssertTrue(SoundCaptions.captionsAtPress("04_wolf.mp3"))
+    }
+
     /// A said line is not wrapped in quotes (Victor, 2026-11-04): the caption
     /// is the line itself. An apostrophe is not a quote.
     func testNoCaptionIsInQuotes() {

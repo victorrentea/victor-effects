@@ -72,6 +72,10 @@ final class EffectsEngine {
             fatalError("Overlay panel content view has no layer")
         }
         animator = EmojiAnimator(hostLayer: hostLayer)
+        animator.onFirstMinigunShot = { [weak self] in
+            // The trigger runs inside a mouse tap: nothing of ours may slow it down.
+            DispatchQueue.main.async { self?.showCaption(for: "22_minigun.mp3") }
+        }
         // The bar is a CALayer on the same host layer as the effects: a plain
         // subview on this manually-populated layer-backed view does not
         // composite.

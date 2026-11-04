@@ -386,8 +386,9 @@ final class EffectsRouter {
             UsageCounts.record(file)
             PressLog.append(file: file, source: pressSource)
             // Captioned for the same reason it is counted: every press, visual
-            // or not, and wherever the audio ends up playing.
-            engine.showCaption(for: file)
+            // or not, and wherever the audio ends up playing. Only the gun
+            // waits: its press is silent, the caption comes with its first shot.
+            if SoundCaptions.captionsAtPress(file) { engine.showCaption(for: file) }
             guard let effect = SoundEffectMap.pressEffect(for: file) else { return .ok("no-effect") }
             engine.runEffect(effect)
             return .ok()
