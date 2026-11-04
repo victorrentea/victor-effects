@@ -55,9 +55,31 @@ final class SoundCaptionsTests: XCTestCase {
 
     /// The screen already says it (Victor, 2026-11-04): no line, not even the
     /// one made from the filename.
-    func testAFlatlineHasNoCaption() {
-        XCTAssertNil(SoundCaptions.caption(for: "15_flatline.mp3"))
-        XCTAssertEqual(SoundCaptions.schedule(for: "15_flatline.mp3", clipSeconds: 5).count, 0)
+    func testTheTilesWithAPictureHaveNoCaption() {
+        for asset in ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3"] {
+            XCTAssertNil(SoundCaptions.caption(for: asset), asset)
+            XCTAssertEqual(SoundCaptions.schedule(for: asset, clipSeconds: 5).count, 0, asset)
+            XCTAssertNil(SoundCaptions.table[asset], "\(asset): a line nobody will ever see")
+        }
+    }
+
+    /// What the clip really says past its title, one cue per breath, every
+    /// word timed, and never more lines at once than the stack holds.
+    func testTheAnimatedPhoneCarriesOnPastItsTitle() {
+        XCTAssertEqual(SoundCaptions.caption(for: "07_animated_phone.mp3"), "What does this button do?")
+        let track = SoundCaptions.schedule(for: "07_animated_phone.mp3", clipSeconds: 8.26)
+        XCTAssertEqual(track.map(\.text), ["What does this button do?",
+                                           "Please, please…",
+                                           "Do not push the button!",
+                                           "You have no idea…"])
+        for line in track {
+            XCTAssertEqual(line.words.count, SoundCaptions.wordEnds(line.text).count, line.text)
+        }
+        let glass = track.map { $0.ahead() }
+        for (i, line) in glass.enumerated() {
+            let up = glass.filter { $0.at <= line.at && $0.at + $0.seconds > line.at }
+            XCTAssertLessThanOrEqual(up.count, SoundCaptions.maxRows, "\(i): no line pushed out early")
+        }
     }
 
     /// The fill holds as the note does, and the line stays to be read after it.

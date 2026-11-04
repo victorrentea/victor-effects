@@ -27,15 +27,12 @@ enum SoundCaptions {
     static let table: [String: String] = [
         "01_baby.mp3":                "[baby crying]",
         "02_siren.mp3":               "[siren wailing]",
-        "03_explosion.mp3":           "[explosion]",
         "04_wolf.mp3":                "[wolf howling]",
         "05_guess_whos_back.mp3":     "Guess who's back, back again",
         "06_copyright_cartoon.mp3":   "[Pink Panther theme]",
         "07_animated_phone.mp3":      "What does this button do?",
         "08_scream_man.mp3":          "[man screaming]",
         "09_ave_maria.mp3":           "Ave Maria",
-        "10_red_phone.mp3":           "[phone ringing]",
-        "11_fire.mp3":                "[fire crackling]",
         "12_cricket.mp3":             "[crickets chirping]",
         "13_heartbeat.mp3":           "[heart beating]",
         "14_universal.mp3":           "[Universal fanfare]",
@@ -133,6 +130,13 @@ enum SoundCaptions {
         "05_guess_whos_back.mp3": [(0, "Guess who's back, back again"),
                                    (4.0, "Shady's back, tell a friend"),
                                    (7.9, "Guess who's back, guess who's back")],
+        // The clip goes on past its title, and it says push, not press
+        // (2026-11-04, on the voice). It cuts off inside "idea" at 8.1 s, hence
+        // the ellipsis. The "Ooooh" before the title stays out, as reviewed.
+        "07_animated_phone.mp3":  [(0, "What does this button do?"),
+                                   (4.05, "Please, please…"),
+                                   (5.85, "Do not push the button!"),
+                                   (7.45, "You have no idea…")],
         // Sung once, slowly: "A" at 1.33, the held "Maria" to 11.2 (2026-10-23
         // review — a second "Ave Maria" at 5.6 was that same held phrase), and
         // the fill holds with it (`lastWordEnd`, Victor, 2026-11-04).
@@ -192,8 +196,9 @@ enum SoundCaptions {
     ]
 
     /// Tiles that say nothing, on purpose: the picture already does (Victor,
-    /// 2026-11-04: a flatline on the screen needs no caption).
-    static let uncaptioned: Set<String> = ["15_flatline.mp3"]
+    /// 2026-11-04: a flatline on the screen needs no caption, and the same
+    /// day no subtitle at all on the explosion, the red phone and the fire).
+    static let uncaptioned: Set<String> = ["03_explosion.mp3", "10_red_phone.mp3", "11_fire.mp3", "15_flatline.mp3"]
 
     /// The caption for a press. A tile added to
     /// `tiles.json` before anyone wrote its line still gets one, made from its

@@ -54,6 +54,42 @@
    ],
    "confidence": "high",
    "note": "0-1.7 is the 'Ooooh' (not in caption). Clean syllable attacks; truncation: [1,2.97] has 'this' but no 'button', [3.42,4] = 'Do'. MMS put 'button' at 6.73 (the later 'push the button')."
+  },
+  {
+   "at": 4.05,
+   "text": "Please, please…",
+   "words": [
+    4.1,
+    5.03
+   ],
+   "lastWordEnd": 5.8,
+   "confidence": "high",
+   "note": "Voice starts 4.09 after the silence. Each 'please' ends on the same pattern, a dip then the /z/ release (4.87-4.97, 5.72-5.82): [4,5.0]='Please', [5.0,5.68]='Flee', [5.0,5.72]='Please'. Whisper's 4.78 for the second one sits inside the first; MMS 5.04, and the P closure dips at 5.00. lastWordEnd: the end of its /z/."
+  },
+  {
+   "at": 5.85,
+   "text": "Do not push the button!",
+   "words": [
+    5.89,
+    6.0,
+    6.24,
+    6.51,
+    6.72
+   ],
+   "confidence": "high",
+   "note": "Push, not press: every window says it, down to [6.2,6.46]='Push'. The 5.72 bump is the /z/ of please, not 'do': D release 5.89 (MMS 5.88), [5.86,6.46]='Do not push'. Not = the harmonics changing at 6.0 (MMS 6.0), the T closes 6.12-6.22, push releases 6.24, the 6.51, button 6.72 (MMS agrees on all). 'ton' runs to 7.25."
+  },
+  {
+   "at": 7.45,
+   "text": "You have no idea…",
+   "words": [
+    7.5,
+    7.6,
+    7.76,
+    7.92
+   ],
+   "confidence": "medium",
+   "note": "Whisper's 7.20 for 'you' is the 'ton' of button. 7.27-7.47 is an unvoiced gasp, no word: [7.27,7.48]='Hey', while [7.48,7.9]='You have no'. MMS you 7.50, have 7.61; no = voicing back at 7.76, [7.76,7.93]='No' (MMS 7.83); idea = the shallow dip at 7.92 with F2 rising to 'dea', [7.9,8.1]='Bye'. The clip cuts it off at 8.1, hence the ellipsis."
   }
  ],
  "09_ave_maria.mp3": [

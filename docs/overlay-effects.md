@@ -259,7 +259,9 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
   `SoundCaptionsParityTest` that parses this file's keys (when this checkout sits
   beside it) and fails on any `tiles.json` asset (A or B) with no entry here. Adding a tile =
   JSON entry + image + a line in `SoundCaptions.swift` (Whisper the clip for lyrics).
-  No tile is silent any more (the `silent` set went with the minion crowd of #80).
+  **Four tiles say nothing, on purpose** (`SoundCaptions.uncaptioned`, Victor,
+  2026-11-04: #03 explosion, #10 red phone, #11 fire, #15 flatline): no line, not
+  even the filename's, and `/sounds/captions` gives them `"cues":[]`.
 
 ### 🔍 When the screen is zoomed, the edges move
 
