@@ -7,7 +7,7 @@ karaoke timings in tools/caption-words.json.
 `caption-words.json` is the source of truth: per clip, each sung or spoken cue
 (`at`, the line's start as `SoundCaptions.schedule` has it; `text`, the line as
 drawn) with one onset per word, in seconds into the clip — the moment the word
-starts being heard. It is written by REVIEW, not by a model's first guess:
+starts being heard — and, for a note held at the end of the line, `lastWordEnd`. It is written by REVIEW, not by a model's first guess:
 `tools/caption-align.py` drafts each clip (Demucs vocals, MMS forced alignment,
 Whisper, vocal onsets, a spectrogram) and a reviewer settles every word on the
 picture (2026-10-23: Whisper alone lit "back again" 0.8 s into a silence).
@@ -56,7 +56,7 @@ def main():
 
     lines = []
     for asset in sorted(table):
-        rows = ",\n".join(f"            ({c['at']:g}, [{', '.join(f'{x:g}' for x in c['words'])}])" for c in table[asset])
+        rows = ",\n".join(f"            ({c['at']:g}, [{', '.join(f'{x:g}' for x in c['words'])}], {c['lastWordEnd'] if 'lastWordEnd' in c else 'nil'})" for c in table[asset])
         lines.append(f'        "{asset}": [\n{rows}],')
     swift = f"""import Foundation
 
@@ -67,9 +67,10 @@ extension SoundCaptions {{
     /// When each word of a spoken or sung cue starts being heard, in seconds
     /// into the clip: per asset, the cue's start (`CaptionLine.at`) and one
     /// onset per word as `wordEnds` counts them, reviewed on the isolated
-    /// voice. A cue not listed — a [noise], an instrumental title — has no
-    /// words said and never fills.
-    static let wordTimes: [String: [(at: TimeInterval, words: [TimeInterval])]] = [
+    /// voice, and when a held last word ends, into the clip too (nil: a short
+    /// one). A cue not listed — a [noise], an instrumental title — has no words
+    /// said and never fills.
+    static let wordTimes: [String: [(at: TimeInterval, words: [TimeInterval], end: TimeInterval?)]] = [
 {chr(10).join(lines)}
     ]
 }}

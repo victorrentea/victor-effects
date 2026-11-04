@@ -77,7 +77,8 @@ def catalog(base, folder):
         assets[asset] = {
             "durationSeconds": item["durationSeconds"],
             "sha": sha1(path),
-            "cues": [{"at": c["start"], "text": c["text"], "words": c.get("words", [])} for c in item["cues"]],
+            "cues": [{"at": c["start"], "text": c["text"], "words": c.get("words", []),
+                      **({"lastWordEnd": c["lastWordEnd"]} if "lastWordEnd" in c else {})} for c in item["cues"]],
         }
     return assets
 

@@ -18,14 +18,16 @@ enum CaptionEdits {
         let at: TimeInterval
         let text: String
         var words: [TimeInterval] = []
+        var lastWordEnd: TimeInterval? = nil
 
-        enum CodingKeys: String, CodingKey { case at, text, words }
+        enum CodingKeys: String, CodingKey { case at, text, words, lastWordEnd }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             at = try c.decode(TimeInterval.self, forKey: .at)
             text = try c.decode(String.self, forKey: .text)
             words = try c.decodeIfPresent([TimeInterval].self, forKey: .words) ?? []
+            lastWordEnd = try c.decodeIfPresent(TimeInterval.self, forKey: .lastWordEnd)
         }
     }
 
@@ -44,6 +46,7 @@ enum CaptionEdits {
             guard !cue.words.isEmpty, cue.words.count == SoundCaptions.wordEnds(cue.text).count else { return line }
             var timed = line
             timed.words = cue.words.map { max(0, $0 - cue.at) }
+            timed.lastWordEnd = cue.lastWordEnd.map { max(0, $0 - cue.at) }
             return SoundCaptions.heldToBeRead(timed)
         }
     }

@@ -32,10 +32,12 @@ then press ⟲.
 
 ## What can be tuned
 
-The Mac's model and nothing else: a line's `at`, its `text`, one onset per word.
-There is no word END to store: a word sweeps to the next onset (`maxWordSweep`), the
-last for `lastWordSweep`, and a timed line goes up `leadIn` before its first word
-whatever its `at` says, so the tuner only offers `at` on an untimed line.
+The Mac's model and nothing else: a line's `at`, its `text`, one onset per word, and
+`lastWordEnd`, when a note held at the end of the line is full. Only the last word
+has an end: the others sweep to the next onset (`maxWordSweep`), and without
+`lastWordEnd` the last one sweeps for `lastWordSweep`. A timed line goes up `leadIn`
+before its first word whatever its `at` says, so the tuner only offers `at` on an
+untimed line.
 
 `karaoke/core.js` is a port of `wordEnds`, `fill`, `schedule` and `ahead`, so the
 preview is what the room sees. **A change to those constants has to be made there

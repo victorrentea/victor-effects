@@ -5,7 +5,7 @@ import Foundation
 /// `SoundCaptions.live(for:clipSeconds:)`, so an exported subtitle track cannot
 /// differ from what the room saw. A cue's `end` is when the caption is taken
 /// down (`at + seconds`); `words`, on a timed line only, when each word starts,
-/// in seconds into the clip. A silent asset has `"cues":[]`.
+/// in seconds into the clip, and `lastWordEnd` when a held last word is full. A silent asset has `"cues":[]`.
 ///
 /// `GET /sounds/captions/base` is the same without the karaoke tuner's edits
 /// (`CaptionEdits`): what the app ships with, which the tuner can go back to.
@@ -29,6 +29,7 @@ enum CaptionsExport {
             let cues: [[String: Any]] = track(asset, secs).map { line in
                 var cue: [String: Any] = ["start": round3(line.at), "end": round3(line.at + line.seconds), "text": line.text]
                 if !line.words.isEmpty { cue["words"] = line.words.map { round3(line.at + $0) } }
+                if let end = line.lastWordEnd { cue["lastWordEnd"] = round3(line.at + end) }
                 return cue
             }
             result[asset] = ["durationSeconds": round3(secs ?? 0), "cues": cues] as [String: Any]

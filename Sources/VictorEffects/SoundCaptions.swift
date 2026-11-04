@@ -39,7 +39,6 @@ enum SoundCaptions {
         "12_cricket.mp3":             "[crickets chirping]",
         "13_heartbeat.mp3":           "[heart beating]",
         "14_universal.mp3":           "[Universal fanfare]",
-        "15_flatline.mp3":            "[flatline beep]",
         "16_magic_wand.mp3":          "[magic sparkles]",
         "17_my_precious.mp3":         "My precious…",
         "18_chainsaw.mp3":            "[chainsaw revving]",
@@ -135,7 +134,8 @@ enum SoundCaptions {
                                    (4.0, "Shady's back, tell a friend"),
                                    (7.9, "Guess who's back, guess who's back")],
         // Sung once, slowly: "A" at 1.33, the held "Maria" to 11.2 (2026-10-23
-        // review — a second "Ave Maria" at 5.6 was that same held phrase).
+        // review — a second "Ave Maria" at 5.6 was that same held phrase), and
+        // the fill holds with it (`lastWordEnd`, Victor, 2026-11-04).
         "09_ave_maria.mp3":       [(0, "Ave Maria"),
                                    (12.6, "Jungfrau mild")],
         "36_bad_habits.mp3":      [(0, "My bad habits lead to late nights endin' alone"),
@@ -191,11 +191,16 @@ enum SoundCaptions {
                                    (4.87, "That yum\u{AD}my-\u{AD}yum\u{AD}my")],
     ]
 
+    /// Tiles that say nothing, on purpose: the picture already does (Victor,
+    /// 2026-11-04: a flatline on the screen needs no caption).
+    static let uncaptioned: Set<String> = ["15_flatline.mp3"]
+
     /// The caption for a press. A tile added to
     /// `tiles.json` before anyone wrote its line still gets one, made from its
     /// filename (`56_door_open.mp3` → `[door open]`): a vague caption beats a
     /// silent one for someone who cannot hear the room.
     static func caption(for asset: String) -> String? {
+        if uncaptioned.contains(asset) { return nil }
         if let line = table[asset] { return line }
         return fallback(for: asset)
     }
@@ -228,11 +233,14 @@ enum SoundCaptions {
 /// One line of a caption track: up at `at` seconds into the clip, for
 /// `seconds`. A noise or a one-line song is a track of one. `words`: when each
 /// word turns yellow, in seconds after the line goes up (the karaoke fill).
+/// `lastWordEnd`: when the last word is full, on that same clock, for a note
+/// held past `lastWordSweep`; nil is the usual short sweep.
 struct CaptionLine: Equatable {
     let at: TimeInterval
     let text: String
     var seconds: TimeInterval
     var words: [TimeInterval] = []
+    var lastWordEnd: TimeInterval? = nil
 
     /// The line as it goes on the glass: `SoundCaptions.leadIn` before its
     /// fill starts, whenever its cue is, but not before `earliest` (seconds
@@ -244,7 +252,8 @@ struct CaptionLine: Equatable {
         guard let first = words.first else { return self }
         let up = max(earliest, at + first - SoundCaptions.leadIn)
         let early = at - up
-        return CaptionLine(at: up, text: text, seconds: seconds + early, words: words.map { $0 + early })
+        return CaptionLine(at: up, text: text, seconds: seconds + early, words: words.map { $0 + early },
+                           lastWordEnd: lastWordEnd.map { $0 + early })
     }
 }
 
@@ -301,7 +310,7 @@ extension SoundCaptions {
     static func heldToBeRead(_ line: CaptionLine) -> CaptionLine {
         guard let last = line.words.last else { return line }
         var held = line
-        held.seconds = max(last + lastWordSweep + readHold, minSeconds)
+        held.seconds = max((line.lastWordEnd ?? last + lastWordSweep) + readHold, minSeconds)
         return held
     }
 
@@ -354,7 +363,8 @@ extension SoundCaptions {
     /// it is said (Victor, 2026-10-23: "progressively, syllable by syllable,
     /// not all at once") — from the end of the previous word, so the space and
     /// an opening quote go with the first word and a closing one with the last.
-    static func fill(_ text: String, words: [TimeInterval], seconds: TimeInterval) -> [(t: TimeInterval, offset: Int)] {
+    static func fill(_ text: String, words: [TimeInterval], seconds: TimeInterval,
+                     lastWordEnd: TimeInterval? = nil) -> [(t: TimeInterval, offset: Int)] {
         let ends = wordEnds(text)
         guard !words.isEmpty, words.count == ends.count else { return [] }
         var path: [(t: TimeInterval, offset: Int)] = [(0, 0)]
@@ -365,7 +375,7 @@ extension SoundCaptions {
         }
         for (i, at) in words.enumerated() {
             let last = i == words.count - 1
-            let sweep = last ? min(lastWordSweep, max(0.1, seconds - at))
+            let sweep = last ? lastWordEnd.map { max(0.1, $0 - at) } ?? min(lastWordSweep, max(0.1, seconds - at))
                              : min(maxWordSweep, max(0, words[i + 1] - at))
             if at > path.last!.t { add(at, path.last!.offset) }
             add(max(0, at) + sweep, last ? text.utf16.count : ends[i])
@@ -383,6 +393,7 @@ extension SoundCaptions {
         var timed = line
         if let heard = wordTimes[asset]?.first(where: { abs($0.at - line.at) < 0.01 && $0.words.count == count }) {
             timed.words = heard.words.map { max(0, $0 - line.at) }
+            timed.lastWordEnd = heard.end.map { max(0, $0 - line.at) }
         }
         return timed
     }
@@ -559,10 +570,10 @@ enum CaptionOverlay {
         let current = track
         let start = DispatchTime.now()
         for line in lines.map({ $0.ahead(earliest: -delay) }) {
-            guard line.at + delay > 0 else { show(line.text, seconds: line.seconds, words: line.words, on: screen); continue }
+            guard line.at + delay > 0 else { show(line.text, seconds: line.seconds, words: line.words, lastWordEnd: line.lastWordEnd, on: screen); continue }
             DispatchQueue.main.asyncAfter(deadline: start + (line.at + delay)) {
                 guard current == track, SubtitlesSwitch.isOn else { return }
-                show(line.text, seconds: line.seconds, words: line.words, on: screen)
+                show(line.text, seconds: line.seconds, words: line.words, lastWordEnd: line.lastWordEnd, on: screen)
             }
         }
     }
@@ -624,7 +635,7 @@ enum CaptionOverlay {
         return mask
     }
 
-    static func show(_ text: String, seconds: TimeInterval, words: [TimeInterval] = [], on screen: NSScreen) {
+    static func show(_ text: String, seconds: TimeInterval, words: [TimeInterval] = [], lastWordEnd: TimeInterval? = nil, on screen: NSScreen) {
         // Laid out once at the rest size; the zoom only ever scales it.
         let label = Self.label(text, color: words.isEmpty ? .white : upcomingColor)
         let maxTextWidth = screen.frame.width * 0.8
@@ -648,7 +659,7 @@ enum CaptionOverlay {
         textLayer.contentsScale = screen.backingScaleFactor
         textLayer.frame = CGRect(x: padH, y: padV, width: ceil(textSize.width), height: ceil(textSize.height))
         box.addSublayer(textLayer)
-        let path = SoundCaptions.fill(text, words: words, seconds: seconds)
+        let path = SoundCaptions.fill(text, words: words, seconds: seconds, lastWordEnd: lastWordEnd)
         if !path.isEmpty {
             let lit = CATextLayer()
             lit.string = Self.label(text, color: litColor)

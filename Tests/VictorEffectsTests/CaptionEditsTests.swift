@@ -22,6 +22,12 @@ final class CaptionEditsTests: XCTestCase {
         XCTAssertEqual(track[0].seconds, 2.5, accuracy: 0.001, "held to be read, however long the clip goes on")
     }
 
+    func testAHeldLastWordIsKept() {
+        let track = CaptionEdits.lines(cues(#"{"a.mp3":{"cues":[{"at":1,"text":"one two","words":[1.5,2],"lastWordEnd":7}]}}"#), clipSeconds: 30)
+        XCTAssertEqual(track[0].lastWordEnd, 6)
+        XCTAssertEqual(track[0].seconds, 7, accuracy: 0.001, "held, plus the second to read it")
+    }
+
     func testAWordCountThatDisagreesWithTheTextLeavesTheLinePlain() {
         let track = CaptionEdits.lines(cues(#"{"a.mp3":{"cues":[{"at":0,"text":"one two three","words":[0,1]}]}}"#), clipSeconds: 5)
         XCTAssertEqual(track[0].words, [])

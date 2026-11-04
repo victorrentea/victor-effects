@@ -53,6 +53,25 @@ final class SoundCaptionsTests: XCTestCase {
                        "a two-word line still stays up long enough to read")
     }
 
+    /// The screen already says it (Victor, 2026-11-04): no line, not even the
+    /// one made from the filename.
+    func testAFlatlineHasNoCaption() {
+        XCTAssertNil(SoundCaptions.caption(for: "15_flatline.mp3"))
+        XCTAssertEqual(SoundCaptions.schedule(for: "15_flatline.mp3", clipSeconds: 5).count, 0)
+    }
+
+    /// The fill holds as the note does, and the line stays to be read after it.
+    func testAHeldLastWordFillsToItsEnd() {
+        let line = SoundCaptions.schedule(for: "09_ave_maria.mp3", clipSeconds: 20.8)[0]
+        XCTAssertEqual(line.text, "Ave Maria")
+        XCTAssertEqual(line.lastWordEnd ?? 0, 11.2, accuracy: 0.001)
+        XCTAssertEqual(line.seconds, 11.2 + SoundCaptions.readHold, accuracy: 0.001)
+        let path = SoundCaptions.fill(line.text, words: line.words, seconds: line.seconds, lastWordEnd: line.lastWordEnd)
+        XCTAssertEqual(path.last!.t, 11.2, accuracy: 0.001)
+        let ahead = line.ahead()
+        XCTAssertEqual(ahead.at + (ahead.lastWordEnd ?? 0), 11.2, accuracy: 0.001, "going up early moves no moment in the clip")
+    }
+
     /// A said line is not wrapped in quotes (Victor, 2026-11-04): the caption
     /// is the line itself. An apostrophe is not a quote.
     func testNoCaptionIsInQuotes() {
@@ -147,6 +166,7 @@ final class SoundCaptionsTests: XCTestCase {
         }
         XCTAssertTrue(pressable.contains { $0.0.hasSuffix("b") }, "no layer-B tile seen — is `under` still parsed?")
         for (n, asset) in pressable {
+            if SoundCaptions.uncaptioned.contains(asset) { continue }
             XCTAssertNotNil(SoundCaptions.table[asset], "\(n) \(asset) has no line in SoundCaptions.table")
         }
     }
