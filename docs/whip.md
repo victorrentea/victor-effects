@@ -351,7 +351,7 @@ brings him back until another is picked), the `🙏 Pray` menu row under `🔥 W
   click the hands remain there, and the human appears behind those hands … I
   can click multiple times to put multiple people praying"*). His hands stay
   on that spot and the pointer keeps a fresh pair, drawn over everyone, so the
-  next click plants another (`PrayChoir`, at most 8 — the oldest makes room).
+  next click plants another (`PrayChoir`, at most 20, 8 until 2026-11-04 — the oldest makes room).
   Each one lives on his own clock: the rest of the man fades in around the hands (`manFadeInMs`,
   0.8 s), and at `lightDelayMs` (1.5 s) a ray of light drops on him from the
   top of the screen, slanting in from the upper left (`beamTiltDegrees`, 18°
@@ -363,6 +363,16 @@ brings him back until another is picked), the `🙏 Pray` menu row under `🔥 W
   2026-10-20), and he is gone. Rays and glows are all drawn before any man.
   Planted men are kept in view points, so under the zoom they stay on the
   desktop spot they were planted on, like a window would.
+  **The frame is budgeted** (2026-11-04, when the cap went from 8 to 20): this
+  view redraws the whole screen on the main thread at 60 Hz, and twenty lit men
+  took 174 ms a frame on the 3456×2234 Retina, ~6 fps, with clicks and HTTP
+  queued behind it. Now 38 ms (~26 fps) at twenty, the worst frame, and 19 ms at
+  eight: rays and glows go into one half-size buffer (`renderLight`, soft, so
+  nothing is lost) blown up once, and each man is a sprite resampled once
+  (`sprites`), with the hands stamped only while they are ahead of him. Measured
+  by drawing `PrayView` into a bitmap; the remaining cost is 8 ms for that blow-up
+  and ~2 ms a man. Going further means real `CALayer`s, which would also have to
+  follow `ZoomedPanel`.
 - **One Ave Maria for all of them.** The first click starts the hymn at the
   tablet's level × 0.8 — `pray-hymn-tablet.mp3` when `assetsDir` has it, else
   the shipped `pray-hymn-long.mp3` (47 s, `Resources/CREDITS.md`).

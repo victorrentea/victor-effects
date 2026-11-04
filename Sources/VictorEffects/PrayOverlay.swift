@@ -283,8 +283,9 @@ struct PrayChoir {
         var sinceMs: Double
     }
 
-    /// More than this and the oldest goes — a punchline, not a congregation.
-    static let maxPrayers = 8
+    /// More than this and the oldest goes. 20 since 2026-11-04 (was 8):
+    /// Victor wanted a crowd on screen.
+    static let maxPrayers = 20
 
     private(set) var prayers: [Prayer] = []
 
@@ -320,7 +321,7 @@ struct PrayChoir {
 /// they are the very pixels he grows around — no seam, no jump.
 private final class PrayView: NSView {
 
-    var figure: NSImage?
+    var figure: NSImage? { didSet { cachedSprites = nil } }
     var at: CGPoint = .zero
     var nowMs = 0.0
     var prayers: [PrayChoir.Prayer] = []
@@ -391,26 +392,12 @@ private final class PrayView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
         // Every ray and every glow first, so no man stands behind another's light.
-        for p in prayers {
-            let g = light(p)
-            if g > 0 { drawBeam(ctx, onto: figureRect(at: p.at), for: p, strength: g) }
-        }
-        for p in prayers {
-            let gl = glow(p)
-            guard gl > 0 else { continue }
-            let rect = figureRect(at: p.at)
-            let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
-            let radius = h * 0.85 * pulse
-            let colors = [Self.glowColor.withAlphaComponent(0.75 * gl).cgColor,
-                          Self.glowColor.withAlphaComponent(0).cgColor] as CFArray
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
-                let c = CGPoint(x: rect.midX, y: rect.midY - h * 0.1)
-                ctx.drawRadialGradient(gradient, startCenter: c, startRadius: 0,
-                                       endCenter: c, endRadius: radius, options: [])
-            }
+        if let light = renderLight(radius: h * 0.85, figureRect: figureRect) {
+            ctx.interpolationQuality = .low
+            ctx.draw(light, in: bounds)
         }
 
-        guard let figure else {
+        guard let figure, let sprites = sprites(of: figure) else {
             let str = NSAttributedString(string: "🙏", attributes: [.font: NSFont.systemFont(ofSize: h * 0.4)])
             let s = str.size()
             str.draw(at: CGPoint(x: at.x - s.width / 2, y: at.y - s.height / 2))
@@ -418,32 +405,112 @@ private final class PrayView: NSView {
         }
         for p in prayers {
             let rect = figureRect(at: p.at)
-            let m = man(p)
-            if m > 0 { drawFigure(figure, in: rect, fraction: m) }
-            drawHands(figure, ctx, in: rect, fraction: fadingOut(p))
+            let m = man(p), hands = fadingOut(p)
+            if m > 0 { stamp(sprites.man, ctx, in: rect, fraction: m) }
+            // Only while they are ahead of him: once he has caught up, these
+            // would be the same pixels stamped twice.
+            if m < hands { stamp(sprites.hands, ctx, in: rect, fraction: hands) }
         }
-        drawHands(figure, ctx, in: figureRect(at: at), fraction: 1)
+        stamp(sprites.hands, ctx, in: figureRect(at: at), fraction: 1)
     }
 
-    private static let hints: [NSImageRep.HintKey: Any] = [.interpolation: NSImageInterpolation.high]
+    // MARK: - Twenty men at 60 Hz
+    //
+    // This redraws the whole screen on the main thread every frame, and it was
+    // cheap only for a man or two: twenty lit men took 174 ms a frame on the
+    // Retina, ~6 fps, with the hands, every click and every HTTP route queued
+    // behind it (measured 2026-11-04, when the choir went from 8 to 20). So
+    // the two costs are paid differently, and the picture stays the same:
+    // light is soft, so it is drawn at a quarter of the pixels and blown up
+    // once; a man is the same picture every time, so he is resampled with care
+    // once and only stamped afterwards.
 
-    private func drawFigure(_ figure: NSImage, in rect: CGRect, fraction: CGFloat) {
-        figure.draw(in: rect, from: .zero, operation: .sourceOver, fraction: fraction,
-                    respectFlipped: true, hints: Self.hints)
+    /// Light-buffer pixels per view point. 0.5 is a sixteenth of a Retina's
+    /// pixels; the rays and the glow have no detail to lose.
+    private static let lightScale: CGFloat = 0.5
+    private var lightBuffer: CGContext?
+
+    /// All the rays and glows of this frame, or nil with nobody planted. The
+    /// buffer is NOT flipped, on purpose: it is drawn in y-down view points and
+    /// the bitmap lands the right way up in this flipped view.
+    private func renderLight(radius: CGFloat, figureRect: (CGPoint) -> CGRect) -> CGImage? {
+        guard !prayers.isEmpty else { return nil }
+        let w = Int(bounds.width * Self.lightScale), h = Int(bounds.height * Self.lightScale)
+        if lightBuffer?.width != w || lightBuffer?.height != h {
+            lightBuffer = Self.bitmap(width: w, height: h)
+            lightBuffer?.scaleBy(x: Self.lightScale, y: Self.lightScale)
+        }
+        guard let ctx = lightBuffer else { return nil }
+        ctx.clear(CGRect(origin: .zero, size: bounds.size))
+        for p in prayers {
+            let g = light(p)
+            if g > 0 { drawBeam(ctx, onto: figureRect(p.at), for: p, strength: g) }
+        }
+        for p in prayers {
+            let gl = glow(p)
+            guard gl > 0 else { continue }
+            let rect = figureRect(p.at)
+            let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
+            let colors = [Self.glowColor.withAlphaComponent(0.75 * gl).cgColor,
+                          Self.glowColor.withAlphaComponent(0).cgColor] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
+                let c = CGPoint(x: rect.midX, y: rect.midY - rect.height * 0.1)
+                ctx.drawRadialGradient(gradient, startCenter: c, startRadius: 0,
+                                       endCenter: c, endRadius: radius * pulse, options: [])
+            }
+        }
+        return ctx.makeImage()
     }
 
-    /// The figure through `handsOutline` — just the joined hands.
-    private func drawHands(_ figure: NSImage, _ ctx: CGContext, in rect: CGRect, fraction: CGFloat) {
+    private struct Sprites { let man: CGImage; let hands: CGImage }
+    private var cachedSprites: Sprites?
+
+    /// The man, and the man through `handsOutline`, each resampled once at the
+    /// size he is drawn: the breathing only ever scales these by ±2%.
+    private func sprites(of figure: NSImage) -> Sprites? {
+        if let cachedSprites { return cachedSprites }
+        let scale = window?.backingScaleFactor ?? 2
+        let height = (Self.figureHeight * 1.02 * scale).rounded(.up)
+        let size = CGSize(width: (height * figure.size.width / max(1, figure.size.height)).rounded(.up), height: height)
+        guard let man = Self.raster(figure, size: size, through: nil),
+              let hands = Self.raster(figure, size: size, through: Self.handsOutline) else { return nil }
+        cachedSprites = Sprites(man: man, hands: hands)
+        return cachedSprites
+    }
+
+    private static func bitmap(width: Int, height: Int) -> CGContext? {
+        CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                  space: CGColorSpaceCreateDeviceRGB(),
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    }
+
+    private static func raster(_ figure: NSImage, size: CGSize, through outline: [CGPoint]?) -> CGImage? {
+        guard let ctx = bitmap(width: Int(size.width), height: Int(size.height)) else { return nil }
+        if let outline {
+            // Unit coordinates are y-down; this bitmap is y-up.
+            let path = CGMutablePath()
+            path.addLines(between: outline.map { CGPoint(x: $0.x * size.width, y: (1 - $0.y) * size.height) })
+            path.closeSubpath()
+            ctx.addPath(path)
+            ctx.clip()
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        figure.draw(in: CGRect(origin: .zero, size: size))
+        NSGraphicsContext.restoreGraphicsState()
+        return ctx.makeImage()
+    }
+
+    /// A sprite into this flipped view, which would otherwise draw it upside down.
+    private func stamp(_ image: CGImage, _ ctx: CGContext, in rect: CGRect, fraction: CGFloat) {
         guard fraction > 0 else { return }
-        let hands = CGMutablePath()
-        hands.addLines(between: Self.handsOutline.map {
-            CGPoint(x: rect.minX + $0.x * rect.width, y: rect.minY + $0.y * rect.height)
-        })
-        hands.closeSubpath()
         ctx.saveGState()
-        ctx.addPath(hands)
-        ctx.clip()
-        drawFigure(figure, in: rect, fraction: fraction)
+        ctx.interpolationQuality = .low
+        ctx.setAlpha(fraction)
+        ctx.translateBy(x: rect.minX, y: rect.maxY)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.draw(image, in: CGRect(origin: .zero, size: rect.size))
         ctx.restoreGState()
     }
 

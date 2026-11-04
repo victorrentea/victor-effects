@@ -32,6 +32,13 @@ final class PrayChoirTests: XCTestCase {
         XCTAssertNil(choir.endMs)
     }
 
+    func testTwentyMenPrayTogether() {
+        var choir = PrayChoir()
+        for i in 0..<20 { choir.plant(at: .zero, nowMs: Double(i)) }
+        XCTAssertEqual(choir.prayers.count, 20)
+        XCTAssertEqual(choir.prayers.first?.sinceMs, 0, "the first man is still there when the twentieth arrives")
+    }
+
     func testTheOldestMakesRoomBeyondTheCap() {
         var choir = PrayChoir()
         for i in 0...PrayChoir.maxPrayers { choir.plant(at: .zero, nowMs: Double(i)) }
