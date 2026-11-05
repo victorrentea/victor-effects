@@ -561,7 +561,10 @@ enum SpartaShield {
     static let fps: Double = 60
 
     /// `value(t)` sampled over the clip, on the clock of `begin` (clip time zero).
-    /// Filled both ways, so a layer sits on its first value until its turn comes.
+    ///
+    /// **Filled forwards only.** Until its turn comes a layer sits on its model
+    /// value, opacity 0. A ring or a blow's first keyframe is its brightest, so a
+    /// fill backwards held it on the glass from the press on, during "Madness?".
     private static func track(_ keyPath: String, begin: CFTimeInterval,
                               from t0: Double = firstVisible - 0.02, to t1: Double = lastVisible,
                               mode: CAAnimationCalculationMode = .linear,
@@ -573,7 +576,7 @@ enum SpartaShield {
         a.calculationMode = mode
         a.beginTime = begin + t0
         a.duration = t1 - t0
-        a.fillMode = .both
+        a.fillMode = .forwards
         a.isRemovedOnCompletion = false
         return a
     }

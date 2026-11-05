@@ -2400,6 +2400,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     nimic"*: the shield fades in over "THIS" (3.46–3.72 s, two thirds there on the onset
     at 3.62), it does not fly in. `/effect/sparta` runs silently, on the same timeline,
     so it too waits 3.4 s.
+    Keyframes here fill **forwards only**: a ring's first keyframe is its brightest, and
+    the first build filled backwards too, so the rings sat on the glass from the press.
+    Victor caught it live. `testNoLayerIsHeldOnTheGlassBeforeItsTurn` pins it.
   - **The beats are measured, in the clip's time:** THIS 3.62, IS 4.26, SPAR- 4.80 with
     the vowel swelling to 5.12, and the loudest onset after the words at 6.06. The visual
     owns the audio (`playPathVisuals`), because a cue this far inside a clip slides off a

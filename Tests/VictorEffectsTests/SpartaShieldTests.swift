@@ -97,6 +97,30 @@ final class SpartaShieldTests: XCTestCase {
         XCTAssertEqual(sprites.rings.count, S.rings.count)
     }
 
+    /// Victor saw the ring before the shield: rings start at their brightest, and a
+    /// fill backwards put them on the glass from the press, over "Madness?". With
+    /// every layer at opacity 0 and no fill backwards, nothing can show early.
+    func testNoLayerIsHeldOnTheGlassBeforeItsTurn() throws {
+        let sprites = try XCTUnwrap(S.bake(bounds: screen, scale: 1))
+        let container = CALayer()
+        S.build(in: container, bounds: screen, begin: 100, sprites: sprites)
+        S.addDesktop(sprites.flash, to: container, bounds: screen, begin: 100)
+
+        func walk(_ layer: CALayer) {
+            for key in layer.animationKeys() ?? [] {
+                let a = layer.animation(forKey: key)
+                XCTAssertEqual(a?.fillMode, .forwards, "\(key) reaches back before its start")
+                XCTAssertGreaterThanOrEqual((a?.beginTime ?? 0) - 100, S.firstVisible - 0.02, "\(key) starts early")
+            }
+            layer.sublayers?.forEach(walk)
+        }
+        walk(container)
+        let shown = (container.sublayers ?? []).filter { $0.opacity != 0 }
+        XCTAssertTrue(shown.isEmpty, "a top layer is visible with no animation running")
+        let inShield = container.sublayers?.last?.sublayers?.filter { $0.opacity != 0 } ?? []
+        XCTAssertEqual(inShield.count, 2, "only the shadow and the face, and their holder is at 0")
+    }
+
     func testBuildingLaysTheShieldOverTheSun() throws {
         let sprites = try XCTUnwrap(S.bake(bounds: screen, scale: 1))
         let container = CALayer()
