@@ -243,7 +243,7 @@ enum BluetoothOutput {
     /// re-synthesize the same samples.
     private static var cachedWav: (seconds: Double, data: Data)?
 
-    /// Play an inaudible tone of `seconds` length on the current default output
+    /// Play a near-silent tone of `seconds` length on the current default output
     /// to warm the Bluetooth A2DP link, so a real sound played right after it
     /// isn't clipped during codec/amp spin-up. No-op for `seconds <= 0`. Must be
     /// called on the main thread.
@@ -287,7 +287,7 @@ enum BluetoothOutput {
         if warmPlayer?.isPlaying == true { return }
         do {
             // A 2s near-silent loop; each end fades to zero so the loop
-            // boundary is click-free and the ≈ -56 dBFS tone stays inaudible.
+            // boundary is click-free.
             let p = try SoundManager.player(data: makeSilentToneWav(seconds: 2.0))
             p.numberOfLoops = -1
             p.volume = 1.0  // amplitude is baked into the samples
@@ -307,13 +307,19 @@ enum BluetoothOutput {
 
     // MARK: - Tone generation
 
-    /// Build a mono 16-bit PCM WAV of a very quiet sine burst with 10ms fades
-    /// (no click). Amplitude ≈ -56 dBFS: real PCM energy that keeps a Bluetooth
-    /// stream/amp alive, yet inaudible in a room. Shared by `playWakeTone` and
-    /// the whip's `startContinuousWarm`.
+    /// Pitch of the near-silent warm tone. 30 Hz, the keep-alive nudge's frequency:
+    /// a palm-sized box barely moves air there. At 220 Hz the same -56 dBFS was
+    /// an audible buzz before every sound with the Mac at full volume
+    /// (`docs/sound-routing.md`).
+    static let warmToneHz = 30.0
+
+    /// Build a mono 16-bit PCM WAV of a very quiet sine burst with 50ms fades
+    /// (1.5 cycles at this pitch, so no click). Amplitude ≈ -56 dBFS: real PCM
+    /// energy that keeps a Bluetooth stream/amp alive. Shared by `playWakeTone`
+    /// and the whip's `startContinuousWarm`.
     static func makeSilentToneWav(seconds: Double) -> Data {
-        makeToneWav(seconds: seconds, freq: 220.0, amplitude: 0.0015,  // ≈ -56 dBFS
-                    fadeSeconds: 0.01)  // 10ms fade in/out
+        makeToneWav(seconds: seconds, freq: warmToneHz, amplitude: 0.0015,  // ≈ -56 dBFS
+                    fadeSeconds: 0.05)
     }
 
     /// Mono 16-bit PCM WAV of one sine, faded in and out over `fadeSeconds`.

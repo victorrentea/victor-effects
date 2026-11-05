@@ -180,6 +180,16 @@ holds it (`macBluetoothOutputLatencyMs` overrides). Only the karaoke captions
 use it so far (`docs/overlay-effects.md`); the paired visuals still wait for
 the silence alone, which means they land ~0.5 s ahead of the sound.
 
+**The wake tone is 30 Hz (2026-11-05).** It was 220 Hz at the same −56 dBFS from
+the start, and "near-silent" stopped being true once the Mac sat at 100 % volume
+on two linked Go 4s with the slider at 1050 ms: a second of audible buzz before
+every sound (the same hum the old keep-alive loop was removed for, below). It
+now uses the nudge's frequency, which a palm-sized box barely moves air at; the
+🔥 whip's warm loop shares the tone. **Not measured:** the laptop mic could not
+separate it from the room on 2026-11-05, so whether the amp still spins up as
+early on 30 Hz is a thing to listen for. If sound attacks start clipping, this
+is the change to look at.
+
 `green-flash` is the one effect that takes `currentBluetoothCompensation`
 directly rather than consuming a pending one: it is the visual half of an
 audible "the link works" tap, and firing it immediately lit the border up to
@@ -356,7 +366,7 @@ box as before.
 
 Two identical boxes need telling apart, so `markedSpeakerMac` in the config
 names the one wearing a physical mark, and `speakerMarked` / `speaker2Marked`
-say which chip it is; the tablet draws a ① before that chip's icon (Victor,
+say which chip it is; the tablet draws a 🎗️ (no ring; a ① until 2026-11-05) before that chip's icon (Victor,
 2026-11-04). A position would not do: the first chip is whichever box the Mac
 holds. The linked box never says its MAC, so `marks` reads the second chip as
 "the other one", which assumes two boxes in total.
