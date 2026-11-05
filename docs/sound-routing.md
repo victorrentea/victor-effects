@@ -392,6 +392,16 @@ a hidden reconnect only after a re-link, and the very next visit read both
 (45 % and 60 %), the two boxes still playing together. The only cost is the
 audio gap while the Mac's link is down.
 
+**The level comes in steps.** Every value logged 3–5 Nov, on both boxes, draining
+or charging, was one of 15, 45, 60, 75 or 100: `0x44` is not a fine gauge, so
+`100` means "the top step", not "full". On 2026-11-05 the box with the ribbon
+said 100 from 09:13 until 17:16 and then 75, with nothing in between; the other
+one, off the charger by 12:18, still said 100 at 18:04 in a raw dump
+(`AA 12 03 01 44 64`, serial `…8222`, against the connected box's `4B` = 75,
+serial `…4533`). A 100 hours after unplugging is therefore normal, and the
+linked box's value is live, not cached: it follows both charging and draining
+in the log. (Why it can also be read wrongly: the 100 vs 75 over LE, above.)
+
 `/ping` carries a second chip: `speaker2ChargePct` / `speaker2Charging` /
 `speaker2ChargeAgeS` (same -1 when none) — the box linked to the first, else
 the other connected one (`pickBoth`). The first chip's three keys are
