@@ -339,7 +339,7 @@ final class EffectsEngine {
         case "phone-ring":    animator.showPhoneRing(playSound: false)
         case "fbi-knock":     animator.showFbiKnock(playSound: false)
         case "dark-door":     animator.showDarkDoor(playSound: false)
-        // Beethoven owns its audio for the same reason the microwave does — the
+        // Beethoven owns its audio for the same reason the sonar does — the
         // cue is INSIDE the clip — so unlike every other silent effect this one
         // is fired WITH sound.
         case "beethoven":     animator.showBeethoven(playSound: true)
@@ -376,11 +376,7 @@ final class EffectsEngine {
         // The hands blink on the beat, so they need to know when the clip is HEARD.
         case "cant-touch-this":      animator.showCantTouchThis(heardIn: heardIn(CantTouchThisSession.clip))
         case "cant-touch-this/stop": animator.stopCantTouchThis()
-        // Like the sonar: the door's cue lives INSIDE the clip, so the effect
-        // owns its own audio rather than trusting a separate routed play to land
-        // on the same millisecond.
-        case "microwave":     animator.showMicrowave(playSound: true)
-        // Like the microwave: the minions' cue sits 23.83 s inside the combined
+        // Like the sonar: the minions' cue sits 23.83 s inside the combined
         // clip, so the effect owns its audio — the routed /sound/play path plays
         // the clip and starts the visual itself; a direct trigger plays both.
         case "universal-minions": animator.showUniversalMinions(playSound: true)
@@ -823,7 +819,7 @@ final class EffectsEngine {
         // Tile #14 (🌍 Universal fanfare): the matted minions animation enters
         // at a fixed point INSIDE the combined clip — the tile's fanfare gives
         // way to the clip's own tail 23.83 s in — so the effect owns the audio,
-        // same reason as the microwave. The tablet never plays its own copy.
+        // same reason as the radar. The tablet never plays its own copy.
         if name == "14_universal.mp3" {
             let duration = animator.showUniversalMinions(playSound: true, volume: volume)
             guard duration > 0 else { return nil }

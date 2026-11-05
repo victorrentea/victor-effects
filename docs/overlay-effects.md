@@ -391,7 +391,7 @@ ones. Two tools now cover them:
   top of `hostLayer` on every use, so a new effect still draws over older ones.
   On it: zorro, fireworks, sepia, confetti (both), money, iris, applause,
   wolf, small dog, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
-  Star Wars, snow, fire alarm, cavalry, wasn't-me, microwave, universal minions,
+  Star Wars, snow, fire alarm, cavalry, wasn't-me, universal minions,
   rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda, opus,
   game over and its CRT, sketch arrow, the reaction emojis (☕ too since
   2026-10-16, with the pot and stream that pour into it), the ❌ fail
@@ -688,7 +688,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   **24.0 s INTO the combined clip** (where frame 1 was taken, by audio
   cross-correlation of the 1080p clip against the combined track) (`universal-minions.mp3` in `assetsDir` —
   the tile's fanfare followed by the clip's own tail, which the tablet's copy
-  does not contain), so like the radar and the microwave the effect **owns the
+  does not contain), so like the radar the effect **owns the
   audio**: `playTabletSound("universal-minions.mp3")` plays the whole clip and
   stamps the visual's clock in the same call. The frames decode on a
   background queue during the 24 s lead-in and install as a discrete
@@ -696,7 +696,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   re-press mid-decode discards the result; a late install catches up
   mid-sequence). The layer carries only a 0.15 s entrance fade — the matte's
   own tail frames already contain the dissolve. Bluetooth compensation shifts
-  the whole timeline the microwave way. Missing frames degrade to audio-only;
+  the whole timeline along with the audio. Missing frames degrade to audio-only;
   a missing clip returns 0 → 404 → the tablet falls back to its own copy.
   **Trigger:** driven from the **routed `/sound/play/14_universal.mp3`** path
   (`onSoundPlay` special-cases it → `showUniversalMinions(playSound:true)`),
@@ -710,7 +710,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   cue** (`skip:` shifts audio and visual clock together) for checking the
   animation without the 24 s fanfare.
   `/test/universal-minions` and `/effect/universal-minions` both fire it
-  **with sound** — like the microwave, a soundless run would just sit there
+  **with sound** — a soundless run would just sit there
   for 24 s and then show a silent cartoon.
 - **🛰️ Sonar** (sfx #23 `23_radar.mp3` → `sonar`, `showSonar`): a full-screen
   black wash fades in (0→45% over 1s; darker **70% disc** inside the radar
@@ -1195,33 +1195,6 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     covered in 6.5 s instead of 8, so the thing moves **three times** as fast as it did.
     Twice was the ask; at exactly twice, the longer journey would need 9.8 s and no
     longer fit under the clip.
-- **⏲️ Microwave** (**no tile since 2026-09-25**: #61 became Bocelli's Hallelujah — 😇 heaven since 2026-10-22; fire it with `/effect/microwave`. Was tile #61, repurposed from "dinner"): a **kitchen timer ticks and
-  the microwave's door swings open on the BING**. `61_dinner.mp3` is now a few
-  seconds of ticking followed by a bell (the ticking was lifted +12 dB against the
-  bell so it survives a room PA; the bell keeps its full dynamic punch), and
-  `showMicrowave` puts a translucent (85%) cartoon microwave in the middle of the
-  desktop, fitted aspect-preserved inside **80% of the screen**. **The entire point
-  is one sync**, so the cue is *measured off the file*, not guessed:
-  `EmojiAnimator.microwaveBingOnset` = **2.695 s**, the beginning of the rising
-  front toward the peak (peak at 2.700 s) — re-cutting the clip means re-measuring
-  that number. The 16 gif frames are **NOT a loop** (frame 0 = closed door, frame
-  15 = fully open), so the layer holds frame 0 through the ticking and only then
-  runs the swing at the gif's native 25 fps (0.64 s), holding the open door through
-  the bell's decay before fading out with it. That fixed **in-clip** offset is why
-  the effect **owns its own audio** on the routed `/sound/play` path (the radar's
-  pattern) and is deliberately **absent from `SoundEffectMap`**: a separate press
-  round-trip cannot be trusted to land on the same millisecond, and mapping both
-  would open a second door with no bell behind it. On Bluetooth output the **whole
-  visual timeline shifts by the same A2DP compensation** the audio does
-  (`clock0 = CACurrentMediaTime() + btComp`), so the door never flies open ahead of
-  the sound reaching the speaker. The art (`Resources/microwave.gif`) is cropped to
-  its content **symmetrically about the source frame's centre** — minimal, but the
-  closed microwave still sits dead-centre and the door keeps room to swing out to
-  the left. The tablet thumbnail is the gif's **own first frame** (door shut), so
-  the tile shows the "before" of the animation it fires. `/test/microwave` and
-  `/effect/microwave` both fire it **with sound** — the one of these that is not
-  silent, since a soundless microwave would just sit there for 2.7 s and then
-  open for no reason.
 - **🕳️ Iris close** (tile #31, repurposed from Tarzan): a cinematic "iris out"
   blackout. The Android tile #31 is redrawn as a **black circle
   with a white centre and four inward-pointing arrows** (vector `sfx_31_iris.xml`);
@@ -1914,7 +1887,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   assumed: CoreAnimation resolves filter coordinates in **layer points and compensates
   for `contentsScale`**, so the same numbers land identically on a 1x and a 2x display.
   Past `inputScale` ≈ 0.7 the middle of the lens stretches into a fisheye smear. **Driven from the
-  routed `/sound/play` path** (`onSoundPlay`), like the radar and the microwave, and
+  routed `/sound/play` path** (`onSoundPlay`), like the radar, and
   therefore **out of `SoundEffectMap`** so the press cannot fire it a second time. That
   is what makes it land: the visual used to come off the press while a *separate* HTTP
   request started the audio, and the pulse clock then started from whenever the async
@@ -2298,7 +2271,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     `fbiKnockOnsets` now says so in one place: **re-cutting the clip means re-measuring it.**
   - **Sound and visual had no common clock.** It was a press→`SoundEffectMap` visual while
     a *separate* HTTP request started the audio, and the knock clock started from whenever
-    the async `screencapture` returned. Same disease the heartbeat, the microwave and the
+    the async `screencapture` returned. Same disease the heartbeat and the
     radar were each cured of, and the same cure: **driven from the routed `/sound/play`
     path** (`onSoundPlay`) and therefore **out of `SoundEffectMap`**, so one call owns both
     halves and they hang off one `clock0` (plus `btComp`, the Bluetooth warm-up silence
