@@ -3,9 +3,9 @@
 cricket and the moon: `assetsDir/cricket-brush.png` (Victor, 2026-11-05). Only this
 script is committed; the picture lives in assetsDir (docs/assets-and-licences.md).
 
-- **White goes, the paint stays.** Alpha comes off the luminance, and the edge pixels
-  are unmixed from the paper, so the torn rim has no white fringe. Inside, the stroke
-  is fully opaque and keeps its grey texture.
+- **White goes, the paint stays.** Alpha comes off the luminance. Inside, the stroke is
+  fully opaque and keeps its grey texture; the rim takes the paint's own colour. Unmixing
+  the rim from the paper was tried first and drew a pale outline on a dark desktop.
 - **Enlarged before it is cut out.** The picture is a thumbnail of 643x360 that ends up
   around 1900 px wide on a Retina screen. Cutting it out first would enlarge a hard
   mask; enlarging first gives the matte smooth edges.
@@ -31,6 +31,7 @@ from PIL import Image, ImageFilter
 ENLARGE = 3
 PAPER = 245           # at this luminance and above, nothing of the stroke
 INK = 90              # at this luminance and below, all stroke: the texture stays inside
+PAINT = 18            # the stroke's typical luminance, the colour of its semi-transparent rim
 SOLID = 230           # alpha from which the stroke counts as solid under the picture
 MARGIN = 3            # px of solid stroke kept around every lit pixel
 LIT = 30              # the film's premultiplied colour above this is picture
@@ -49,9 +50,8 @@ def cut_out(path):
     rgb = np.asarray(img).astype(np.float32)
     lum = rgb.mean(axis=2)
     alpha = np.clip((PAPER - lum) / (PAPER - INK), 0, 1)
-    top = alpha[..., None]
-    ink = np.where(top > 0, (rgb - (1 - top) * 255) / np.maximum(top, 1 / 255), 0)
-    rgba = np.dstack([np.clip(ink, 0, 255), alpha * 255])
+    ink = np.where(alpha[..., None] >= 1, rgb, PAINT)
+    rgba = np.dstack([ink, alpha * 255])
     return Image.fromarray(np.round(rgba).astype(np.uint8), "RGBA"), alpha
 
 
