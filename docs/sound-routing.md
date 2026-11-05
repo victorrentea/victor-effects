@@ -190,27 +190,47 @@ and `setBluetoothCompensation(seconds:)` stores a runtime override clamped to
 resets to the file default on restart. `GET /bt-compensation` reads it back as
 `{"ms":…,"maxMs":1200}`.
 
-**Only the first sound waits (2026-11-05).** A speaker that played a moment ago
-is already up, so a sound started during another, or within 5 s of the last one
-ending (`SpeakerWake.staysAwake`), gets no wake-up delay and no wake tone, and its
-visual and caption stop waiting with it. Victor pressed tiles in quick succession
-and each one still paid its full second. `currentBluetoothCompensation` therefore
-answers "how long until the speaker is awake", which is why two tiles pressed
-0.3 s apart land together instead of the second one clipping into the tone, and
-why reading it after starting a clip still gives that clip's wait. The clock runs
-from the real end of the sound: a stop cuts it short (`fadeOutAndStop`), unless
-another clip is still sounding. Only what `SoundManager` plays is counted; the
-sounds with their own player (chainsaw, AK-47, pray) wake nothing here. This is
-the wake-up alone: the speaker's own A2DP latency below is always there. **Not
-measured by ear:** 5 s is what was asked for, not a figure taken off the JBL, so
-a clipped attack on a follow-up sound means lowering `staysAwake`.
+**A sound and its picture start together: the invariant (2026-11-05).** Victor:
+*"întotdeauna sunetele să pornească împreună cu animația … asta e un invariant"*.
+What the room hears comes after the wake-up AND the speaker's own latency, so every
+paired picture waits for both: `currentPictureDelay`, handed over by
+`pendingVisualCompensation` or read directly by the visuals that own their audio.
+The siren was the worst of them, 1.6 s early, because `/alarm/start` skipped the
+hand-over altogether; it now goes through `runEffect` like the rest. Waiting for
+the wake-up alone used to leave pictures ahead of the sound.
 
-**The silence is not the whole wait.** After it, the speaker itself adds its
-A2DP latency — ~0.55 s on the JBL Go 4, measured with the laptop mic
-(2026-10-23; CoreAudio reports only 123 ms). `SoundTimingConfig.currentOutputLatency`
-holds it (`macBluetoothOutputLatencyMs` overrides). Only the karaoke captions
-use it so far (`docs/overlay-effects.md`); the paired visuals still wait for
-the silence alone, which means they land ~0.5 s ahead of the sound.
+**Only the first sound waits, and hot lasts 2 s (2026-11-05).** A speaker that has
+just played needs no wake-up, so a sound started during another, or within
+`speakerHotMs` of the last one ending (`SpeakerWake`), gets no delay and no wake tone,
+which is what lets two tiles be mixed at once. `currentBluetoothCompensation`
+answers "how long until the speaker is awake", which is why two tiles pressed 0.3 s
+apart land together instead of the second clipping into the tone, and why reading
+it after starting a clip still gives that clip's wait. The clock runs from the real
+end of the sound: a stop cuts it short (`fadeOutAndStop`), unless another clip is
+still sounding. Only what `SoundManager` plays and the 🙏 hymn are counted; sounds
+with their own player (chainsaw, AK-47) wake nothing here.
+
+Measured on the JBL Go 4 with the laptop mic (Victor put the speaker next to it), a
+400 ms 2 kHz tone from `AVAudioPlayer`, heard time from `play()`. Other apps
+silent. A probe that used `AVAudioEngine` for the mic ran the output device and kept
+the link hot, so the mic must be an input-only `AudioQueue`:
+
+| after the last sound ended | heard after | of the 400 ms tone |
+|---|---|---|
+| 1.2–2 s | 360 ms | all of it |
+| 3 s | 490 ms | mostly |
+| 4–6 s | 400–720 ms | unreliable |
+| 9 s and on, 30 s the same | 720–750 ms | **the first ~190 ms are lost** |
+| any, with the 1.05 s wake tone | 1450 ms | all of it |
+
+It fits the device, not the box: `AVAudioPlayer` keeps the output running ~2.3 s
+past the end of a clip, and the sound starts clipping about when it stops (a guess
+at the cause, nobody looked inside the link). JBL publishes no figure for any of this. Holding the link open with an inaudible tone would give
+any window asked for, and Victor refused it: it eats the battery. The 30 Hz tone
+gets the attack through in full. Even a silent Chrome audio service waking the
+device resets all this, so a probe has to count the pause on the device itself
+(`kAudioDevicePropertyDeviceIsRunningSomewhere`). The value shows read-only on the
+tablet's ⋮ menu.
 
 **The wake tone is 30 Hz (2026-11-05).** It was 220 Hz at the same −56 dBFS from
 the start, and "near-silent" stopped being true once the Mac sat at 100 % volume

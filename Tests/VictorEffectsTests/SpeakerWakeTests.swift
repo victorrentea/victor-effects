@@ -10,16 +10,16 @@ final class SpeakerWakeTests: XCTestCase {
         XCTAssertEqual(SpeakerWake().delay(full: full, now: 100), full)
     }
 
-    func testASoundFiveSecondsAfterTheLastOneEndedWaitsNoLonger() {
+    func testASoundWithinTheHotWindowWaitsNoLonger() {
         var wake = SpeakerWake()
         wake.soundStarted(endsIn: full + 3, full: full, now: 100)
-        XCTAssertEqual(wake.delay(full: full, now: 100 + full + 3 + 4.9), 0)
+        XCTAssertEqual(wake.delay(full: full, now: 100 + full + 3 + 1.9), 0)
     }
 
-    func testPastFiveSecondsTheSpeakerIsAsleepAgain() {
+    func testPastTheHotWindowTheSpeakerIsAsleepAgain() {
         var wake = SpeakerWake()
         wake.soundStarted(endsIn: full + 3, full: full, now: 100)
-        XCTAssertEqual(wake.delay(full: full, now: 100 + full + 3 + 5.1), full)
+        XCTAssertEqual(wake.delay(full: full, now: 100 + full + 3 + 2.1), full)
     }
 
     func testASecondPressDuringTheWakeWaitsOnlyForWhatIsLeft() {
@@ -45,8 +45,8 @@ final class SpeakerWakeTests: XCTestCase {
         var wake = SpeakerWake()
         wake.soundStarted(endsIn: 60, full: full, now: 100)
         wake.silenced(now: 102)
-        XCTAssertEqual(wake.delay(full: full, now: 106), 0)
-        XCTAssertEqual(wake.delay(full: full, now: 108), full)
+        XCTAssertEqual(wake.delay(full: full, now: 103), 0)
+        XCTAssertEqual(wake.delay(full: full, now: 105), full)
     }
 
     func testALoopStaysAwakeUntilStopped() {
@@ -54,7 +54,7 @@ final class SpeakerWakeTests: XCTestCase {
         wake.soundStarted(endsIn: .infinity, full: full, now: 100)
         XCTAssertEqual(wake.delay(full: full, now: 10_000), 0)
         wake.silenced(now: 10_000)
-        XCTAssertEqual(wake.delay(full: full, now: 10_006), full)
+        XCTAssertEqual(wake.delay(full: full, now: 10_003), full)
     }
 
     func testAShortClipDoesNotShortenTheLongOneStillPlaying() {

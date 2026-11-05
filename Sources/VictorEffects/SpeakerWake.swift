@@ -14,16 +14,17 @@ import Foundation
 ///
 /// Times are plain seconds on one clock, so a test can pass its own.
 struct SpeakerWake {
-    /// How long after the last sound ended the speaker counts as awake. Asked
-    /// for as 5 s. Lower it if the attack of a follow-up sound gets clipped.
-    static let staysAwake: TimeInterval = 5
+    /// How long after the last sound ended the speaker counts as awake:
+    /// `speakerHotMs` in sound-timing.json, measured on the JBL Go 4
+    /// (`docs/sound-routing.md`).
+    var staysAwake: TimeInterval = 2
 
     private var awakeAt: TimeInterval = -.infinity
     private var silentAt: TimeInterval = -.infinity
 
     /// How long a sound started `now` must wait. `full` is the whole wake delay.
     func delay(full: TimeInterval, now: TimeInterval) -> TimeInterval {
-        guard now < silentAt + Self.staysAwake else { return full }
+        guard now < silentAt + staysAwake else { return full }
         return max(0, awakeAt - now)
     }
 
@@ -35,7 +36,7 @@ struct SpeakerWake {
         silentAt = max(silentAt, now + endsIn)
     }
 
-    /// Everything was cut short: the 5 s count from here, not from where the
+    /// Everything was cut short: the hot window counts from here, not from where the
     /// clip would have ended.
     mutating func silenced(now: TimeInterval) {
         silentAt = min(silentAt, now)

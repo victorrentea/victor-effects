@@ -3045,7 +3045,7 @@ class EmojiAnimator {
         var lead: Double = 0
         var clipLength: Double = 0
         if playSound {
-            lead = SoundTimingConfig.shared.currentBluetoothCompensation
+            lead = SoundTimingConfig.shared.currentPictureDelay
             clipLength = SoundManager.shared.playTabletSound(Self.smallDogSound, volume: volume) ?? 0
         }
         let begin = CACurrentMediaTime() + lead
@@ -6527,7 +6527,9 @@ class EmojiAnimator {
         // (possibly delayed) effect start on the CoreAnimation clock; every
         // begin-time below hangs off it.
         let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
-        let clock0 = CACurrentMediaTime() + btComp
+        // Its beeps are heard after the speaker's own latency as well.
+        let heardLag = playSound ? SoundTimingConfig.shared.currentOutputLatency : 0
+        let clock0 = CACurrentMediaTime() + btComp + heardLag
 
         // Everything lives under one container so the end fade-out is a single op.
         let container = CALayer()
@@ -6968,7 +6970,7 @@ class EmojiAnimator {
                 SoundManager.shared.play("23_radar.mp3", bluetoothCompensated: false)
             }
         }
-        trackEffect("sonar", layer: container, duration: btComp + total, sound: soundKey)
+        trackEffect("sonar", layer: container, duration: btComp + heardLag + total, sound: soundKey)
     }
 
     /// 💓 The screen beats around the cursor. Returns the routed sound's length
@@ -7005,7 +7007,7 @@ class EmojiAnimator {
         // prepends `btComp` of warm-up silence, so the audio really starts that
         // much later and the whole visual timeline shifts with it. Zero on
         // wired/built-in output.
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        let btComp = playSound ? SoundTimingConfig.shared.currentPictureDelay : 0
         var soundDuration: TimeInterval = 0
         if playSound {
             soundDuration = SoundManager.shared.playTabletSound("13_heartbeat.mp3", volume: volume) ?? 0
@@ -10170,7 +10172,7 @@ class EmojiAnimator {
             let d = AVURLAsset(url: soundURL).duration
             if d.isNumeric, CMTimeGetSeconds(d) > 0 { clipLength = CMTimeGetSeconds(d) }
         }
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        let btComp = playSound ? SoundTimingConfig.shared.currentPictureDelay : 0
 
         // Tracked before the capture goes out, so a second tap is debounced and a
         // stop-all reaches this even while the subprocess is still running. It is
@@ -10295,7 +10297,7 @@ class EmojiAnimator {
         var lead: Double = 0
         var clipLength: Double = 0
         if playSound {
-            let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
+            let btComp = SoundTimingConfig.shared.currentPictureDelay
             clipLength = SoundManager.shared.playTabletSound(Self.skullBoomSound, volume: volume) ?? 0
             lead = btComp + SkullBoom.visualLead
             clock0 = CACurrentMediaTime() + lead
@@ -10436,7 +10438,7 @@ class EmojiAnimator {
             let d = AVURLAsset(url: soundURL).duration
             if d.isNumeric, CMTimeGetSeconds(d) > 0 { clipLength = CMTimeGetSeconds(d) }
         }
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        let btComp = playSound ? SoundTimingConfig.shared.currentPictureDelay : 0
 
         // Tracked (and contents-less, i.e. invisible) before the capture goes
         // out, so a second tap is debounced and a stop-all reaches this even
@@ -10605,7 +10607,7 @@ class EmojiAnimator {
             let d = AVURLAsset(url: soundURL).duration
             if d.isNumeric, CMTimeGetSeconds(d) > 0 { clipLength = CMTimeGetSeconds(d) }
         }
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        let btComp = playSound ? SoundTimingConfig.shared.currentPictureDelay : 0
 
         // Tracked before the capture goes out, so a second tap is debounced and a
         // stop-all reaches this even while the subprocess is still running.
@@ -11085,7 +11087,7 @@ class EmojiAnimator {
         // visual timeline shifts with it. The
         // audio is the one half that must not silently fail: with no clip to
         // play, answer 0 so the tablet falls back to its own local copy.
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        let btComp = playSound ? SoundTimingConfig.shared.currentPictureDelay : 0
         if playSound {
             guard SoundManager.shared.playTabletSound("universal-minions.mp3", volume: volume, startAt: skip) != nil else {
                 return 0
@@ -13535,7 +13537,7 @@ class EmojiAnimator {
             overlayInfo("🤖 opus: no \(Self.opusClawSound) in assetsDir — the claws are silent")
             return
         }
-        let comp = SoundTimingConfig.shared.currentBluetoothCompensation
+        let comp = SoundTimingConfig.shared.currentPictureDelay
         for i in 0..<3 {
             let at = max(Self.opusClawDelay + Double(i) * Self.opusClawStagger - comp, 0)
             DispatchQueue.main.asyncAfter(deadline: .now() + at) { [weak self, weak layer] in

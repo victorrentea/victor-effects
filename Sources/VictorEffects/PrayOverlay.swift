@@ -115,6 +115,7 @@ final class PrayController {
         let clip = SoundManager.shared.soundDuration(Self.tile) ?? Self.tileFallbackSeconds
         let wake = startHymn(volume: volume, clip: clip)
         BluetoothOutput.startContinuousWarm()
+        heardAtMs = nowMs() + (wake + SoundTimingConfig.shared.currentOutputLatency) * 1000
         choir.hold(untilMs: nowMs() + (wake + clip) * 1000)
         Self.isUp = true
 
@@ -177,7 +178,8 @@ final class PrayController {
         if let end = choir.endMs, now >= end { hide(); return }
         choir.expire(nowMs: now)
         view.prayers = choir.prayers
-        view.handsAlpha = CGFloat(min(1, ((choir.endMs ?? now) - now) / Self.fadeOutMs))
+        // Not before the hymn is heard: a sound and its picture start together.
+        view.handsAlpha = now < heardAtMs ? 0 : CGFloat(min(1, ((choir.endMs ?? now) - now) / Self.fadeOutMs))
         steerHymn(now: now)
         view.nowMs = now
         view.needsDisplay = true
@@ -203,6 +205,7 @@ final class PrayController {
     }
 
     private var hymnLevel: Float = 1
+    private var heardAtMs = 0.0
 
     /// The long take in the tile's place, with the tile's Bluetooth wake-up, as
     /// `SoundManager` would give it. Returns that wait.

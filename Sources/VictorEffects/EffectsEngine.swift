@@ -207,6 +207,8 @@ final class EffectsEngine {
     }
 
     func stopAlarm() {
+        // A vignette still waiting out the Bluetooth gap must not draw after this.
+        deferredFires.stopped(effect: EffectsCatalog.sirenEffectName)
         animator.stopAlarmOverlay()
         CaptionOverlay.hide(asset: SoundboardPress.sirenAsset)
     }
@@ -282,7 +284,7 @@ final class EffectsEngine {
         // lit the border up to 1.2 s before the sound reached the speaker, which
         // reads as two separate events.
         let comp = name == "green-flash"
-            ? SoundTimingConfig.shared.currentBluetoothCompensation
+            ? SoundTimingConfig.shared.currentPictureDelay
             : SoundManager.consumePendingVisualCompensation(for: name)
         // One line per fire, with the delay: the self-termination rule means
         // most effects end with nobody announcing it, so "why is X still on
@@ -311,6 +313,9 @@ final class EffectsEngine {
         overlayPanel.refreshScreenFrame()
         switch name {
         case "earthquake":    animator.showBrokenGlass(playSound: false)
+        // The siren's vignette: `/alarm/start`, through `runEffect` like any
+        // other picture, so that it starts when the sound is heard.
+        case EffectsCatalog.sirenEffectName: startAlarm()
         case "explosion":     animator.showExplosionGif(playSound: false)
         case "game-over":     animator.showGameOver()
         case "game-over/stop": animator.stopGameOver()

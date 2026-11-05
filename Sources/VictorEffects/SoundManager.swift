@@ -544,7 +544,7 @@ class SoundManager {
             // Unconditional: a 0 here has to overwrite what a previous press left
             // unclaimed (the siren never claims its own), or the visual of a clip
             // that starts at once would wait for a wake nobody needed.
-            Self.pendingVisualCompensation = btComp
+            Self.pendingVisualCompensation = SoundTimingConfig.shared.currentPictureDelay
             Self.pendingVisualCompensationAt = Date()
             if total > 0 {
                 player.play(atTime: player.deviceCurrentTime + total)
@@ -587,7 +587,7 @@ class SoundManager {
             let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
             let total = lead + btComp
             if btComp > 0 { BluetoothOutput.playWakeTone(seconds: total) }
-            Self.pendingVisualCompensation = btComp
+            Self.pendingVisualCompensation = SoundTimingConfig.shared.currentPictureDelay
             Self.pendingVisualCompensationAt = Date()
             if total > 0 {
                 player.play(atTime: player.deviceCurrentTime + total)

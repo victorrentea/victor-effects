@@ -51,7 +51,8 @@ final class SoundTimingConfig {
             .appendingPathComponent("sound-timing.json")
 
         var comp: TimeInterval = 0.55
-        var outputLatency: TimeInterval = 0.55
+        var outputLatency: TimeInterval = 0.4
+        var hot: TimeInterval = 2
         var leads: [String: TimeInterval] = ["67_sfx_109.mp3": 0.32]
 
         if let data = try? Data(contentsOf: url),
@@ -67,6 +68,9 @@ final class SoundTimingConfig {
             }
             if let ms = obj["macBluetoothOutputLatencyMs"] as? NSNumber {
                 outputLatency = ms.doubleValue / 1000.0
+            }
+            if let ms = obj["speakerHotMs"] as? NSNumber {
+                hot = ms.doubleValue / 1000.0
             }
             if let sounds = obj["sounds"] as? [String: Any] {
                 var parsed: [String: TimeInterval] = [:]
@@ -85,6 +89,7 @@ final class SoundTimingConfig {
 
         bluetoothCompensationSeconds = comp
         bluetoothOutputLatencySeconds = outputLatency
+        speakerWake.staysAwake = hot
         animationLeads = leads
     }
 
@@ -118,6 +123,12 @@ final class SoundTimingConfig {
         return speakerWake.delay(full: full, now: Self.wakeClock)
     }
 
+    /// How long a picture must wait to land on the sound started with it: the
+    /// wake-up, then the speaker's own latency. **The invariant** (Victor,
+    /// 2026-11-05): a sound and its animation start together, every time. The
+    /// wake-up alone left the picture ~0.55 s ahead of what the room heard.
+    var currentPictureDelay: TimeInterval { currentBluetoothCompensation + currentOutputLatency }
+
     /// A sound went to the speaker; it will be over in `endsIn` seconds.
     func noteSoundStarted(endsIn: TimeInterval) {
         guard BluetoothOutput.isDefaultOutputBluetooth else { return }
@@ -137,10 +148,9 @@ final class SoundTimingConfig {
 
     /// How long the Bluetooth speaker takes to turn a sample into sound in the
     /// room, AFTER the silence above: measured with the laptop mic on the JBL Go
-    /// 4 (2026-10-23, two clips through `/sound/play`, mic calibrated on the
-    /// built-in speaker): heard 1.33 s and 1.38 s after the request = 0.8 s of
-    /// silence + ~0.55 s. CoreAudio reports 123 ms for the same device, so it
-    /// is measured, not asked for. `macBluetoothOutputLatencyMs` overrides it.
+    /// 4 (2026-11-05): 1.45 s after a play pushed 1.05 s out, 0.36 s on a hot
+    /// link. CoreAudio reports 123 ms for the same device, so it is measured,
+    /// not asked for. `macBluetoothOutputLatencyMs` overrides it.
     let bluetoothOutputLatencySeconds: TimeInterval
 
     /// The speaker's own latency **right now**: 0 off Bluetooth (the built-in

@@ -423,7 +423,7 @@ final class EffectsRouter {
             UsageCounts.record(SoundboardPress.sirenAsset)
             PressLog.append(file: SoundboardPress.sirenAsset, source: pressSource)
             engine.showCaption(for: SoundboardPress.sirenAsset)
-            engine.startAlarm()
+            engine.runEffect(EffectsCatalog.sirenEffectName)
             return .ok()
 
         case .alarmStop:
