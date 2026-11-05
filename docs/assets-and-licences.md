@@ -69,9 +69,9 @@ sound effect" by Paracetamol Sounds, played once per claw — silent claws witho
 BiRefNet-matted and re-timed to bark on the clip, `docs/overlay-effects.md`),
 `cricket-moon.mov` (🦗 tile 12, 2026-11-04: keyed by `tools/make-cricket-moon.py` out of a clip
 Victor generated with Gemini; the tile is plain noise without it),
-`cricket-brush.png` (🦗 the black stroke behind him, 2026-11-05: levelled and cut out by
-`tools/make-cricket-brush.py` from Magnific's free vector
-"modern-black-grunge-brush-stroke-white-background_84443-24215"; the stroke is theirs, so it stays out of the repo),
+`cricket-brush.png` (🦗 the black stroke behind him, 2026-11-05: cut out by
+`tools/make-cricket-brush.py` from a 643x360 Adobe Stock thumbnail Victor copied off Google
+Images, unlicensed, so it stays out of the repo),
 `pray-hymn-tablet.mp3` (47 s of the commercial recording the tablet's Ave
 Maria was cut from — preferred over the shipped take, 2026-10-21, `docs/whip.md`),
 `finger-snap.gif` (optional: a nicer snapping hand for 🫰 snap, which ships its

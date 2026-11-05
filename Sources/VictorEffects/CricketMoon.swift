@@ -15,8 +15,8 @@ import CoreGraphics
 /// run, so it can be tested without a screen.
 ///
 /// Behind them, when `assetsDir/cricket-brush.png` is there, a black brush stroke
-/// laid level (2026-11-05, Victor: *"cât mai orizontală, să încapă greierul și luna
-/// pe acest fundal"*): on a white slide the film's own night is what was missing.
+/// (2026-11-05, Victor picked the picture and marked where the moon and the cricket
+/// go; fully opaque, transparent around it): the film's own night, on any desktop.
 /// `tools/make-cricket-brush.py` builds it and prints `videoInBackdrop`. Without it
 /// he stands on the bare desktop, as he always did.
 enum CricketMoon {
@@ -43,20 +43,26 @@ enum CricketMoon {
                       width: video.width * scale, height: video.height * scale)
     }
 
-    /// Where the film stands on the stroke, as shares of it, y up: the largest place
-    /// where every lit pixel is on solid black. Printed by `tools/make-cricket-brush.py`.
-    static let videoInBackdrop = CGRect(x: 430.0 / 2311, y: 35.0 / 1254,
-                                        width: 1491.0 / 2311, height: 1090.0 / 1254)
+    /// Where the film stands on the stroke, as shares of it, y up: nearest the spots
+    /// Victor marked for the moon and the cricket, with every lit pixel on solid
+    /// paint. Printed by `tools/make-cricket-brush.py`.
+    static let videoInBackdrop = CGRect(x: 366.0 / 1929, y: 239.0 / 1080,
+                                        width: 964.0 / 1929, height: 704.0 / 1080)
+    static let backdropAspect: CGFloat = 1929.0 / 1080
+    /// With the stroke, the stroke is what is sized, and he stands inside it.
+    static let backdropHeightShare: CGFloat = 0.55
+    static let backdropWidthCap: CGFloat = 0.7
 
-    /// The stroke in the corner and the film on it, at the size `video` already has
-    /// (`frame`): he keeps his 45 %, the stroke grows around him.
-    static func onBackdrop(_ video: CGRect, in bounds: CGRect) -> (backdrop: CGRect, video: CGRect) {
-        let fit = videoInBackdrop
-        let size = CGSize(width: video.width / fit.width, height: video.height / fit.height)
+    /// The stroke in the corner and the film on it.
+    static func onBackdrop(in bounds: CGRect) -> (backdrop: CGRect, video: CGRect) {
+        let height = min(bounds.height * backdropHeightShare,
+                         bounds.width * backdropWidthCap / backdropAspect)
+        let size = CGSize(width: height * backdropAspect, height: height)
         let origin = CGPoint(x: bounds.minX, y: bounds.minY)
+        let fit = videoInBackdrop
         return (CGRect(origin: origin, size: size),
                 CGRect(x: origin.x + fit.minX * size.width, y: origin.y + fit.minY * size.height,
-                       width: video.width, height: video.height))
+                       width: fit.width * size.width, height: fit.height * size.height))
     }
 
     /// How long the run stays up: the clip, since that is what the room hears; the

@@ -2939,7 +2939,7 @@ class EmojiAnimator {
         container.frame = bounds
         if let url = EffectsConfig.shared.assetURL(CricketMoon.backdropName),
            let stroke = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let placed = CricketMoon.onBackdrop(video.frame, in: bounds)
+            let placed = CricketMoon.onBackdrop(in: bounds)
             let backdrop = CALayer()
             backdrop.frame = placed.backdrop
             backdrop.contents = stroke

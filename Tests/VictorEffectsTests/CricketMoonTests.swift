@@ -13,20 +13,19 @@ final class CricketMoonTests: XCTestCase {
         XCTAssertEqual(f.minY, 0, "the crop ends under the feet: he stands on the screen's edge")
     }
 
-    func testOnTheBrushStrokeTheStrokeTakesTheCornerAndHeKeepsHisSize() {
-        let alone = CricketMoon.frame(in: macBook, video: video)
-        let placed = CricketMoon.onBackdrop(alone, in: macBook)
+    func testOnTheBrushStrokeTheStrokeTakesTheCornerAndHeStandsInsideIt() {
+        let placed = CricketMoon.onBackdrop(in: macBook)
         XCTAssertEqual(placed.backdrop.origin, macBook.origin)
-        XCTAssertEqual(placed.video.size, alone.size)
+        XCTAssertEqual(placed.backdrop.height, macBook.height * CricketMoon.backdropHeightShare, accuracy: 0.01)
         XCTAssertTrue(placed.backdrop.contains(placed.video), "the film stands on the stroke")
-        XCTAssertLessThanOrEqual(placed.backdrop.maxX, macBook.maxX)
-        XCTAssertLessThanOrEqual(placed.backdrop.maxY, macBook.maxY)
+        XCTAssertEqual(placed.video.width / placed.video.height, video.width / video.height, accuracy: 0.01,
+                       "the film keeps its proportions")
     }
 
-    func testTheStrokeStaysOnANarrowDisplayToo() {
+    func testTheStrokeStaysACornerOnANarrowDisplayToo() {
         let portrait = CGRect(x: 0, y: 0, width: 800, height: 1280)
-        let placed = CricketMoon.onBackdrop(CricketMoon.frame(in: portrait, video: video), in: portrait)
-        XCTAssertLessThanOrEqual(placed.backdrop.maxX, portrait.maxX)
+        let placed = CricketMoon.onBackdrop(in: portrait)
+        XCTAssertEqual(placed.backdrop.width, portrait.width * CricketMoon.backdropWidthCap, accuracy: 0.01)
     }
 
     func testTheCornerIsAlsoTheCornerOfAnOverlayThatDoesNotStartAtZero() {

@@ -620,12 +620,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   Same player as the 🔥 phoenix: **HEVC with alpha, colour premultiplied**, an `AVPlayerLayer`
   on the zoom stage (227 frames as images would be most of a gigabyte; this is under 2 MB).
   Without `assetsDir/cricket-moon.mov` the tile is what it was: a noise, plus a log line.
-  **On a black brush stroke** (2026-11-05, Victor: level, and both the cricket and the moon
-  on it): `assetsDir/cricket-brush.png`, a layer under the video, fading with it. The stroke
-  takes the corner and the film moves onto it at its usual 45 %, so the stroke reaches about
-  52 % of the height. `tools/make-cricket-brush.py` levels it (turned 31°) and searches the
-  largest fit in which every lit pixel stands on solid stroke; the rectangle it prints is
-  `CricketMoon.videoInBackdrop`. Without the PNG he stands on the bare desktop, in the corner.
+  **On a black brush stroke** (2026-11-05, Victor picked the picture and marked the moon's and
+  the cricket's spots on it; fully opaque, transparent around it): `assetsDir/cricket-brush.png`,
+  a layer under the video, fading with it. With the stroke, the stroke is what is sized: 55 % of
+  the screen's height, never over 70 % of its width, in the corner, with the film inside it at
+  about 36 % of the height. `tools/make-cricket-brush.py` takes the white out and searches the
+  place nearest his marks where every lit pixel stands on solid paint; the rectangle it prints
+  is `CricketMoon.videoInBackdrop`. Without the PNG he stands alone in the corner at 45 %.
   `/test/cricket-moon`, `/test/cricket-moon/stop`, `/effect/cricket-moon`.
   `tools/make-cricket-moon.py` builds it, and what it had to work around is the film:
   - **The landscape is cut in time, not keyed.** The hill and the blue sky exist for the first
