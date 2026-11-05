@@ -398,8 +398,8 @@ anything.
 
 ## Layer B: the folded corner (2026-10-09)
 
-A tile with an `"under"` row in `tiles.json` (the tablet's layer B — `81b` under
-#81) draws the under tile's picture **folded back into its bottom-left corner**,
+A tile with an `"under"` row in `tiles.json` (the tablet's layer B — `55b` under
+#55) draws the under tile's picture **folded back into its bottom-left corner**,
 exactly as the tablet does: the bottom-left **0.76 × 0.76** square (2/3 × 2/3
 until 2026-10-22, when the corner got 30 % more area so a plain tap on the
 tablet could reach it), clipped to the triangle below its diagonal, a soft black
@@ -431,7 +431,7 @@ finger for its second way in because a finger has no hover; a mouse does.
   whole wheel sits where a click presses the corner; a top sound on a folded tile
   spins up-right of centre, off the fold. `LayerBTests` pins both. Re-clicking
   the corner stops it, as a re-tap does on the tablet.
-- `/press/81b` (and `/test/thumbnail-panel/press/81b`) presses it without a click.
+- `/press/55b` (and `/test/thumbnail-panel/press/55b`) presses it without a click.
 - The right ⌘ / right ⇧ gestures are untouched: ⌘ held = soundboard, ⇧ added =
   videos.
 - **Anti-drift.** What is under what can't drift: both boards read the same

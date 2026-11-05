@@ -337,8 +337,6 @@ class EmojiAnimator {
         // The skull boom's drop is 0.5 s into its clip: build its art once now
         // so a press only pays for the screen capture.
         DispatchQueue.global(qos: .utility).async { SkullBoom.statics(for: Self.skullBoomArtDir) }
-        // The flush's shader is built here too, so no press ever pays for it.
-        DispatchQueue.global(qos: .utility).async { _ = ToiletDrainRenderer.shared }
     }
 
     /// Cancel a running toggleable effect. Returns true if it was running (and got cancelled).
@@ -5907,79 +5905,6 @@ class EmojiAnimator {
         guard let layer = CrtShutdown.makeLayer(in: hostLayer.bounds, scale: scale) else { return }
         stageLayer.addSublayer(layer)
         trackEffect("crt-shutdown", layer: layer, duration: CrtShutdown.totalDuration)
-    }
-
-    // MARK: - 🚽 Toilet flush (tile #66): the desktop goes down the middle
-
-    /// Sound and clock now, the picture as soon as it exists: the clip has nothing
-    /// to see for its first 0.45 s (`ToiletDrain.valve`), so the capture joins the
-    /// clock it finds without anyone waiting for it, the tile answers at once, and
-    /// the visual stays on the clip because every frame is computed from `clock0`.
-    /// Returns the effect's on-screen life, the phoenix's reason: the water settles
-    /// ~1 s past the audio, and a tile only stops on a re-tap while its client thinks
-    /// it is playing. 0 when the Mac has no copy of the clip: the client then plays
-    /// its own, and the desktop still drains to about the right moment.
-    @discardableResult
-    func showToiletFlush(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
-        _ = cancelIfRunning("toilet-flush", sound: playSound ? Self.toiletClip : nil)
-
-        let bounds = hostLayer.bounds
-        guard bounds.width > 0, bounds.height > 0 else { return 0 }
-
-        // Sound first, then the clock — nothing slow may run between them.
-        let duration = playSound ? SoundManager.shared.playTabletSound(Self.toiletClip, volume: volume) : nil
-        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
-        let clock0 = CACurrentMediaTime() + btComp
-
-        guard let renderer = ToiletDrainRenderer.shared else {
-            overlayError("🚽 toilet flush: no Metal device — the clip plays over an untouched desktop")
-            return duration ?? 0
-        }
-        // The slice on the glass at the press, with the capture cropped to match.
-        let slice = ZoomSlice.current(in: bounds)
-        let layer = addToiletFlushLayer(slice: slice, device: renderer.device,
-                                        lasting: btComp + ToiletDrain.totalSeconds)
-
-        // Checked rather than attempted: without Screen Recording the capture does
-        // not fail, it hands back the wallpaper, which would drain instead of the
-        // desktop. With no photograph the water fades in over the live desktop.
-        let granted = CGPreflightScreenCaptureAccess()
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let shot = granted ? slice.crop(Self.captureOverlayScreen()) : nil
-            let picture = shot.flatMap(renderer.texture(from:))
-            DispatchQueue.main.async {
-                guard let self, self.activeEffects["toilet-flush"] === layer else { return }
-                if picture == nil {
-                    overlayError("🚽 toilet flush: no capture (Screen Recording not granted?) — a sheet of water stands in for the desktop")
-                }
-                layer.roll(with: renderer, picture: picture, space: shot?.colorSpace, clock0: clock0)
-            }
-        }
-        return duration.map { max($0, btComp + ToiletDrain.fadeEnds) } ?? 0
-    }
-
-    /// The flush's layer on the glass, tracked before the capture goes out so a
-    /// stop-all reaches a press still waiting for it. Empty, and so invisible, until
-    /// it rolls. Removes itself after `lasting` seconds.
-    func addToiletFlushLayer(slice: ZoomSlice, device: MTLDevice, lasting: Double) -> ToiletDrainLayer {
-        let layer = ToiletDrainLayer()
-        layer.fit(slice.local, scale: Screens.overlayScreen()?.backingScaleFactor ?? 2.0, device: device)
-        sliceHolder(slice).addSublayer(layer)
-        _ = stageLayer   // back on top: the holder just landed over anything staged
-        trackEffect("toilet-flush", layer: layer, duration: lasting)
-        return layer
-    }
-
-    private static let toiletClip = "66_toilet.mp3"
-
-    /// The display the overlay is on, which `overlayScreen` may have moved off the
-    /// built-in panel: a photograph of another screen would drain over this one.
-    private static func captureOverlayScreen() -> CGImage? {
-        guard let id = Screens.overlayScreen().flatMap(Screens.displayID(of:)) else {
-            return captureBuiltInDisplayFast() ?? captureBuiltInDisplay()
-        }
-        // A press caption on the glass must not end up in the picture.
-        return CaptionSafeCapture.displayImage(displayID: id) ?? CGDisplayCreateImage(id)
     }
 
     // MARK: - Fail overlay (a stamp from assetsDir, centered)

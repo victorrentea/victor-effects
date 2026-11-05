@@ -124,9 +124,9 @@ limited:
 
 - Four effects draw in **their own windows** (whip, claude-peek, green-flash,
   the thumbnail panel) and are simply not in that window's pixels.
-- Eight effects **copy the real screen into themselves** to distort it —
+- Seven effects **copy the real screen into themselves** to distort it —
   broken-glass/earthquake, chainsaw, heartbeat, fbi-knock, dark-door, beethoven,
-  phone-ring, toilet-flush, all via `captureBuiltInDisplay*`. In window mode they would smuggle
+  phone-ring, all via `captureBuiltInDisplay*`. In window mode they would smuggle
   the real desktop *inside* the overlay, which is the one thing the mode exists
   to prevent.
 

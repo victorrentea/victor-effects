@@ -17,7 +17,7 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 53 tiles, 52 of the 91 on layer A plus 55b (#7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; #66 gained the 🚽 flush on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 52 tiles, 51 of the 91 on layer A plus 55b (#7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
@@ -62,7 +62,6 @@ final class EffectsCatalogTests: XCTestCase {
         "63_air_horn.mp3":       "siren-lamp",     // 🚨 rotating beacon on the bottom edge
         "64_fbi.mp3":            "fbi-knock",      // in-clip cue
         "65_school_bell.mp3":    "fire-alarm",
-        "66_toilet.mp3":         "toilet-flush",   // 🚽 in-clip cue: the desktop drains on the gurgle
         "67_sfx_109.mp3":        "brother",
         "69_scream_ghost.mp3":   "wazzup",
         "70_cavalry.mp3":        "cavalry",
