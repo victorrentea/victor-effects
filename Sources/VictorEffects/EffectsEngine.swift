@@ -528,6 +528,7 @@ final class EffectsEngine {
             || animator.isChainsawRunning
             || animator.isFireRunning
             || animator.isCantTouchRunning
+            || animator.isBombRunning
     }
 
     /// One tile pressed again while it runs (`/sound/stop/<asset>`): its clip,

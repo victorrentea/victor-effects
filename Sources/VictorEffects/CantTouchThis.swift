@@ -245,7 +245,12 @@ final class CantTouchThisSession {
                 guard CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 else {   // Esc
                     return Unmanaged.passUnretained(event)
                 }
-                DispatchQueue.main.async { session.stop() }
+                // Here and not in `stop()`: that one also runs for an old session a
+                // new press replaces, and would take the NEW press's clip with it.
+                DispatchQueue.main.async {
+                    session.stop()
+                    SoundManager.shared.stopWherever(CantTouchThisSession.clip)
+                }
                 return nil
             }
             let phase: EmojiAnimator.MinigunMousePhase = type == .leftMouseDown ? .down

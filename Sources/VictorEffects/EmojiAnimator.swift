@@ -3690,6 +3690,7 @@ class EmojiAnimator {
         // the air the alternative would be two overlapping runs racing to hand the
         // pointer back.
         stopBombSession(fade: 0)
+        stopBombBooms()
         _bombEpoch &+= 1
         let epoch = _bombEpoch
         // The head clip. It is the **full-screen nuke's** sound and nothing
@@ -3782,6 +3783,22 @@ class EmojiAnimator {
     /// pointer stays the pointer from the first frame to the last.
     /// ♾️ The tablet spins #3 until this is false (`OpenEndedTiles`).
     var isBombRunning: Bool { _bombSessionActive }
+
+    /// The booms of the bombs already dropped ride the overlapping pool, which no
+    /// stop reaches unless it names the file. **Deliberately not inside
+    /// `stopBombSession`:** the last bomb's own `finishBomb` funnels there too, and
+    /// would cut the tail of the blast it just ended on.
+    private func stopBombBooms() {
+        SoundManager.shared.stopOverlapping("03_explosion.mp3", fade: SoundManager.interruptFade)
+    }
+
+    /// Escape: the head clip wherever it is, and the booms. ONLY these, since tiles
+    /// overlap (2026-10-29): a raid called off must not silence the tile playing
+    /// beside it.
+    fileprivate func silenceBombRaid() {
+        SoundManager.shared.stopWherever("03_explosion.mp3")
+        stopBombBooms()
+    }
 
     private func stopBombSession(fade: Double = 0.25) {
         _bombEpoch &+= 1
@@ -4266,8 +4283,7 @@ class EmojiAnimator {
                CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 {   // Esc
                 DispatchQueue.main.async {
                     animator.stopBombSession()
-                    SoundManager.shared.stopTabletSound()
-                    SoundManager.shared.stopAllPlayers()
+                    animator.silenceBombRaid()
                 }
                 return nil   // consume — the user is calling off the raid, not their app
             }
@@ -12798,11 +12814,10 @@ class EmojiAnimator {
     /// nothing to keep, so Escape is the full stop it always was.
     fileprivate func escapeFire() {
         // Nothing left standing → this press IS the full stop, so it takes the
-        // sound with it. `stopTabletSound` reaches the routed clip; a press the
-        // tablet chose to play on its OWN speaker is not ours to stop.
+        // sound with it, and only its own: tiles overlap since 2026-10-29. A
+        // press the tablet chose to play on its OWN speaker is not ours to stop.
         guard _firePointerLayer != nil, !_firePlanted.isEmpty else {
-            SoundManager.shared.stopTabletSound()
-            SoundManager.shared.stopAllPlayers()
+            SoundManager.shared.stopWherever("11_fire.mp3")
             stopFireCursor()
             return
         }
@@ -14579,8 +14594,23 @@ class EmojiAnimator {
     /// `activeEffects` are torn down the way `stopAllActiveEffects` does; the
     /// rest are a tracked layer under their own name. A name with neither just
     /// runs out on its own, as every effect does anyway.
+    ///
+    /// **`cancelIfRunning` takes the picture and silences nothing.** The tile's
+    /// routed clip is `stopTile`'s to stop; a sound the EFFECT owns (not a routed
+    /// clip) has to be named here, or the picture goes and the sound plays on over
+    /// an empty desktop, with the 🛑 not even lit: the 🔥 phoenix on 2026-11-05,
+    /// 5 s of wing beats after a re-press. `StopSilencesTheSoundTests` parses both.
     func stopEffect(named name: String) {
         switch name {
+        case "phoenix":
+            SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
+            SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
+        case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
+        // The raid has no `activeEffects` key: without this a re-press cut the head
+        // clip and left the targets, the falling nuke and the click-eating tap up.
+        case "explosion":
+            stopBombSession(fade: 0)
+            stopBombBooms()
         case "spiral-hearts": clearSpiralHearts(fadeDuration: 0)
         case "snow":          clearSnow(fadeDuration: 0)
         case "storm":         clearStorm(fadeDuration: 0)
@@ -14681,9 +14711,10 @@ class EmojiAnimator {
         // Silence Mac-OWNED effect sounds that don't ride the tablet-routed player
         // (stopTabletSound misses them), so a non-restartable re-tap stops the
         // animation AND the sound: the 🛰️ sonar beeps (play() pool) and the 🔥
-        // phoenix cry (overlapping pool). The money "ching" is intentionally left
-        // (it's a restartable, stacking clip).
+        // phoenix cry and the bomb raid's booms (overlapping pool). The money
+        // "ching" is intentionally left (it's a restartable, stacking clip).
         SoundManager.shared.stopAllPlayers()
+        stopBombBooms()
         SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
     }

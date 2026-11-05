@@ -215,6 +215,22 @@ later — silent, with `heaven/stop` already spent. The ticket now also carries
 the effect's own stop count; `stopTile` bumps it (`stopped(effect:)`), so only
 that tile's queued visual is outvoted and every other tile's still draws.
 
+**A stop has to reach the pool the sound is in.** There are three, and
+`cancelIfRunning` touches none of them unless told to:
+
+| pool | filled by | stopped by |
+|---|---|---|
+| `tabletClips` | `playTabletSound*`, each with its `tile` | `stopTile`, `stopAll`, `stopWherever` |
+| `players` | `play` | `stopAll`, `stop(name)`, `stopWherever`; NOT `stopTile` |
+| `overlappingPlayers` | `playClip`, `playOverlapping` | **only `stopOverlapping(name)`** |
+
+Nearly every tile's sound is a routed clip, so the tile's own key stops it. The
+exceptions are sounds the EFFECT owns, which `stopEffect(named:)` has to name: the
+🔥 phoenix, the 🛰️ radar and the 💣 raid's booms. A sound it forgets plays on over
+an empty desktop (the phoenix, 5 s of it, 2026-11-05), so
+`StopSilencesTheSoundTests` parses the pool and both stops. Escape stops its own
+effect's sound by file and nothing else: tiles overlap.
+
 ## Keep-alive (`BluetoothKeepAlive`)
 
 A JBL switches itself **off** after ~20 min without audio, even while
