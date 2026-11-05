@@ -18,7 +18,7 @@ generator scripts, and looked at. 34 files left the repo:
 - **25 with no recorded origin** — GIFs and sprites downloaded over the years
   (applause hands, blood drip, bullet hole, cavalry knight, chainsaw sheet,
   confetti pop (replaced by a CC0 party popper, shipped), drum, ECG line, explosion, falling bomb, fire alarm, fire and
-  fireball sheets, game-over, gong, heartbeat dog, leg, microwave, phoenix art
+  fireball sheets, game-over, gong, heartbeat dog, leg, phoenix art
   and cry, red phone, Santa hat, "wasn't me", wolf howl, Zorro fire).
 
 What stayed is listed with its licence in
@@ -51,7 +51,7 @@ shipped or listed here):
 `confetti.mp3` `copilot-icon.png` `counter-strike.png` `death-star.png`
 `drum.gif` `ecg_line.png` `explosion.gif` `falling-bomb.png` `fire-alarm.gif`
 `fire-frames.png` `fireball-sun.png` `game-over.png` `gong.gif`
-`heartbeat-dog.png` `leg.png` `microwave.gif` `phoenix.mp3`
+`heartbeat-dog.png` `leg.png` `phoenix.mp3`
 `phoenix.png` `red-phone.png` `santa-hat.png` `wasnt-me.gif` `wolf-howl.gif`
 `zorro_fire.gif`
 
