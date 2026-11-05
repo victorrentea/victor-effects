@@ -4,7 +4,7 @@ import Foundation
 
 /// Keeps a Bluetooth speaker from switching itself **off**: a JBL powers down
 /// after ~20 min without audio, connected or not. Every `nudgeEvery` each
-/// connected speaker gets 2 s of 30 Hz — and nothing in between.
+/// connected speaker gets 2 s of faint 30 Hz — and nothing in between.
 ///
 /// **No continuous tone, ever** (2026-10-01). From 2026-09-10 until today this
 /// class looped a −56 dBFS 220 Hz tone into the speaker non-stop, to keep the
@@ -90,9 +90,9 @@ final class BluetoothKeepAlive {
     /// 18 with room to spare. The 2 h from 15:56 to 17:56 on 1 Oct with a
     /// nudge every 4 min had no drop at all, so the nudge does count as audio.
     ///
-    /// The nudge is 2 s of 30 Hz at −30 dBFS: loud enough for the speaker's
-    /// silence detector, and a frequency a palm-sized box can barely move air
-    /// at and an ear barely hears.
+    /// The nudge is 2 s of 30 Hz at −45 dBFS: 11 dB over the −56 dBFS the speaker
+    /// took for silence, at a frequency a palm-sized box can barely move air at.
+    /// −30 dBFS until 2026-11-05, and Victor heard that one in a quiet room.
     private static let nudgeEvery: TimeInterval = 15 * 60
     /// Substring (case-insensitive) a Bluetooth output's name must contain for
     /// the keep-alive to run. Computed, not stored: `/config/reload` can change
@@ -102,11 +102,11 @@ final class BluetoothKeepAlive {
     private let queue = DispatchQueue(label: "ro.victorrentea.victor-effects.bt-keepalive", qos: .utility)
     private var pollTimer: DispatchSourceTimer?
 
-    /// The nudge (see `nudgeEvery`). 200 ms fades so 30 Hz starts and stops
-    /// without a thump.
+    /// The nudge (see `nudgeEvery`). 600 ms fades, so 30 Hz swells and sinks
+    /// instead of starting with a thump: the 1.4 s peak is what the detector needs.
     private let nudgeWav: Data = BluetoothOutput.makeToneWav(
-        seconds: 2.0, freq: 30, amplitude: 0.0316,  // ≈ -30 dBFS
-        fadeSeconds: 0.2)
+        seconds: 2.0, freq: 30, amplitude: 0.0056,  // ≈ -45 dBFS
+        fadeSeconds: 0.6)
 
     /// One per speaker being held awake, keyed by CoreAudio device UID. The
     /// nudge player is pointed at its own device (`currentDevice`), not at the

@@ -222,8 +222,11 @@ connected. While a Bluetooth speaker whose name contains
 `EffectsConfig.bluetoothSpeakerNameMatch` is connected (via
 `BluetoothOutput.speakerNameMatch`; **empty by default, which disables the
 whole thing**), the app gives it a **nudge every 15 min**: 2 s of **30 Hz at
-−30 dBFS** (200 ms fades) — loud enough for the speaker's silence detector, at
-a frequency a palm-sized box barely moves air at and the ear barely hears.
+−45 dBFS** (600 ms fades), 11 dB over the −56 dBFS the speaker took for silence,
+at a frequency a palm-sized box barely moves air at. It was −30 dBFS with 200 ms
+fades until 2026-11-05, when Victor heard it in a quiet room ("too strong, it must
+be inaudible"). **−45 is not measured against the box:** if a JBL starts dropping
+18–19 min after connecting again, the nudge has fallen under its detector.
 Between nudges, **nothing** plays. A 30 s timer re-checks the connected
 speakers and fires the nudges that are due.
 
