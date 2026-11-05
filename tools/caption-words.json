@@ -973,119 +973,119 @@
    "at": 0,
    "text": "I want it, I got it",
    "words": [
-    0.0,
-    0.12,
-    0.25,
-    0.5,
-    0.71,
-    0.84
+    0,
+    0.06,
+    0.29,
+    0.73,
+    0.89,
+    1.12
    ],
-   "lastWordEnd": 0.99,
+   "lastWordEnd": 1.22,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind. Its first three words are wiped BEFORE the clip's cut (-0.39, -0.18, -0.05), so they are pulled just past 0 here and meet the video at the second I."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day. The first I is wiped 0.06 s before the cut, so it is held at 0."
   },
   {
-   "at": 1.3,
+   "at": 1.55,
    "text": "I want it, I got it",
    "words": [
-    1.35,
-    1.52,
-    1.68,
-    2.2,
-    2.42,
-    2.56
+    1.6,
+    1.72,
+    2.01,
+    2.45,
+    2.62,
+    2.88
    ],
-   "lastWordEnd": 2.69,
+   "lastWordEnd": 2.94,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day."
   },
   {
-   "at": 3.0,
+   "at": 3.2,
    "text": "I want it, I got it",
    "words": [
-    3.07,
-    3.25,
-    3.38,
-    3.93,
-    4.14,
-    4.26
+    3.27,
+    3.43,
+    3.7,
+    4.13,
+    4.34,
+    4.55
    ],
-   "lastWordEnd": 4.41,
+   "lastWordEnd": 4.64,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day."
   },
   {
-   "at": 4.7,
+   "at": 4.95,
    "text": "I want it, I got it",
    "words": [
-    4.77,
-    4.96,
-    5.12,
-    5.62,
-    5.81,
-    5.96
+    5.01,
+    5.15,
+    5.42,
+    5.85,
+    6.0,
+    6.29
    ],
-   "lastWordEnd": 6.11,
+   "lastWordEnd": 6.35,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day."
   },
   {
-   "at": 6.45,
+   "at": 6.65,
    "text": "You like my hair?",
    "words": [
-    6.49,
-    6.72,
-    7.34,
-    7.55
+    6.69,
+    6.92,
+    7.56,
+    7.73
    ],
-   "lastWordEnd": 7.76,
+   "lastWordEnd": 7.95,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day."
   },
   {
-   "at": 8.15,
+   "at": 8.35,
    "text": "Gee, thanks, just bought it",
    "words": [
-    8.19,
-    8.38,
-    9.03,
-    9.23,
-    9.36
+    8.41,
+    8.6,
+    9.2,
+    9.41,
+    9.7
    ],
-   "lastWordEnd": 9.52,
+   "lastWordEnd": 9.75,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day."
   },
   {
-   "at": 9.85,
+   "at": 10.1,
    "text": "I see it, I like it",
    "words": [
-    9.88,
-    10.11,
-    10.24,
-    10.8,
-    10.97,
-    11.1
+    10.17,
+    10.26,
+    10.49,
+    10.95,
+    11.14,
+    11.34
    ],
-   "lastWordEnd": 11.24,
+   "lastWordEnd": 11.41,
    "confidence": "high",
-   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day."
   },
   {
-   "at": 11.55,
+   "at": 11.8,
    "text": "I want it, I got it, yeah",
    "words": [
-    11.6,
-    11.8,
-    11.96,
-    12.52,
-    12.66,
-    12.84,
-    13.15
+    11.86,
+    11.97,
+    12.2,
+    12.69,
+    12.83,
+    13.07,
+    13.31
    ],
-   "lastWordEnd": 13.44,
+   "lastWordEnd": 13.53,
    "confidence": "high",
-   "note": "As above, from the 152.035 s chorus alone: the only one with the yeah, and the one the clip is cut from."
+   "note": "Read off the colour wipe of Sing King's 7 Rings (youtu.be/7BfhCUB_YkI), frame by frame, as Victor pointed at it on 2026-11-05 (\"imită zona asta\"): mean of its three choruses at 63.864, 118.72 and 159.864 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 8.865 s). The wipe leads the voice by ~0.15 s. Party Tyme's (00UrlfCQD8Y) leads by ~0.4 s and was tried first the same day. Sing King has no yeah on screen: it is the voice's (13.56 to 13.78) moved by the 0.25 s lead of the it before it."
   }
  ],
  "81_let_it_be.mp3": [
