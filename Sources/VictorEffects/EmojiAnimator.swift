@@ -9599,6 +9599,71 @@ class EmojiAnimator {
         }
     }
 
+    // MARK: - 🛡️ This is Sparta (tile #24)
+
+    /// 🛡️ The shield and its sun (`SpartaShield`). The clip plays whole from the
+    /// press and the screen stays empty until "THIS", 3.4 s in, so the visual owns
+    /// the audio for the clock and spends the silent stretch getting ready: the
+    /// sprites are baked off the main thread, the desktop is photographed just
+    /// before the first blow. Stop-all and a re-press only have to take `container`,
+    /// and everything still on its way checks it is still wanted.
+    @discardableResult
+    func showSparta(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
+        _ = cancelIfRunning(SpartaShield.effectName, sound: playSound ? SpartaShield.soundName : nil)
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return 0 }
+
+        // Sound first, then the clock — nothing slow between them.
+        var lead: Double = 0
+        var clip = SpartaShield.fallbackDuration
+        if playSound {
+            lead = SoundTimingConfig.shared.currentPictureDelay
+            guard let played = SoundManager.shared.playTabletSound(SpartaShield.soundName, volume: volume) else { return 0 }
+            clip = played
+        }
+        let begin = CACurrentMediaTime() + lead
+
+        let container = CALayer()
+        container.frame = bounds
+        container.masksToBounds = true
+        stageLayer.addSublayer(container)
+        trackEffect(SpartaShield.effectName, layer: container, duration: lead + clip)
+
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let sprites = SpartaShield.bake(bounds: bounds, scale: scale)
+            DispatchQueue.main.async {
+                guard let self, self.activeEffects[SpartaShield.effectName] === container else { return }
+                guard let sprites else { return overlayError("🛡️ sparta: no sprites") }
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                SpartaShield.build(in: container, bounds: bounds, begin: begin, sprites: sprites)
+                CATransaction.commit()
+            }
+        }
+
+        // Without Screen Recording the capture hands back the wallpaper: rather no
+        // photograph, and only the shield shakes.
+        if CGPreflightScreenCaptureAccess() {
+            let slice = ZoomSlice.current(in: bounds)
+            DispatchQueue.main.asyncAfter(deadline: .now() + lead + SpartaShield.captureAt) { [weak self] in
+                guard let self, self.activeEffects[SpartaShield.effectName] === container else { return }
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    let shot = slice.crop(Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay())
+                    DispatchQueue.main.async {
+                        guard let self, self.activeEffects[SpartaShield.effectName] === container, let shot else { return }
+                        CATransaction.begin()
+                        CATransaction.setDisableActions(true)
+                        SpartaShield.addDesktop(shot, to: container, bounds: bounds, begin: begin)
+                        CATransaction.commit()
+                    }
+                }
+            }
+        }
+        overlayInfo(String(format: "🛡️ sparta: %.1fs clip, %.2fs lead", clip, lead))
+        return lead + clip
+    }
+
     // MARK: - 😇 Heaven (tile #61, Bocelli's Hallelujah)
 
     /// The light's self-stop and the angels' departure, kept so an explicit

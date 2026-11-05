@@ -2390,6 +2390,36 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     silent (`🚪 dark door: screen capture failed…`), because that is the one thing about this
     effect nobody can tell by looking.
 
+- **🛡️ This is Sparta** (tile #24 `24_this_is_sparta.mp3` → `sparta`, `showSparta`,
+  everything else in `SpartaShield.swift`): a bronze hoplite shield with the Λ takes the
+  three words as hammer blows, and on the vowel of SPARTA a sun bursts out from behind
+  it, so the shield hangs dark in front of two fans of rays turning against each other.
+  It won out of four designs prototyped against the clip (2026-11-05: the bare sunburst,
+  the shield, a crimson war-film grade, the word as a monument).
+  - **The clip plays whole and the first 3.4 s stay empty.** *"Când zice madness nu apare
+    nimic"*: the shield fades in over "THIS" (3.46–3.72 s, two thirds there on the onset
+    at 3.62), it does not fly in. `/effect/sparta` runs silently, on the same timeline,
+    so it too waits 3.4 s.
+  - **The beats are measured, in the clip's time:** THIS 3.62, IS 4.26, SPAR- 4.80 with
+    the vowel swelling to 5.12, and the loudest onset after the words at 6.06. The visual
+    owns the audio (`playPathVisuals`), because a cue this far inside a clip slides off a
+    separately-clocked picture. The whole timeline is keyframes sampled at 60 fps from pure
+    curves on one absolute clock, stamped when the sound starts.
+  - **The silent stretch pays for the drawing.** Sprites are baked per press off the main
+    thread after the sound has started (about 60 ms), and nothing is cached: four
+    2048 px fans have no business staying resident. The desktop is photographed at 3.2 s,
+    before anything is on the glass, and shown only while it shakes (`shakeWindows`), so
+    the desktop stays live the rest of the time. No Screen Recording means no photograph,
+    and only the shield shakes.
+  - **The rings are wide soft waves, not lines.** Victor made them 8.5 × thicker by eye,
+    at 0.7 of the opacity (`ringThickness`, `ringOpacity`). At 0.4 they stopped reading as
+    rings. They carry the blows on a dark desktop, are only a ripple on a white slide,
+    and disappear among the rays on the impact.
+  - **The dark bed under the rays (`bed`) is what makes pale gold read on a white slide.**
+    Its peak is 0.6, and the desktop is legible again by 8 s.
+  - `SpartaShieldTests` pins the empty first 3.4 s and the end before the clip's, and
+    `EffectsRenderCostTests.testSpartaRenderCost` measured 1.45 ms a frame at 3456×2234.
+
 - **🎼 Beethoven's Fifth** (tile #51 `51_beethoven.mp3`, `showBeethoven`): the Retina is
   captured and then **lunges at the room three times on the three eighth notes**, each
   lunge bigger than the last and each giving a little of it back before the next, then

@@ -39,6 +39,11 @@ final class EffectsRenderCostTests: XCTestCase {
         XCTAssertLessThan(r.mean, Self.budget, "heaven mean frame")
     }
 
+    func testSpartaRenderCost() throws {
+        let r = try measure(seconds: 6.6, snapshotAt: 6.3, name: "sparta") { $0.showSparta() }
+        XCTAssertLessThan(r.mean, Self.budget, "sparta mean frame")
+    }
+
     private func measure(seconds: Double, snapshotAt: Double, name: String,
                          _ start: (EmojiAnimator) -> Void) throws -> (mean: Double, p95: Double) {
         guard let screen = Screens.overlayScreen() else { throw XCTSkip("no overlay screen") }

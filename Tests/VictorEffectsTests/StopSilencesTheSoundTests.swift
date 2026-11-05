@@ -104,6 +104,7 @@ final class StopSilencesTheSoundTests: XCTestCase {
         let unreachable = Set(EffectsCatalog.assets.compactMap(EffectsCatalog.effectName(forAsset:)))
             .filter { name in
                 name != CricketMoon.effectName   // tracked under that constant, not a literal
+                    && name != SpartaShield.effectName   // the same
                     && !["red-button", "ave-maria"].contains(name)   // own overlays, `EffectsEngine.stopTile`
                     && !one.contains("case \"\(name)\"")
                     && !swift.contains("trackEffect(\"\(name)\"")

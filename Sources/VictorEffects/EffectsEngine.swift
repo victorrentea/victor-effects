@@ -367,6 +367,7 @@ final class EffectsEngine {
         case "snow/stop":     animator.stopSnow()
         case "storm":         animator.showStorm()
         case "storm/stop":    animator.stopStorm()
+        case "sparta":        animator.showSparta()
         case "heaven":        animator.showHeaven()
         case "heaven/stop":   animator.stopHeaven()
         case "cavalry":       animator.showCavalry(playSound: false)
@@ -803,6 +804,13 @@ final class EffectsEngine {
         // up behind the bark on the press path, so the visual owns the audio.
         if name == "44_small_dog.mp3" {
             let duration = animator.showSmallDog(playSound: true, volume: volume)
+            guard duration > 0 else { return nil }
+            return remember(Int(duration * 1000))
+        }
+        // Tile #24 (🛡️ This is Sparta): the shield takes the three words as hammer
+        // blows, 3.6 s into the clip, so the visual owns the audio.
+        if name == "24_this_is_sparta.mp3" {
+            let duration = animator.showSparta(playSound: true, volume: volume)
             guard duration > 0 else { return nil }
             return remember(Int(duration * 1000))
         }

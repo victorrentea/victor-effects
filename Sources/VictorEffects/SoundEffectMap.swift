@@ -225,6 +225,7 @@ enum SoundEffectMap {
         "53_rain.mp3":        "money",       // 💸 money rise
         "13_heartbeat.mp3":   "heartbeat",   // 💓 zoom peaking on each measured onset
         "64_fbi.mp3":         "fbi-knock",   // 🚪 lurch on each bang, the first 22 ms in
+        "24_this_is_sparta.mp3": "sparta",   // 🛡️ the shield and its sun, from "THIS" 3.6 s in
         "25_dark_door.mp3":   "dark-door",   // 🚪 punch-in on each of seven knocks
         "51_beethoven.mp3":   "beethoven",   // 🎼 six hits 0.11 s apart
         "39_skull_boom.mp3":  "skull-boom",  // 💀 cranium blows off on the drop, 0.5 s in
