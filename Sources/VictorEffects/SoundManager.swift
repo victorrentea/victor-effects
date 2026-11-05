@@ -114,6 +114,13 @@ class SoundManager {
         (Self.fileGain[filename] ?? 1.0) * SoundGains.gain(for: routedTile ?? filename)
     }
 
+    /// What a clip on `tile` would play at, for a player kept outside this
+    /// class (the 🙏 hymn). `volume` is the press's own, remembered like any other.
+    func level(forTile tile: String, volume: Float?) -> Float {
+        if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
+        return min(1, tabletVolume * clipGain(tile))
+    }
+
     /// Fade `player` to silence over `seconds`, then stop it and let it go.
     /// Retains it for the duration — the caller has already dropped its own
     /// reference (see `fadingOut`). A zero/negative fade stops it immediately,

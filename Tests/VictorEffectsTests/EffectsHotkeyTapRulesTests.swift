@@ -40,9 +40,8 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                                      whipShowing: false), .pass)
     }
 
-    func testTheModesCycleWhipPraySnap() {
-        XCTAssertEqual(PointerMode.whip.next, .pray)
-        XCTAssertEqual(PointerMode.pray.next, .snap)
+    func testTheModesCycleWhipSnap() {
+        XCTAssertEqual(PointerMode.whip.next, .snap)
         XCTAssertEqual(PointerMode.snap.next, .whip)
     }
 

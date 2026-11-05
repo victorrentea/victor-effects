@@ -1,6 +1,7 @@
 import Foundation
 
-/// The three things that can ride the pointer — one at a time.
+/// The things ⌃W can put on the pointer — one at a time. 🙏 pray left this list
+/// on 2026-11-05: it belongs to tile #9 now (`PrayOverlay.swift`).
 ///
 /// Since 2026-10-21 the keys split the job (Victor: *"Control Shift W should
 /// change the way of the whip. Control W should toggle it on or off, and it
@@ -9,9 +10,9 @@ import Foundation
 /// is seen). Whatever was shown last — by a key, a menu row or
 /// `/effect/<name>` — is the selection the next ⌃W brings back.
 enum PointerMode: String, CaseIterable {
-    case whip, pray, snap
+    case whip, snap
 
-    /// 🔥 → 🙏 → 🫰 → 🔥 …
+    /// 🔥 → 🫰 → 🔥 …
     var next: PointerMode {
         let all = Self.allCases
         return all[(all.firstIndex(of: self)! + 1) % all.count]

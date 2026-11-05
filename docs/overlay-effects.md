@@ -69,9 +69,10 @@ disarms it through the same `stopAll()` that clears everything else —
 `WhipController.hide()` takes the panel down, drops the Esc monitors and stops
 the Bluetooth warm, after which the tap stops gating. The whip has no deadline
 of its own, so the price is that the status item shows 🛑 for as long as the
-whip is out: `docs/whip.md`. **🙏 Pray** and **🫰 Snap** (⌃⇧W from the whip,
-the whip's exclusive siblings) are the same kind of mode and count the same way
-(`prayIsShowing`, `snapIsShowing`).
+whip is out: `docs/whip.md`. **🫰 Snap** (⌃⇧W from the whip) is the same kind of
+mode, and tile #9's **🙏 pray** and tile #7's **🔴 red button** take the pointer
+the same way; they all count (`snapIsShowing`, `prayIsShowing`,
+`RedButtonController.isUp`).
 
 The two mechanics worth knowing before editing `MenuBar`:
 
@@ -512,6 +513,26 @@ running. An effect whose `off` never comes is one that outlived its moment;
 an `on` after a `🛑` or a `⏸️` is one that got in through a door the gate
 missed. Overlays that live outside `activeEffects` (the 🕳️ iris, the 🪚
 chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
+- **🔴 Red button** (tile #7 `07_animated_phone.mp3` → `red-button`,
+  `RedButtonOverlay.swift`, 2026-11-05; a button that merely grew out of the
+  pointer was taken off this tile before): while the clip runs the pointer is a
+  45 pt button, the 90 px Victor marked on the Retina. A click plants it 5× bigger
+  and gives the arrow back; over it the arrow turns into a 👆 and the button goes
+  halfway in (the gif's pushed frame at half strength); a click there blows it into
+  72 pieces in every direction (`Shatter`), and only then does the pointer become a
+  little button again. **One at a time**, as asked: *"abia apoi"*. Outside the
+  button the window lets the mouse through, so the desktop stays usable
+  (`ignoresMouseEvents`, per frame). The 👆 is drawn, not set: `NSCursor` from a
+  background app does not stick. Lifetime in `RedButtonGame`: ends with the clip if
+  untouched, a planted button waits up to 60 s, a blast past the clip leaves 6 s for
+  another. ♾️ open-ended, stopped by a re-press in `stopTile`. No sound of its own;
+  the asset is `red_button.gif` in `assetsDir`, a plain disc without it.
+- **😱 Fear** (tile #8 `08_scream_man.mp3` → `fear`, `showFear`): the face on the
+  pointer starts small (110 px) at 80 %, and as it grows it fades and breaks into
+  72 irregular pieces (`Shatter`) that drift apart and turn from 12 % of the run on
+  (Victor, 2026-11-05; a 200 px whole face at 30 % until then). Two layers: the
+  outer is the pointer and the 🔍 counter-zoom, the inner grows and fades. The
+  pieces are bitmaps cut once, not masks.
 - **🔔 Fire alarm** (tile #65 `65_school_bell.mp3` → `fire-alarm`,
   `showFireAlarm` + `FireAlarm.swift`): the ringing bell, `fire-alarm.gif`
   (`assetsDir`), for 4.72 s. Since 2026-11-04 it stands **top-left**, in the box
@@ -555,7 +576,12 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   head dropping back in two frames: too fast for any interpolator, it came out as
   the head fading at the top and popping in lower, so **it must not loop** — a
   second pass would replay that drop as a cut. Press path, self-terminating, no
-  onStop entry; the clip plays down the ordinary routed path.
+  onStop entry; the clip plays down the ordinary routed path, **350 ms behind the
+  picture** (`animationLeadMs` in `sound-timing.json`, 2026-11-05, Victor: the
+  sound started first). The press alone was not enough: a 151-frame animation is
+  committed on the main thread, and the fade-in was 0.25 s (now 0.1 s). He holds
+  his last frame for those 350 ms. #10's 📞 phone has the same lead (300 ms): it
+  has to capture the desktop before it can shake it.
 - **🐕 Small dog** (tile #44 `44_small_dog.mp3` → `small-dog`, `showSmallDog`,
   2026-10-26): Maresch&Sturm's "Basti is barking" (Dribbble) barks in the
   **bottom-left corner** — feet on the bottom edge, 48 % of the screen's height

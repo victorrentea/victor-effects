@@ -17,13 +17,15 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 51 tiles, 50 of the 91 on layer A plus 55b (#12 gained the 🦗 cricket and moon on 2026-11-04; #66 gained the 🚽 flush on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 53 tiles, 52 of the 91 on layer A plus 55b (#7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; #66 gained the 🚽 flush on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
         "04_wolf.mp3":           "wolf-howl",      // 🐺 one howl at the moon, bottom-left
         "06_copyright_cartoon.mp3": "magnifier",  // 🔍 the Pink Panther's glass, on the pointer
+        "07_animated_phone.mp3": "red-button",     // 🔴 the pointer plants buttons that blow up
         "08_scream_man.mp3":     "fear",
+        "09_ave_maria.mp3":      "ave-maria",      // 🙏 in-clip: the hymn runs on for what the clicks need
         "10_red_phone.mp3":      "phone-ring",
         "11_fire.mp3":           "fire",
         "12_cricket.mp3":        "cricket-moon",   // 🦗 the cricket, the moon and the stars, bottom-left, for the clip
@@ -95,7 +97,6 @@ final class EffectsCatalogTests: XCTestCase {
         // a removal done right: the clip still plays, nothing draws.
         XCTAssertNil(EffectsCatalog.effectName(forAsset: "01_baby.mp3"))
         XCTAssertNil(EffectsCatalog.effectName(forAsset: "52_saw.mp3"))
-        XCTAssertNil(EffectsCatalog.effectName(forAsset: "07_animated_phone.mp3"))
         XCTAssertNil(EffectsCatalog.effectName(forAsset: "nope.mp3"))
     }
 

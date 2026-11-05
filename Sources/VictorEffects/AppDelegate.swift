@@ -82,7 +82,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // menu bar exists.
         menuBar.isBusy = { [weak self] in self?.engine.isAnythingRunning ?? false }
         menuBar.onWhip = { [weak self] in self?.engine.toggleWhip() }
-        menuBar.onPray = { [weak self] in self?.engine.togglePray() }
         menuBar.onSnap = { [weak self] in self?.engine.toggleSnap() }
         menuBar.onShowPanel = { [weak self] page in self?.panelController.showFromMenu(page: page) }
         // Same shape as `isBusy`: the row asks the keep-alive what it is doing

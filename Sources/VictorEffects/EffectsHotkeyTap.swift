@@ -48,7 +48,7 @@ final class EffectsHotkeyTap {
         /// key** (it must not reach the app underneath, where it would delete a
         /// word).
         case swallowToggleMode
-        /// ⌃⇧W — the next mode (🔥 whip → 🙏 pray → 🫰 snap), eaten as well.
+        /// ⌃⇧W — the next mode (🔥 whip ⇄ 🫰 snap), eaten as well.
         case swallowNextMode
         /// Crack the whip, and let the event continue on its way.
         case crack
@@ -59,7 +59,7 @@ final class EffectsHotkeyTap {
     /// The whole hotkey contract in one function.
     ///
     /// - ⌃W with no other modifier → the selected mode on/off, swallowed.
-    /// - ⌃⇧W → the next mode (whip, pray, snap), swallowed (2026-10-21; for a
+    /// - ⌃⇧W → the next mode (whip, snap), swallowed (2026-10-21; for a
     ///   day, 2026-10-20, ⌃W cycled by itself and ⌃⇧W was nobody's).
     ///   ⌘ on either is left alone on purpose: ⌘⌃W belongs to a dictation app,
     ///   and the `!hasCmd` clause is the only reason both can coexist.

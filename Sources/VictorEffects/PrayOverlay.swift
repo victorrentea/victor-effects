@@ -2,32 +2,35 @@ import AppKit
 import AVFoundation
 import Foundation
 
-/// 🙏 Pray — the whip's polite sibling (2026-10-19, Victor: *"another feature
-/// called pray instead of whip … displays [a praying man] … appearing instead
-/// of the whip. And I click to play some short clip of a religious hymn"*).
+/// 🙏 #9, the Ave Maria. Until 2026-11-05 this was the whip's second mode behind
+/// ⌃⇧W; Victor took it off the whip and gave it to the tile (*"în loc să fie
+/// rugăciunea … ca efect de stop pentru numărul nouă"*).
 ///
-/// While active:
-///   • only his two hands, joined, follow the cursor where the rope would, and
-///     the real arrow is hidden (2026-10-20, Victor: *"instead of the man
-///     praying just … his two hands"*),
+/// While the tile plays:
+///   • a pair of joined hands stands in for the pointer, and the real arrow is
+///     hidden,
 ///   • a **click** leaves a man praying on that spot: the hands stay there, the
 ///     rest of him fades in around them, and a beat later a ray of light falls
 ///     from the sky onto him, with a golden glow; 9.5 s later he fades away.
-///     The pointer keeps a fresh pair of hands, so more clicks plant more men
-///     (2026-10-20, Victor: *"I can click multiple times to put multiple people
-///     praying"*). ONE Ave Maria sings for all of them — a later click does not
-///     restart it or add a second voice, it only pushes its end out to that
-///     man's end. Nothing is typed — this is the gesture that ASKS the agent,
-///     the whip's click is the one that tells it,
-///   • Esc, ⌃W, the menu row or stop-all dismisses it; ⌃⇧W moves on to 🫰 snap
-///     (whip → pray → snap; the last one shown is what ⌃W brings back).
-///
-/// **Exclusive with the whip and 🫰 snap**: every `EffectsEngine.toggle…` puts
-/// the other modes away — one mode at a time under the pointer.
+///     The pointer keeps a fresh pair of hands, so more clicks plant more men.
+///     ONE Ave Maria sings for all of them,
+///   • with no click it lasts exactly the tile's clip. Each click can only push
+///     the end out, to that man's end: the long take sings on for as long as it
+///     takes to see them all, and fades out as the last one goes,
+///   • a re-press, Esc or stop-all ends it.
 ///
 /// The same window and geometry as the whip — `WhipPanel` (the level fix
 /// included), `ZoomedPanel` every frame — so he keeps his size under ⌥-scroll.
+/// Exclusive with the whip and 🫰 snap: one thing under the pointer at a time.
 final class PrayController {
+
+    /// ♾️ For the tablet's ring (`OpenEndedTiles`): the animator cannot see this.
+    private(set) static var isUp = false
+
+    /// The tile this is the effect of: its length is how long a run with no
+    /// click lasts, and its gain and volume are the hymn's.
+    static let tile = "09_ave_maria.mp3"
+    static let tileFallbackSeconds = 20.84
 
     /// Called when the user presses Esc.
     var onEscape: (() -> Void)?
@@ -53,18 +56,17 @@ final class PrayController {
     private var hymnPlayer: AVAudioPlayer?
     private var hymnFading = false
 
-    /// The hymn rides the tablet's volume wedge like the whip's crack, a bit
-    /// under it: it is a punchline, not a concert. A long take of the Ave
-    /// Maria, so a few clicks in a row only ever stretch it. First choice is
-    /// the very recording the tablet's `09_ave_maria.mp3` was cut from
-    /// (2026-10-21, Victor: *"find exactly that melody"*), a drop-in, as it may
+    /// A long take of the Ave Maria, so that clicks can stretch the tile.
+    /// First choice is the very recording the tablet's `09_ave_maria.mp3` was
+    /// cut from, from the same point and at the same loudness, so a run with no
+    /// click sounds like the tile (2026-10-21, Victor: *"find exactly that
+    /// melody"*), a drop-in, as it may
     /// not be published; then the shipped CC BY take — the same Schubert, but
     /// another singer, and the room hears the difference; then the old 9.5 s
     /// cut, which simply ends early.
     static let tabletHymn = "pray-hymn-tablet.mp3"
     static let hymn = "pray-hymn-long.mp3"
     static let shortHymn = "pray-hymn.mp3"
-    static let hymnVolumeFactor: Float = 0.8
     /// The hymn fades to silence over this long, ending as the last man does.
     static let hymnFadeMs = 1200.0
     /// How long one man prays, from his click to gone (9.5 s since
@@ -84,8 +86,11 @@ final class PrayController {
 
     // MARK: - Show / hide
 
-    func show() {
-        guard panel == nil else { return }
+    /// Up from the press, in place of the tile's plain clip. Returns how long a
+    /// run with no click lasts, Bluetooth wake-up included.
+    @discardableResult
+    func show(volume: Float? = nil) -> TimeInterval {
+        hide()
 
         let screen = screenUnderMouse()
         self.screen = screen
@@ -105,12 +110,17 @@ final class PrayController {
         p.orderFrontRegardless()
         cursorHide = CursorHide()
 
-        // The hymn may start at any click; keep the A2DP link warm so it does
-        // not arrive a beat after the glow (no-op off Bluetooth).
+        // The hymn may end up running long: keep the A2DP link warm under it
+        // (no-op off Bluetooth).
+        let clip = SoundManager.shared.soundDuration(Self.tile) ?? Self.tileFallbackSeconds
+        let wake = startHymn(volume: volume, clip: clip)
         BluetoothOutput.startContinuousWarm()
+        choir.hold(untilMs: nowMs() + (wake + clip) * 1000)
+        Self.isUp = true
 
         installEscMonitors()
         startTimer()
+        return wake + clip
     }
 
     func hide() {
@@ -121,9 +131,11 @@ final class PrayController {
             player.setVolume(0, fadeDuration: SoundManager.interruptFade)
             DispatchQueue.main.asyncAfter(deadline: .now() + SoundManager.interruptFade + 0.05) { player.stop() }
         }
+        if hymnPlayer != nil { SoundTimingConfig.shared.noteSilenced() }
         hymnPlayer = nil
         hymnFading = false
         choir.clear()
+        Self.isUp = false
         BluetoothOutput.stopContinuousWarm()
         cursorHide?.release()
         cursorHide = nil
@@ -162,8 +174,10 @@ final class PrayController {
         let target = viewPoint(forGlobal: VisibleCursor.location)
         view.at = CGPoint(x: view.at.x + (target.x - view.at.x) * Self.follow,
                           y: view.at.y + (target.y - view.at.y) * Self.follow)
+        if let end = choir.endMs, now >= end { hide(); return }
         choir.expire(nowMs: now)
         view.prayers = choir.prayers
+        view.handsAlpha = CGFloat(min(1, ((choir.endMs ?? now) - now) / Self.fadeOutMs))
         steerHymn(now: now)
         view.nowMs = now
         view.needsDisplay = true
@@ -173,42 +187,47 @@ final class PrayController {
 
     // MARK: - Input
 
-    /// A click plants a man where the hands are and starts the hymn — or, if
-    /// it is already singing, lets it run on until he is done too (and takes
-    /// back a fade that had begun). Also `/effect/pray/sing`, so the click can
-    /// be checked without a mouse.
+    /// A click plants a man where the hands are and lets the hymn run on until
+    /// he is done too (taking back a fade that had begun). Also
+    /// `/effect/pray/sing`, so the click can be checked without a mouse.
     func sing() {
         guard let view else { return }
         choir.plant(at: view.at, nowMs: nowMs())
         view.prayers = choir.prayers
         onSing?()
-        let level = max(0, min(1, SoundManager.shared.currentTabletVolume * Self.hymnVolumeFactor))
-        if let player = hymnPlayer, player.isPlaying {
-            if hymnFading {
-                player.setVolume(level, fadeDuration: 0.3)
-                hymnFading = false
-            }
-            effectsInfo("🙏 pray — \(choir.prayers.count) praying, the hymn runs on")
-            return
+        if hymnFading, let player = hymnPlayer {
+            player.setVolume(hymnLevel, fadeDuration: 0.3)
+            hymnFading = false
         }
-        hymnPlayer?.stop()
-        hymnPlayer = nil
-        hymnFading = false
+        effectsInfo("🙏 pray — \(choir.prayers.count) praying, the hymn runs on")
+    }
+
+    private var hymnLevel: Float = 1
+
+    /// The long take in the tile's place, with the tile's Bluetooth wake-up, as
+    /// `SoundManager` would give it. Returns that wait.
+    private func startHymn(volume: Float?, clip: TimeInterval) -> TimeInterval {
         let sounds = SoundManager.shared
         guard let url = sounds.soundURL(for: Self.tabletHymn) ?? sounds.soundURL(for: Self.hymn)
                 ?? sounds.soundURL(for: Self.shortHymn) else {
             effectsInfo("🙏 \(Self.hymn) not in assetsDir — the light falls in silence")
-            return
+            return 0
         }
         do {
             let player = try SoundManager.player(contentsOf: url)
-            player.volume = level
+            let timing = SoundTimingConfig.shared
+            let wake = timing.currentBluetoothCompensation
+            hymnLevel = sounds.level(forTile: Self.tile, volume: volume)
+            player.volume = hymnLevel
             player.prepareToPlay()
-            player.play()
+            player.play(atTime: player.deviceCurrentTime + wake)
+            timing.noteSoundStarted(endsIn: wake + clip)
             hymnPlayer = player
             effectsInfo("🙏 pray — hymn (\(url.lastPathComponent))")
+            return wake
         } catch {
             overlayError("🙏 hymn failed: \(error)")
+            return 0
         }
     }
 
@@ -288,6 +307,10 @@ struct PrayChoir {
     static let maxPrayers = 20
 
     private(set) var prayers: [Prayer] = []
+    /// The tile's own end: nobody clicking, this is all there is.
+    private var holdUntilMs: Double?
+
+    mutating func hold(untilMs: Double) { holdUntilMs = untilMs }
 
     mutating func plant(at: CGPoint, nowMs: Double) {
         prayers.append(Prayer(at: at, sinceMs: nowMs))
@@ -298,10 +321,17 @@ struct PrayChoir {
         prayers.removeAll { nowMs - $0.sinceMs > PrayController.singMs }
     }
 
-    mutating func clear() { prayers.removeAll() }
+    mutating func clear() {
+        prayers.removeAll()
+        holdUntilMs = nil
+    }
 
-    /// When the last of them is done — when the hymn must be silent.
-    var endMs: Double? { prayers.last.map { $0.sinceMs + PrayController.singMs } }
+    /// When the tile is over and the last of them done — when it must be silent.
+    /// A click never brings it forward.
+    var endMs: Double? {
+        let lastMan = prayers.last.map { $0.sinceMs + PrayController.singMs }
+        return [holdUntilMs, lastMan].compactMap { $0 }.max()
+    }
     /// When the hymn starts fading so that it reaches silence at `endMs`.
     var fadeStartMs: Double? { endMs.map { $0 - PrayController.hymnFadeMs } }
 }
@@ -325,6 +355,8 @@ private final class PrayView: NSView {
     var at: CGPoint = .zero
     var nowMs = 0.0
     var prayers: [PrayChoir.Prayer] = []
+    /// The pointer's hands: they go with the rest at the very end.
+    var handsAlpha: CGFloat = 1
     var onMouseDown: (() -> Void)?
 
     /// 260 since 2026-10-30 (was 200): Victor wanted him 30% bigger.
@@ -411,7 +443,7 @@ private final class PrayView: NSView {
             // would be the same pixels stamped twice.
             if m < hands { stamp(sprites.hands, ctx, in: rect, fraction: hands) }
         }
-        stamp(sprites.hands, ctx, in: figureRect(at: at), fraction: 1)
+        stamp(sprites.hands, ctx, in: figureRect(at: at), fraction: handsAlpha)
     }
 
     // MARK: - Twenty men at 60 Hz

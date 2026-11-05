@@ -4,6 +4,28 @@ import XCTest
 /// 🙏 Several clicks plant several men and ONE hymn lasts until the last of
 /// them is done (2026-10-20) — the schedule that decides when it fades.
 final class PrayChoirTests: XCTestCase {
+    func testWithNoClickItLastsExactlyTheTile() {
+        var choir = PrayChoir()
+        choir.hold(untilMs: 20_840)
+        XCTAssertEqual(choir.endMs, 20_840)
+    }
+
+    func testAClickNearTheEndStretchesItToThatManEnd() {
+        var choir = PrayChoir()
+        choir.hold(untilMs: 20_840)
+        choir.plant(at: .zero, nowMs: 20_000)
+        XCTAssertEqual(choir.endMs, 20_000 + PrayController.singMs)
+    }
+
+    func testAnEarlyClickNeverShortensTheTile() {
+        var choir = PrayChoir()
+        choir.hold(untilMs: 20_840)
+        choir.plant(at: .zero, nowMs: 1000)
+        XCTAssertEqual(choir.endMs, 20_840)
+        choir.expire(nowMs: 15_000)
+        XCTAssertEqual(choir.endMs, 20_840)
+    }
+
     private let sing = PrayController.singMs
 
     func testOneClickSingsForOneMan() {

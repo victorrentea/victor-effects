@@ -16,7 +16,8 @@ enum OpenEndedTiles {
     ///
     /// Two more than the Escape ones, for the same lie: #41 love hands waits up
     /// to 30 s for the click that starts its clip, and #3's bombardment lasts as
-    /// long as bombs keep being planted. Every other tile ends with its clip, or
+    /// long as bombs keep being planted. #7's button waits to be hit, and #9
+    /// sings on for as long as the men clicked in need. Every other tile ends with its clip, or
     /// with a fixed length `playSound` already reports (phoenix, the FBI knock).
     static let assets: [String: (EmojiAnimator) -> Bool] = [
         "11_fire.mp3":        { $0.isFireRunning },
@@ -24,6 +25,9 @@ enum OpenEndedTiles {
         "22_minigun.mp3":     { $0.activeEffectNames.contains("bullet-holes") },
         "41_love_hearts.mp3": { $0.activeEffectNames.contains("love-hands") },
         "03_explosion.mp3":   { $0.isBombRunning },
+        // These two live outside the animator, in the pointer overlays.
+        "07_animated_phone.mp3": { _ in RedButtonController.isUp },
+        "09_ave_maria.mp3":      { _ in PrayController.isUp },
     ]
 
     static func isOpenEnded(_ asset: String) -> Bool { assets[asset] != nil }

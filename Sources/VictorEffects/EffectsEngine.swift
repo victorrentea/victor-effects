@@ -58,7 +58,9 @@ final class EffectsEngine {
     var whip: WhipController? { whipController }
     var whipIsShowing: Bool { whipController?.isShowing ?? false }
 
-    /// 🙏 Pray, the whip's second mode (⌃⇧W) — lazy for the same reason.
+    /// 🔴 #7, the red button on the pointer — lazy for the same reason.
+    private var redButtonController: RedButtonController?
+    /// 🙏 #9, the hands on the pointer — lazy for the same reason.
     private var prayController: PrayController?
     var prayIsShowing: Bool { prayController?.isShowing ?? false }
 
@@ -466,8 +468,12 @@ final class EffectsEngine {
             toggleWhip()
         case "whip/crack":
             whipController?.forceCrack()
-        case "pray":
-            togglePray()
+        case "pray", "ave-maria":
+            if prayIsShowing { prayController?.hide() } else { startAveMaria(volume: nil) }
+        case "red-button":
+            startRedButton()
+        case "red-button/click":
+            redButtonController?.click()
         case "pray/sing":
             prayController?.sing()
         case "snap":
@@ -525,6 +531,7 @@ final class EffectsEngine {
             || whipIsShowing
             || prayIsShowing
             || snapIsShowing
+            || RedButtonController.isUp
             || animator.isChainsawRunning
             || animator.isFireRunning
             || animator.isCantTouchRunning
@@ -544,6 +551,10 @@ final class EffectsEngine {
         }
         if let effect = EffectsCatalog.effectName(forAsset: asset) { animator.stopEffect(named: effect) }
         if let stop = SoundEffectMap.stopEffect(for: asset) { runEffect(stop) }
+        // Here and not in `onStop`, which also fires when the clip simply ends:
+        // these two outlive their clip, and only a re-press takes them down.
+        if asset == PrayController.tile { prayController?.hide() }
+        if asset == RedButtonController.tile { redButtonController?.hide() }
         if routedPlay?.asset == asset { playing = nil; routedPlay = nil }
         effectsInfo("⏹ \(asset) stopped by a re-press — the rest keep running")
     }
@@ -593,7 +604,6 @@ final class EffectsEngine {
 
     private var showingMode: PointerMode? {
         if whipIsShowing { return .whip }
-        if prayIsShowing { return .pray }
         if snapIsShowing { return .snap }
         return nil
     }
@@ -602,7 +612,6 @@ final class EffectsEngine {
         guard showingMode != mode else { return }
         switch mode {
         case .whip: toggleWhip()
-        case .pray: togglePray()
         case .snap: toggleSnap()
         }
     }
@@ -612,6 +621,7 @@ final class EffectsEngine {
         whipController?.hide()
         prayController?.hide()
         snapController?.hide()
+        redButtonController?.hide()
     }
 
     /// The whip on or off — the menu row and `/effect/whip`; ⌃W goes through
@@ -639,23 +649,30 @@ final class EffectsEngine {
         animator.clawdFeel(.scared)
     }
 
-    /// 🙏 The praying man in the whip's place, a hymn on each click
-    /// (`PrayOverlay.swift`). A toggle, exclusive with the other two.
-    func togglePray() {
-        if let controller = prayController, controller.isShowing {
-            controller.hide()
-            return
-        }
+    /// 🙏 #9: the hymn, and the hands that plant a man on each click
+    /// (`PrayOverlay.swift`). Returns how long a run with no click lasts.
+    @discardableResult
+    func startAveMaria(volume: Float?) -> TimeInterval {
         hideModes()
-        PointerModeStore.selected = .pray
         let controller = prayController ?? PrayController()
         prayController = controller
         controller.onEscape = { [weak self] in self?.prayController?.hide() }
         // 🦀 The praying man gives Clawd hope — when he shows, and each time
         // one is planted and starts to pray.
         controller.onSing = { [weak self] in self?.animator.clawdFeel(.hopeful) }
-        controller.show()
+        let lasts = controller.show(volume: volume)
         animator.clawdFeel(.hopeful)
+        return lasts
+    }
+
+    /// 🔴 #7: the pointer is a red button for as long as the clip runs
+    /// (`RedButtonOverlay.swift`).
+    func startRedButton() {
+        hideModes()
+        let controller = redButtonController ?? RedButtonController()
+        redButtonController = controller
+        controller.onEscape = { [weak self] in self?.redButtonController?.hide() }
+        controller.show(clipSeconds: SoundManager.shared.soundDuration(RedButtonController.tile) ?? 8.26)
     }
 
     /// 🫰 A hand snapping its fingers on each click (`SnapOverlay.swift`).
@@ -726,6 +743,11 @@ final class EffectsEngine {
             return remember(Int(duration * 1000))
         }
 
+        // Tile #9 (🙏 Ave Maria): the long take in the clip's place, so that
+        // clicks can stretch it — the visual owns the audio.
+        if name == "09_ave_maria.mp3" {
+            return remember(Int(startAveMaria(volume: volume) * 1000))
+        }
         // The radar sound drives the full 🛰️ sonar effect (animation + its own
         // beep-synced audio) instead of plain routed playback.
         if name == "23_radar.mp3" {

@@ -10,7 +10,7 @@ port.
 | zone | file | you want it for |
 |---|---|---|
 | the effect catalogue | `docs/overlay-effects.md` | what each `/effect/<name>` draws and how long it lives |
-| 🔥 whip | `docs/whip.md` | ⌃W (selected mode on/off), ⌃⇧W (next: 🔥 whip → 🙏 pray → 🫰 snap), the crack macro, the OpenWhip parity harness |
+| 🔥 whip | `docs/whip.md` | ⌃W (selected mode on/off), ⌃⇧W (next: 🔥 whip ⇄ 🫰 snap), #9's 🙏 pray, the crack macro, the OpenWhip parity harness |
 | sound routing | `docs/sound-routing.md` | `soundsDir`, the manifest, Bluetooth compensation |
 | HTTP contract | `docs/http-api.md` | every route, the webhook, `tiles.json` |
 | thumbnail panel | `docs/thumbnail-panel.md` | the right-⌘ soundboard grid |
@@ -61,7 +61,7 @@ this one only routes.
   where no map can see it. Two guards: `SoundEffectMapDriftTests` PARSES
   `EffectsEngine.swift` (the switch labels, the `if name ==` special cases)
   instead of comparing against a second copy, so the only way to make it pass is
-  to make the thing true; `EffectsCatalogTests` writes the 51-name set out by
+  to make the thing true; `EffectsCatalogTests` writes the 53-name set out by
   hand, so a change to the promise costs a deliberate edit in the file that IS
   the promise. Adding an effect to `playSound` without deciding about its star
   fails the build with the name of the list to edit. Details in
@@ -102,8 +102,8 @@ this one only routes.
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W and ⌃⇧W ever return `nil`; everything else passes through.
-- **The ⭐ menu is not a second surface.** Nine rows: `✨ Effects` (Right ⌘),
-  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🙏 Pray` (⌃⇧W), `🫰 Snap` (⌃⇧W ×2), `✓/x BT Keepalive` (the Bluetooth
+- **The ⭐ menu is not a second surface.** Eight rows: `✨ Effects` (Right ⌘),
+  `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🫰 Snap` (⌃⇧W), `✓/x BT Keepalive` (the Bluetooth
   keep-alive's switch — `docs/sound-routing.md`), `✓/x Subtitles` (soundboard
   captions AND video `.srt` lines, off by default — `docs/overlay-effects.md`), ⓘ Built <stamp> (opens the GitHub repo) and ⏻ Quit
   — plus ⚠️ Accessibility while that grant is missing. **No row carries a

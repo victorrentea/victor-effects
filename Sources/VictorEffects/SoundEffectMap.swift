@@ -21,6 +21,9 @@ enum SoundEffectMap {
         // one howl lasting exactly the clip. Self-terminating and non-looping,
         // so no onStop entry.
         "04_wolf.mp3":           "wolf-howl",
+        // Tile 7: the pointer is a red button for as long as the clip runs.
+        // A click plants a big one; hitting that blows it up (`RedButtonOverlay`).
+        "07_animated_phone.mp3": "red-button",
         // Tile 12 (🦗 cricket): the cricket, the moon and the stars in the same
         // corner, as a keyed video the clip's length long. Ends itself; the onStop
         // entry below is what takes it off when the sound is cut short.
@@ -232,6 +235,7 @@ enum SoundEffectMap {
         "39_skull_boom.mp3":  "skull-boom",  // 💀 cranium blows off on the drop, 0.5 s in
         "44_small_dog.mp3":   "small-dog",   // 🐕 mouth + jump on ten barks, the first 0.22 s in
         "66_toilet.mp3":      "toilet-flush", // 🚽 the desktop drains on the gurgle, 3.72 s in
+        "09_ave_maria.mp3":   "ave-maria",   // 🙏 the hymn outlasts the clip by what the clicks need
     ]
 
     /// Every sound that makes something happen ON THE DESKTOP when its tile is

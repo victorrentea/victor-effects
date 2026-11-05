@@ -29,7 +29,7 @@ longer sets `isFloatingPanel`; `WhipPanelLevelTests` checks the level.
 
 **⌃W** shows the *selected* mode, globally, **swallowed** — the key does not
 reach the app underneath — and **⌃W again puts it away**. **⌃⇧W picks the next
-mode**: 🔥 whip → 🙏 pray → 🫰 snap → 🔥 whip …, shown at once so the switch is
+mode**: 🔥 whip ⇄ 🫰 snap, shown at once so the switch is
 seen (2026-10-21, Victor: *"Control Shift W should change the way of the whip.
 Control W should toggle it on or off, and it should remember the selection"*;
 for one day before that, ⌃W alone cycled and only Esc got out). The selection is
@@ -328,17 +328,27 @@ input sequence and writes `Tests/VictorEffectsTests/Resources/whip_golden.json`.
 on the same node positions. Change a constant in `P` and that test tells you the
 rope is no longer OpenWhip's.
 
-## 🙏 Pray — the second mode (⌃⇧W)
+## 🙏 Pray — tile #9, the Ave Maria
 
-**A praying man in the whip's place** (2026-10-19, Victor: *"another feature
-called pray instead of whip … exclusive to the whip mode … appearing instead of
-the whip. And I click to play some short clip of a religious hymn"*).
-`PrayOverlay.swift`; reached by **⌃⇧W** from the whip (the next mode; ⌃W then
-brings him back until another is picked), the `🙏 Pray` menu row under `🔥 Whip`, or `GET /effect/pray` (`/effect/pray/sing` is the click, for checking it headless).
+**Praying men on the clicks of tile #9.** It was the whip's second mode behind
+⌃⇧W from 2026-10-19 to 2026-11-05, when Victor moved it onto the tile: the music
+and the effect both live on the tablet's thumbnail now, and ⌃⇧W only switches
+🔥 whip ⇄ 🫰 snap. `PrayOverlay.swift`; started by `/sound/play/09_ave_maria.mp3`
+(a play-path visual: it owns the audio) or `GET /effect/ave-maria`
+(`/effect/pray` is the same thing; `/effect/pray/sing` is the click, for checking
+it headless).
 
-- **Exclusive.** Every `EffectsEngine.toggle…` (whip, pray, snap) puts the other
-  two away first (`hideModes`) — one mode under the pointer at a time. Esc, the
-  ⌃W, the menu row and stop-all take him down; ⌃⇧W moves on to 🫰 snap.
+- **Its length.** With no click it lasts exactly the tile's clip (20.84 s plus any
+  Bluetooth wake-up). A click can only push the end out, to that man's end
+  (`PrayChoir.endMs`), and the hands, the men and the hymn all fade out together
+  as the last one goes. To have something to stretch, the long take plays in the
+  clip's place from the first second: `pray-hymn-tablet.mp3` is the same recording
+  from the same point at the same loudness. ♾️ open-ended on the tablet
+  (`OpenEndedTiles`), and only a re-press stops it: `stopTile`, not `onStop`, which
+  also fires when the clip ends.
+- **Exclusive.** Starting it puts the whip and 🫰 snap away (`hideModes`), and they
+  put it away — one thing under the pointer at a time. Esc, a re-press and stop-all
+  take it down.
 - **His hands follow the pointer**, only them (2026-10-20, Victor: *"instead
   of the man praying just … his two hands"*), eased (`PrayController.follow`,
   0.35 a frame) so they drift after it, centred on it, breathing ±2%. They are
@@ -373,8 +383,8 @@ brings him back until another is picked), the `🙏 Pray` menu row under `🔥 W
   by drawing `PrayView` into a bitmap; the remaining cost is 8 ms for that blow-up
   and ~2 ms a man. Going further means real `CALayer`s, which would also have to
   follow `ZoomedPanel`.
-- **One Ave Maria for all of them.** The first click starts the hymn at the
-  tablet's level × 0.8 — `pray-hymn-tablet.mp3` when `assetsDir` has it, else
+- **One Ave Maria for all of them.** The press starts the hymn at the tile's
+  level — `pray-hymn-tablet.mp3` when `assetsDir` has it, else
   the shipped `pray-hymn-long.mp3` (47 s, `Resources/CREDITS.md`).
   **They are the same Schubert and still not the same song to the room**
   (2026-10-21, Victor: *"it's another melody … find exactly the one the tablet
@@ -384,7 +394,7 @@ brings him back until another is picked), the `🙏 Pray` menu row under `🔥 W
   it (0.6–0.9 per second), and `pray-hymn-tablet.mp3` is 47 s of that
   recording from that very point, at the tablet clip's loudness. Commercial,
   so a drop-in, in the private copyright ledger; it has its own name because
-  the guard fails on a tracked file that shares a name with a ledger entry; a click while it sings does not restart it or add a voice, it
+  the guard fails on a tracked file that shares a name with a ledger entry; a click does not restart it or add a voice, it
   only pushes its end out to that man's end — and takes back a fade already
   under way (0.3 s back up). It fades to silence over `hymnFadeMs` (1.2 s)
   ending exactly as the last man goes. Its own `AVAudioPlayer` in

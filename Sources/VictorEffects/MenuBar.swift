@@ -25,7 +25,7 @@ import Foundation
 final class MenuBar: NSObject, NSMenuDelegate {
     /// Rewritten in place by `build-app.sh` before every release build, so the
     /// Version row always says which binary is actually running.
-    static let BUILD_TIME = "Oct 28, 23:03"
+    static let BUILD_TIME = "Nov 5, 18:20"
 
     // MARK: callbacks (AppDelegate wires them)
 
@@ -42,8 +42,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// 🔥 Whip — the menu equivalent of ⌃W, kept for a Mac that has not
     /// granted Accessibility (same rationale as addons' 📤 Mail clipboard row).
     var onWhip: (() -> Void)?
-    /// 🙏 Pray — the whip's second mode (⌃⇧W), exclusive with it.
-    var onPray: (() -> Void)?
     /// 🫰 Snap — the third (⌃⇧W ×2).
     var onSnap: (() -> Void)?
     /// The ✅/⚪️/🚫 keep-alive row: what to draw, and what a click means.
@@ -307,20 +305,14 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.addItem(whipItem)
         giveHint("⌃W", to: whipItem)
 
-        // 🙏 Pray and 🫰 Snap — the whip's other two modes, right under it:
-        // same reason for a row, same scheme for the hint. ⌃⇧W steps through
-        // all three (2026-10-21), so the hint says how many presses away each
-        // is from the whip; ⌃W then brings back whichever was picked last.
-        let prayItem = NSMenuItem(title: "🙏 Pray", action: #selector(prayAction), keyEquivalent: "")
-        prayItem.target = self
-        prayItem.isEnabled = true
-        menu.addItem(prayItem)
-        giveHint("⌃⇧W", to: prayItem)
+        // 🫰 Snap — the whip's other mode, right under it: same reason for a
+        // row, same scheme for the hint. ⌃⇧W switches between the two; ⌃W then
+        // brings back whichever was picked last.
         let snapItem = NSMenuItem(title: "🫰 Snap", action: #selector(snapAction), keyEquivalent: "")
         snapItem.target = self
         snapItem.isEnabled = true
         menu.addItem(snapItem)
-        giveHint("⌃⇧W ×2", to: snapItem)
+        giveHint("⌃⇧W", to: snapItem)
 
         // ✓ BT Keepalive — the Bluetooth keep-alive's switch and its only
         // lamp. It belongs in *this* app (moved here with the effects split) for
@@ -450,7 +442,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
     // MARK: actions
 
     @objc private func whipAction() { onWhip?() }
-    @objc private func prayAction() { onPray?() }
     @objc private func snapAction() { onSnap?() }
 
     @objc private func toggleKeepAliveAction() {

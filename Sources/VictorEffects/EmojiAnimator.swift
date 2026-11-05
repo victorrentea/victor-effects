@@ -197,7 +197,7 @@ class EmojiAnimator {
     private var _heartCursorHidSystemCursor = false   // balance hide/unhide of the real cursor
 
     // Fear 😱: the scared face follows the live mouse (cursor hidden) while it grows + fades
-    private var _fearLayer: CATextLayer?
+    private var _fearLayer: CALayer?
     private var _fearTimer: Timer?
     private var _fearHidCursor = false                // balance hide/unhide of the real cursor
 
@@ -2885,21 +2885,25 @@ class EmojiAnimator {
         let fadeIn = CABasicAnimation(keyPath: "opacity")
         fadeIn.fromValue = 0.0
         fadeIn.toValue = 1.0
-        fadeIn.duration = 0.25
+        // Short: the sound is already trailing the picture (`animationLeadMs`,
+        // sound-timing.json) and 0.25 s of this was part of why he came up late.
+        fadeIn.duration = 0.1
         gifLayer.add(fadeIn, forKey: "wolfFadeIn")
 
         // The howl itself is over by ~5.6 s; the last 0.4 s is its tail, which
-        // is where the wolf goes.
+        // is where the wolf goes. The clip starts `lead` behind him, so he holds
+        // his last frame that much longer.
+        let lead = SoundTimingConfig.shared.animationLead(for: "04_wolf.mp3")
         let fadeOut = CABasicAnimation(keyPath: "opacity")
         fadeOut.fromValue = 1.0
         fadeOut.toValue = 0.0
-        fadeOut.beginTime = CACurrentMediaTime() + max(0, total - 0.4)
+        fadeOut.beginTime = CACurrentMediaTime() + max(0, total + lead - 0.4)
         fadeOut.duration = 0.4
         fadeOut.fillMode = .forwards
         fadeOut.isRemovedOnCompletion = false
         gifLayer.add(fadeOut, forKey: "wolfFadeOut")
 
-        trackEffect("wolf-howl", layer: gifLayer, duration: total, sound: nil)
+        trackEffect("wolf-howl", layer: gifLayer, duration: total + lead, sound: nil)
     }
 
     // MARK: - Cricket and moon (tile #12 `12_cricket.mp3`)
@@ -3418,33 +3422,75 @@ class EmojiAnimator {
     func showFear(playSound: Bool = true) {
         if playSound { SoundManager.shared.play("08_scream_man.mp3") }
 
-        let initialSize: CGFloat = 200
-        let growPhaseDuration: Double = 3.0    // grow 200→600px at 100% opacity
-        let fadePhaseDuration: Double = 1.75   // fade out + continue scaling
+        // Small and nearly solid, then bigger, fainter and in pieces, all at
+        // once (Victor, 2026-11-05; it was a 200 px ghost at 30 % until then).
+        let initialSize: CGFloat = 110
+        let startOpacity: Float = 0.8
+        let growPhaseDuration: Double = 3.0    // up to 600 px
+        let fadePhaseDuration: Double = 1.75   // on to giant, fading out
         let totalDuration = growPhaseDuration + fadePhaseDuration
+        /// How far into the run the face cracks open.
+        let crackAt = 0.12
 
         // Re-trigger while a fear is already on screen: drop the in-flight layer
         // + its follow timer, but KEEP the cursor hidden (we'll keep driving the
         // new face from the same mouse — no hide/show flicker between presses).
         _fearTimer?.invalidate(); _fearTimer = nil
         _fearLayer?.removeFromSuperlayer(); _fearLayer = nil
+        guard let picture = Self.fearFace else { return }
 
-        let layer = CATextLayer()
-        layer.string = "😱"
-        layer.alignmentMode = .center
-        // anchorPoint .5,.5 so transform.scale grows around the centre AND so
-        // updating `position` each frame keeps that centre pinned to the mouse.
+        // Two layers: the outer one is the pointer (position, and 🔍 1/zoom about
+        // it, re-fitted every tick), the inner one is the growing, fading face.
+        let box = CGSize(width: initialSize, height: initialSize)
+        let layer = CALayer()
+        let face = CALayer()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        // 🔍 Sized for the glass: 1/zoom about the pointer, re-fitted every tick.
-        Self.fitPointerGlyph(layer, fontSize: initialSize * 0.83,
-                             box: CGSize(width: initialSize, height: initialSize))
+        layer.bounds = CGRect(origin: .zero, size: box)
         layer.position = mousePointInHostLayer()   // start centred on the live cursor
+        layer.transform = CATransform3DMakeScale(ScreenZoom.counterScale(for: ScreenZoom.overlayFactor),
+                                                 ScreenZoom.counterScale(for: ScreenZoom.overlayFactor), 1)
+        face.frame = layer.bounds
+        face.opacity = startOpacity
+        layer.addSublayer(face)
         CATransaction.commit()
-        layer.contentsScale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
-        layer.opacity = 0.3   // start faded (matches opacityAnim) so no full-opacity flash
         hostLayer.addSublayer(layer)
         _fearLayer = layer
+
+        // Each piece stays home until the crack, then drifts out and turns, faster
+        // and faster; the face's own growth carries it further still.
+        let steps = 10
+        let progress = (0...steps).map { Double($0) / Double(steps) }
+        let times = progress.map { NSNumber(value: $0) }
+        for shard in Shatter.shards(of: picture, columns: 6, rows: 6) {
+            let piece = CALayer()
+            let w = shard.rect.width * box.width, h = shard.rect.height * box.height
+            let home = CGPoint(x: shard.rect.midX * box.width, y: (1 - shard.rect.midY) * box.height)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            piece.bounds = CGRect(x: 0, y: 0, width: w, height: h)
+            piece.position = home
+            piece.contents = shard.image
+            face.addSublayer(piece)
+            CATransaction.commit()
+
+            let opened = progress.map { pow(max(0, ($0 - crackAt) / (1 - crackAt)), 1.6) }
+            let drift = CAKeyframeAnimation(keyPath: "position")
+            drift.values = opened.map { q in
+                NSValue(point: CGPoint(x: home.x + shard.direction.dx * box.width * 0.9 * shard.speed * q,
+                                       y: home.y - shard.direction.dy * box.height * 0.9 * shard.speed * q))
+            }
+            drift.keyTimes = times
+            let turn = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+            turn.values = opened.map { shard.spin * 0.5 * CGFloat($0) }
+            turn.keyTimes = times
+            let pieces = CAAnimationGroup()
+            pieces.animations = [drift, turn]
+            pieces.duration = totalDuration
+            pieces.fillMode = .forwards
+            pieces.isRemovedOnCompletion = false
+            piece.add(pieces, forKey: "fearPiece")
+        }
 
         // The face now stands in for the pointer — hide the real cursor so the
         // user "moves the scared face" with the mouse. Arm lifts the
@@ -3460,19 +3506,18 @@ class EmojiAnimator {
         let growEndFrac = growPhaseDuration / totalDuration
         let finalScale = 3.0 * hostLayer.bounds.height / initialSize
 
-        // Scale: 1.0 → 3.0 over first 3s (200→600px), then continue to giant.
+        // Scale: up to 600 px over the first 3 s, then on to giant.
         let scaleAnim = CAKeyframeAnimation(keyPath: "transform.scale")
-        scaleAnim.values = [1.0, 3.0, finalScale]
+        scaleAnim.values = [1.0, 600 / initialSize, finalScale]
         scaleAnim.keyTimes = [0, NSNumber(value: growEndFrac), 1]
         scaleAnim.timingFunctions = [
             CAMediaTimingFunction(name: .linear),
             CAMediaTimingFunction(name: .linear),
         ]
 
-        // Opacity: start at 30% (so whatever is on screen stays readable through
-        // the emoji) and hold for the first 3s, then fade to 0.
+        // Opacity falls the whole way, as it grows and breaks up.
         let opacityAnim = CAKeyframeAnimation(keyPath: "opacity")
-        opacityAnim.values = [0.3, 0.3, 0.0]
+        opacityAnim.values = [startOpacity, 0.3, 0.0]
         opacityAnim.keyTimes = [0, NSNumber(value: growEndFrac), 1]
         opacityAnim.timingFunctions = [
             CAMediaTimingFunction(name: .linear),
@@ -3492,7 +3537,7 @@ class EmojiAnimator {
             guard let self, self._fearLayer === layer else { return }
             self.stopFear()
         }
-        layer.add(group, forKey: "fear")
+        face.add(group, forKey: "fear")
         CATransaction.commit()
 
         // Follow the mouse at 60fps so the growing face stays centred on the
@@ -3505,12 +3550,28 @@ class EmojiAnimator {
             CATransaction.begin()
             CATransaction.setDisableActions(true)   // move instantly, no implicit position animation
             layer.position = self.mousePointInHostLayer()
-            Self.fitPointerGlyph(layer, fontSize: initialSize * 0.83,
-                                 box: CGSize(width: initialSize, height: initialSize))
+            let s = ScreenZoom.counterScale(for: ScreenZoom.overlayFactor)
+            layer.transform = CATransform3DMakeScale(s, s, 1)
             CATransaction.commit()
         }
         _fearTimer = timer
     }
+
+    /// 😱 as a picture, big enough for the pieces of a face that ends up three
+    /// screens tall at nearly no opacity.
+    private static let fearFace: CGImage? = {
+        let side = 640
+        guard let ctx = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+        let text = NSAttributedString(string: "😱", attributes: [.font: NSFont.systemFont(ofSize: CGFloat(side) * 0.83)])
+        let size = text.size()
+        text.draw(at: CGPoint(x: (CGFloat(side) - size.width) / 2, y: (CGFloat(side) - size.height) / 2))
+        NSGraphicsContext.restoreGraphicsState()
+        return ctx.makeImage()
+    }()
 
     /// Tear down the fear effect: stop following, remove the face, and restore
     /// the real cursor. Idempotent — safe to call from both the CA completion

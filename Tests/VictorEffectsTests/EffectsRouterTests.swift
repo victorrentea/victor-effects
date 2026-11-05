@@ -136,13 +136,15 @@ final class EffectsRouterTests: XCTestCase {
 
     func testOpenEndedTilesAreTheOnesThatLastUntilEscape() {
         // ♾️ Fire, chainsaw, minigun (until Escape), love hands (until the
-        // click), the bombs (while planted): the tablet spins instead of counting
+        // click), the bombs (while planted), the red button (while one stands),
+        // the Ave Maria (while the men clicked in pray): the tablet spins instead of counting
         // down for exactly these. Each must still be a tile with a desktop
         // effect, or the spinner would wait on an effect that never starts.
         XCTAssertEqual(Set(OpenEndedTiles.assets.keys),
-                       ["11_fire.mp3", "18_chainsaw.mp3", "22_minigun.mp3", "41_love_hearts.mp3", "03_explosion.mp3"])
+                       ["11_fire.mp3", "18_chainsaw.mp3", "22_minigun.mp3", "41_love_hearts.mp3", "03_explosion.mp3",
+                        "07_animated_phone.mp3", "09_ave_maria.mp3"])
         for asset in OpenEndedTiles.assets.keys {
-            XCTAssertNotNil(SoundEffectMap.pressEffect(for: asset), asset)
+            XCTAssertNotNil(EffectsCatalog.effectName(forAsset: asset), asset)
         }
         XCTAssertFalse(OpenEndedTiles.isOpenEnded("50_gong.mp3"))
     }

@@ -57,8 +57,9 @@ press cannot drift apart.
 | `GET /effect/progress-bar/<seconds>?rider=🏁` | `ok` | `seconds` must parse and be > 0, else **404** |
 | `GET /effect/progress-bar/stop` | `ok` | |
 | `GET /effect/whip`, `GET /effect/whip/crack` | `ok` | `docs/whip.md` |
-| `GET /effect/pray`, `GET /effect/pray/sing` | `ok` | toggles 🙏 pray, the whip's exclusive sibling — `docs/whip.md` |
-| `GET /effect/snap`, `GET /effect/snap/click` | `ok` | toggles 🫰 snap, the third mode; `click` snaps the fingers — `docs/whip.md` |
+| `GET /effect/ave-maria` (or `/effect/pray`), `GET /effect/pray/sing` | `ok` | toggles tile #9's 🙏 hands, hymn included; `sing` is a click — `docs/whip.md` |
+| `GET /effect/red-button`, `GET /effect/red-button/click` | `ok` | tile #7's 🔴 pointer, without its clip; `click` is a click where the pointer is — `docs/overlay-effects.md` |
+| `GET /effect/snap`, `GET /effect/snap/click` | `ok` | toggles 🫰 snap, the whip's other mode; `click` snaps the fingers — `docs/whip.md` |
 | `GET /effect/coffee`, `GET /effect/coffee/pop`, `GET /effect/coffee/storm`, `GET /effect/coffee/won` | `ok` | three cups to pour into; the pop bursts one and fires the webhook below (none after a win); the storm is a salvo of ~8 cups; `won` is what addons sends when a ☕ −1 empties the UNTIL BREAK watch — yee-haw, then big bursts with fireworks (`docs/overlay-effects.md`) |
 | `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip + 🙏 pray + 🫰 snap |
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
