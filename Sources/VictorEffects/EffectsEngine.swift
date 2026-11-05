@@ -48,7 +48,7 @@ final class EffectsEngine {
     /// The last `/sound/play` this Mac took, by the asset the client ASKED for
     /// (before `AlternatingSounds`): the press that follows it is captioned in
     /// step with audio that is only heard ~1.3 s later on the JBL.
-    private var routedPlay: (asset: String, at: Date)?
+    private var routedPlay: (asset: String, at: Date, wake: TimeInterval)?
 
     // MARK: whip
 
@@ -238,7 +238,7 @@ final class EffectsEngine {
                                           lead: timing.animationLead(for: asset)
                                               // The CT squad's lead lives in code, not in sound-timing.json.
                                               + (asset == "73_counter_strike.mp3" ? EmojiAnimator.counterStrikeLeadIn : 0),
-                                          bluetoothCompensation: timing.currentBluetoothCompensation,
+                                          bluetoothCompensation: routed.wake,
                                           outputLatency: timing.currentOutputLatency)
     }
 
@@ -705,7 +705,9 @@ final class EffectsEngine {
         routedPlay = nil
         func remember(_ ms: Int) -> String {
             playing = (name, ms, Date())
-            routedPlay = (requested, Date())
+            // Read here, at the play: this close to the start it is the wait the
+            // clip got, while read at the press it would already have shrunk.
+            routedPlay = (requested, Date(), SoundTimingConfig.shared.currentBluetoothCompensation)
             // ♾️ `durationMs` stays for clients that predate `open`. Suspended,
             // nothing is drawn and the plain clip's length is the truth.
             let open = OpenEndedTiles.isOpenEnded(requested) && !isSuspended ? ",\"open\":true" : ""

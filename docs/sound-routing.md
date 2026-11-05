@@ -173,6 +173,21 @@ and `setBluetoothCompensation(seconds:)` stores a runtime override clamped to
 resets to the file default on restart. `GET /bt-compensation` reads it back as
 `{"ms":…,"maxMs":1200}`.
 
+**Only the first sound waits (2026-11-05).** A speaker that played a moment ago
+is already up, so a sound started during another, or within 5 s of the last one
+ending (`SpeakerWake.staysAwake`), gets no wake-up delay and no wake tone, and its
+visual and caption stop waiting with it. Victor pressed tiles in quick succession
+and each one still paid its full second. `currentBluetoothCompensation` therefore
+answers "how long until the speaker is awake", which is why two tiles pressed
+0.3 s apart land together instead of the second one clipping into the tone, and
+why reading it after starting a clip still gives that clip's wait. The clock runs
+from the real end of the sound: a stop cuts it short (`fadeOutAndStop`), unless
+another clip is still sounding. Only what `SoundManager` plays is counted; the
+sounds with their own player (chainsaw, AK-47, pray) wake nothing here. This is
+the wake-up alone: the speaker's own A2DP latency below is always there. **Not
+measured by ear:** 5 s is what was asked for, not a figure taken off the JBL, so
+a clipped attack on a follow-up sound means lowering `staysAwake`.
+
 **The silence is not the whole wait.** After it, the speaker itself adds its
 A2DP latency — ~0.55 s on the JBL Go 4, measured with the laptop mic
 (2026-10-23; CoreAudio reports only 123 ms). `SoundTimingConfig.currentOutputLatency`

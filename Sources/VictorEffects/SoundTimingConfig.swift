@@ -107,11 +107,33 @@ final class SoundTimingConfig {
         overlayInfo("⏱️ BT compensation set to \(Int((clamped * 1000).rounded()))ms (tablet slider)")
     }
 
-    /// Compensation to apply **right now**: the effective seconds when the
-    /// current default output is Bluetooth, otherwise 0.
+    /// Compensation to apply **right now**: 0 off Bluetooth, and on Bluetooth
+    /// only what is left of the wake-up, so nothing at all for a speaker that
+    /// has just played (`SpeakerWake`). Read just after starting a clip, it
+    /// still answers what that clip is waiting for.
     var currentBluetoothCompensation: TimeInterval {
-        BluetoothOutput.isDefaultOutputBluetooth ? effectiveBluetoothCompensationSeconds : 0
+        guard BluetoothOutput.isDefaultOutputBluetooth else { return 0 }
+        let full = effectiveBluetoothCompensationSeconds
+        lock.lock(); defer { lock.unlock() }
+        return speakerWake.delay(full: full, now: Self.wakeClock)
     }
+
+    /// A sound went to the speaker; it will be over in `endsIn` seconds.
+    func noteSoundStarted(endsIn: TimeInterval) {
+        guard BluetoothOutput.isDefaultOutputBluetooth else { return }
+        let full = effectiveBluetoothCompensationSeconds
+        lock.lock(); defer { lock.unlock() }
+        speakerWake.soundStarted(endsIn: endsIn, full: full, now: Self.wakeClock)
+    }
+
+    /// The last sound was cut short.
+    func noteSilenced() {
+        lock.lock(); defer { lock.unlock() }
+        speakerWake.silenced(now: Self.wakeClock)
+    }
+
+    private var speakerWake = SpeakerWake()
+    private static var wakeClock: TimeInterval { Date().timeIntervalSinceReferenceDate }
 
     /// How long the Bluetooth speaker takes to turn a sample into sound in the
     /// room, AFTER the silence above: measured with the laptop mic on the JBL Go

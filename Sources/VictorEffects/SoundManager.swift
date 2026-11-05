@@ -120,6 +120,10 @@ class SoundManager {
     /// which is what a genuine "silence this now" caller wants.
     /// Main thread only.
     private func fadeOutAndStop(_ player: AVAudioPlayer, over seconds: TimeInterval) {
+        let others = tabletClips.map(\.player) + Array(players.values) + overlappingPlayers
+        if !others.contains(where: { $0 !== player && $0.isPlaying }) {
+            SoundTimingConfig.shared.noteSilenced()
+        }
         guard seconds > 0, player.isPlaying else {
             player.stop()
             return
@@ -307,7 +311,7 @@ class SoundManager {
     /// (seconds) so callers can shift any follow-up timers (fade-out, stop,
     /// cleanup) to match. Main thread only (AVAudioPlayer is not thread-safe).
     @discardableResult
-    private func startWithBluetoothCompensation(_ player: AVAudioPlayer) -> TimeInterval {
+    private func startWithBluetoothCompensation(_ player: AVAudioPlayer, length: TimeInterval? = nil) -> TimeInterval {
         let comp = SoundTimingConfig.shared.currentBluetoothCompensation
         if comp > 0 {
             BluetoothOutput.playWakeTone(seconds: comp)
@@ -315,7 +319,16 @@ class SoundManager {
         } else {
             player.play()
         }
+        noteStarted(player, after: comp, length: length)
         return comp
+    }
+
+    /// Tell `SpeakerWake` when this sound ends, `after` seconds of delay. A loop
+    /// has no end of its own: it lasts until a stop says so. `length` is for a
+    /// clip cut shorter than its file.
+    private func noteStarted(_ player: AVAudioPlayer, after delay: TimeInterval = 0, length: TimeInterval? = nil) {
+        let sounding = player.numberOfLoops < 0 ? .infinity : length ?? (player.duration - player.currentTime)
+        SoundTimingConfig.shared.noteSoundStarted(endsIn: delay + sounding)
     }
 
     /// Play a sound from the bundle Resources folder, looping indefinitely.
@@ -381,6 +394,7 @@ class SoundManager {
                     self.startWithBluetoothCompensation(player)
                 } else {
                     player.play()
+                    self.noteStarted(player)
                 }
             } catch {
                 overlayError("Sound play failed \(filename): \(error)")
@@ -428,6 +442,7 @@ class SoundManager {
                     comp = self.startWithBluetoothCompensation(player)
                 } else {
                     player.play()
+                    self.noteStarted(player)
                     comp = 0
                 }
                 if fadeIn > 0 {
@@ -463,7 +478,7 @@ class SoundManager {
                 player.volume = max(0.0, min(1.0, volume))
                 player.prepareToPlay()
                 self.overlappingPlayers.append(player)
-                let comp = self.startWithBluetoothCompensation(player)
+                let comp = self.startWithBluetoothCompensation(player, length: seconds)
                 let fadeStart = comp + max(0, seconds - fade)
                 DispatchQueue.main.asyncAfter(deadline: .now() + fadeStart) {
                     if player.isPlaying { player.setVolume(0, fadeDuration: fade) }
@@ -518,16 +533,18 @@ class SoundManager {
             // leaving the previous behaviour untouched.
             let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
             let total = lead + btComp
-            if btComp > 0 {
-                BluetoothOutput.playWakeTone(seconds: total)
-                Self.pendingVisualCompensation = btComp
-                Self.pendingVisualCompensationAt = Date()
-            }
+            if btComp > 0 { BluetoothOutput.playWakeTone(seconds: total) }
+            // Unconditional: a 0 here has to overwrite what a previous press left
+            // unclaimed (the siren never claims its own), or the visual of a clip
+            // that starts at once would wait for a wake nobody needed.
+            Self.pendingVisualCompensation = btComp
+            Self.pendingVisualCompensationAt = Date()
             if total > 0 {
                 player.play(atTime: player.deviceCurrentTime + total)
             } else {
                 player.play()
             }
+            noteStarted(player, after: total)
             // Include the lead + Bluetooth compensation so the tablet's
             // completion timer (durationMs + 100ms → effect-stop chain) doesn't
             // cut the tail of the sound.
@@ -562,17 +579,16 @@ class SoundManager {
             let lead = Self.pairedEffectStartDelays[filename] ?? 0
             let btComp = SoundTimingConfig.shared.currentBluetoothCompensation
             let total = lead + btComp
-            if btComp > 0 {
-                BluetoothOutput.playWakeTone(seconds: total)
-                Self.pendingVisualCompensation = btComp
-                Self.pendingVisualCompensationAt = Date()
-            }
+            if btComp > 0 { BluetoothOutput.playWakeTone(seconds: total) }
+            Self.pendingVisualCompensation = btComp
+            Self.pendingVisualCompensationAt = Date()
             if total > 0 {
                 player.play(atTime: player.deviceCurrentTime + total)
             } else {
                 player.play()
             }
             let clipped = player.duration * max(0.0, min(1.0, fraction))
+            noteStarted(player, after: total, length: clipped)
             let fadeStart = total + max(0, clipped - fade)
             DispatchQueue.main.asyncAfter(deadline: .now() + fadeStart) { [weak player] in
                 if player?.isPlaying == true { player?.setVolume(0, fadeDuration: fade) }
@@ -611,6 +627,7 @@ class SoundManager {
             player.prepareToPlay()
             overlappingPlayers.append(player)
             player.play()
+            noteStarted(player)
             let duration = player.duration
             // Release finished players after this one ends (same cleanup as playOverlapping).
             DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.1) { [weak self] in
