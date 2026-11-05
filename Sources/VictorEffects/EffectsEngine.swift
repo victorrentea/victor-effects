@@ -705,9 +705,12 @@ final class EffectsEngine {
         // anything else, so the whole method and everything downstream of it —
         // the special cases, the duration handed back, `playing`, the log —
         // speak about the file that is really being played rather than the one
-        // that was asked for. An unpaired asset comes back unchanged.
+        // that was asked for. An unpaired asset comes back unchanged, and so does
+        // a pair whose partner this Mac does not have: the starter pack ships
+        // only the key, and half the presses of a tile must not go silent.
         let requested = name
-        let name = AlternatingSounds.shared.next(for: requested)
+        let turn = AlternatingSounds.shared.next(for: requested)
+        let name = SoundManager.shared.soundURL(for: turn) != nil ? turn : requested
         if name != requested {
             effectsInfo("🔀 \(requested) → playing \(name) (alternating pair)")
         }

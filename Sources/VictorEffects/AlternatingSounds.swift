@@ -36,6 +36,10 @@ final class AlternatingSounds {
     static let defaultTable: [String: [String]] = [
         // 💥 #19 fail / #20 fail2 — the same trombone, two takes.
         "19_fail.mp3": ["19_fail.mp3", "20_fail2.mp3"],
+        // ❌ #49 wrong / "TikTok Core". The partner opens with 0.9 s of silence
+        // baked into the file, so it lands on the finished X, its last note
+        // ending as `showWrongX` starts to fade (`docs/sound-routing.md`).
+        "49_wrong.mp3": ["49_wrong.mp3", "49b_tiktok_core.mp3"],
     ]
 
     /// The app's cursor. Main-thread only, like everything `dispatch` reaches.

@@ -64,11 +64,28 @@ else, so the whole method — the special cases above, the `durationMs` handed
 back, `playing` in `/state`, the log line — speaks about the file that is really
 being played and not the one that was asked for.
 
-Today the table holds one entry: **`19_fail.mp3` alternates with
+The first entry: **`19_fail.mp3` alternates with
 `20_fail2.mp3`**, run by run (19 → 20 → 19 → …). The same trombone joke was
 sitting on two squares of a 13-column board and the room only ever heard
 whichever one Victor's thumb landed on; now one button carries both takes and the
 second press of the evening is not the same noise as the first.
+
+**`49_wrong.mp3` alternates with `49b_tiktok_core.mp3`** (2026-11-05), the
+"TikTok Core" button from myinstants, 0.7 s long. The original buzzer lands on the
+strike; this one was asked to sound on the X once it stands complete, *"fix înainte
+ca X-urile să dispară"*. **The delay is 0.9 s of silence inside the mp3**, with no
+timer in the code: the press path starts `wrong-x` and the play path starts the
+file at the same moment, and the Bluetooth wake-up delays both by the same amount,
+so a file is the one clock they cannot disagree on. `showWrongX` draws for 0.5 s,
+holds to 1.54 s, then fades for 1.2 s; the note sounds from 0.96 s to 1.6 s, ending
+as the fade begins. **On the JBL it arrives ~0.55 s later** (the A2DP latency below),
+1.5–2.15 s, with the X half faded by its end. Changing that hold means re-cutting
+the lead-in. A clip with a lead-in of silence is also the cheapest way to delay any
+other partner, since `durationMs` and the stop path need no special case.
+
+A partner this Mac does not have is skipped and the key plays instead: the
+starter pack ships `49_wrong.mp3` and `19_fail.mp3` but neither partner, and until
+this check every second press of those tiles there was a 404.
 
 **`20_fail2.mp3` no longer has a tile at all** (2026-09-19). It kept square #20
 and its `N/A` label for a week — the grid is numbered `#NN` **by position**, so
