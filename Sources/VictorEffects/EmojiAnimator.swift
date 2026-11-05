@@ -9615,11 +9615,13 @@ class EmojiAnimator {
 
         // Sound first, then the clock — nothing slow between them.
         var lead: Double = 0
-        var clip = SpartaShield.fallbackDuration
+        // Silent, it answers the clip's length; played, the wait for the speaker is
+        // already in the number `playTabletSound` hands back.
+        var heard = SpartaShield.fallbackDuration
         if playSound {
             lead = SoundTimingConfig.shared.currentPictureDelay
             guard let played = SoundManager.shared.playTabletSound(SpartaShield.soundName, volume: volume) else { return 0 }
-            clip = played
+            heard = played
         }
         let begin = CACurrentMediaTime() + lead
 
@@ -9627,7 +9629,7 @@ class EmojiAnimator {
         container.frame = bounds
         container.masksToBounds = true
         stageLayer.addSublayer(container)
-        trackEffect(SpartaShield.effectName, layer: container, duration: lead + clip)
+        trackEffect(SpartaShield.effectName, layer: container, duration: lead + SpartaShield.lastVisible + 0.1)
 
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -9660,8 +9662,8 @@ class EmojiAnimator {
                 }
             }
         }
-        overlayInfo(String(format: "🛡️ sparta: %.1fs clip, %.2fs lead", clip, lead))
-        return lead + clip
+        overlayInfo(String(format: "🛡️ sparta: %.1fs clip, %.2fs lead", heard, lead))
+        return heard
     }
 
     // MARK: - 😇 Heaven (tile #61, Bocelli's Hallelujah)
