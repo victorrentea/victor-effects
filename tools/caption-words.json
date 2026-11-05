@@ -973,112 +973,119 @@
    "at": 0,
    "text": "I want it, I got it",
    "words": [
-    0.03,
+    0.0,
+    0.12,
     0.25,
-    0.46,
-    0.88,
-    1.11,
-    1.32
+    0.5,
+    0.71,
+    0.84
    ],
-   "confidence": "medium",
-   "note": "First of four repetitions, then the verse. Dense stacked vocal, so I fitted the 140-BPM 8th-note grid (beats at 0.245/0.675/1.105/1.535 from the kick+clap in the mix): I . want . it ... I . got . it. MMS (want 0.24-0.26, got 1.11-1.13, it 1.33) and librosa onsets (0.05, 0.28, 0.77, 1.14) agree; the next bar repeats exactly 1.71 s later (onsets 1.76, 2.0, 2.6, 2.81). Whisper's want 0.08 is early."
+   "lastWordEnd": 0.99,
+   "confidence": "high",
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind. Its first three words are wiped BEFORE the clip's cut (-0.39, -0.18, -0.05), so they are pulled just past 0 here and meet the video at the second I."
   },
   {
-   "at": 1.7,
+   "at": 1.3,
    "text": "I want it, I got it",
    "words": [
-    1.75,
-    1.97,
-    2.18,
-    2.6,
-    2.82,
-    3.04
+    1.35,
+    1.52,
+    1.68,
+    2.2,
+    2.42,
+    2.56
    ],
-   "confidence": "medium",
-   "note": "Second bar, 1.714 s on the same grid; stem onsets 1.76 2.0 2.6 2.81. Whisper's word ends sit just after each onset here, as on the first bar (1.80 2.08 2.28 2.66 2.88 3.14)."
+   "lastWordEnd": 2.69,
+   "confidence": "high",
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
   },
   {
-   "at": 3.42,
+   "at": 3.0,
    "text": "I want it, I got it",
    "words": [
-    3.48,
-    3.7,
-    3.9,
-    4.32,
-    4.55,
-    4.76
+    3.07,
+    3.25,
+    3.38,
+    3.93,
+    4.14,
+    4.26
    ],
-   "confidence": "medium",
-   "note": "Third bar; stem onsets 3.51 3.72 4.32 4.57, Whisper ends 3.50 3.76 4.02 4.40 4.64 4.86. Stacked harmonies make the tails useless here."
+   "lastWordEnd": 4.41,
+   "confidence": "high",
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
   },
   {
-   "at": 5.12,
+   "at": 4.7,
    "text": "I want it, I got it",
    "words": [
-    5.19,
-    5.4,
-    5.61,
-    6.03,
-    6.25,
-    6.46
+    4.77,
+    4.96,
+    5.12,
+    5.62,
+    5.81,
+    5.96
    ],
-   "confidence": "medium",
-   "note": "Fourth bar; stem onsets 5.2 5.43 6.04 6.25, Whisper ends 5.22 5.48 5.72 6.06 6.24 6.56."
+   "lastWordEnd": 6.11,
+   "confidence": "high",
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
   },
   {
-   "at": 6.7,
+   "at": 6.45,
    "text": "You like my hair?",
    "words": [
-    6.74,
-    6.96,
-    7.19,
-    7.76
+    6.49,
+    6.72,
+    7.34,
+    7.55
    ],
+   "lastWordEnd": 7.76,
    "confidence": "high",
-   "note": "Stem onset 6.73, Whisper 'you' ends 6.70. Tails to 8.2: from 6.85 still 'You', from 7.0 'like', from 7.2 'My hair'; 'my' is held to the rise at 7.76, and from 7.8 nothing."
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
   },
   {
-   "at": 8.46,
+   "at": 8.15,
    "text": "Gee, thanks, just bought it",
    "words": [
-    8.52,
-    8.82,
-    9.46,
-    9.72,
-    9.85
+    8.19,
+    8.38,
+    9.03,
+    9.23,
+    9.36
    ],
-   "confidence": "medium",
-   "note": "Tails to 9.25: from 8.5 'Gee, thanks', from 8.55 'Thanks'; dip 8.76-8.80 then 'thanks'. 'just' from 9.47 still, from 9.50 gone. Whisper on the stem says bought (0.76); the mix's 'got' is 0.29. Bought/it share 9.72-9.88, split on the small dip at 9.84, medium."
+   "lastWordEnd": 9.52,
+   "confidence": "high",
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
   },
   {
-   "at": 10.24,
+   "at": 9.85,
    "text": "I see it, I like it",
    "words": [
-    10.29,
-    10.52,
-    10.74,
-    11.13,
-    11.38,
-    11.57
+    9.88,
+    10.11,
+    10.24,
+    10.8,
+    10.97,
+    11.1
    ],
-   "confidence": "medium",
-   "note": "Same rhythm as the chorus, I at the bar's start: rises at 10.28 and 10.56, tails from 10.26 'I see it', from 10.38 'See ya'; second half stem onsets 11.12 11.4 11.56, from 11.12 'I like it', from 11.2 gone."
+   "lastWordEnd": 11.24,
+   "confidence": "high",
+   "note": "Read off the colour wipe of Party Tyme Karaoke's 7 rings (youtu.be/00UrlfCQD8Y), frame by frame: mean of its two choruses at 56.035 s and 152.035 s, aligned on the whole song (clip = album 150.999 s, karaoke = album + 1.035 s). A karaoke wipe leads the voice: ~0.4 s here, ~0.15 s on Sing King's (7BfhCUB_YkI). Victor, 2026-11-05: the fill was behind."
   },
   {
-   "at": 12.0,
+   "at": 11.55,
    "text": "I want it, I got it, yeah",
    "words": [
-    12.06,
-    12.26,
-    12.47,
-    12.88,
-    13.11,
-    13.32,
-    13.56
+    11.6,
+    11.8,
+    11.96,
+    12.52,
+    12.66,
+    12.84,
+    13.15
    ],
-   "lastWordEnd": 13.78,
-   "confidence": "medium",
-   "note": "Stem onsets 12.07 12.24, 12.89 13.1; 'it' 13.32 from the first bar's spacing. Yeah is the burst 13.56-13.76: Whisper on the whole stem says yeah, the cuts yup and yo."
+   "lastWordEnd": 13.44,
+   "confidence": "high",
+   "note": "As above, from the 152.035 s chorus alone: the only one with the yeah, and the one the clip is cut from."
   }
  ],
  "81_let_it_be.mp3": [
