@@ -11,7 +11,8 @@ import Foundation
 ///  - `SoundEffectMap.onPress` — the press path. The tablet reports the press,
 ///    the Mac fires the effect. Most tiles.
 ///  - `SoundEffectMap.playPathVisuals` — the effects whose cue sits at a fixed
-///    offset INSIDE the clip (the FBI's first bang at 22 ms). They are started from `EffectsEngine.playSound`, which
+///    offset INSIDE the clip (the microwave's BING at 2.695 s, the FBI's first
+///    bang at 22 ms). They are started from `EffectsEngine.playSound`, which
 ///    owns the audio, and are deliberately absent from `onPress` because a
 ///    second trigger would double-fire them.
 ///

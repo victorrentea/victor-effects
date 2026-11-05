@@ -7054,7 +7054,8 @@ class EmojiAnimator {
     /// the audio, and the pulse clock then started from whenever the async
     /// `screencapture` happened to finish — so every zoom landed a few hundred ms
     /// behind its thump, by a margin that changed from press to press. Sound and
-    /// visual now hang off one instant (`clock0`), the way the radar already did.
+    /// visual now hang off one instant (`clock0`), the way the radar and the
+    /// microwave already did.
     @discardableResult
     func showHeartbeat(playSound: Bool = false, volume: Float? = nil) -> TimeInterval {
         // A press PREEMPTS a running heartbeat rather than being swallowed by it.
@@ -7078,8 +7079,8 @@ class EmojiAnimator {
         // Start the audio FIRST and stamp the clock every pulse hangs off, before
         // anything slow (the capture) runs. On Bluetooth output `playTabletSound`
         // prepends `btComp` of warm-up silence, so the audio really starts that
-        // much later and the whole visual timeline shifts with it. Zero on
-        // wired/built-in output.
+        // much later and the whole visual timeline shifts with it — same bargain
+        // as the microwave. Zero on wired/built-in output.
         let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
         var soundDuration: TimeInterval = 0
         if playSound {
@@ -10217,7 +10218,7 @@ class EmojiAnimator {
     /// bangs, then holds while the FBI shouts.
     ///
     /// **The Mac plays the clip itself, from this same call** — same bargain as
-    /// the heartbeat. It used to arrive as a press→
+    /// the heartbeat and the microwave. It used to arrive as a press→
     /// `SoundEffectMap` visual while a *second* HTTP request started the audio,
     /// and the knock clock then started from whenever the async `screencapture`
     /// happened to finish, so the lurches trailed the bangs by a few hundred
@@ -10491,7 +10492,7 @@ class EmojiAnimator {
     /// simply not mentioned anywhere in the app, so the tile played a clip over
     /// an untouched desktop.
     ///
-    /// Like the FBI knock (and the heartbeat) **this owns its
+    /// Like the FBI knock (and the heartbeat, and the microwave) **this owns its
     /// own audio**: the first knock is 24 ms into the clip, far sooner than a
     /// capture can return, so the sound is started in the capture's completion
     /// and both halves hang off one `clock0`. That is also why the tile stays
@@ -11105,13 +11106,128 @@ class EmojiAnimator {
                     sound: playSound ? "76_sfx_118.mp3" : nil)
     }
 
+    // MARK: - Microwave (kitchen timer ticks, then the door swings open on the BING — sound #61)
+
+    /// Where the BING starts inside `61_dinner.mp3` — measured off the file as the
+    /// *beginning of the rising front* toward the peak (RMS crosses 10% of peak at
+    /// 2.695s, peak at 2.700s), which is the instant Victor asked the door to start
+    /// moving on. Everything before it is the timer ticking away at a closed
+    /// microwave; a constant is fine because the clip is fixed, and re-cutting it
+    /// means re-measuring this number.
+    private static let microwaveBingOnset: Double = 2.695
+
+    /// A cartoon microwave sits translucent in the middle of the desktop while a
+    /// kitchen timer ticks, then its door swings open exactly on the BING.
+    ///
+    /// The whole point is that one sync: the 16 source frames are NOT a loop —
+    /// frame 0 is the closed door and frame 15 the fully open one — so the layer
+    /// simply *holds frame 0* for the 2.695s of ticking and only then runs the
+    /// swing (0.64s at the gif's native 25fps), holding the open door through the
+    /// bell's decay before fading out with it.
+    ///
+    /// The art is pre-cropped to its content **symmetrically about the source
+    /// frame's centre**, so the closed microwave still sits dead-centre and the
+    /// door has room to swing out to the left; it is then fitted aspect-preserved
+    /// inside 80% of the screen and drawn at 85% opacity so the desktop reads
+    /// through it.
+    ///
+    /// `playSound` = this call owns the audio (the routed `/sound/play` path).
+    /// Returns the full length incl. any Bluetooth compensation, which
+    /// `onSoundPlay` reports back to the tablet as `durationMs`.
+    @discardableResult
+    func showMicrowave(playSound: Bool = true, volume: Float? = nil) -> TimeInterval {
+        _ = cancelIfRunning("microwave", sound: playSound ? "61_dinner.mp3" : nil)
+
+        guard let url = EffectsResources.url("microwave", "gif"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            overlayError("microwave.gif not found in bundle")
+            return 0
+        }
+        let count = CGImageSourceGetCount(source)
+        var images: [CGImage] = []
+        for i in 0..<count {
+            if let cg = CGImageSourceCreateImageAtIndex(source, i, nil) { images.append(cg) }
+        }
+        guard let closed = images.first else { return 0 }
+
+        // Live exactly as long as the timer clip; fall back to its measured length.
+        var duration: Double = 4.38
+        if let soundURL = SoundManager.shared.soundURL(for: "61_dinner.mp3") {
+            let d = AVURLAsset(url: soundURL).duration
+            if d.isNumeric { duration = CMTimeGetSeconds(d) }
+        }
+
+        // On Bluetooth output the audio is started `btComp` late (A2DP warm-up),
+        // so shift the ENTIRE visual timeline by the same amount — otherwise the
+        // door would fly open most of a second before the BING reached the
+        // speaker, which is the one thing this effect must never do. Zero on
+        // wired/built-in output. `playTabletSound` applies the same delay to the
+        // audio itself, so we must NOT add it there a second time.
+        let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0
+        let clock0 = CACurrentMediaTime() + btComp
+
+        let bounds = hostLayer.bounds
+        let aspect = CGFloat(closed.width) / CGFloat(closed.height)
+        var w = bounds.width * 0.8
+        var h = w / aspect
+        if h > bounds.height * 0.8 {
+            h = bounds.height * 0.8
+            w = h * aspect
+        }
+
+        let layer = CALayer()
+        layer.frame = CGRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
+        layer.contentsGravity = .resizeAspect
+        layer.contents = closed              // model value: door shut, all through the ticking
+        layer.opacity = Self.microwaveOpacity
+        stageLayer.addSublayer(layer)
+
+        let fadeIn = CABasicAnimation(keyPath: "opacity")
+        fadeIn.fromValue = 0.0
+        fadeIn.toValue = Self.microwaveOpacity
+        fadeIn.beginTime = clock0
+        fadeIn.duration = 0.25
+        fadeIn.fillMode = .backwards         // invisible until the (BT-shifted) start
+        layer.add(fadeIn, forKey: "microwaveFadeIn")
+
+        // THE sync point: the swing begins on the leading edge of the BING and
+        // stays on the last frame afterwards (.forwards, not removed).
+        let swing = CAKeyframeAnimation(keyPath: "contents")
+        swing.values = images
+        swing.duration = Double(images.count) * 0.04   // the gif's own 25fps
+        swing.beginTime = clock0 + Self.microwaveBingOnset
+        swing.calculationMode = .discrete               // step frames, never cross-fade
+        swing.fillMode = .forwards
+        swing.isRemovedOnCompletion = false
+        layer.add(swing, forKey: "microwaveDoor")
+
+        let fadeOut = CABasicAnimation(keyPath: "opacity")
+        fadeOut.fromValue = Self.microwaveOpacity
+        fadeOut.toValue = 0.0
+        fadeOut.beginTime = clock0 + max(0, duration - 0.5)
+        fadeOut.duration = 0.5
+        fadeOut.fillMode = .forwards
+        fadeOut.isRemovedOnCompletion = false
+        layer.add(fadeOut, forKey: "microwaveFadeOut")
+
+        if playSound { _ = SoundManager.shared.playTabletSound("61_dinner.mp3", volume: volume) }
+        let total = btComp + duration
+        trackEffect("microwave", layer: layer, duration: total,
+                    sound: playSound ? "61_dinner.mp3" : nil)
+        return total
+    }
+
+    /// Translucent enough that the desktop reads through the microwave, opaque
+    /// enough that the flat cartoon art still holds its own colours.
+    private static let microwaveOpacity: Float = 0.85
+
     // MARK: - Universal minions (tile #14, 14_universal.mp3)
 
     /// The 14_universal.mp3 tile is the Universal fanfare WITHOUT the animated
     /// logo — the animation arrives as a matted frame sequence the Mac plays
     /// itself. The cue sits 24.0 s into the combined clip (`universal-minions.mp3`,
-    /// the tile's fanfare followed by the clip's own tail), so like the radar
-    /// the effect must own the audio: the press path cannot know
+    /// the tile's fanfare followed by the clip's own tail), so like the radar and
+    /// the microwave the effect must own the audio: the press path cannot know
     /// when the handover is, and the routed /sound/play path plays the clip AND
     /// stamps this visual's clock in one call.
     ///
@@ -11157,7 +11273,7 @@ class EmojiAnimator {
 
         // On Bluetooth output `playTabletSound` prepends `btComp` of warm-up
         // silence, so the audio really starts that much later and the whole
-        // visual timeline shifts with it. The
+        // visual timeline shifts with it — same bargain as the microwave. The
         // audio is the one half that must not silently fail: with no clip to
         // play, answer 0 so the tablet falls back to its own local copy.
         let btComp = playSound ? SoundTimingConfig.shared.currentBluetoothCompensation : 0

@@ -118,7 +118,8 @@ enum SoundEffectMap {
         // Tile 61 (Bocelli's Hallelujah, since 2026-09-25; plain until
         // 2026-10-22): light comes down from heaven — a warm glow and god-rays
         // over the top edge, golden motes, three 👼 — see-through, for the
-        // length of the clip.
+        // length of the clip. (The ⏲️ microwave that used to be #61 is still an
+        // effect, /effect/microwave, just no longer a tile's.)
         "61_hallelujah.mp3":     "heaven",
         // Tile 34: a phoenix rises up the desktop with its cry. The tablet's
         // paired `34_phoenix.mp3` is silent; the real sound (`phoenix.mp3`) is a
@@ -178,7 +179,7 @@ enum SoundEffectMap {
         // effect is driven from the routed /sound/play path (onSoundPlay),
         // which plays the beep-synced audio itself — mapping the press too
         // would double-trigger it.
-        // 14_universal.mp3 is NOT here either, for the radar's reason: the
+        // 14_universal.mp3 is NOT here either, for the microwave's reason: the
         // minions animation enters 23.83 s INTO the combined clip (the tile's
         // fanfare hands over to the clip's own tail), so the visual must own
         // the audio and hang off the same clock. Driven from the routed
