@@ -2937,6 +2937,16 @@ class EmojiAnimator {
 
         let container = CALayer()
         container.frame = bounds
+        if let url = EffectsConfig.shared.assetURL(CricketMoon.backdropName),
+           let stroke = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let placed = CricketMoon.onBackdrop(video.frame, in: bounds)
+            let backdrop = CALayer()
+            backdrop.frame = placed.backdrop
+            backdrop.contents = stroke
+            backdrop.contentsGravity = .resize
+            container.addSublayer(backdrop)
+            video.frame = placed.video
+        }
         container.addSublayer(video)
         let fade = CAKeyframeAnimation(keyPath: "opacity")
         fade.values = [0, 1, 1, 0]
