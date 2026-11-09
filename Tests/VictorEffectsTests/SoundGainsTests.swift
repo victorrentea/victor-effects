@@ -53,7 +53,7 @@ final class SoundGainsTests: XCTestCase {
         XCTAssertEqual(SoundGains.position(of: "04_wolf.mp3"), 80)
         XCTAssertEqual(SoundGains.gain(for: "04_wolf.mp3"), 1, accuracy: 0.0001)
         XCTAssertEqual(SoundGains.position(of: "18_chainsaw.mp3"), 25, "an attenuated row keeps its exact gain")
-        XCTAssertFalse(String(decoding: try Data(contentsOf: scratch), as: UTF8.self).contains("wolf"))
+        XCTAssertFalse(SoundGains.json.contains("wolf"), "gone from the table, and so from the next save")
     }
 
     func testTheBarCannotBeSetAboveTheTick() {

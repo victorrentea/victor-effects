@@ -112,15 +112,14 @@ enum SoundGains {
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let stored = obj["gains"] as? [String: Int] else { return [:] }
         // Rows from the days the bar went past ×1 (above 80) come back at ×1.0:
-        // the row is dropped, and the file rewritten so it says so too.
+        // the row is dropped here, and from the file at the next save. Not
+        // written back from a load — a test pointing this at the real file
+        // must not be what edits it.
         let above = stored.filter { $0.value > defaultPct }
         guard !above.isEmpty else { return stored }
         effectsInfo("🔉 clamped to 100% (×1.0, nothing plays louder than its file now): "
             + above.keys.sorted().map { "\($0) was \(above[$0]!)" }.joined(separator: ", "))
-        let kept = stored.filter { $0.value < defaultPct }
-        let body = kept.keys.sorted().map { "\"\($0)\":\(kept[$0]!)" }.joined(separator: ",")
-        try? Data("{\"gains\":{\(body)},\"defaultPct\":\(defaultPct)}".utf8).write(to: storageURL, options: .atomic)
-        return kept
+        return stored.filter { $0.value < defaultPct }
     }
 
     private static func save() {
