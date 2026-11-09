@@ -24,8 +24,8 @@ import Foundation
 ///   amplitude, so `p = 80 × 10^((R − M) / 40)`: one 4 dB louder sits at ~64
 ///   ("79%"). Only positions below 80 are served — the ▲ is a turn-it-down hint.
 /// - **Quieter than `R`** → `recommendedBoostDb`: the ＋ presses (1.5 dB each)
-///   that would lift it to `R`, rounded to whole presses; none when that rounds
-///   to zero.
+///   that would lift it to `R`, rounded to whole presses (at most the ＋'s
+///   +12 dB); none when that rounds to zero.
 ///
 /// Recomputed when the inputs move — `soundsHash`, `tilesHash`, the
 /// `videos.json` in `videosDir`, or a ＋ render landing — off the main thread,
@@ -53,7 +53,8 @@ enum RecommendedVolumes {
     /// Whole ＋ presses that lift a clip at `m` to `r`, in dB; 0 when none.
     static func boostDb(max m: Double, reference r: Double) -> Double {
         guard r > m else { return 0 }
-        return (((r - m) / DiskBoosts.stepDb).rounded()) * DiskBoosts.stepDb
+        // Never more than the ＋ can give: past that, the advice is "all of it".
+        return min(DiskBoosts.maxDb, (((r - m) / DiskBoosts.stepDb).rounded()) * DiskBoosts.stepDb)
     }
 
     /// The trim `SoundManager` always applies to `file`, in dB.

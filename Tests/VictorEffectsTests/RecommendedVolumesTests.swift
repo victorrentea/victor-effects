@@ -67,6 +67,7 @@ final class RecommendedVolumesTests: XCTestCase {
         XCTAssertEqual(RecommendedVolumes.boostDb(max: -14.4, reference: -12), 3, "2.4 dB is closer to two presses")
         XCTAssertEqual(RecommendedVolumes.boostDb(max: -12.5, reference: -12), 0)
         XCTAssertEqual(RecommendedVolumes.boostDb(max: -10, reference: -12), 0)
+        XCTAssertEqual(RecommendedVolumes.boostDb(max: -40, reference: -12), DiskBoosts.maxDb, "no more than the ＋ gives")
     }
 
     func testTheRainTrimIsCounted() {
