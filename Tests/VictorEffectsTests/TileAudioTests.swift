@@ -9,13 +9,44 @@ final class TileAudioTests: XCTestCase {
     private let all: (String) -> Bool = { _ in true }
 
     func testTheTilesThatPlayAnotherFile() {
-        XCTAssertEqual(TileAudio.files(forTile: "31_tarzan.mp3", exists: all), ["50_gong.mp3"])
-        XCTAssertEqual(TileAudio.files(forTile: "53_rain.mp3", exists: all), ["57_checkmark.mp3"])
+        XCTAssertEqual(TileAudio.files(forTile: "31_tarzan.mp3", exists: all), ["iris_gong.mp3"])
+        XCTAssertEqual(TileAudio.files(forTile: "53_rain.mp3", exists: all), ["money_ching.mp3"])
         XCTAssertEqual(TileAudio.files(forTile: "14_universal.mp3", exists: all), ["universal-minions.mp3"])
         XCTAssertEqual(TileAudio.files(forTile: "09_ave_maria.mp3", exists: all), [PrayController.tabletHymn])
         XCTAssertEqual(TileAudio.files(forTile: "09_ave_maria.mp3", exists: { $0 == PrayController.hymn }), [PrayController.hymn],
                        "the hymn the player falls back to")
         XCTAssertEqual(TileAudio.files(forTile: "01_baby.mp3", exists: all), ["01_baby.mp3"])
+    }
+
+    /// #31/#53 have their own files, so a ＋ on one never reaches #50/#57 —
+    /// and the other way round. Only without the copies (the starter pack) do
+    /// they borrow the other tile's file again, rather than go silent.
+    func testNoTwoTilesShareAFile() {
+        let tiles = ["31_tarzan.mp3", "50_gong.mp3", "53_rain.mp3", "57_checkmark.mp3"]
+        let heard = tiles.map { TileAudio.files(forTile: $0, exists: all) }
+        XCTAssertEqual(Set(heard.flatMap { $0 }).count, 4, "\(heard)")
+        XCTAssertEqual(TileAudio.owningTile(ofFile: "iris_gong.mp3", tiles: tiles), "31_tarzan.mp3")
+        XCTAssertEqual(TileAudio.owningTile(ofFile: "money_ching.mp3", tiles: tiles), "53_rain.mp3")
+        XCTAssertEqual(TileAudio.owningTile(ofFile: "50_gong.mp3", tiles: tiles), "50_gong.mp3")
+        let starterPack: (String) -> Bool = { !["iris_gong.mp3", "money_ching.mp3"].contains($0) }
+        XCTAssertEqual(TileAudio.files(forTile: "31_tarzan.mp3", exists: starterPack), ["50_gong.mp3"])
+        XCTAssertEqual(TileAudio.files(forTile: "53_rain.mp3", exists: starterPack), ["57_checkmark.mp3"])
+    }
+
+    /// The copies are the same audio as the tiles they were taken from, in the
+    /// sounds folder this Mac plays from (skipped where it is not checked out).
+    func testTheOwnCopiesAreTheSameAudio() throws {
+        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("victor-vibe-board/app/src/main/assets")
+        guard FileManager.default.fileExists(atPath: dir.appendingPathComponent("50_gong.mp3").path) else {
+            throw XCTSkip("no victor-vibe-board checkout beside this one")
+        }
+        for (own, shared) in [("iris_gong.mp3", "50_gong.mp3"), ("money_ching.mp3", "57_checkmark.mp3")] {
+            let a = try Data(contentsOf: dir.appendingPathComponent(own))
+            let b = try Data(contentsOf: dir.appendingPathComponent(shared))
+            XCTAssertEqual(a, b, "\(own) must be \(shared), byte for byte")
+        }
     }
 
     func testAnAlternatingTileIsHeardAsBothTakes() {
@@ -38,7 +69,7 @@ final class TileAudioTests: XCTestCase {
         let text = try String(contentsOf: src, encoding: .utf8)
         let start = try XCTUnwrap(text.range(of: "func playSound(_ name: String"))
         let body = String(text[start.lowerBound...])
-        let constants = ["TileAudio.irisSound": TileAudio.irisSound, "TileAudio.moneySound": TileAudio.moneySound,
+        let constants = ["TileAudio.irisSound": TileAudio.irisSound(exists: all), "TileAudio.moneySound": TileAudio.moneySound(exists: all),
                          "TileAudio.universalSound": TileAudio.universalSound]
         let branch = try NSRegularExpression(pattern: #"if name == "([^"]+)""#)
         let play = try NSRegularExpression(pattern: #"play(?:Overlapping)?TabletSound(?:Clipped)?\(\s*("([^"]+)"|TileAudio\.\w+)"#)

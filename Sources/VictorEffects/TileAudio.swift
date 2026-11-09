@@ -8,29 +8,48 @@ import Foundation
 /// actually heard when that tile is pressed").
 ///
 /// Most tiles are heard as their own mp3. The exceptions:
-/// - a tile that plays ANOTHER file (#31's iris rings the gong, #53's money
-///   the "ching", #14 the minions' cut, #9 the long hymn, #34 the phoenix's cry);
+/// - a tile that plays ANOTHER file (#31's iris rings a gong, #53's money a
+///   "ching", #14 the minions' cut, #9 the long hymn, #34 the phoenix's cry);
 /// - a tile that alternates between two takes (`AlternatingSounds`) — both
 ///   files, the ▲ follows the louder;
 /// - a tile whose sound is made in code (none today: the sonar plays
 ///   `23_radar.mp3`) — `synthesized`, no file, no hint.
 ///
-/// A file shared by two tiles (the gong: #31 and #50; the "ching": #53 and #57)
-/// is boosted per FILE, so a ＋ on either is heard on both.
+/// **No two tiles share a file** (Victor, 2026-11-09): #31 and #53 used to
+/// borrow #50's gong and #57's ching, so a ＋ (boosted per FILE) on one was heard
+/// on the other too. Each now has its own copy in the sounds folder —
+/// `iris_gong.mp3` (= `50_gong.mp3`) and `money_ching.mp3` (= `57_checkmark.mp3`),
+/// byte for byte the same audio — and borrows the other tile's file only on a
+/// machine whose sounds folder lacks the copy (the public starter pack), where
+/// the ＋ is then shared again rather than the tile going silent.
 /// `TileAudioDriftTests` parses `EffectsEngine.playSound` and fails on a tile
 /// that plays a literal file this table does not know about.
 enum TileAudio {
-    static let irisSound = "50_gong.mp3"            // #31
-    static let moneySound = "57_checkmark.mp3"      // #53
+    /// #31's and #53's own files, and the tiles' files they fall back to.
+    static let irisOwnSound = "iris_gong.mp3"
+    static let irisSharedSound = "50_gong.mp3"
+    static let moneyOwnSound = "money_ching.mp3"
+    static let moneySharedSound = "57_checkmark.mp3"
     static let universalSound = "universal-minions.mp3"  // #14
+
+    private static let onDisk: (String) -> Bool = { SoundManager.shared.originalURL(for: $0) != nil }
+
+    /// The file #31 plays: its own copy, else #50's gong.
+    static func irisSound(exists: (String) -> Bool = onDisk) -> String {
+        exists(irisOwnSound) ? irisOwnSound : irisSharedSound
+    }
+    /// The file #53 plays: its own copy, else #57's ching.
+    static func moneySound(exists: (String) -> Bool = onDisk) -> String {
+        exists(moneyOwnSound) ? moneyOwnSound : moneySharedSound
+    }
+    static var irisSound: String { irisSound() }
+    static var moneySound: String { moneySound() }
 
     /// Tiles whose sound is generated in code: no file to measure or boost.
     static let synthesized: Set<String> = []
 
-    /// The fixed remaps (the two that pick a file at play time are below).
+    /// The fixed remaps (the ones that pick a file at play time are below).
     static let remaps: [String: [String]] = [
-        "31_tarzan.mp3": [irisSound],
-        "53_rain.mp3": [moneySound],
         "14_universal.mp3": [universalSound],
     ]
 
@@ -42,6 +61,10 @@ enum TileAudio {
         if let cycle = AlternatingSounds.defaultTable[tile] { return cycle }
         if let r = remaps[tile] { return r }
         switch tile {
+        case "31_tarzan.mp3":
+            return [irisSound(exists: exists)]
+        case "53_rain.mp3":
+            return [moneySound(exists: exists)]
         case PrayController.tile:
             // `PrayController.startHymn`: the tablet take, else the long, else the short.
             return [PrayController.tabletHymn, PrayController.hymn, PrayController.shortHymn]

@@ -758,7 +758,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   a plain **💸 emoji on white** but keeps its asset id `53_rain.mp3` (so the
   routing protocol/manifest are unchanged). `onSoundPlay` **special-cases
   `53_rain.mp3`** (like the radar): it fires `showMoneyRise()` and plays the
-  **#57 checkmark "ching"** (`57_checkmark.mp3`) instead of the original rain,
+  **#57 checkmark "ching"** — since 2026-11-09 **its own copy, `money_ching.mp3`**
+  (byte-identical to `57_checkmark.mp3`, so a ＋ on one never reaches the other) — instead of the original rain,
   returning the checkmark's duration. `showMoneyRise` swarms ~16 money emojis
   (`💸💵💰🤑`) **up from the bottom edge to off the top**, swaying + tumbling
   while fading out — **one round per press ("ching")**. It is a fire-and-forget,
@@ -1203,7 +1204,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   the **press path** drives the visual, so it isn't double-triggered. **Paired
   sound:** the iris was originally soundless, but to keep **every** tablet
   thumbnail audible on the Mac, `onSoundPlay` now special-cases `31_tarzan.mp3` to
-  play the **dramatic gong** (`50_gong.mp3`, ~8.6s ≈ the iris length) — like
+  play the **dramatic gong** (~8.6s ≈ the iris length) — since 2026-11-09 from
+  **its own copy, `iris_gong.mp3`** (byte-identical to #50's `50_gong.mp3`), so a ＋ or a
+  ▲ on #31 never changes #50 and the other way round (`TileAudio`) — like
   radar/money, the routed play path owns the sound while the press path owns the
   visual. `showIrisClose` itself stays silent (the CALayer effect plays no audio).
   `showIrisClose` overlays a **radial
