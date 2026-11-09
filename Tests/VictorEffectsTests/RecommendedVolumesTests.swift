@@ -131,10 +131,11 @@ final class RecommendedVolumesTests: XCTestCase {
             .appendingPathComponent("victor-macos-addons/videos")
     }
 
-    /// Clips with nothing to hear, on purpose: #34's mp3 is a placeholder (the
-    /// effect plays the cry), two snippets have no audio track and one a silent one. They get no
+    /// Clips with nothing to hear, on purpose: two snippets have no audio track
+    /// and one a silent one. (#34's mp3 is a silent placeholder too, but the
+    /// tile is heard as the phoenix's cry — `TileAudio`.) They get no
     /// hint and stay out of the mean.
-    static let silentByDesign: Set<String> = ["34_phoenix.mp3", "video:slopGrenade", "video:npmInstall", "video:seniorDev"]
+    static let silentByDesign: Set<String> = ["video:slopGrenade", "video:npmInstall", "video:seniorDev"]
 
     /// Every tile and every video snippet is measured — a decode failure or a
     /// clip the inputs forgot fails the build, with its name.
@@ -143,8 +144,9 @@ final class RecommendedVolumesTests: XCTestCase {
         let soundsDir = EffectsConfig.shared.soundsDir
         let tilesData = try XCTUnwrap(FileManager.default.contents(atPath: soundsDir.appendingPathComponent("tiles.json").path))
         let tiles = try XCTUnwrap(TilesManifest.parse(tilesData)).tiles
-        var clips = RecommendedVolumes.soundClips(tiles: tiles, soundsDir: soundsDir)
+        var clips = RecommendedVolumes.soundClips(tiles: tiles)
         var expected = Set(tiles.flatMap { [$0.asset] + ($0.under.map { [$0.asset] } ?? []) })
+            .subtracting(TileAudio.synthesized)
         var videoKeys = Set<String>()
         if let data = FileManager.default.contents(atPath: videosDir.appendingPathComponent("videos.json").path) {
             let v = RecommendedVolumes.videoClips(manifest: data, videosDir: videosDir)

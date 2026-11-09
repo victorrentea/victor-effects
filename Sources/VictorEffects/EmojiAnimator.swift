@@ -4768,7 +4768,7 @@ class EmojiAnimator {
         playMinigunDrawSound()
         // Wired now, played on the trigger: a pull must not wait for an engine.
         if let url = SoundManager.shared.soundURL(for: "22_minigun.mp3") {
-            _minigunFireSound = AK47FireSound(url: url)
+            _minigunFireSound = AK47FireSound(url: url, gain: SoundManager.shared.tileGain(forFile: "22_minigun.mp3"))
         }
 
         let now = CACurrentMediaTime()
@@ -5355,7 +5355,7 @@ class EmojiAnimator {
         // tablet's `/sound/play/18_chainsaw.mp3` plays nothing (EffectsEngine),
         // because a clip that ends by itself cannot idle until Escape.
         if let url = SoundManager.shared.soundURL(for: "18_chainsaw.mp3") {
-            _chainsawSound = ChainsawSound(url: url)
+            _chainsawSound = ChainsawSound(url: url, gain: SoundManager.shared.tileGain(forFile: "18_chainsaw.mp3"))
             if _chainsawSound == nil { overlayError("🪚 could not build the engine loops from 18_chainsaw.mp3") }
         }
 
@@ -11136,14 +11136,14 @@ class EmojiAnimator {
     /// `skip` starts the clip that many seconds in (the `/preview` test path
     /// passes cue − 1 s), shifting the whole visual timeline with it.
     func showUniversalMinions(playSound: Bool = false, volume: Float? = nil, skip: TimeInterval = 0) -> TimeInterval {
-        _ = cancelIfRunning("universal-minions", sound: playSound ? "universal-minions.mp3" : nil)
+        _ = cancelIfRunning("universal-minions", sound: playSound ? TileAudio.universalSound : nil)
 
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return 0 }
 
         // Live exactly as long as the combined clip; fall back to its known length.
         var duration: Double = Self.universalMinionsClipDuration
-        if let soundURL = SoundManager.shared.soundURL(for: "universal-minions.mp3") {
+        if let soundURL = SoundManager.shared.soundURL(for: TileAudio.universalSound) {
             let d = AVURLAsset(url: soundURL).duration
             if d.isNumeric { duration = CMTimeGetSeconds(d) }
         }
@@ -11156,7 +11156,7 @@ class EmojiAnimator {
         // play, answer 0 so the tablet falls back to its own local copy.
         let btComp = playSound ? SoundTimingConfig.shared.currentPictureDelay : 0
         if playSound {
-            guard SoundManager.shared.playTabletSound("universal-minions.mp3", volume: volume, startAt: skip) != nil else {
+            guard SoundManager.shared.playTabletSound(TileAudio.universalSound, volume: volume, startAt: skip) != nil else {
                 return 0
             }
         }

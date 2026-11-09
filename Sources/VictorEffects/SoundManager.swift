@@ -109,7 +109,20 @@ class SoundManager {
     /// Everything on top of `tabletVolume` for `filename`: the file's mastering
     /// trim times the pressed tile's own volume.
     private func clipGain(_ filename: String) -> Float {
-        (Self.fileGain[filename] ?? 1.0) * SoundGains.gain(for: routedTile ?? filename)
+        (Self.fileGain[filename] ?? 1.0) * tileGain(forFile: filename)
+    }
+
+    /// 🔉 The per-tile bar's gain for a file about to play: the pressed tile's
+    /// when a press is in flight (`routedTile`), else the tile that file is
+    /// heard for (`TileAudio.owningTile`) — so a sound a special path starts
+    /// later, from a timer (the FBI knock after its capture, the fire on its
+    /// first click, the minions' cut), still follows its tile's bar. 1 for a
+    /// file no tile plays (clicks, whip cracks). Main thread.
+    func tileGain(forFile filename: String) -> Float {
+        if let tile = routedTile { return SoundGains.gain(for: tile) }
+        let tiles = TilesManifest.load()?.doc.tiles.flatMap { [$0.asset] + ($0.under.map { [$0.asset] } ?? []) } ?? []
+        guard let tile = TileAudio.owningTile(ofFile: filename, tiles: tiles) else { return 1 }
+        return SoundGains.gain(for: tile)
     }
 
     /// What a clip on `tile` would play at, for a player kept outside this
@@ -284,7 +297,19 @@ class SoundManager {
         }
     }
 
+    /// The file to PLAY for `filename`: its ＋ render when the clip was made
+    /// louder on disk (`DiskBoosts`), else the original. Every path that plays a
+    /// tile's sound — the routed one and the special ones in `EmojiAnimator`
+    /// (FBI, heartbeat, chainsaw, the minigun, the hymn…) — resolves its file
+    /// here, so a ＋ is heard however the tile plays (Victor, 2026-11-09).
     func soundURL(for filename: String) -> URL? {
+        if let render = DiskBoosts.shared.renderURL(forFile: filename) { return render }
+        return originalURL(for: filename)
+    }
+
+    /// Where `filename` itself lives — soundsDir, then assetsDir, then the
+    /// bundle. What gets measured and what a ＋ is rendered FROM.
+    func originalURL(for filename: String) -> URL? {
         if let dir = Self.sharedSoundsDir() {
             let shared = dir.appendingPathComponent(filename)
             if FileManager.default.fileExists(atPath: shared.path) { return shared }
@@ -349,7 +374,7 @@ class SoundManager {
             do {
                 let player = try SoundManager.player(contentsOf: url)
                 player.numberOfLoops = -1
-                player.volume = 1.0
+                player.volume = self.tileGain(forFile: filename)
                 player.prepareToPlay()
                 self.players[filename] = player
                 self.startWithBluetoothCompensation(player)
@@ -388,7 +413,7 @@ class SoundManager {
 
             do {
                 let player = try SoundManager.player(contentsOf: url)
-                player.volume = max(0.0, min(1.0, volume))
+                player.volume = max(0.0, min(1.0, volume * self.tileGain(forFile: filename)))
                 if rate != 1.0 {
                     player.enableRate = true
                     player.rate = rate
@@ -437,7 +462,7 @@ class SoundManager {
             }
             do {
                 let player = try SoundManager.player(contentsOf: url)
-                let level = max(0.0, min(1.0, volume))
+                let level = max(0.0, min(1.0, volume * self.tileGain(forFile: filename)))
                 player.volume = fadeIn > 0 ? 0 : level
                 player.prepareToPlay()
                 if startAt > 0 { player.currentTime = min(startAt, max(0, player.duration - 0.05)) }
@@ -480,7 +505,7 @@ class SoundManager {
             }
             do {
                 let player = try SoundManager.player(contentsOf: url)
-                player.volume = max(0.0, min(1.0, volume))
+                player.volume = max(0.0, min(1.0, volume * self.tileGain(forFile: filename)))
                 player.prepareToPlay()
                 self.overlappingPlayers.append(player)
                 let comp = self.startWithBluetoothCompensation(player, length: seconds)
@@ -523,9 +548,8 @@ class SoundManager {
         }
         do {
             let gain = clipGain(filename)
-            // ＋ The tile's louder render when it has one ready, else the file itself.
-            let playURL = DiskBoosts.shared.playURL(tile: routedTile ?? filename, file: url)
-            let player = try SoundManager.player(contentsOf: playURL)
+            // `url` is already the ＋ render when the clip has one (`soundURL`).
+            let player = try SoundManager.player(contentsOf: url)
             player.volume = min(1, tabletVolume * gain)
             player.prepareToPlay()
             if startAt > 0 { player.currentTime = min(startAt, player.duration) }
@@ -577,9 +601,8 @@ class SoundManager {
         }
         do {
             let gain = clipGain(filename)
-            // ＋ The tile's louder render when it has one ready, else the file itself.
-            let playURL = DiskBoosts.shared.playURL(tile: routedTile ?? filename, file: url)
-            let player = try SoundManager.player(contentsOf: playURL)
+            // `url` is already the ＋ render when the clip has one (`soundURL`).
+            let player = try SoundManager.player(contentsOf: url)
             player.volume = min(1, tabletVolume * gain)
             player.prepareToPlay()
             installTabletClip(player, tile: routedTile ?? filename, file: filename, gain: gain)

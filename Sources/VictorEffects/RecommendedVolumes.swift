@@ -72,37 +72,33 @@ enum RecommendedVolumes {
         let files: [URL]
         var start: Double = 0
         var end: Double? = nil
+        /// A render → the original's name, for its `fileGain`.
+        var trimNames: [URL: String] = [:]
     }
 
     /// A clip as it plays now: each original swapped for its ＋ render, if any
     /// (`renders`: original file name → render). A render is the window already.
+    /// Nil when none of its files has one.
     static func current(_ clip: Clip, renders: [String: URL]) -> Clip? {
-        guard !renders.isEmpty else { return nil }
+        guard clip.files.contains(where: { renders[$0.lastPathComponent] != nil }) else { return nil }
         let files = clip.files.map { renders[$0.lastPathComponent] ?? $0 }
+        var trims: [URL: String] = [:]
+        for f in clip.files { if let r = renders[f.lastPathComponent] { trims[r] = f.lastPathComponent } }
         let windowed = clip.end != nil && files.allSatisfy { renders.values.contains($0) }
-        return windowed ? Clip(key: clip.key, files: files) : Clip(key: clip.key, files: files, start: clip.start, end: clip.end)
+        return windowed ? Clip(key: clip.key, files: files, trimNames: trims)
+            : Clip(key: clip.key, files: files, start: clip.start, end: clip.end, trimNames: trims)
     }
 
-    /// The files a tile's press really plays: the alternating takes
-    /// (`AlternatingSounds`), and the two tiles that play another file outright
-    /// (`EffectsEngine.playSound`: #31's iris rings the gong, #53's money the "ching").
-    static func playedFiles(forTile asset: String) -> [String] {
-        if let cycle = AlternatingSounds.defaultTable[asset] { return cycle }
-        switch asset {
-        case "31_tarzan.mp3": return ["50_gong.mp3"]
-        case "53_rain.mp3": return ["57_checkmark.mp3"]
-        default: return [asset]
-        }
-    }
-
-    static func soundClips(tiles: [Tile], soundsDir: URL) -> [Clip] {
+    /// The files a tile's press is heard as — `TileAudio`, the one table the
+    /// players read too. A tile with no file (sound made in code) has no clip.
+    static func soundClips(tiles: [Tile], resolve: (String) -> URL? = { SoundManager.shared.originalURL(for: $0) }) -> [Clip] {
         var seen = Set<String>()
         var out: [Clip] = []
         for tile in tiles.flatMap({ [$0] + ($0.under.map { [$0] } ?? []) }) where seen.insert(tile.asset).inserted {
-            let files = playedFiles(forTile: tile.asset)
-                .map { soundsDir.appendingPathComponent($0) }
-                .filter { FileManager.default.fileExists(atPath: $0.path) }
-            out.append(Clip(key: tile.asset, files: files.isEmpty ? [soundsDir.appendingPathComponent(tile.asset)] : files))
+            let names = TileAudio.files(forTile: tile.asset, exists: { resolve($0) != nil })
+            guard !names.isEmpty else { continue }
+            let files = names.map { resolve($0) ?? URL(fileURLWithPath: "/missing").appendingPathComponent($0) }
+            out.append(Clip(key: tile.asset, files: files))
         }
         return out
     }
@@ -146,9 +142,8 @@ enum RecommendedVolumes {
                 switch cache.value(for: url, start: clip.start, end: clip.end) {
                 case .failure(let e): failure = "\(url.lastPathComponent): \(e)"
                 case .success(let v):
-                    // The trim belongs to the ORIGINAL's name; a render is named after it.
-                    let original = url.pathExtension == "wav" && url.lastPathComponent.contains(".+")
-                        ? String(url.lastPathComponent.prefix { $0 != "." }) + ".mp3" : url.lastPathComponent
+                    // The trim belongs to the ORIGINAL's name (`trimNames`), which a render lacks.
+                    let original = clip.trimNames[url] ?? url.lastPathComponent
                     if let v { best = max(best ?? -.infinity, v + fileTrimDb(original)) }
                 }
             }
@@ -218,24 +213,23 @@ enum RecommendedVolumes {
     static func refreshIfStale() {
         let soundsHash = SoundsManifest.cachedCombinedHash
         guard !soundsHash.isEmpty, !computing else { return }
-        let renders = Dictionary(uniqueKeysWithValues: DiskBoosts.shared.ready.keys.map { ($0, DiskBoosts.shared.renders($0)) })
+        let renders = DiskBoosts.shared.allRenders
         let key = "\(algorithmVersion)|\(soundsHash)|\(TilesManifest.tilesHash)|\(stamp(videosManifestURL))|"
-            + renders.keys.sorted().map { "\($0)=\(renders[$0]!.values.map(\.lastPathComponent).sorted())" }.joined(separator: ",")
+            + renders.values.map(\.lastPathComponent).sorted().joined(separator: ",")
         guard key != currentKey else { return }
         guard let tiles = TilesManifest.load()?.doc.tiles else { return }
-        let soundsDir = EffectsConfig.shared.soundsDir
         let videosDir = EffectsConfig.shared.videosDir
         let cache = cacheFile
         computing = true
         DispatchQueue.global(qos: .utility).async {
             let started = Date()
-            var clips = soundClips(tiles: tiles, soundsDir: soundsDir)
+            var clips = soundClips(tiles: tiles)
             if let videosDir, let data = FileManager.default.contents(atPath: videosDir.appendingPathComponent("videos.json").path) {
                 clips += videoClips(manifest: data, videosDir: videosDir)
             }
             var c = LoudnessCache(file: cache)
             let results = measure(clips, cache: &c)
-            let now = measure(clips.compactMap { current($0, renders: renders[$0.key] ?? [:]) }, cache: &c)
+            let now = measure(clips.compactMap { current($0, renders: renders) }, cache: &c)
             c.save()
             let t = table(results, current: now)
             DispatchQueue.main.async {

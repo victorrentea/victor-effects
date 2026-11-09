@@ -66,7 +66,9 @@ final class AK47FireSound {
     private var sustaining = false
     private var stopped = false
 
-    init?(url: URL) {
+    /// `gain`: the tile's own volume bar (`SoundManager.tileGain(forFile:)`),
+    /// on the whole engine — this sound never passes through an `AVAudioPlayer`.
+    init?(url: URL, gain: Float = 1) {
         guard let file = try? AVAudioFile(forReading: url) else { return nil }
         let format = file.processingFormat
         let rate = format.sampleRate
@@ -109,6 +111,7 @@ final class AK47FireSound {
         delay.wetDryMix = 100                  // the send carries the echo only
         reverb.loadFactoryPreset(.largeHall)
         reverb.wetDryMix = 50
+        engine.mainMixerNode.outputVolume = max(0, min(1, gain))
         echoBus.outputVolume = Self.echoLevel
         do { try engine.start() } catch { return nil }
     }

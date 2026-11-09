@@ -765,14 +765,14 @@ final class EffectsEngine {
         // preempting) so hammering the tile stacks both.
         if name == "53_rain.mp3" {
             animator.showMoneyRise()
-            guard let duration = SoundManager.shared.playOverlappingTabletSound("57_checkmark.mp3", volume: volume) else { return nil }
+            guard let duration = SoundManager.shared.playOverlappingTabletSound(TileAudio.moneySound, volume: volume) else { return nil }
             return remember(Int(duration * 1000))
         }
         // Tile #31 (🕳️ iris close): silent by design, so it plays the gong
         // (~8.6 s ≈ the iris length) to keep every tile audible. The blackout is
         // driven by the press path.
         if name == "31_tarzan.mp3" {
-            guard let duration = SoundManager.shared.playTabletSound("50_gong.mp3", volume: volume) else { return nil }
+            guard let duration = SoundManager.shared.playTabletSound(TileAudio.irisSound, volume: volume) else { return nil }
             return remember(Int(duration * 1000))
         }
         // Tile #13 (💓 heartbeat): the zoom peaks on each measured onset.

@@ -6,25 +6,29 @@ import Foundation
 /// (`SoundGains`); this is how a quiet one comes up, without anything playing
 /// above ×1 at runtime.
 ///
-/// - **Always rendered from the ORIGINAL**, at the clip's total boost — never
+/// - **Per FILE, pressed per tile.** A press on a tile raises every file that
+///   tile is heard as (`TileAudio.files`: #31 → the gong, #19 → both takes,
+///   #9 → the long hymn), so what the ＋ changes is what the room hears. A file
+///   two tiles share (the gong: #31 and #50; the "ching": #53 and #57) is ONE
+///   boost — a ＋ on either is heard on both. A video's "file" is `video:<id>`:
+///   only the AUDIO of its played window (from `startSeconds`, the player's
+///   60 s), which addons lays over the untouched mp4 in an `AVMutableComposition`.
+///   The mp4 is never touched — the YouTube-publish guard fingerprints it.
+/// - **Always rendered from the ORIGINAL**, at the file's total boost — never
 ///   from the previous render, so ten presses are one gain stage, not ten (and
 ///   no codec generation loss: the render is 16-bit WAV). The original is never
 ///   overwritten or deleted; reset (long-press ＋) simply plays it again.
 /// - **Through a look-ahead peak limiter at −1 dBFS** (`ceiling`). How hard it
 ///   had to work is kept as `limitedDb` (the deepest gain reduction); above
 ///   `limitedHintDb` the tablet says "limitat" — more presses now buy less.
-/// - **Per clip key**, like `SoundGains`: the tile's asset (every file that tile
-///   may play is rendered — #31's gong, #19's two takes — plus the tile's own
-///   file, which is the one the tablet downloads for its local plays), or
-///   `video:<id>`: only the AUDIO of the played window (from `startSeconds`, the
-///   player's 60 s), which addons lays over the untouched mp4 in an
-///   `AVMutableComposition`. The mp4 is never touched — the YouTube-publish
-///   guard fingerprints it.
-/// - **Rendered on the press, off the main thread**; while it runs the key is
+/// - **Heard everywhere the file plays**: `SoundManager.soundURL(for:)` answers
+///   with the render (`renderURL(forFile:)`), and every path — the routed play
+///   and the special ones in `EmojiAnimator` — resolves its file there.
+/// - **Rendered on the press, off the main thread**; while it runs the clip is
 ///   `busy` and every play uses the previous render (or the original). Renders
 ///   live in `~/.victor-effects/boosted/`, named after the original's size and
-///   mtime, so a replaced original is rendered again (`resume()`, and lazily by
-///   `playURL`). The table is `~/.victor-effects/disk-boosts.json`.
+///   mtime, so a replaced original is not played stale and is rendered again
+///   (`resume()`). The table is `~/.victor-effects/disk-boosts.json`.
 final class DiskBoosts {
     static let shared = DiskBoosts()
 
@@ -35,11 +39,11 @@ final class DiskBoosts {
     static let ceiling: Float = 0.891
     /// "limitat" on the tablet when the limiter took more than this off a peak.
     static let limitedHintDb = 1.0
-    /// How long a video snippet is up at most: addons' `VideoPlayer.autoKillAfter`.
-    static let videoWindow: Double = RecommendedVolumes.videoWindow
 
     struct Source: Equatable {
-        /// The original's file name (`fileGain` and the render map are keyed on it).
+        /// The boost's key: the sound file's name, or `video:<id>`.
+        let key: String
+        /// The original's file name — the render is named after it.
         let name: String
         let url: URL
         var start: Double = 0
@@ -49,8 +53,8 @@ final class DiskBoosts {
     struct Ready: Equatable {
         var db: Double
         var limitedDb: Double
-        /// Original file name → render file name (in `dir`).
-        var renders: [String: String]
+        /// The render's file name (in `dir`).
+        var render: String
     }
 
     private(set) var target: [String: Double] = [:]
@@ -58,83 +62,131 @@ final class DiskBoosts {
     private var pending: [String: Int] = [:]
     private let queue = DispatchQueue(label: "disk-boosts", qos: .userInitiated)
 
+    /// What `renderURL(forFile:)` reads — from any thread (the players resolve
+    /// their files on background queues too).
+    private let lock = NSLock()
+    private var playable: [String: (render: URL, source: Source)] = [:]
+
     var storageURL: URL
     var dir: URL
-    /// Where a key's sources come from — a seam for the tests.
-    var sourcesProvider: (String) -> [Source] = DiskBoosts.liveSources
+    /// Seams for the tests: a clip's file keys, and a file key's original.
+    var filesOf: (String) -> [String] = DiskBoosts.liveFiles
+    var sourceOf: (String) -> Source? = DiskBoosts.liveSource { didSet { publish() } }
 
     init(storage: URL? = nil, dir: URL? = nil) {
         let base = URL(fileURLWithPath: EffectsConfig.configDir)
         storageURL = storage ?? base.appendingPathComponent("disk-boosts.json")
         self.dir = dir ?? base.appendingPathComponent("boosted", isDirectory: true)
         load()
+        publish()
     }
 
-    // MARK: - Reading (main thread)
+    // MARK: - Playing (any thread)
 
-    func boostDb(_ key: String) -> Double { target[key] ?? 0 }
-    func readyDb(_ key: String) -> Double { ready[key]?.db ?? 0 }
-    func isBusy(_ key: String) -> Bool { (pending[key] ?? 0) > 0 }
-
-    /// The file to play for `tile` when it plays `file`: its render when one is
-    /// ready for the original as it is on disk now, else the original itself.
-    func playURL(tile: String, file: URL) -> URL {
-        guard let r = ready[tile], r.db > 0, let name = r.renders[file.lastPathComponent] else { return file }
-        let render = dir.appendingPathComponent(name)
-        let source = Source(name: file.lastPathComponent, url: file)
-        guard name == Self.renderName(source, db: r.db), FileManager.default.fileExists(atPath: render.path) else {
-            resume()   // the original was replaced since: render it again
-            return file
+    /// The render to play for `file` (a sound file's name, or `video:<id>`),
+    /// when its boost is on and the render was made from the original as it is
+    /// on disk now; nil = play the original.
+    func renderURL(forFile file: String) -> URL? {
+        lock.lock()
+        let p = playable[file]
+        lock.unlock()
+        guard let p else { return nil }
+        let expected = Self.renderName(p.source, db: 0)
+        // Same original (size + mtime) as the render was made from?
+        guard p.render.lastPathComponent.hasPrefix(String(expected.prefix { $0 != "+" })),
+              FileManager.default.fileExists(atPath: p.render.path) else {
+            DispatchQueue.main.async { [weak self] in self?.resume() }
+            return nil
         }
-        return render
+        return p.render
     }
 
-    /// The render of `key`'s own file — what the tablet downloads for a tile.
-    func tabletFile(_ key: String) -> URL? {
-        guard !key.hasPrefix("video:"), let r = ready[key], r.db > 0, let name = r.renders[key] else { return nil }
-        let url = dir.appendingPathComponent(name)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    private func publish() {
+        var next: [String: (render: URL, source: Source)] = [:]
+        for (key, r) in ready where r.db > 0 {
+            guard let s = sourceOf(key) else { continue }
+            next[key] = (dir.appendingPathComponent(r.render), s)
+        }
+        lock.lock()
+        playable = next
+        lock.unlock()
     }
 
-    /// Every ready render of `key` by original name, for the loudness pass.
-    func renders(_ key: String) -> [String: URL] {
-        guard let r = ready[key], r.db > 0 else { return [:] }
-        return r.renders.mapValues { dir.appendingPathComponent($0) }
+    // MARK: - Reading, per clip (main thread)
+
+    func boostDb(_ clip: String) -> Double { filesOf(clip).map { target[$0] ?? 0 }.max() ?? 0 }
+    func readyDb(_ clip: String) -> Double { filesOf(clip).map { ready[$0]?.db ?? 0 }.max() ?? 0 }
+    func isBusy(_ clip: String) -> Bool { filesOf(clip).contains { (pending[$0] ?? 0) > 0 } }
+    func limitedDb(_ clip: String) -> Double { filesOf(clip).map { ready[$0]?.limitedDb ?? 0 }.max() ?? 0 }
+
+    /// The render of the tile's OWN file — what the tablet downloads for its
+    /// local plays (it plays the tile's own mp3). Nil when the tile is heard as
+    /// another file, or has no render.
+    func tabletFile(_ clip: String) -> URL? {
+        guard !clip.hasPrefix("video:"), filesOf(clip).contains(clip) else { return nil }
+        return renderURL(forFile: clip)
     }
 
-    // MARK: - Writing (main thread)
+    /// Every ready render of `clip`, by the original's file name — for the
+    /// loudness pass, which judges a clip as it plays now.
+    func renders(_ clip: String) -> [String: URL] {
+        var out: [String: URL] = [:]
+        for f in filesOf(clip) {
+            guard let r = ready[f], r.db > 0, let s = sourceOf(f) else { continue }
+            out[s.name] = dir.appendingPathComponent(r.render)
+        }
+        return out
+    }
 
-    /// One ＋ press. False for a key with nothing to render (unknown tile/video).
+    /// Every ready render, by the ORIGINAL's file name (the mp4's for a video).
+    var allRenders: [String: URL] {
+        var out: [String: URL] = [:]
+        for (k, r) in ready where r.db > 0 {
+            if let s = sourceOf(k) { out[s.name] = dir.appendingPathComponent(r.render) }
+        }
+        return out
+    }
+
+    // MARK: - Writing, per clip (main thread)
+
+    /// One ＋ press: every file the clip is heard as goes 1.5 dB up. False for a
+    /// clip with nothing to render (unknown, or a sound made in code).
     @discardableResult
-    func press(_ key: String) -> Bool {
-        let sources = sourcesProvider(key)
+    func press(_ clip: String) -> Bool {
+        let sources = filesOf(clip).compactMap(sourceOf)
         guard !sources.isEmpty else { return false }
-        let db = min(Self.maxDb, boostDb(key) + Self.stepDb)
-        guard db != boostDb(key) else { return true }
-        target[key] = db
-        save()
-        render(key, db: db, sources: sources)
+        var changed = false
+        for s in sources {
+            let db = min(Self.maxDb, (target[s.key] ?? 0) + Self.stepDb)
+            guard db != target[s.key] else { continue }
+            target[s.key] = db
+            render(s, db: db)
+            changed = true
+        }
+        if changed { save() }
         return true
     }
 
-    /// Long-press ＋: back to the original. The renders go; the original was never touched.
-    func reset(_ key: String) {
-        target[key] = nil
-        if let old = ready.removeValue(forKey: key) { deleteRenders(old) }
+    /// Long-press ＋: the clip's files back to their originals. The renders go;
+    /// the originals were never touched.
+    func reset(_ clip: String) {
+        for f in filesOf(clip) {
+            target[f] = nil
+            if let old = ready.removeValue(forKey: f) { delete(old.render) }
+        }
         save()
+        publish()
     }
 
     /// Render whatever a stored boost is missing — at launch, or when an
     /// original turned out to have been replaced.
     func resume() {
-        for (key, db) in target where db > 0 && !isBusy(key) {
-            let sources = sourcesProvider(key)
-            guard !sources.isEmpty else { continue }
-            let names = Dictionary(uniqueKeysWithValues: sources.map { ($0.name, Self.renderName($0, db: db)) })
-            let have = ready[key]
-            let complete = have?.db == db && have?.renders == names
-                && names.values.allSatisfy { FileManager.default.fileExists(atPath: dir.appendingPathComponent($0).path) }
-            if !complete { render(key, db: db, sources: sources) }
+        for (key, db) in target where db > 0 && (pending[key] ?? 0) == 0 {
+            guard let s = sourceOf(key) else { continue }
+            let name = Self.renderName(s, db: db)
+            let complete = ready[key]?.db == db && ready[key]?.render == name
+                && FileManager.default.fileExists(atPath: dir.appendingPathComponent(name).path)
+            if !complete { render(s, db: db) }
         }
     }
 
@@ -144,52 +196,43 @@ final class DiskBoosts {
         if Thread.isMainThread { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
     }
 
-    private func render(_ key: String, db: Double, sources: [Source]) {
-        pending[key, default: 0] += 1
+    private func render(_ s: Source, db: Double) {
+        pending[s.key, default: 0] += 1
         let dir = self.dir
         queue.async { [weak self] in
             let started = Date()
-            var renders: [String: String] = [:]
+            let name = Self.renderName(s, db: db)
             var limited = 0.0
             var failure: String?
-            for s in sources {
-                do {
-                    let name = Self.renderName(s, db: db)
-                    let out = dir.appendingPathComponent(name)
-                    let l = try Self.renderBoost(s, db: db, to: out)
-                    renders[s.name] = name
-                    limited = max(limited, l)
-                } catch {
-                    failure = "\(s.name): \(error)"
-                }
+            do {
+                limited = try Self.renderBoost(s, db: db, to: dir.appendingPathComponent(name))
+            } catch {
+                failure = "\(error)"
             }
             let finish = {
                 guard let self else { return }
-                self.pending[key, default: 1] -= 1
-                if self.pending[key] == 0 { self.pending[key] = nil }
-                let fresh = Ready(db: db, limitedDb: limited, renders: renders)
+                self.pending[s.key, default: 1] -= 1
+                if self.pending[s.key] == 0 { self.pending[s.key] = nil }
                 if let failure {
-                    effectsError("＋ render of \(key) at +\(db) dB failed: \(failure)")
-                    self.deleteRenders(fresh, keeping: self.ready[key])
-                } else if self.target[key] == db {
-                    if let old = self.ready[key] { self.deleteRenders(old, keeping: fresh) }
-                    self.ready[key] = fresh
+                    effectsError("＋ render of \(s.key) at +\(db) dB failed: \(failure)")
+                    if self.ready[s.key]?.render != name { self.delete(name) }
+                } else if self.target[s.key] == db {
+                    if let old = self.ready[s.key], old.render != name { self.delete(old.render) }
+                    self.ready[s.key] = Ready(db: db, limitedDb: limited, render: name)
                     self.save()
-                    effectsInfo("＋ \(key) +\(db) dB ready in " + String(format: "%.2f s", Date().timeIntervalSince(started))
+                    self.publish()
+                    effectsInfo("＋ \(s.key) +\(db) dB ready in " + String(format: "%.2f s", Date().timeIntervalSince(started))
                         + String(format: ", limiter %.1f dB", limited))
-                } else {
-                    self.deleteRenders(fresh, keeping: self.ready[key])   // superseded by a later press or a reset
+                } else if self.ready[s.key]?.render != name {
+                    self.delete(name)   // superseded by a later press or a reset
                 }
             }
             if Thread.isMainThread { finish() } else { DispatchQueue.main.async(execute: finish) }
         }
     }
 
-    private func deleteRenders(_ r: Ready, keeping: Ready? = nil) {
-        let keep = Set(keeping?.renders.values.map { $0 } ?? [])
-        for name in r.renders.values where !keep.contains(name) {
-            try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
-        }
+    private func delete(_ render: String) {
+        try? FileManager.default.removeItem(at: dir.appendingPathComponent(render))
     }
 
     // MARK: - The served state
@@ -197,55 +240,61 @@ final class DiskBoosts {
     /// Moves `gainsHash` whenever a boost, its readiness or its busy state moves.
     var stateKey: String {
         Set(target.keys).union(ready.keys).union(pending.keys).sorted().map { k in
-            "\(k):\(boostDb(k)):\(readyDb(k)):\(isBusy(k)):\(ready[k].map { String(format: "%.1f", $0.limitedDb) } ?? "-")"
+            "\(k):\(target[k] ?? 0):\(ready[k]?.db ?? 0):\((pending[k] ?? 0) > 0):"
+                + (ready[k].map { String(format: "%.1f", $0.limitedDb) } ?? "-")
         }.joined(separator: "\n")
     }
 
-    /// `,"boosts":{…}` for `GET /sound/gains`.
-    var jsonFields: String {
-        let rows = Set(target.keys).union(ready.keys).union(pending.keys).sorted().map { k -> String in
+    /// `,"boosts":{…}` for `GET /sound/gains`, one row per CLIP whose files carry
+    /// any state — every tile that plays a boosted file, so #31 and #50 both
+    /// show the gong's boost.
+    func jsonFields(tiles: [String]) -> String {
+        let state = Set(target.keys).union(ready.keys).union(pending.keys)
+        let clips = Set(tiles).union(state).filter { !Set(filesOf($0)).isDisjoint(with: state) }
+        let rows = clips.sorted().map { k -> String in
             let rev = tabletFile(k).map { ",\"rev\":\"\($0.lastPathComponent)\"" } ?? ""
+            let lim = limitedDb(k)
             return "\"\(k)\":{\"db\":\(boostDb(k)),\"readyDb\":\(readyDb(k)),\"busy\":\(isBusy(k)),"
-                + "\"limitedDb\":" + String(format: "%.2f", ready[k]?.limitedDb ?? 0)
-                + ",\"limited\":\((ready[k]?.limitedDb ?? 0) > Self.limitedHintDb)\(rev)}"
+                + "\"limitedDb\":" + String(format: "%.2f", lim)
+                + ",\"limited\":\(lim > Self.limitedHintDb)\(rev)}"
         }
         return ",\"boosts\":{\(rows.joined(separator: ","))}"
     }
 
+    var jsonFields: String {
+        jsonFields(tiles: TilesManifest.load()?.doc.tiles.flatMap { [$0.asset] + ($0.under.map { [$0.asset] } ?? []) } ?? [])
+    }
+
     /// `GET /sound/boost/<key>` — what addons asks at a video's play.
-    func infoJSON(_ key: String) -> String {
+    func infoJSON(_ clip: String) -> String {
         var audio = "null"
-        if key.hasPrefix("video:"), let r = ready[key], r.db > 0, let name = r.renders.values.first {
-            let url = dir.appendingPathComponent(name)
-            if FileManager.default.fileExists(atPath: url.path), let s = sourcesProvider(key).first {
-                audio = "{\"path\":\(Self.jsonString(url.path)),\"start\":\(s.start)}"
-            }
+        if clip.hasPrefix("video:"), let url = renderURL(forFile: clip), let s = sourceOf(clip) {
+            audio = "{\"path\":\(Self.jsonString(url.path)),\"start\":\(s.start)}"
         }
-        return "{\"key\":\(Self.jsonString(key)),\"db\":\(boostDb(key)),\"readyDb\":\(readyDb(key)),"
-            + "\"busy\":\(isBusy(key)),\"audio\":\(audio)}"
+        return "{\"key\":\(Self.jsonString(clip)),\"db\":\(boostDb(clip)),\"readyDb\":\(readyDb(clip)),"
+            + "\"busy\":\(isBusy(clip)),\"audio\":\(audio)}"
     }
 
     // MARK: - Sources
 
-    static func liveSources(_ key: String) -> [Source] {
+    static func liveFiles(_ clip: String) -> [String] {
+        clip.hasPrefix("video:") ? [clip] : TileAudio.files(forTile: clip)
+    }
+
+    static func liveSource(_ key: String) -> Source? {
         if key.hasPrefix("video:") {
-            let id = String(key.dropFirst("video:".count))
             guard let vdir = EffectsConfig.shared.videosDir,
                   let data = FileManager.default.contents(atPath: vdir.appendingPathComponent("videos.json").path),
                   let clip = RecommendedVolumes.videoClips(manifest: data, videosDir: vdir).first(where: { $0.key == key }),
-                  let url = clip.files.first, FileManager.default.fileExists(atPath: url.path) else { return [] }
-            _ = id
-            return [Source(name: url.lastPathComponent, url: url, start: clip.start, end: clip.end)]
+                  let url = clip.files.first, FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return Source(key: key, name: url.lastPathComponent, url: url, start: clip.start, end: clip.end)
         }
-        guard let soundsDir = SoundManager.sharedSoundsDir() else { return [] }
-        var names = RecommendedVolumes.playedFiles(forTile: key)
-        if !names.contains(key) { names.append(key) }
-        return names.map { Source(name: $0, url: soundsDir.appendingPathComponent($0)) }
-            .filter { FileManager.default.fileExists(atPath: $0.url.path) }
+        guard let url = SoundManager.shared.originalURL(for: key) else { return nil }
+        return Source(key: key, name: key, url: url)
     }
 
-    /// `<stem>.<size>-<mtime>[.s<start>].+<db>dB.wav`: a replaced original or a
-    /// different boost is a different name, so a stale render is never played.
+    /// `<stem>.<size>-<mtime>[.s<start>-<len>].+<db>dB.wav`: a replaced original
+    /// or a different boost is a different name, so a stale render is never played.
     static func renderName(_ s: Source, db: Double) -> String {
         let a = try? FileManager.default.attributesOfItem(atPath: s.url.path)
         let size = (a?[.size] as? Int) ?? 0
@@ -320,19 +369,20 @@ final class DiskBoosts {
 
     private func load() {
         guard let data = FileManager.default.contents(atPath: storageURL.path),
-              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              (obj["version"] as? Int) == 2 else { return }
         if let b = obj["boosts"] as? [String: NSNumber] { target = b.mapValues { $0.doubleValue } }
         if let r = obj["ready"] as? [String: [String: Any]] {
             for (k, v) in r {
-                guard let db = (v["db"] as? NSNumber)?.doubleValue, let renders = v["renders"] as? [String: String] else { continue }
-                ready[k] = Ready(db: db, limitedDb: (v["limitedDb"] as? NSNumber)?.doubleValue ?? 0, renders: renders)
+                guard let db = (v["db"] as? NSNumber)?.doubleValue, let render = v["render"] as? String else { continue }
+                ready[k] = Ready(db: db, limitedDb: (v["limitedDb"] as? NSNumber)?.doubleValue ?? 0, render: render)
             }
         }
     }
 
     private func save() {
-        let readyObj = ready.mapValues { ["db": $0.db, "limitedDb": $0.limitedDb, "renders": $0.renders] as [String: Any] }
-        let obj: [String: Any] = ["boosts": target, "ready": readyObj]
+        let readyObj = ready.mapValues { ["db": $0.db, "limitedDb": $0.limitedDb, "render": $0.render] as [String: Any] }
+        let obj: [String: Any] = ["version": 2, "boosts": target, "ready": readyObj]
         guard let data = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys, .prettyPrinted]) else { return }
         try? FileManager.default.createDirectory(at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: storageURL, options: .atomic)

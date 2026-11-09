@@ -45,7 +45,8 @@ final class DiskBoostsTests: XCTestCase {
     }
 
     private func use(_ url: URL, key: String) {
-        boosts.sourcesProvider = { k in k == key ? [DiskBoosts.Source(name: key, url: url)] : [] }
+        boosts.filesOf = { $0 == key ? [key] : [] }
+        boosts.sourceOf = { $0 == key ? DiskBoosts.Source(key: key, name: key, url: url) : nil }
     }
 
     func testEachPressIsOneAndAHalfDecibelsMoreFromTheUntouchedOriginal() throws {
@@ -58,13 +59,12 @@ final class DiskBoostsTests: XCTestCase {
         XCTAssertTrue(boosts.isBusy("q.wav"))
         boosts.waitForRenders()
         XCTAssertFalse(boosts.isBusy("q.wav"))
-        let first = boosts.playURL(tile: "q.wav", file: original)
-        XCTAssertNotEqual(first, original, "the Mac plays the render")
+        let first = try XCTUnwrap(boosts.renderURL(forFile: "q.wav"), "the Mac plays the render")
         XCTAssertEqual(try XCTUnwrap(try Loudness.maxShortTerm(of: first)) - m0, 1.5, accuracy: 0.05)
 
         boosts.press("q.wav")
         boosts.waitForRenders()
-        let second = boosts.playURL(tile: "q.wav", file: original)
+        let second = try XCTUnwrap(boosts.renderURL(forFile: "q.wav"))
         XCTAssertEqual(try XCTUnwrap(try Loudness.maxShortTerm(of: second)) - m0, 3.0, accuracy: 0.05)
         XCTAssertTrue(second.lastPathComponent.contains("+3.0dB"), "rendered at the total, from the original")
         XCTAssertFalse(FileManager.default.fileExists(atPath: first.path), "the superseded render is gone")
@@ -77,7 +77,7 @@ final class DiskBoostsTests: XCTestCase {
         use(original, key: "loud.wav")
         for _ in 0..<4 { boosts.press("loud.wav") }      // +6 dB on a −2 dBFS sine
         boosts.waitForRenders()
-        let render = boosts.playURL(tile: "loud.wav", file: original)
+        let render = try XCTUnwrap(boosts.renderURL(forFile: "loud.wav"))
         let pcm = try XCTUnwrap(try Loudness.decode(render))
         let peak = pcm.channels.flatMap { $0 }.map(abs).max()!
         XCTAssertLessThanOrEqual(peak, DiskBoosts.ceiling + 0.001)
@@ -89,23 +89,24 @@ final class DiskBoostsTests: XCTestCase {
         use(original, key: "r.wav")
         boosts.press("r.wav")
         boosts.waitForRenders()
-        let render = boosts.playURL(tile: "r.wav", file: original)
+        let render = try XCTUnwrap(boosts.renderURL(forFile: "r.wav"))
         boosts.reset("r.wav")
-        XCTAssertEqual(boosts.playURL(tile: "r.wav", file: original), original)
+        XCTAssertNil(boosts.renderURL(forFile: "r.wav"), "the original plays again")
         XCTAssertFalse(FileManager.default.fileExists(atPath: render.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: original.path))
         XCTAssertEqual(boosts.boostDb("r.wav"), 0)
     }
 
     func testAPressOnSomethingUnknownDoesNothing() {
-        boosts.sourcesProvider = { _ in [] }
+        boosts.filesOf = { _ in [] }
         XCTAssertFalse(boosts.press("nope.mp3"))
         XCTAssertEqual(boosts.boostDb("nope.mp3"), 0)
     }
 
     func testAVideoRenderIsTheWindowOnly() throws {
         let original = try writeSine("v.wav", amplitude: 0.1, seconds: 6)
-        boosts.sourcesProvider = { _ in [DiskBoosts.Source(name: "v.wav", url: original, start: 2, end: 5)] }
+        boosts.filesOf = { $0 == "video:v" ? ["video:v"] : [] }
+        boosts.sourceOf = { $0 == "video:v" ? DiskBoosts.Source(key: "video:v", name: "v.wav", url: original, start: 2, end: 5) : nil }
         boosts.press("video:v")
         boosts.waitForRenders()
         let r = try XCTUnwrap(boosts.renders("video:v").values.first)
@@ -120,9 +121,28 @@ final class DiskBoostsTests: XCTestCase {
         boosts.press("p.wav")
         boosts.waitForRenders()
         let again = DiskBoosts(storage: boosts.storageURL, dir: boosts.dir)
-        again.sourcesProvider = boosts.sourcesProvider
+        again.filesOf = boosts.filesOf
+        again.sourceOf = boosts.sourceOf
         XCTAssertEqual(again.boostDb("p.wav"), 1.5)
-        XCTAssertNotEqual(again.playURL(tile: "p.wav", file: original), original)
+        XCTAssertNotNil(again.renderURL(forFile: "p.wav"))
+    }
+
+    /// Two tiles heard as one file (the gong: #31 and #50) share ONE boost, and a
+    /// tile alternating between two takes (#19) raises both.
+    func testABoostIsPerFileSoSharedFilesMoveTogetherAndPairsBothRise() throws {
+        let gong = try writeSine("gong.wav", amplitude: 0.1), a = try writeSine("a.wav", amplitude: 0.1),
+            b = try writeSine("b.wav", amplitude: 0.1)
+        let urls = ["gong.wav": gong, "a.wav": a, "b.wav": b]
+        boosts.filesOf = { ["31": ["gong.wav"], "50": ["gong.wav"], "19": ["a.wav", "b.wav"]][$0] ?? [] }
+        boosts.sourceOf = { k in urls[k].map { DiskBoosts.Source(key: k, name: k, url: $0) } }
+        boosts.press("31")
+        boosts.press("19")
+        boosts.waitForRenders()
+        XCTAssertEqual(boosts.boostDb("50"), 1.5, "a ＋ on #31 is heard on #50")
+        XCTAssertNotNil(boosts.renderURL(forFile: "a.wav"))
+        XCTAssertNotNil(boosts.renderURL(forFile: "b.wav"))
+        XCTAssertTrue(boosts.jsonFields(tiles: ["31", "50", "19"]).contains("\"50\":{\"db\":1.5"))
+        XCTAssertNil(boosts.tabletFile("31"), "the tablet plays #31's own mp3, which is not boosted")
     }
 
     func testTheRoutesParse() {

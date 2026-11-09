@@ -41,7 +41,9 @@ final class ChainsawSound {
     private var throttle: Float = 0      // 0 = idling, 1 = cutting
     private var stopped = false
 
-    init?(url: URL) {
+    /// `gain`: the tile's own volume bar (`SoundManager.tileGain(forFile:)`),
+    /// on the whole engine — this sound never passes through an `AVAudioPlayer`.
+    init?(url: URL, gain: Float = 1) {
         guard let file = try? AVAudioFile(forReading: url) else { return nil }
         let format = file.processingFormat
         guard let intro = Self.read(file, from: 0, to: Self.idleRange.start),
@@ -63,6 +65,7 @@ final class ChainsawSound {
         idleNode.scheduleBuffer(intro, at: nil, options: [])
         idleNode.scheduleBuffer(idle, at: nil, options: .loops)
         revNode.scheduleBuffer(rev, at: nil, options: .loops)
+        engine.mainMixerNode.outputVolume = max(0, min(1, gain))
         do { try engine.start() } catch { return nil }
         idleNode.play()
         revNode.play()
