@@ -4768,7 +4768,7 @@ class EmojiAnimator {
         playMinigunDrawSound()
         // Wired now, played on the trigger: a pull must not wait for an engine.
         if let url = SoundManager.shared.soundURL(for: "22_minigun.mp3") {
-            _minigunFireSound = AK47FireSound(url: url, gain: SoundManager.shared.tileGain(forFile: "22_minigun.mp3"))
+            _minigunFireSound = AK47FireSound(url: url, gain: VoiceCeiling.clamp(SoundManager.shared.tileGain(forFile: "22_minigun.mp3"), url: url, log: true))
         }
 
         let now = CACurrentMediaTime()
@@ -5355,7 +5355,7 @@ class EmojiAnimator {
         // tablet's `/sound/play/18_chainsaw.mp3` plays nothing (EffectsEngine),
         // because a clip that ends by itself cannot idle until Escape.
         if let url = SoundManager.shared.soundURL(for: "18_chainsaw.mp3") {
-            _chainsawSound = ChainsawSound(url: url, gain: SoundManager.shared.tileGain(forFile: "18_chainsaw.mp3"))
+            _chainsawSound = ChainsawSound(url: url, gain: VoiceCeiling.clamp(SoundManager.shared.tileGain(forFile: "18_chainsaw.mp3"), url: url, log: true))
             if _chainsawSound == nil { overlayError("🪚 could not build the engine loops from 18_chainsaw.mp3") }
         }
 

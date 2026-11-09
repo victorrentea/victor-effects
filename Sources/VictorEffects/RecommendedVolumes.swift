@@ -220,6 +220,7 @@ enum RecommendedVolumes {
         guard let tiles = TilesManifest.load()?.doc.tiles else { return }
         let videosDir = EffectsConfig.shared.videosDir
         let cache = cacheFile
+        let ceilingList = ceilingFiles(renders: Array(renders.values))
         computing = true
         DispatchQueue.global(qos: .utility).async {
             let started = Date()
@@ -230,6 +231,12 @@ enum RecommendedVolumes {
             var c = LoudnessCache(file: cache)
             let results = measure(clips, cache: &c)
             let now = measure(clips.compactMap { current($0, renders: renders) }, cache: &c)
+            // 🎚️ …and every playable file on its own, whole: the voice ceiling
+            // caps a player by the file it was opened on (`VoiceCeiling`).
+            var files: [String: Double?] = [:]
+            for url in ceilingList {
+                if case .success(let v) = c.value(for: url, start: 0, end: nil) { files[VoiceCeiling.key(url)] = v }
+            }
             c.save()
             let t = table(results, current: now)
             DispatchQueue.main.async {
@@ -237,6 +244,7 @@ enum RecommendedVolumes {
                 currentKey = key
                 live = t
                 cachedHash = hashOf(t)
+                VoiceCeiling.fileLoudness = files
                 for (k, r) in results { if case .failed(let why) = r { effectsError("🔺 no loudness for \(k): \(why)") } }
                 let silent = results.filter { $0.value == .silent }.keys.sorted()
                 effectsInfo("🔺 hints: ▲ on \(t.positions.count), ＋ on \(t.boosts.count) of \(t.maxima.count) clips, R = "
@@ -247,6 +255,28 @@ enum RecommendedVolumes {
             }
         }
     }
+
+    /// Every audio file a player may be opened on: the sounds folder, the
+    /// assets drop-ins, this app's own bundled sounds, and the ＋ renders.
+    static func ceilingFiles(renders: [URL]) -> [URL] {
+        let exts: Set<String> = ["mp3", "wav", "m4a", "aac", "aif", "aiff", "caf"]
+        var dirs = [EffectsConfig.shared.soundsDir, EffectsConfig.shared.assetsDir,
+                    EffectsResources.bundle.bundleURL.appendingPathComponent("Resources")]
+        if let shared = SoundManager.sharedSoundsDir() { dirs.append(shared) }
+        var seen = Set<String>()
+        var out: [URL] = []
+        for dir in dirs {
+            let items = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+            for url in items where exts.contains(url.pathExtension.lowercased()) && seen.insert(VoiceCeiling.key(url)).inserted {
+                out.append(url)
+            }
+        }
+        for url in renders where seen.insert(VoiceCeiling.key(url)).inserted { out.append(url) }
+        return out
+    }
+
+    /// The table on hand (main thread) — the voice ceiling reads a video's loudness from it.
+    static var liveTable: Table { live }
 
     /// `/config/reload`: the next ping measures again (cached files are not re-decoded).
     static func invalidate() { currentKey = nil }

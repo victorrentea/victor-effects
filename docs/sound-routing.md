@@ -458,3 +458,63 @@ time a JBL is connected — not before, the manager is created lazily. Denied �
 one `🔊🔋 Bluetooth access denied` log line and the tablet shows no speaker.
 Pinned by `SpeakerBatteryTests` (frames, UID parsing, choice, visit list).
 
+
+## 🎚️ Held under Victor's voice while he screen-shares (`VoiceCeiling`, 2026-11-09)
+
+On 2026-11-09, in a Zoom call with **Share sound** on, the soundboard came out far louder
+than Victor's voice: his mic gain was low and the effects went to the room at full level.
+He changes mics (lapel, Bose, the XLR on the Elgato, the built-in, usually through Krisp),
+so no fixed attenuation fits — the voice is **measured**. Victor Addons does that
+(`VoiceMeter`: K-weighted momentary loudness on the mic the meeting actually captures,
+only while he is screen-sharing in Zoom or Teams) and **pushes** the result here:
+`GET /voice/ref?sharing=1&ref=<LUFS>&src=live|held|previous|default` once a second during
+a share, `sharing=0` when it ends. Push and not pull because addons is the one that sees
+the share start and stop (the edge lands at once), nothing is sent or polled outside a
+share, and a play here never waits on the other app — it uses the last value it was given,
+and a value older than **60 s** is dropped, so a crashed addons cannot leave the board
+muffled.
+
+While a reference is on hand, **every** player is held so that
+
+    M(file) + 20·log10(player volume) + system dB  ≤  voiceRef + offset
+
+- `M(file)` — the loudest 3 s (EBU R128 short-term) of **the file actually played**: its
+  ＋ render when it has one. Every audio file a player may open — `soundsDir`,
+  `assetsDir`, the bundle's own sounds, the renders — is measured in the 🔺 hints'
+  background pass (`RecommendedVolumes.ceilingFiles`, cached in `loudness-cache.json`).
+  A file not measured yet counts as −10 LUFS (`unmeasuredLufs`), a silent one is never cut.
+- player volume — what this app already multiplies in: the blue wedge × the tile's bar ×
+  the mastering trim. So the left side is the clip's loudness + tile gain + global volume.
+- **system dB** — the macOS output volume, but **only while the default output is
+  `ZoomAudioDevice`**. Zoom's Share sound makes that virtual device the default output and
+  reads its loopback; measured 2026-11-09 (a 1 kHz tone played into its output, captured
+  from its input with ffmpeg): output volume scalar 1.0 → −44.1 dB, 0.25 → −56.1 dB, i.e.
+  the device applies its own volume control, **−12.0 dB for 0.25**, before Zoom hears it.
+  So a share with the volume keys turned down already sends the effects quieter, and that
+  is credited. `Microsoft Teams Audio` looped nothing at all with Teams closed (−91 dB at
+  both scalars), so for Teams — and any other output — nothing is credited: not knowing
+  means capping harder, never softer. To be confirmed in a real Teams share.
+- `offset` — `voiceCeilingOffsetDb` in `config.json`, **default −3** (−30…+12 accepted).
+
+**Only ever lower**: `min(asked, allowed)`; a clip already under the line keeps its own
+level and a quiet one is never raised to meet it (`VoiceCeilingTests.testNeverRaises`).
+Where it is applied: `SoundManager.player(contentsOf:)` builds only `CeilingPlayer`s, an
+`AVAudioPlayer` whose `volume` setter, `setVolume(_:fadeDuration:)` and first `play()` all
+go through `VoiceCeiling.clamp` — every path (the routed press, the panel, the special
+paths in `EmojiAnimator`, a live wedge or tile-bar drag, a fade-in) without a call site
+that could forget it. The two `AVAudioEngine` sounds (minigun, chainsaw) are clamped at
+construction. A share that starts or ends mid-clip re-levels the players still sounding
+from what they were asked (`CeilingPlayer.reapplyAll`). Videos are played by addons, which
+asks `GET /voice/ceiling?key=video:<id>&volume=<v>` at play time (0.4 s timeout; no answer
+= its own level, logged) and keeps a live drag of the clip's bar under the same cap.
+
+Every capped play is logged once, with what was taken off:
+
+    🎚️ capped 01_baby.mp3 vol 1.00 → 0.35, −9.1 dB (clip -10.8 LUFS at +0.0 dB, sys +0.0 dB; voice -16.9 live -3.0 → ≤ -19.9)
+    🎚️ kept 56_door_open.mp3 vol 0.50 → 0.50, under the voice (clip -16.1 LUFS at -6.0 dB, …)
+
+**Calibration caveat.** The comparison is digital file loudness against the mic's digital
+loudness (both counted as heard on two speakers: a mono mic as dual-mono, like a mono clip
+here). What the meeting does next — Zoom's own mic AGC and its share-audio mix — is not
+in the formula; that is what the −3 dB offset is for, and it is to be calibrated against a
+local Zoom recording of a real share (Victor's checklist in the 2026-11-09 report).

@@ -61,6 +61,11 @@ struct EffectsConfigValues: Equatable {
     /// out over the sounds alone, and the log says so once per pass.
     var videosDir: String = ""
 
+    /// 🎚️ While Victor screen-shares, no effect is louder than his voice plus
+    /// this many dB (`VoiceCeiling`). Negative = under the voice. Default −3;
+    /// accepted between −30 and +12.
+    var voiceCeilingOffsetDb: Double = -3
+
     /// Pure parser — the tests drive this with literal JSON and a literal
     /// environment, so no test ever depends on what is on this machine.
     static func parse(jsonData: Data?, env: [String: String] = [:]) -> EffectsConfigValues {
@@ -82,6 +87,8 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
             if let s = obj["markedSpeakerMac"] as? String { v.markedSpeakerMac = s }
             if let s = obj["videosDir"] as? String { v.videosDir = s }
+            if let n = obj["voiceCeilingOffsetDb"] as? NSNumber, n.doubleValue.isFinite,
+               (-30...12).contains(n.doubleValue) { v.voiceCeilingOffsetDb = n.doubleValue }
         }
         // Env wins over the file: it is how you start a second copy on another
         // port without editing the config the running one shares.
@@ -179,6 +186,8 @@ final class EffectsConfig {
         return raw.hasSuffix("/") ? String(raw.dropLast()) : raw
     }
 
+    var voiceCeilingOffsetDb: Double { values.voiceCeilingOffsetDb }
+
     var videosDir: URL? {
         let raw = values.videosDir.trimmingCharacters(in: .whitespaces)
         return raw.isEmpty ? nil : URL(fileURLWithPath: Self.expand(raw))
@@ -207,6 +216,7 @@ final class EffectsConfig {
             + "\"overlayScreen\":\(s(values.overlayScreen)),\"chargeEmoji\":[\(emoji)],"
             + "\"addonsBaseURL\":\(s(addonsBaseURL)),"
             + "\"videosDir\":\(s(videosDir?.path ?? "")),"
+            + "\"voiceCeilingOffsetDb\":\(values.voiceCeilingOffsetDb),"
             + "\"soundsDirSource\":\(s(soundsDirIsStarterPack ? "starter-pack" : "config")),"
             + "\"soundsDirExists\":\(soundsDirExists)}"
     }

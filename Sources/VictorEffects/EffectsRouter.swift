@@ -38,6 +38,12 @@ final class EffectsRouter {
         case soundVolume(Int)
         /// 🔉 `GET /sound/gains` — every tile's own volume position (`SoundGains`).
         case soundGains
+        /// 🎚️ `GET /voice/ref?sharing=0|1&ref=<LUFS>&src=` — addons' push (`VoiceCeiling`).
+        case voiceRef(sharing: Bool, ref: Double?, source: String)
+        /// 🎚️ `GET /voice/ceiling?key=|file=&volume=` — the cap for one clip.
+        case voiceCeiling(key: String?, file: String?, volume: Float)
+        /// 🎚️ `GET /test/voice/players` — what every sounding player plays at.
+        case voicePlayers
         /// 🔉 `GET /sound/gain/<asset>/<pct>` — move one tile's own volume.
         case soundGainSet(String, Int)
         /// ＋ `GET /sound/boost/<key>/up` — one more 1.5 dB on disk (`DiskBoosts`).
@@ -193,6 +199,12 @@ final class EffectsRouter {
         case "/sounds/captions/base": return .soundsCaptionsBase
         case "/usage":              return .usage
         case "/sound/gains":        return .soundGains
+        case "/voice/ref":
+            return .voiceRef(sharing: q("sharing") == "1", ref: q("ref").flatMap(Double.init), source: q("src") ?? "")
+        case "/test/voice/players": return .voicePlayers
+        case "/voice/ceiling":
+            return .voiceCeiling(key: q("key"), file: q("file"),
+                                 volume: max(0, min(1, q("volume").flatMap(Float.init) ?? 1)))
         case "/usage/reset":        return .usageReset
         case "/usage/import":
             // "asset:count,asset:count" — a GET because that is the only verb
@@ -378,6 +390,16 @@ final class EffectsRouter {
 
         case .soundGains:
             return .json(SoundGains.responseJSON)
+
+        case .voiceRef(let sharing, let ref, let source):
+            VoiceCeiling.receive(sharing: sharing, ref: ref, source: source)
+            return .json("{\"ok\":true,\"active\":\(VoiceCeiling.active)}")
+
+        case .voiceCeiling(let key, let file, let volume):
+            return .json(VoiceCeiling.ceilingJSON(key: key, file: file, volume: volume))
+
+        case .voicePlayers:
+            return .json(CeilingPlayer.playingJSON)
 
         case .soundGainSet(let asset, let pct):
             SoundManager.shared.setTileGain(asset, position: pct)

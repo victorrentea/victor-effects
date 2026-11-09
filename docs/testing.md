@@ -61,6 +61,9 @@ screen — what is playing, which effects are active, `whipShowing`,
 - `GET /state` — what is playing, which effects are live, `whipShowing`, `panelMonitor`, `panelVisible`, and the whole live config including `soundsDirExists` — the first thing to check when everything answers `ok` and nothing is audible
 - `GET /config/reload` — re-read `~/.victor-effects/config.json` and drop the sounds, tiles, tile-image and timing caches (the image half is what the retired `Reload tiles.json` menu row used to be for). Answers with the config it ended up with, so a typo in a path is visible immediately
 - `GET /tiles` — the tile manifest, or a 404 naming the `soundsDir` it looked in
+- `GET /voice/ref?sharing=1&ref=-20` — 🎚️ pretend addons just measured Victor's voice at −20 LUFS during a share (`sharing=0` ends it). Normally pushed by addons, whose own `/test/sharing/force/on` + `/test/voice/device?name=From%20Walkie` drive the real thing (`victor-macos-addons/docs/testing.md`). Expires after 60 s without a push
+- `GET /voice/ceiling?file=01_baby.mp3&volume=1` (or `key=video:<id>`) — 🎚️ the ceiling's whole computation for one clip, share on or off: clip loudness, voice, offset, system dB, the volume it would play at and the dB taken off
+- `GET /test/voice/players` — 🎚️ every player still sounding, with the volume it was asked for and the one it actually plays at — the proof that the cap only ever lowers. **Mute the Mac's output** before playing anything for a proof
 
 **Quirk worth knowing:** `state.playing` is `null` during the sonar and the
 money round even while you can hear them. Those two take the special audio paths

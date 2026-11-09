@@ -132,6 +132,7 @@ that reason.
 | `chargeEmoji` | `["☕"]` | emoji that charge up under the cursor and pop |
 | `addonsBaseURL` | `http://127.0.0.1:55123` | where the **addons** app answers. The panel's 🎬 video page is built from its `GET /videos` and plays through its `GET /video/play/<id>` — the two routes it does *not* proxy back here. Empty switches the video page off, which is the right setting on a Mac with no addons app |
 | `videosDir` | *(empty = off)* | the video snippets' folder (`videos.json` + mp4s, the addons checkout's `videos/`), read to measure their loudness for the tablet's 🔺 volume hints and to render a video's ＋ (`/sound/boost/video:<id>/up`). Empty: the hints are worked out over the sounds alone and a video's ＋ answers 404. Env `VICTOR_EFFECTS_VIDEOS_DIR` |
+| `voiceCeilingOffsetDb` | `-3` | 🎚️ while the presenter screen-shares (Victor Addons pushes his measured voice level, `/voice/ref`), no effect is louder than the voice + this many dB; it only ever lowers an effect. −30…+12. See `docs/sound-routing.md` |
 
 Env overrides: `VICTOR_EFFECTS_PORT`, `VICTOR_EFFECTS_SOUNDS_DIR`,
 `VICTOR_EFFECTS_ADDONS_URL`, `VICTOR_EFFECTS_CONFIG` (path of the config file

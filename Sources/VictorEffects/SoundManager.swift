@@ -282,7 +282,8 @@ class SoundManager {
     /// Every player in the app is built here — see `warmUpAudioStack`.
     static func player(contentsOf url: URL) throws -> AVAudioPlayer {
         try checkReady(url.lastPathComponent)
-        return try AVAudioPlayer(contentsOf: url)
+        // 🎚️ Held under Victor's voice while he screen-shares (`VoiceCeiling`).
+        return try CeilingPlayer(contentsOf: url)
     }
 
     static func player(data: Data) throws -> AVAudioPlayer {
