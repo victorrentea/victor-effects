@@ -108,6 +108,8 @@ final class EffectsEngine {
 
     func pingJSON(panelMonitor: Bool) -> String {
         lastPingAt = Date()
+        // 🔺 A stat or two; the measuring itself runs off the main thread.
+        RecommendedVolumes.refreshIfStale()
         let vol = Int((SoundManager.shared.currentTabletVolume * 100).rounded())
         // A FLAT object, and no recomputation. The app that proxies this route
         // splices its own keys in by string manipulation before the closing
@@ -124,7 +126,8 @@ final class EffectsEngine {
             // including when the move came from the Mac's own panel.
             + "\"usageHash\":\"\(UsageCounts.hash)\","
             // 🔉 The per-tile volumes, same contract as the dots.
-            + "\"gainsHash\":\"\(SoundGains.hash)\","
+            // 🔺 …and the ▲ recommendations ride the same hash (`SoundGains.publicHash`).
+            + "\"gainsHash\":\"\(SoundGains.publicHash)\","
             // 🔊🔋 The JBL's battery, for the tablet's top bar (SpeakerBattery).
             + SpeakerBattery.shared.pingFields() + ","
             + "\"tabletVolume\":\(vol),\"panelMonitor\":\(panelMonitor)}"

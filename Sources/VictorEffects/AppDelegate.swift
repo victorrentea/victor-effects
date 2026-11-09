@@ -26,11 +26,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = EffectsConfig.shared   // logs what it loaded
         SoundManager.warmUpAudioStack()
-        // 🔉 Tiles turned up past the tablet's tick get their amplified copies
-        // now (in the background), not on their first press.
-        for asset in SoundGains.boostedAssets {
-            if let url = SoundManager.shared.soundURL(for: asset) { BoostedClips.prepare(url) }
-        }
+        // ＋ Clips made louder on disk whose render is missing or stale (the
+        // original was replaced) are rendered again now, in the background.
+        DiskBoosts.shared.resume()
+        // 🔺 The ▲ table, without waiting for the tablet's first ping (the sounds
+        // hash it is keyed on needs a moment to warm up; the ping retries anyway).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { RecommendedVolumes.refreshIfStale() }
 
         // Both grants are asked for ONCE, here, before anything needs them.
         requestPermissionsAtLaunch()

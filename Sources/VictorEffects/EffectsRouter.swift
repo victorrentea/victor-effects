@@ -40,6 +40,14 @@ final class EffectsRouter {
         case soundGains
         /// 🔉 `GET /sound/gain/<asset>/<pct>` — move one tile's own volume.
         case soundGainSet(String, Int)
+        /// ＋ `GET /sound/boost/<key>/up` — one more 1.5 dB on disk (`DiskBoosts`).
+        case soundBoostUp(String)
+        /// ＋ `GET /sound/boost/<key>/reset` — back to the original.
+        case soundBoostReset(String)
+        /// ＋ `GET /sound/boost/<key>/file` — the tile's render, for the tablet's local plays.
+        case soundBoostFile(String)
+        /// ＋ `GET /sound/boost/<key>` — its state; for a video, the render addons lays over the mp4.
+        case soundBoostInfo(String)
         case soundStop
         /// `GET /sound/stop/<asset>` — that tile pressed again: its clip and its
         /// effect stop, every other tile's keep running.
@@ -251,6 +259,16 @@ final class EffectsRouter {
             let name = String(pathOnly.dropFirst("/sound/running/".count))
             return name.isEmpty ? .unknown : .soundRunning(name)
         }
+        if pathOnly.hasPrefix("/sound/boost/") {
+            let rest = pathOnly.dropFirst("/sound/boost/".count).split(separator: "/").map(String.init)
+            switch rest.count {
+            case 1: return .soundBoostInfo(rest[0])
+            case 2 where rest[1] == "up": return .soundBoostUp(rest[0])
+            case 2 where rest[1] == "reset": return .soundBoostReset(rest[0])
+            case 2 where rest[1] == "file": return .soundBoostFile(rest[0])
+            default: return .unknown
+            }
+        }
         if pathOnly.hasPrefix("/sound/gain/") {
             let parts = pathOnly.dropFirst("/sound/gain/".count).split(separator: "/")
             if parts.count == 2, let pct = Int(parts[1]) { return .soundGainSet(String(parts[0]), pct) }
@@ -359,11 +377,28 @@ final class EffectsRouter {
             return .ok()
 
         case .soundGains:
-            return .json(SoundGains.json)
+            return .json(SoundGains.responseJSON)
 
         case .soundGainSet(let asset, let pct):
             SoundManager.shared.setTileGain(asset, position: pct)
-            return .json(SoundGains.json)
+            return .json(SoundGains.responseJSON)
+
+        case .soundBoostUp(let key):
+            guard DiskBoosts.shared.press(key) else {
+                return .json("{\"ok\":false,\"reason\":\"unknown-clip\"}", status: 404)
+            }
+            return .json(SoundGains.responseJSON)
+
+        case .soundBoostReset(let key):
+            DiskBoosts.shared.reset(key)
+            return .json(SoundGains.responseJSON)
+
+        case .soundBoostFile(let key):
+            guard let url = DiskBoosts.shared.tabletFile(key), let data = try? Data(contentsOf: url) else { return .notFound }
+            return .binary(data, contentType: "audio/wav")
+
+        case .soundBoostInfo(let key):
+            return .json(DiskBoosts.shared.infoJSON(key))
 
         case .soundStopTile(let asset):
             engine.stopTile(asset)
@@ -512,6 +547,7 @@ final class EffectsRouter {
             EffectsConfig.shared.reload()
             SoundManager.resetSoundsDirWarning()
             SoundsManifest.invalidate()
+            RecommendedVolumes.invalidate()
             TilesManifest.invalidate()
             // The *pictures* too, which the retired `Reload tiles.json` menu row
             // used to be the only way to drop: the caches are keyed by path, so

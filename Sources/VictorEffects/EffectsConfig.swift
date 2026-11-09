@@ -55,6 +55,12 @@ struct EffectsConfigValues: Equatable {
     /// (`SpeakerBattery.marks`). Empty = no mark. `:` or `-`, either case.
     var markedSpeakerMac: String = ""
 
+    /// 🔺 The video snippets' folder (`videos.json` + the mp4s), read only to
+    /// measure their loudness for the ▲ on the tablet's volume bar
+    /// (`RecommendedVolumes`). Empty = no videos measured: the ▲ is then worked
+    /// out over the sounds alone, and the log says so once per pass.
+    var videosDir: String = ""
+
     /// Pure parser — the tests drive this with literal JSON and a literal
     /// environment, so no test ever depends on what is on this machine.
     static func parse(jsonData: Data?, env: [String: String] = [:]) -> EffectsConfigValues {
@@ -75,6 +81,7 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["pressLogFile"] as? String, !s.isEmpty { v.pressLogFile = s }
             if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
             if let s = obj["markedSpeakerMac"] as? String { v.markedSpeakerMac = s }
+            if let s = obj["videosDir"] as? String { v.videosDir = s }
         }
         // Env wins over the file: it is how you start a second copy on another
         // port without editing the config the running one shares.
@@ -84,6 +91,7 @@ struct EffectsConfigValues: Equatable {
         if let s = env["VICTOR_EFFECTS_SOUNDS_DIR"], !s.isEmpty { v.soundsDir = s }
         if let s = env["VICTOR_EFFECTS_ADDONS_URL"] { v.addonsBaseURL = s }
         if let s = env["VICTOR_EFFECTS_PRESS_LOG"], !s.isEmpty { v.pressLogFile = s }
+        if let s = env["VICTOR_EFFECTS_VIDEOS_DIR"] { v.videosDir = s }
         return v
     }
 }
@@ -171,6 +179,11 @@ final class EffectsConfig {
         return raw.hasSuffix("/") ? String(raw.dropLast()) : raw
     }
 
+    var videosDir: URL? {
+        let raw = values.videosDir.trimmingCharacters(in: .whitespaces)
+        return raw.isEmpty ? nil : URL(fileURLWithPath: Self.expand(raw))
+    }
+
     var soundsDirExists: Bool {
         var isDir: ObjCBool = false
         let ok = FileManager.default.fileExists(atPath: soundsDir.path, isDirectory: &isDir)
@@ -193,6 +206,7 @@ final class EffectsConfig {
             + "\"bluetoothSpeakerNameMatch\":\(s(values.bluetoothSpeakerNameMatch)),"
             + "\"overlayScreen\":\(s(values.overlayScreen)),\"chargeEmoji\":[\(emoji)],"
             + "\"addonsBaseURL\":\(s(addonsBaseURL)),"
+            + "\"videosDir\":\(s(videosDir?.path ?? "")),"
             + "\"soundsDirSource\":\(s(soundsDirIsStarterPack ? "starter-pack" : "config")),"
             + "\"soundsDirExists\":\(soundsDirExists)}"
     }
