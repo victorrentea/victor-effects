@@ -36,4 +36,40 @@ final class FireAlarmTests: XCTestCase {
         let bounds = CGRect(x: 0, y: 0, width: 1920, height: 1080)
         XCTAssertTrue(bounds.contains(FireAlarm.frame(in: bounds)))
     }
+
+    // MARK: - 📢 Waves
+
+    /// Every ring's arcs, mapped onto the screen (bottom-origin).
+    private func wavesOnScreen(in bounds: CGRect) -> CGRect {
+        let f = FireAlarm.frame(in: bounds)
+        var all = CGRect.null
+        for r in FireAlarm.waveRadii {
+            let b = FireAlarm.wavePath(radius: r, side: f.width).boundingBoxOfPath
+            all = all.union(b.offsetBy(dx: f.minX, dy: f.minY))
+        }
+        // The stroke and the shake (±3° about the canvas centre) add a margin.
+        return all.insetBy(dx: -12, dy: -12)
+    }
+
+    func testTheWavesStayOnTheGlass() {
+        for bounds in [CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                       CGRect(x: 0, y: 0, width: 1512, height: 982)] {
+            let w = wavesOnScreen(in: bounds)
+            XCTAssertTrue(bounds.contains(w), "\(w) leaves \(bounds)")
+        }
+    }
+
+    /// The hammer's ball sits right of the dome at canvas (300…336, 150…186):
+    /// no arc may cross it.
+    func testTheWavesClearTheHammer() {
+        let hammer = CGRect(x: 300, y: FireAlarm.canvasSide - 186, width: 36, height: 36)
+        for r in FireAlarm.waveRadii {
+            let path = FireAlarm.wavePath(radius: r, side: FireAlarm.canvasSide)
+            let stroked = path.copy(strokingWithWidth: FireAlarm.waveLineWidth,
+                                    lineCap: .round, lineJoin: .round, miterLimit: 1)
+            XCTAssertFalse(stroked.boundingBoxOfPath.intersects(hammer) && stroked.intersects(CGPath(rect: hammer, transform: nil)),
+                           "ring \(r) crosses the hammer")
+        }
+    }
 }
+

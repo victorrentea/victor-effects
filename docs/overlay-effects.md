@@ -540,6 +540,12 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   It was 31 % of the width in the bottom-left corner. The **bell** is what fits
   the box, not the 400 × 400 canvas: `FireAlarm.bell` is the bell's union over
   all 92 frames, and the transparent margin hangs outside the box.
+  Since 2026-11-10 it **rattles and rings out** (Victor: semicircles for the sound,
+  and a shake while it rings): the GIF sits in a container that rotates ±3°
+  every 90 ms, and three orange arcs a side, concentric with the dome and opening
+  up-left / up-right (±45°, so the right ones clear the hammer), light inside-out
+  every 0.6 s. Radii 134/161/188 canvas units — 204 ran 6 px off the left edge
+  (`FireAlarmTests.testTheWavesStayOnTheGlass`).
 - **🚨 Siren lamp** (tile #63 `63_air_horn.mp3` → `siren-lamp`,
   `showSirenLamp` + `SirenLamp.swift`, 2026-10-05): a rotating red beacon
   standing on the bottom edge, left of centre, for the length of the clip

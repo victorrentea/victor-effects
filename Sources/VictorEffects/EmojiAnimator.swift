@@ -10150,11 +10150,54 @@ class EmojiAnimator {
             totalDuration += delay
         }
 
+        // The container is what shakes; the GIF and the waves ride on it.
+        let bellFrame = FireAlarm.frame(in: hostLayer.bounds)
+        let container = CALayer()
+        container.frame = bellFrame
         let gifLayer = CALayer()
-        gifLayer.frame = FireAlarm.frame(in: hostLayer.bounds)
+        gifLayer.frame = container.bounds
         gifLayer.contentsGravity = .resizeAspect
         if let first = images.first { gifLayer.contents = first }
-        stageLayer.addSublayer(gifLayer)
+        container.addSublayer(gifLayer)
+
+        // 📢 Sound waves: rings light one after the other, inside out, in loop.
+        let side = bellFrame.width
+        let k = side / FireAlarm.canvasSide
+        let rings = FireAlarm.waveRadii.count
+        let now = CACurrentMediaTime()
+        for (i, radius) in FireAlarm.waveRadii.enumerated() {
+            let ring = CAShapeLayer()
+            ring.frame = container.bounds
+            ring.path = FireAlarm.wavePath(radius: radius, side: side)
+            ring.fillColor = nil
+            ring.strokeColor = NSColor(srgbRed: 0.95, green: 0.31, blue: 0.0, alpha: 1).cgColor
+            ring.lineWidth = FireAlarm.waveLineWidth * k
+            ring.lineCap = .round
+            ring.shadowColor = NSColor(srgbRed: 0.08, green: 0.06, blue: 0.16, alpha: 1).cgColor
+            ring.shadowOpacity = 0.9
+            ring.shadowRadius = 1.5 * k
+            ring.shadowOffset = .zero
+            ring.opacity = 0
+            let pulse = CAKeyframeAnimation(keyPath: "opacity")
+            pulse.values = [0, 1, 1, 0]
+            pulse.keyTimes = [0, 0.15, 0.45, 0.75]
+            pulse.duration = FireAlarm.wavePeriod
+            pulse.repeatCount = .infinity
+            pulse.beginTime = now + FireAlarm.wavePeriod * Double(i) / Double(rings)
+            pulse.fillMode = .backwards
+            ring.add(pulse, forKey: "wave")
+            container.addSublayer(ring)
+        }
+
+        // 🫨 The rattle, about the canvas centre — the bell's middle.
+        let deg = FireAlarm.shakeDegrees * .pi / 180
+        let shake = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+        shake.values = [0, deg, 0, -deg, 0]
+        shake.duration = FireAlarm.shakeCycle
+        shake.repeatCount = .infinity
+        container.add(shake, forKey: "shake")
+
+        stageLayer.addSublayer(container)
 
         let anim = CAKeyframeAnimation(keyPath: "contents")
         anim.values = images
@@ -10166,7 +10209,7 @@ class EmojiAnimator {
         CATransaction.commit()
 
         if playSound { SoundManager.shared.play("65_school_bell.mp3") }
-        trackEffect("fire-alarm", layer: gifLayer, duration: 4.72, sound: playSound ? "65_school_bell.mp3" : nil)
+        trackEffect("fire-alarm", layer: container, duration: 4.72, sound: playSound ? "65_school_bell.mp3" : nil)
     }
 
     // MARK: - Bullet holes (minigun)
