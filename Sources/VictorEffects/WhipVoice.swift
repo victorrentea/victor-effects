@@ -17,14 +17,36 @@ enum WhipVoice {
     /// not decide it (three languages under 🇪🇸, French in 🇨🇭), else its flag's.
     static func language(of phrase: String) -> String {
         let (_, iso, words) = WhipPleas.flagged(phrase)
-        let word = words.trimmingCharacters(in: .whitespaces).lowercased()
-        return languageByWords[word] ?? languageByCountry[iso] ?? "en"
+        return languageByWords[key(words)] ?? languageByCountry[iso] ?? "en"
     }
+
+    /// Lookup key for the word tables: lower-case, no punctuation, so
+    /// *jiāyóu!* and *jiāyóu* are one entry.
+    static func key(_ words: String) -> String {
+        String(words.lowercased().unicodeScalars.filter {
+            !CharacterSet.punctuationCharacters.contains($0)
+        }).trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Japanese, Chinese and Indian thank-yous are SHOWN in Latin letters, so
+    /// the room can read them (2026-11-11, Victor: *"scrie cu caractere pe
+    /// care să le știu"*), but Google reads Latin letters with a foreign
+    /// accent — so it is handed the native script instead.
+    static let nativeScript: [String: String] = [
+        "arigatō": "ありがとう", "arigato": "ありがとう",
+        "dōmo arigatō": "どうもありがとう", "domo arigato": "どうもありがとう",
+        "otsukaresama": "おつかれさま",
+        "xièxie": "谢谢", "xiexie": "谢谢",
+        "jiāyóu": "加油", "jiayou": "加油",
+        "xīnkǔ le": "辛苦了", "xinku le": "辛苦了",
+        "dhanyavaad": "धन्यवाद", "shukriya": "शुक्रिया",
+        "jaldi jaldi": "जल्दी जल्दी", "nandri": "நன்றி",
+    ]
 
     static let languageByWords: [String: String] = [
         "gràcies": "ca", "moltes gràcies": "ca", "milesker": "eu", "eskerrik asko": "eu",
         "merci": "fr", "merci vielmal": "de-CH", "grazzi": "mt",
-        "go raibh maith agat": "ga",
+        "go raibh maith agat": "ga", "nandri": "ta",
     ]
 
     /// Google Translate `tl` codes, by ISO 3166 country.
@@ -44,9 +66,11 @@ enum WhipVoice {
             .appendingPathComponent(".victor-effects/voice", isDirectory: true)
     }
 
-    /// The words alone go to Google — never the flag.
+    /// The words alone go to Google — never the flag — in their native
+    /// script when they are shown romanised (`nativeScript`).
     static func spokenText(of phrase: String) -> String {
-        WhipPleas.flagged(phrase).words.trimmingCharacters(in: .whitespaces)
+        let words = WhipPleas.flagged(phrase).words.trimmingCharacters(in: .whitespaces)
+        return nativeScript[key(words)] ?? words
     }
 
     static func cacheURL(for phrase: String) -> URL {

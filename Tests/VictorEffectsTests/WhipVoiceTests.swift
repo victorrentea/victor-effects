@@ -25,6 +25,15 @@ final class WhipVoiceTests: XCTestCase {
         XCTAssertEqual(items.first { $0.name == "tl" }?.value, "hi")
     }
 
+    /// Shown in Latin letters, spoken from the native script (2026-11-11).
+    func testRomanisedAsianWordsAreSpokenInTheirOwnScript() {
+        XCTAssertEqual(WhipVoice.spokenText(of: "arigatō 🇯🇵"), "ありがとう")
+        XCTAssertEqual(WhipVoice.spokenText(of: "jiāyóu! 🇨🇳"), "加油")
+        XCTAssertEqual(WhipVoice.spokenText(of: "Dhanyavaad 🇮🇳"), "धन्यवाद")
+        XCTAssertEqual(WhipVoice.language(of: "nandri 🇮🇳"), "ta")
+        XCTAssertEqual(WhipVoice.language(of: "shukriya 🇮🇳"), "hi")
+    }
+
     /// Keyed by what is SAID — language and words — not by the flag: Romania's
     /// and Moldova's *mersi* is one file, France's *merci* another.
     func testCacheIsKeyedByLanguageAndWords() {
