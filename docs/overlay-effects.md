@@ -644,10 +644,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   bursts, the whole display going bright around it. Light on black, keyed by **luminance** (alpha
   0.035 → 0.60, γ 0.85 — gentler than the phoenix on purpose: the faint glow stays translucent, so
   the burst LIGHTS the desktop instead of covering it), colour premultiplied, HEVC with alpha in
-  `assetsDir/fable-descent.mov` (1280×720, 10 s), its sound `assetsDir/fable-descent.mp3` at
-  -14 LUFS through `playClip`. Fitted to the display and **sitting on its top edge** (the figure
-  enters from the top). 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
-  stop-all end it with its sound (named in both stops, `StopSilencesTheSoundTests`). Without the
+  `assetsDir/fable-descent.mov` (1280×720, 10 s) **with its sound inside** (AAC, -14 LUFS), played by
+  the same `AVPlayer` at the board's volume: through `playClip` the music started at once while the
+  picture waited for its first frame, and the bursts missed their bangs (2026-11-12) — one player
+  keeps them in step by construction. The audio fades with the picture (an `AVAudioMix` ramp). It **fills** the display (aspect-fill): fitted, the 16:9 clip left an empty
+  band on the 16:10 screen and the burst's rays stopped on a hard edge there; the figure is centred,
+  so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
+  stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
 - **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
   `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
