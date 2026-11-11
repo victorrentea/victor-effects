@@ -693,7 +693,7 @@ enum WhipPleas {
         "onegai shimasu 🇯🇵", "onegai 🇯🇵",
         "qǐng 🇨🇳", "bàituō le 🇨🇳",
         "kripaya 🇮🇳", "meharbani 🇮🇳",
-        "te rog frumos 🇷🇴", "hai, te rog frumos 🇷🇴", "fii bun 🇷🇴",
+        "te rog frumos 🇷🇴", "hai, te rog frumos 🇷🇴", "fii bun 🇷🇴", "săru-mâna 🇷🇴",
         "hai, davai! 🇲🇩",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
