@@ -29,9 +29,9 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
-    /// One word (2026-10-31; two at most until then).
-    func testEveryPhraseIsOneWord() {
-        XCTAssertEqual(WhipPleas.maxWords, 1)
+    /// Three words at most (2026-11-10; one from 2026-10-31, two before).
+    func testEveryPhraseIsShort() {
+        XCTAssertEqual(WhipPleas.maxWords, 3)
         for phrase in WhipPleas.phrases {
             let words = WhipPleas.flagged(phrase).words.split(separator: " ")
             XCTAssertLessThanOrEqual(words.count, WhipPleas.maxWords, "\(phrase) is too long")
@@ -49,13 +49,15 @@ final class WhipPleasTests: XCTestCase {
 
     /// Every thank-you ends with its country's flag (2026-10-29; it opened
     /// with it from 2026-10-23), one glyph of two regional indicators, from a
-    /// Schengen or euro country.
-    func testEveryPhraseEndsWithAnAllowedFlag() {
+    /// country the right-click can give a voice to (Schengen ∪ euro only,
+    /// until 2026-11-11).
+    func testEveryPhraseEndsWithAFlagThatHasAVoice() {
         for phrase in WhipPleas.phrases {
             let (flag, iso, _) = WhipPleas.flagged(phrase)
             XCTAssertEqual(flag.unicodeScalars.count, 2, "\(phrase) has no flag")
             XCTAssertEqual(iso.count, 2, "\(phrase) has no flag")
-            XCTAssertTrue(WhipPleas.allowedCountries.contains(iso), "\(phrase): \(iso) is neither Schengen nor euro")
+            XCTAssertNotNil(WhipVoice.languageByCountry[iso], "\(phrase): no voice language for \(iso)")
+            XCTAssertNotNil(WhipVoice.countryName(of: phrase), "\(phrase): \(iso) is no country")
         }
     }
 

@@ -11,7 +11,8 @@ Three files, one overlay:
 |---|---|
 | `WhipPhysics.swift` | the simulation: 28 Verlet segments, gravity, constraint iterations, the flick detector. Pure — no AppKit, no time source of its own |
 | `WhipOverlay.swift` | `WhipController` + `WhipPanel` + `WhipView`: the window, the per-frame draw, the cursor poll, the crack sounds |
-| `WhipMacro.swift` | what a *click* sends into whatever app has focus |
+| `WhipVoice.swift` | the right-click: the last thank-you's voice (Google TTS, cached) and country |
+| `WhipMacro.swift` | what a click USED to type into the focused app (unused since 2026-11-11) |
 
 **Under ⌥-scroll zoom the rope keeps its size** (2026-10-16): the panel is
 re-mapped every frame onto the slice on the glass, shrunk by the zoom, with the
@@ -53,7 +54,7 @@ transcript" keeps it. Both can run at once only because of that one clause.
 **The menu-bar icon shows 🛑 while the whip is armed**, and a click on it
 dismisses the whip exactly as Esc does (`stopAll()` → `WhipController.hide()`).
 An armed whip is a mode — it gates the Return/buttons-6-7 crack and the
-click-types-the-macro behaviour and has no deadline of its own — so the status
+click-cracks behaviour and has no deadline of its own — so the status
 item stays 🛑 for as long as it is out; that is the emergency-stop surface being
 honest about what a click would do, see `docs/overlay-effects.md`.
 
@@ -128,11 +129,28 @@ besides the flag. Catalan and Basque go under 🇪🇸 — emoji have no flag fo
 either. **The flag's ISO code follows it as a subscript** (🇫🇷₍FR₎, 50% size,
 12% below the baseline — `WhipPleas.isoScale`/`isoDrop`), read back off the two
 regional indicators, so a flag nobody recognises still says where it is from
-(2026-10-23: *"codul ISO … mai bine subscript după [steag]"*). **Only Schengen
-or euro countries** (*"nu pune chiar toate țările … din toate colțurile"*):
-Albania, Wales and the British phrases went, Ireland stays on the euro.
-`WhipPleasTests` fails on a phrase without a flag, or with one outside
-`WhipPleas.allowedCountries`.
+(2026-10-23: *"codul ISO … mai bine subscript după [steag]"*). It was **Schengen
+or euro only** from 2026-10-23 to 2026-11-11; Victor's own *pretty please 🇬🇧*
+and the Japanese, Chinese, Indian and Moldovan ones asked for next ended it.
+The rule now: **every flag has a voice** — `WhipPleasTests` fails on a phrase
+without a flag, or with one missing from `WhipVoice.languageByCountry`. Up to
+three words (`maxWords`; one from 2026-10-31 to 2026-11-10).
+
+**Right-click says it out loud** (2026-11-11, Victor: *"ultimul afișat să fie
+pronunțat corect (ia de pe google …) + să apară țara din care vine … SUB acel
+mulțumesc"*). While the whip is up, a right-click takes the newest thank-you
+still flying, plays it in its own language and writes its country (English,
+`Locale`) under it in white; the word stops where it was, back at full colour,
+for `explainHoldMs` (3.5 s), then fades as usual (`WhipPleas.progress`). The
+voice is Google Translate's TTS (`translate_tts`, `client=tw-ob`), one mp3 per
+language+words in `~/.victor-effects/voice/`, all fetched in the background on
+the first `show()` of a launch (`WhipVoice.prefetch`) so the room never waits on
+the network; none of it is committed. The language is the flag's
+(`languageByCountry`) unless the words say otherwise (`languageByWords`: Catalan
+and Basque under 🇪🇸, French in 🇨🇭). Where Google has no voice (Maltese answers
+400) or the Mac is offline, macOS's own voice for that language reads it. Once
+the whip is put away the panel no longer catches clicks, so a word still
+flying after `hide()` can't be explained.
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,
@@ -168,8 +186,8 @@ the screen so a crack at the bezel does not cut the word in half.
   🛑 stop-all (`hide(keepingPleas: false)`) clears them on the spot.
   `isShowing` means the ROPE (`physics != nil`), not the panel. Not behind
   ✓ Subtitles — it is part of the whip, like the sparks on a hit.
-- The *typed* phrases of a click (`WhipMacro.phrases`, "FASTER CLANKER") are a
-  different gesture and still scold — the room sees manners, the agent does not.
+- A click no longer types anything (2026-11-11): it cracks, like Return.
+  `WhipMacro` and its scolding phrases are kept but nothing calls them.
 
 ## The mascot flinches — when the rope hits him
 
@@ -283,7 +301,12 @@ listeners. `PeekWhipJumpTests.testEveryCrackGoesThroughTheFunnel` parses
 `WhipOverlay.swift` to keep a third `playCrack()` call site from quietly
 skipping the second half.
 
-## ⚠️ A click types into the front app
+## A click cracks — it no longer types (2026-11-11)
+
+Victor: *"dacă apăs click pe whip să plesnească biciul dar să nu mai introducă
+faster… în text"*. `WhipController.handleClick` is now `forceCrack()` — the
+same scripted flick, sound and thank-you as Return. What follows is the macro
+it used to fire, kept in `WhipMacro.swift` for the day it is wanted back.
 
 `WhipMacro.sendCrackMacro` posts **Ctrl+C**, waits `interruptToTypeDelay`
 (0.30 s, OpenWhip's number, so the interrupt lands before a new prompt), then

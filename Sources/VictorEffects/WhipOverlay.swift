@@ -7,8 +7,10 @@ import Foundation
 /// While active:
 ///   • a physics whip (WhipPhysics) follows the cursor across the screen,
 ///   • a fast left-right flick **cracks** the whip (one of 5 sounds),
-///   • a **click** fires the macro: Ctrl+C + a scolding phrase + Return at the
-///     focused terminal (WhipMacro),
+///   • a **click** cracks it too — and types nothing (2026-11-11; until then
+///     it fired `WhipMacro`: Ctrl+C + "FASTER" + Return at the focused app),
+///   • a **right-click** says the last thank-you still on screen out loud and
+///     writes its country under it (`WhipVoice`),
 ///   • Esc (or unchecking the menu item) dismisses it.
 ///
 /// Deliberately self-contained: it tracks the mouse by polling
@@ -188,6 +190,7 @@ final class WhipController {
         let v = WhipView(frame: NSRect(origin: .zero, size: screenFrame.size))
         v.pleas = carried
         v.onMouseDown = { [weak self] in self?.handleClick() }
+        v.onRightMouseDown = { [weak self] in self?.explainLastPlea() }
         p.contentView = v
         // Before the first pointer read: the spawn below converts the pointer
         // with the slice this places the panel on.
@@ -215,6 +218,7 @@ final class WhipController {
 
         installEscMonitors()
         startTimer()
+        WhipVoice.prefetch()
         onVisibilityChanged?(true)
     }
 
@@ -299,7 +303,7 @@ final class WhipController {
         let now = nowMs()
         guard let physics else {
             // The rope is down; only its last words are still flying.
-            view.pleas.removeAll { now - $0.bornMs > WhipPleas.lifeMs }
+            view.pleas.removeAll { !WhipPleas.isAlive($0, now: now) }
             if view.pleas.isEmpty { tearDownPanel(); return }
             view.nowMs = now
             view.needsDisplay = true
@@ -325,7 +329,7 @@ final class WhipController {
             }
         }
         if pleaOwed && (didCrack || flickQueue.isEmpty) { throwPlea(now: now) }
-        view.pleas.removeAll { now - $0.bornMs > WhipPleas.lifeMs }
+        view.pleas.removeAll { !WhipPleas.isAlive($0, now: now) }
         view.nowMs = now
         view.points = physics.points
         view.needsDisplay = true
@@ -352,11 +356,24 @@ final class WhipController {
 
     // MARK: - Input
 
+    /// A click cracks the whip, and that is all: nothing is typed into the
+    /// focused app any more (2026-11-11, Victor: *"să plesnească biciul dar să
+    /// nu mai introducă faster… în text"*). Same path as Return / the thumb
+    /// buttons, so it also throws a thank-you.
     private func handleClick() {
-        // A click = interrupt: Ctrl+C + a scolding phrase + Return, delivered to
-        // whatever app currently has keyboard focus (no focus stealing, no stale
-        // target — the user keeps Claude focused; the keys land there).
-        WhipMacro.sendCrackMacro()
+        forceCrack()
+    }
+
+    /// Right-click: the newest thank-you still on screen is said out loud in
+    /// its own language and its country appears under it; it then stays up
+    /// long enough to be read (`WhipPleas.explainHoldMs`).
+    private func explainLastPlea() {
+        guard let view, let i = view.pleas.indices.last else { return }
+        let now = nowMs()
+        guard WhipPleas.isAlive(view.pleas[i], now: now) else { return }
+        if view.pleas[i].explainedMs == nil { view.pleas[i].explainedMs = now }
+        WhipVoice.speak(view.pleas[i].text)
+        view.needsDisplay = true
     }
 
     private func installEscMonitors() {
@@ -461,14 +478,11 @@ private final class WhipView: NSView {
 
     var points: [WhipPhysics.Point] = []
     var onMouseDown: (() -> Void)?
+    var onRightMouseDown: (() -> Void)?
 
     /// A polite word thrown off the tip on a crack (`WhipPleas`), in view
     /// coords. Each one dies on its own clock — `tick` prunes it at `lifeMs`.
-    struct Plea {
-        let text: String
-        let at: CGPoint
-        let bornMs: Double
-    }
+    typealias Plea = WhipPleas.Plea
     var pleas: [Plea] = []
     var nowMs = 0.0
 
@@ -485,6 +499,7 @@ private final class WhipView: NSView {
     // Deliver the click even though the panel isn't the active window.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) { onMouseDown?() }
+    override func rightMouseDown(with event: NSEvent) { onRightMouseDown?() }
 
     private func p(_ i: Int) -> CGPoint { CGPoint(x: points[i].x, y: points[i].y) }
 
@@ -578,7 +593,7 @@ private final class WhipView: NSView {
     /// over the last 40%. Black outline + dark shadow so it reads on any
     /// backdrop (white until 2026-10-20 — Victor asked for a black border).
     private func drawPlea(_ plea: Plea) {
-        let t = CGFloat(min(1, max(0, (nowMs - plea.bornMs) / WhipPleas.lifeMs)))
+        let t = CGFloat(WhipPleas.progress(plea, now: nowMs))
         let pop: CGFloat = t < 0.12 ? lerp(0.5, 1.15, t / 0.12)
             : t < 0.22 ? lerp(1.15, 1.0, (t - 0.12) / 0.1) : 1.0
         let alpha: CGFloat = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4
@@ -615,6 +630,33 @@ private final class WhipView: NSView {
             ctx.restoreGState()
         }
         fill.draw(at: origin)
+        if plea.explainedMs != nil, let country = WhipVoice.countryName(of: plea.text) {
+            drawCountry(country, under: CGRect(origin: origin, size: size), alpha: alpha, shadow: shadow)
+        }
+    }
+
+    /// The country of an explained thank-you, centred under it, smaller,
+    /// white on the same black outline.
+    private func drawCountry(_ name: String, under phrase: CGRect, alpha: CGFloat, shadow: NSShadow) {
+        let font = NSFont.systemFont(ofSize: WhipPleas.fontSize * WhipPleas.countryScale, weight: .heavy)
+        let outline = NSAttributedString(string: name, attributes: [
+            .font: font, .strokeColor: NSColor.black.withAlphaComponent(alpha),
+            .strokeWidth: WhipPleas.outlineWidth, .shadow: shadow,
+        ])
+        let fill = NSAttributedString(string: name, attributes: [
+            .font: font, .foregroundColor: NSColor.white.withAlphaComponent(alpha),
+        ])
+        let size = fill.size()
+        let origin = WhipPleas.clamp(
+            CGRect(x: phrase.midX - size.width / 2, y: phrase.maxY, width: size.width, height: size.height),
+            into: bounds).origin
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            ctx.saveGState()
+            ctx.setLineJoin(.round)
+            outline.draw(at: origin)
+            ctx.restoreGState()
+        }
+        fill.draw(at: origin)
     }
 }
 
@@ -626,15 +668,14 @@ enum WhipPleas {
     /// (2026-10-23, Victor: *"să pui și steagul țării din care e acea
     /// mulțumire … să învățăm cultură"*) — and nothing else: words first, the
     /// country last (2026-10-29, Victor: *"scoate emoji-ul de la finalul
-    /// frazelor … lasă doar țara … la final. Începe cu cuvintele"*). Only
-    /// Schengen or euro countries (2026-10-23: *"nu pune chiar toate țările
-    /// … din toate colțurile"*), so Albania, Wales and the British went;
-    /// Ireland stays on the euro.
-    /// One word (2026-10-31, Victor: *"să fie întotdeauna un cuvânt … mulțumesc
-    /// frumos, o să zici merci … și româna nu uita: săru' mâna"*; two at most
-    /// since 2026-10-29): the room reads it in the flash it flies. A hyphenated
-    /// *săru-mâna* is one word. Countries with the same word keep their own flag.
-    static let maxWords = 1
+    /// frazelor … lasă doar țara … la final. Începe cu cuvintele"*).
+    /// Short: the room reads it in the flash it flies. One word from
+    /// 2026-10-31 to 2026-11-10, when Victor's own list brought *merci
+    /// beaucoup*, *pretty please* and *hai să trăiești* — three at most now.
+    /// Europe only (Schengen ∪ euro) from 2026-10-23 until 🇬🇧 came in the same
+    /// edit and Japan, China, India and Moldova were asked for (2026-11-11);
+    /// the rule now is that every flag has a voice (`WhipVoice.languageByCountry`).
+    static let maxWords = 3
     static let phrases = [
         "merci 🇫🇷", "grazie 🇮🇹", "danke 🇩🇪", "dankeschön 🇦🇹",
         "merci 🇨🇭", "gracias 🇪🇸", "gràcies 🇪🇸", "milesker 🇪🇸",
@@ -644,12 +685,6 @@ enum WhipPleas {
         "köszönöm 🇭🇺", "hvala 🇭🇷", "благодаря 🇧🇬", "ευχαριστώ 🇬🇷",
         "grazzi 🇲🇹", "cheers 🇮🇪",
         "mersi 🇷🇴", "mulțumesc 🇷🇴", "săru-mâna 🇷🇴",
-    ]
-    /// Schengen ∪ euro area, as of 2026 — the only flags a thank-you may fly.
-    static let allowedCountries: Set<String> = [
-        "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
-        "HU", "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL",
-        "PT", "RO", "SK", "SI", "ES", "SE", "CH",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
     /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),
@@ -680,6 +715,40 @@ enum WhipPleas {
     /// 1.95 s = 1.3 s + 50% (2026-10-21: *"stay for fifty percent more
     /// time"*) — the room needs the time to read *mulțumesc frumos 🇷🇴RO*.
     static let lifeMs = 1950.0
+
+    /// A thrown thank-you, in view coords. `explainedMs` is when a right-click
+    /// asked for its voice and country (`WhipVoice`).
+    struct Plea {
+        let text: String
+        let at: CGPoint
+        let bornMs: Double
+        var explainedMs: Double? = nil
+    }
+    /// An explained thank-you holds still at full colour this long — the
+    /// voice is ~1 s and the room reads the country — then fades as usual.
+    static let explainHoldMs = 3500.0
+    /// The fade is the last 40% of `lifeMs`, explained or not.
+    static let fadeMs = lifeMs * 0.4
+    /// The country line, as a share of `fontSize`.
+    static let countryScale: CGFloat = 0.55
+
+    /// 0…1 through the plea's life, the clock `drawPlea` animates by. An
+    /// explained one stops where it was (never past the start of the fade),
+    /// holds for `explainHoldMs`, then fades over `fadeMs`.
+    static func progress(_ plea: Plea, now: Double) -> Double {
+        guard let explained = plea.explainedMs else {
+            return min(1, max(0, (now - plea.bornMs) / lifeMs))
+        }
+        let frozen = min(0.6, max(0, (explained - plea.bornMs) / lifeMs))
+        let held = now - explained
+        if held < explainHoldMs { return frozen }
+        return min(1, 0.6 + 0.4 * (held - explainHoldMs) / fadeMs)
+    }
+
+    static func isAlive(_ plea: Plea, now: Double) -> Bool {
+        if let explained = plea.explainedMs { return now - explained < explainHoldMs + fadeMs }
+        return now - plea.bornMs <= lifeMs
+    }
     static let riseDistance: CGFloat = 70
     /// 41 = 34 + 20% (2026-10-20: *"twenty percent larger"*).
     static let fontSize: CGFloat = 41
