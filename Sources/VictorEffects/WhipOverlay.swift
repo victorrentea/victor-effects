@@ -677,7 +677,8 @@ enum WhipPleas {
     /// Europe only (Schengen ∪ euro) from 2026-10-23 until 🇬🇧 came in the same
     /// edit and Japan, China, India and Moldova were asked for (2026-11-11);
     /// the rule now is that every flag has a voice (`WhipVoice.languageByCountry`).
-    static let maxWords = 3
+    /// Four since *hai, te rog frumos* (2026-11-11).
+    static let maxWords = 4
     static let phrases = [
         "s'il vous plaît 🇫🇷",
         "per favore 🇮🇹", "ti prego 🇮🇹",
@@ -692,7 +693,7 @@ enum WhipPleas {
         "onegai shimasu 🇯🇵", "onegai 🇯🇵",
         "qǐng 🇨🇳", "bàituō le 🇨🇳",
         "kripaya 🇮🇳", "meharbani 🇮🇳",
-        "te rog frumos 🇷🇴", "fii bun 🇷🇴",
+        "te rog frumos 🇷🇴", "hai, te rog frumos 🇷🇴", "fii bun 🇷🇴",
         "hai, davai! 🇲🇩",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
