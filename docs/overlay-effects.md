@@ -644,7 +644,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   bursts, the whole display going bright around it. Light on black, keyed by **luminance** (alpha
   0.035 → 0.60, γ 0.85 — gentler than the phoenix on purpose: the faint glow stays translucent, so
   the burst LIGHTS the desktop instead of covering it), colour premultiplied, HEVC with alpha in
-  `assetsDir/fable-descent.mov` (1280×720, 10 s) **with its sound inside** (AAC, -14 LUFS), played by
+  `assetsDir/fable-descent.mov` (1280×720, cut to 9.2 s: the music starts a new note at ~9.4 s that the clip's end then chops off — Victor heard it as "a stray start of a sound"; the audio fades 8.5 → 9.2 s) **with its sound inside** (AAC, -14 LUFS), played by
   the same `AVPlayer` at the board's volume: through `playClip` the music started at once while the
   picture waited for its first frame, and the bursts missed their bangs (2026-11-12) — one player
   keeps them in step by construction. The audio fades with the picture (an `AVAudioMix` ramp). It **fills** the display (aspect-fill): fitted, the 16:9 clip left an empty
