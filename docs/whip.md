@@ -134,7 +134,7 @@ or euro only** from 2026-10-23 to 2026-11-11; Victor's own *pretty please 🇬�
 and the Japanese, Chinese, Indian and Moldovan ones asked for next ended it.
 The rule now: **every flag has a voice** — `WhipPleasTests` fails on a phrase
 without a flag, or with one missing from `WhipVoice.languageByCountry`. Up to
-four words (`maxWords`; *hai, te rog frumos*; one from 2026-10-31 to 2026-11-10).
+three words (`maxWords`; one from 2026-10-31 to 2026-11-10).
 
 **Since 2026-11-11 every word is a *please*, not a thanks** (Victor: *"e un fel
 de te rog frumos … por favor"*): *s'il vous plaît*, *per favore*, *onegai
