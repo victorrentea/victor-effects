@@ -136,6 +136,13 @@ The rule now: **every flag has a voice** — `WhipPleasTests` fails on a phrase
 without a flag, or with one missing from `WhipVoice.languageByCountry`. Up to
 three words (`maxWords`; one from 2026-10-31 to 2026-11-10).
 
+**Since 2026-11-11 every word is a *please*, not a thanks** (Victor: *"e un fel
+de te rog frumos … por favor"*): *s'il vous plaît*, *per favore*, *onegai
+shimasu*, *te rog frumos*. Present tense, a request — *otsukaresama* and *ai
+tras tare* were turned down as praise for work already done. Japanese, Chinese
+and Hindi are shown romanised and spoken from their native script
+(`WhipVoice.nativeScript`).
+
 **Right-click says it out loud** (2026-11-11, Victor: *"ultimul afișat să fie
 pronunțat corect (ia de pe google …) + să apară țara din care vine … SUB acel
 mulțumesc"*). While the whip is up, a right-click takes the newest thank-you

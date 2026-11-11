@@ -662,7 +662,9 @@ private final class WhipView: NSView {
 
 /// The thank-yous the whip throws where it cracks — it never apologises, it
 /// thanks (2026-10-22, Victor: *"nu vreau să îți cer scuze … vreau să spui
-/// mulțumesc în cât mai amuzante moduri multiculturale din Europa"*).
+/// mulțumesc în cât mai amuzante moduri multiculturale din Europa"*) — and
+/// since 2026-11-11 it ASKS: every word is a *please*, present tense, not a
+/// thanks (Victor: *"e un fel de te rog frumos … por favor"*).
 enum WhipPleas {
     /// Each thank-you carries the flag of the country it comes from
     /// (2026-10-23, Victor: *"să pui și steagul țării din care e acea
@@ -677,14 +679,21 @@ enum WhipPleas {
     /// the rule now is that every flag has a voice (`WhipVoice.languageByCountry`).
     static let maxWords = 3
     static let phrases = [
-        "merci 🇫🇷", "grazie 🇮🇹", "danke 🇩🇪", "dankeschön 🇦🇹",
-        "merci 🇨🇭", "gracias 🇪🇸", "gràcies 🇪🇸", "milesker 🇪🇸",
-        "obrigadíssimo! 🇵🇹", "dankjewel 🇳🇱", "tack 🇸🇪", "takk 🇳🇴",
-        "tak 🇩🇰", "kiitos 🇫🇮", "takk 🇮🇸", "aitäh 🇪🇪", "paldies 🇱🇻",
-        "ačiū 🇱🇹", "dziękuję 🇵🇱", "děkuji 🇨🇿", "ďakujem 🇸🇰",
-        "köszönöm 🇭🇺", "hvala 🇭🇷", "благодаря 🇧🇬", "ευχαριστώ 🇬🇷",
-        "grazzi 🇲🇹", "cheers 🇮🇪",
-        "mersi 🇷🇴", "mulțumesc 🇷🇴", "săru-mâna 🇷🇴",
+        "s'il vous plaît 🇫🇷",
+        "per favore 🇮🇹", "ti prego 🇮🇹",
+        "bitte 🇩🇪", "bitte schön 🇦🇹",
+        "por favor 🇪🇸", "porfa 🇪🇸", "porfi 🇪🇸", "se faz favor 🇵🇹",
+        "alsjeblieft 🇳🇱", "snälla 🇸🇪", "vær så snill 🇳🇴", "vær sød 🇩🇰",
+        "vinsamlegast 🇮🇸", "ole kiltti 🇫🇮", "palun 🇪🇪", "lūdzu 🇱🇻",
+        "proszę 🇵🇱", "prosím 🇨🇿", "prosím ťa 🇸🇰",
+        "kérlek 🇭🇺", "légyszi 🇭🇺", "molim te 🇭🇷",
+        "моля 🇧🇬", "παρακαλώ 🇬🇷", "jekk jogħġbok 🇲🇹",
+        "pretty please 🇬🇧", "if you please 🇬🇧",
+        "onegai shimasu 🇯🇵", "onegai 🇯🇵",
+        "qǐng 🇨🇳", "bàituō le 🇨🇳",
+        "kripaya 🇮🇳", "meharbani 🇮🇳",
+        "te rog frumos 🇷🇴", "fii bun 🇷🇴",
+        "hai, davai! 🇲🇩",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
     /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),
