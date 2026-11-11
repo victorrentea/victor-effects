@@ -35,12 +35,13 @@ enum WhipVoice {
     static let nativeScript: [String: String] = [
         "arigatō": "ありがとう", "arigato": "ありがとう",
         "dōmo arigatō": "どうもありがとう", "domo arigato": "どうもありがとう",
-        "otsukaresama": "おつかれさま",
+        "onegai shimasu": "おねがいします", "onegai": "おねがい",
         "xièxie": "谢谢", "xiexie": "谢谢",
+        "qǐng": "请", "qing": "请",
+        "bàituō le": "拜托了", "baituo le": "拜托了",
         "jiāyóu": "加油", "jiayou": "加油",
-        "xīnkǔ le": "辛苦了", "xinku le": "辛苦了",
         "dhanyavaad": "धन्यवाद", "shukriya": "शुक्रिया",
-        "jaldi jaldi": "जल्दी जल्दी", "nandri": "நன்றி",
+        "kripaya": "कृपया", "meharbani": "मेहरबानी", "nandri": "நன்றி",
     ]
 
     static let languageByWords: [String: String] = [

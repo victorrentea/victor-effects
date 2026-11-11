@@ -30,6 +30,9 @@ final class WhipVoiceTests: XCTestCase {
         XCTAssertEqual(WhipVoice.spokenText(of: "arigatō 🇯🇵"), "ありがとう")
         XCTAssertEqual(WhipVoice.spokenText(of: "jiāyóu! 🇨🇳"), "加油")
         XCTAssertEqual(WhipVoice.spokenText(of: "Dhanyavaad 🇮🇳"), "धन्यवाद")
+        XCTAssertEqual(WhipVoice.spokenText(of: "onegai shimasu 🇯🇵"), "おねがいします")
+        XCTAssertEqual(WhipVoice.spokenText(of: "bàituō le 🇨🇳"), "拜托了")
+        XCTAssertEqual(WhipVoice.spokenText(of: "kripaya 🇮🇳"), "कृपया")
         XCTAssertEqual(WhipVoice.language(of: "nandri 🇮🇳"), "ta")
         XCTAssertEqual(WhipVoice.language(of: "shukriya 🇮🇳"), "hi")
     }
