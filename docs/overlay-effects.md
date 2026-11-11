@@ -639,6 +639,16 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   full-screen wash. The layer's anchor is its **top edge** (`anchorPoint.y = 1`),
   so the shrink comes off the bottom and the band stays glued to the top of the
   screen — the same anchor the 1.5 s vertical-scale reveal grows down from.
+- **✨ Fable descends** (⌘⌃0 in `victor-macos-addons` → `fable` / `fable/stop`, `showFable`,
+  2026-11-12, Victor's Gemini clip): a figure of light descends down the middle of the screen and
+  bursts, the whole display going bright around it. Light on black, keyed by **luminance** (alpha
+  0.035 → 0.60, γ 0.85 — gentler than the phoenix on purpose: the faint glow stays translucent, so
+  the burst LIGHTS the desktop instead of covering it), colour premultiplied, HEVC with alpha in
+  `assetsDir/fable-descent.mov` (1280×720, 10 s), its sound `assetsDir/fable-descent.mp3` at
+  -14 LUFS through `playClip`. Fitted to the display and **sitting on its top edge** (the figure
+  enters from the top). 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
+  stop-all end it with its sound (named in both stops, `StopSilencesTheSoundTests`). Without the
+  video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
 - **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
   `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
   the moon plus stars, on a transparent background, in the bottom-left corner"*): the silence

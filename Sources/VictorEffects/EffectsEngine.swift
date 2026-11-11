@@ -413,6 +413,8 @@ final class EffectsEngine {
         case "panda/stop":    animator.stopPanda()
         case "opus":          animator.showOpus()
         case "opus/stop":     animator.stopOpus()
+        case "fable":         animator.showFable()
+        case "fable/stop":    animator.stopFable()
         case "claude-peek":
             animator.showClaudePeek()
             // 🦀 He says hello in his entrance mood, then notices what is in

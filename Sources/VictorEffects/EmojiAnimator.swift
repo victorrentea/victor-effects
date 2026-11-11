@@ -2969,6 +2969,82 @@ class EmojiAnimator {
         _ = cancelIfRunning(CricketMoon.effectName)
     }
 
+    // MARK: - ✨ Fable descends (⌃⌘0, 2026-11-12)
+
+    /// A figure of light comes down the middle of the screen and bursts, the
+    /// whole display going bright around it. Victor's Gemini clip (light on
+    /// black), keyed to transparency by luminance — black transparent, the faint
+    /// glow translucent, so the burst lights the desktop instead of covering it
+    /// with a black frame — and shipped as HEVC with PREMULTIPLIED alpha, the
+    /// phoenix's player. Fitted to the display and **sitting on its top edge**:
+    /// the figure enters from the top, so the 16:9-on-16:10 spare band goes to
+    /// the bottom. The clip's own sound (rising music) at -14 LUFS through
+    /// `playClip`. Both files live in `assetsDir`; without them, a log line.
+    static let fableVideoName = "fable-descent.mov"
+    static let fableVideoSound = "fable-descent.mp3"
+    private static let fableFadeIn: Double = 0.3
+    private static let fableFadeOut: Double = 0.8
+
+    func showFable() {
+        if cancelIfRunning("fable") {
+            SoundManager.shared.stopOverlapping(Self.fableVideoSound, fade: SoundManager.interruptFade)
+            return
+        }
+        guard let url = EffectsConfig.shared.assetURL(Self.fableVideoName) else {
+            overlayError("\(Self.fableVideoName) not in \(EffectsConfig.shared.assetsDir.path)")
+            return
+        }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let asset = AVURLAsset(url: url)
+        guard let track = asset.tracks(withMediaType: .video).first else {
+            overlayError("\(Self.fableVideoName) has no video track")
+            return
+        }
+        let d = CMTimeGetSeconds(asset.duration)
+        let life = d.isFinite && d > 0 ? d : 10
+
+        let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+        player.isMuted = true                 // the sound goes through SoundManager
+        player.actionAtItemEnd = .pause
+        let video = AVPlayerLayer(player: player)
+        let natural = track.naturalSize.applying(track.preferredTransform)
+        let vw = abs(natural.width), vh = abs(natural.height)
+        let fit = min(bounds.width / vw, bounds.height / vh)
+        // hostLayer is bottom-origin: top edge = height - video height.
+        video.frame = CGRect(x: (bounds.width - vw * fit) / 2, y: bounds.height - vh * fit,
+                             width: vw * fit, height: vh * fit)
+        video.videoGravity = .resizeAspect
+        video.pixelBufferAttributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        video.backgroundColor = NSColor.clear.cgColor
+        video.isOpaque = false
+
+        let container = CALayer()
+        container.frame = bounds
+        container.addSublayer(video)
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = [0, 1, 1, 0]
+        fade.keyTimes = [0, NSNumber(value: Self.fableFadeIn / life),
+                         NSNumber(value: (life - Self.fableFadeOut) / life), 1]
+        fade.duration = life
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        container.add(fade, forKey: "fableFade")
+        stageLayer.addSublayer(container)
+
+        player.play()
+        SoundManager.shared.playClip(Self.fableVideoSound, seconds: life, fade: Self.fableFadeOut,
+                                     volume: SoundManager.shared.currentTabletVolume)
+        trackEffect("fable", layer: container, duration: life)
+    }
+
+    /// Explicit exit; `showFable` already scheduled its own end.
+    func stopFable() {
+        if cancelIfRunning("fable") {
+            SoundManager.shared.stopOverlapping(Self.fableVideoSound, fade: SoundManager.interruptFade)
+        }
+    }
+
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)
 
     static let smallDogSound = "44_small_dog.mp3"
@@ -14597,6 +14673,8 @@ class EmojiAnimator {
         case "phoenix":
             SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
             SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
+        case "fable":
+            SoundManager.shared.stopOverlapping(Self.fableVideoSound, fade: SoundManager.interruptFade)
         case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
         // The raid has no `activeEffects` key: without this a re-press cut the head
         // clip and left the targets, the falling nuke and the click-eating tap up.
@@ -14709,5 +14787,6 @@ class EmojiAnimator {
         stopBombBooms()
         SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
+        SoundManager.shared.stopOverlapping(Self.fableVideoSound, fade: SoundManager.interruptFade)
     }
 }
