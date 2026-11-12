@@ -91,31 +91,69 @@ final class GrenadeTossTests: XCTestCase {
     }
 }
 
-/// 💥 The crack where it fell: after the shake, inside "a part of the screen".
+/// 💥 The glass where it fell: after the shake, a quarter of the screen broken.
 final class GrenadeCrackTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
 
-    func testTheGlassCracksOnlyOnceTheShakeIsOver() {
+    func testTheGlassBreaksOnlyOnceTheShakeIsOver() {
         XCTAssertGreaterThanOrEqual(GrenadeToss.crackAt, GrenadeToss.blastAt + BombShake.seconds)
         XCTAssertGreaterThanOrEqual(GrenadeToss.totalDuration,
                                     GrenadeToss.crackAt + GrenadeToss.crackHold + GrenadeToss.crackFade)
     }
 
-    func testTheCrackStaysAroundTheImpact() {
-        let c = CGPoint(x: 1200, y: 400)
-        let r = min(screen.width, screen.height) * GrenadeToss.crackRadiusFraction
-        let crack = GrenadeToss.crack(at: c, radius: r, seed: 42)
-        let box = crack.lines.boundingBoxOfPath
-        XCTAssertTrue(CGRect(x: c.x - r * 1.1, y: c.y - r * 1.1, width: r * 2.2, height: r * 2.2).contains(box), "\(box)")
-        XCTAssertTrue(crack.hole.boundingBoxOfPath.contains(c))
-        XCTAssertLessThan(crack.hole.boundingBoxOfPath.width, r * 0.4)
-        XCTAssertEqual(crack.holeCells.count, 13)
+    /// The share of the screen inside a disc, sampled finer than the code does.
+    private func coverage(_ c: CGPoint, _ r: CGFloat) -> CGFloat {
+        var inside = 0, n = 200
+        for i in 0..<n { for j in 0..<n {
+            let p = CGPoint(x: (CGFloat(i) + 0.5) / CGFloat(n) * screen.width, y: (CGFloat(j) + 0.5) / CGFloat(n) * screen.height)
+            if hypot(p.x - c.x, p.y - c.y) <= r { inside += 1 }
+        } }
+        n *= n
+        return CGFloat(inside) / CGFloat(n)
     }
 
-    func testTwoPressesCrackDifferentlyButOneSeedTheSame() {
+    func testAQuarterOfTheScreenBreaksInTheMiddleAndNearAnEdge() {
+        for c in [CGPoint(x: 864, y: 558), CGPoint(x: 150, y: 150), CGPoint(x: 1600, y: 900)] {
+            let r = GrenadeToss.holeRadius(at: c, in: screen)
+            XCTAssertEqual(coverage(c, r), 0.25, accuracy: 0.02, "at \(c)")
+        }
+        // Near a corner the edge cuts the disc, so it has to be bigger.
+        XCTAssertGreaterThan(GrenadeToss.holeRadius(at: CGPoint(x: 150, y: 150), in: screen),
+                             GrenadeToss.holeRadius(at: CGPoint(x: 864, y: 558), in: screen))
+    }
+
+    func testItBreaksIntoManyPiecesThatFitTheHole() {
+        let c = CGPoint(x: 864, y: 558)
+        let r = GrenadeToss.holeRadius(at: c, in: screen)
+        let crack = GrenadeToss.crack(at: c, holeRadius: r, seed: 42)
+        XCTAssertEqual(crack.shards.count, GrenadeToss.crackSlices * 4)
+        XCTAssertTrue(crack.hole.boundingBoxOfPath.contains(c))
+        for shard in crack.shards {
+            XCTAssertTrue(crack.hole.boundingBoxOfPath.insetBy(dx: -1, dy: -1).contains(shard.path.boundingBoxOfPath))
+        }
+        let reach = r * GrenadeToss.webReach * 1.1
+        XCTAssertTrue(CGRect(x: c.x - reach, y: c.y - reach, width: 2 * reach, height: 2 * reach)
+            .contains(crack.lines.boundingBoxOfPath))
+    }
+
+    func testShardsFlyOutThenFall() {
+        let p = CGPoint(x: 500, y: 500), v = CGVector(dx: 800, dy: 400)
+        let early = GrenadeToss.shardPosition(from: p, velocity: v, at: 0.1)
+        XCTAssertGreaterThan(early.x, p.x); XCTAssertGreaterThan(early.y, p.y)
+        XCTAssertLessThan(GrenadeToss.shardPosition(from: p, velocity: v, at: GrenadeToss.shardFlight).y, 0,
+                          "by the end of its flight a shard has left through the bottom")
+    }
+
+    func testTwoPressesBreakDifferentlyButOneSeedTheSame() {
         let c = CGPoint(x: 800, y: 500)
-        let a = GrenadeToss.crack(at: c, radius: 300, seed: 1).lines
-        XCTAssertEqual(a, GrenadeToss.crack(at: c, radius: 300, seed: 1).lines)
-        XCTAssertNotEqual(a, GrenadeToss.crack(at: c, radius: 300, seed: 2).lines)
+        let a = GrenadeToss.crack(at: c, holeRadius: 300, seed: 1).lines
+        XCTAssertEqual(a, GrenadeToss.crack(at: c, holeRadius: 300, seed: 1).lines)
+        XCTAssertNotEqual(a, GrenadeToss.crack(at: c, holeRadius: 300, seed: 2).lines)
+    }
+
+    func testTheShardsAreCutWithOrWithoutAPhotograph() {
+        let c = CGPoint(x: 800, y: 500)
+        let crack = GrenadeToss.crack(at: c, holeRadius: 300, seed: 7)
+        XCTAssertEqual(GrenadeToss.shardImages(crack, shot: nil, bounds: screen, scale: 1).count, crack.shards.count)
     }
 }

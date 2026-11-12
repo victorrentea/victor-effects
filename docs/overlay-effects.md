@@ -1350,18 +1350,36 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - **The desktop shakes with the blast** — the nuke's photograph trick (`BombShake`,
     `shakeTheWholePicture`), the shot taken at the press while the grenade is still past the
     corner. Degrades to the blast shaking alone without Screen Recording.
-  - **Then the glass cracks where it fell** (Victor, same day: "ulterior să crape o parte din
-    ecran unde a căzut, după ce zguduie un pic ecranul"). At `crackAt` = blast +
-    `BombShake.seconds`, so the crack comes once the shake has died, never during it: a
-    spider-web of 13 jagged radials (`GrenadeToss.crack`, reaching 0.32 of the shorter side,
-    i.e. *a part* of the screen; the whole screen shattering is #90's) with rings linking
-    some neighbours, revealed from the impact outward in 0.12 s, a black hole at the centre
-    whose 13 pieces fall out of it, cut from the shake's desktop photograph so what falls is
-    the desktop itself (zoomed, or without Screen Recording, the hole is just black). Dark
-    lines on a bright edge, so it reads on a white slide and on a dark one. #90's smash
-    (`90_breaking-glass.mp3`, attack on its first frame) at 0.6. Seeded per press, so no two
-    cracks look alike. Holds 2.6 s, fades over 0.6 s; the effect is gone 5.15 s after the
-    press.
+  - **Then a quarter of the screen breaks where it fell** (Victor, same day: "ulterior să crape
+    o parte din ecran unde a căzut, după ce zguduie un pic ecranul", then "să se spargă mai multe
+    fragmente, să sară în toate părțile, cam 25% din ecran să devină negru/stricat"). At
+    `crackAt` = blast + `BombShake.seconds`, so it breaks once the shake has died, never during
+    it.
+    - **25 % counted on the glass**: `holeRadius` bisects the radius of a disc at the impact
+      until the part of it INSIDE the screen is `brokenAreaFraction` — so near an edge or a
+      corner the hole grows to make up for what the edge cuts off.
+    - **64 shards** (`crack`: 16 jittered slices × 4 pieces, the outer ring split corner to
+      corner, the rim jagged and shared edge to edge with the hole's outline) burst out of it in
+      every direction — away from the impact, a little upward, then down under gravity
+      (`shardPosition`), spinning, growing up to 1.7× as they come at the viewer, fading over the
+      last 30 % of their 1.5 s. Each is a small **picture**, cut out of the shake's desktop
+      photograph with a bright glass edge, so what flies is the screen itself. Pictures and not
+      64 masked full-screen layers, because each mask would cost an offscreen pass per frame;
+      they are cut off the main thread at the press (smoked glass first, the photograph's cut
+      once it is in), so the break itself only adds layers. Zoomed, or with no Screen
+      Recording, the shards are smoked glass.
+    - Left behind: the **black hole** with a light broken edge, **8 dead-LCD bleed stripes**
+      (magenta, cyan, green, white) running from it towards the screen's edge — what says
+      "broken screen" rather than "black blob" — and the **cracked glass around it**, radials
+      on from the rim to 1.7× its radius with forks and rings, revealed outward in 0.12 s, dark
+      on a bright edge so it reads on a white slide and on a dark one.
+    - #90's smash (`90_breaking-glass.mp3`, attack on its first frame) at 0.75. Seeded per
+      press, so no two breaks look alike. Holds 2.6 s, fades over 0.6 s; the effect is gone
+      5.15 s after the press. ~3 ms a frame through `CARenderer` during the burst, p95 ~10 ms.
+  - **The boom is not Counter-Strike's yet** (asked for, 2026-11-12). The only "CS:GO grenade"
+    on the soundboard sites is not an explosion (no energy under 250 Hz: a throw or a bounce),
+    and the real one (`explode3.wav` in CS 1.6, the HE blast in CS:GO/CS2) only comes out of
+    the game's own files. Valve's, so it would live in `assetsDir`, never here.
   - Press-driven and self-terminating (`trackEffect`); the blast and the crack are scheduled
     behind an identity check on the effect's container, so a stop-all or a re-press cancels
     whatever has not happened yet, and both stops name the boom and the glass.

@@ -12087,6 +12087,19 @@ class EmojiAnimator {
         CATransaction.commit()
         if playSound { SoundManager.shared.play(Self.grenadeSound) }
 
+        // The broken glass is decided now, at the press, and its shards are cut
+        // off the main thread long before the glass breaks: first as smoked
+        // glass (the fallback), then — once the photograph is in — out of the
+        // desktop itself, so what flies out of the hole is the screen.
+        let seed = UInt64.random(in: 1...UInt64.max)
+        let holeRadius = GrenadeToss.holeRadius(at: target, in: bounds)
+        let crack = GrenadeToss.crack(at: target, holeRadius: holeRadius, seed: seed)
+        var shards: [(image: CGImage, frame: CGRect)] = []
+        DispatchQueue.global(qos: .userInitiated).async { [weak container] in
+            let glass = GrenadeToss.shardImages(crack, shot: nil, bounds: bounds, scale: scale)
+            DispatchQueue.main.async { if container != nil, shards.isEmpty { shards = glass } }
+        }
+
         // The photograph the blast shakes (the nuke's trick, `BombShake`): taken
         // now, while the grenade is still off-screen past the corner.
         var shot: (image: CGImage, slice: ZoomSlice)? = nil
@@ -12094,10 +12107,15 @@ class EmojiAnimator {
             let slice = ZoomSlice.current(in: bounds)
             DispatchQueue.global(qos: .userInitiated).async { [weak self, weak container] in
                 let image = slice.crop(Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay())
+                // Zoomed, the photograph is a slice and would not line up with
+                // the hole: those shards stay smoked glass.
+                let cut = (image != nil && slice.unit == nil)
+                    ? GrenadeToss.shardImages(crack, shot: image, bounds: bounds, scale: scale) : nil
                 DispatchQueue.main.async {
                     guard let self, let container, let image,
                           self.activeEffects["grenade"] === container else { return }
                     shot = (image, slice)
+                    if let cut { shards = cut }
                 }
             }
         }
@@ -12116,19 +12134,17 @@ class EmojiAnimator {
                                                 startAt: Self.explosionBlastOnset)
         }
 
-        // Once the shake has died, the glass cracks where it fell. The
-        // photograph is the one the shake used: the pieces of the hole are cut
-        // out of it, so what falls out is the desktop itself. Zoomed, the
-        // photograph is a slice and would not line up — the hole is just black.
-        let seed = UInt64.random(in: 1...UInt64.max)
+        // Once the shake has died, a quarter of the screen around the impact
+        // breaks: its shards burst out in every direction and leave it black,
+        // the glass around it cracked.
         DispatchQueue.main.asyncAfter(deadline: .now() + GrenadeToss.crackAt) { [weak self, weak container] in
             guard let self, let container, self.activeEffects["grenade"] === container else { return }
-            let pieces = (shot?.slice.unit == nil) ? shot?.image : nil
-            let crack = GrenadeToss.makeCrack(at: target, in: bounds, shot: pieces, seed: seed)
+            let layer = GrenadeToss.makeCrack(crack, at: target, holeRadius: holeRadius, in: bounds,
+                                              shards: shards, scale: scale, seed: seed)
             CATransaction.begin()
-            container.addSublayer(crack)
+            container.addSublayer(layer)
             CATransaction.commit()
-            SoundManager.shared.playOverlapping(Self.grenadeGlass, volume: 0.6, bluetoothCompensated: false)
+            SoundManager.shared.playOverlapping(Self.grenadeGlass, volume: 0.75, bluetoothCompensated: false)
         }
     }
 

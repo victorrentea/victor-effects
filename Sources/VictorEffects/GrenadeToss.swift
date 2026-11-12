@@ -70,9 +70,6 @@ enum GrenadeToss {
     static let land2OffsetFraction: CGFloat = 0.03
     /// Fireball diameter, as a fraction of the screen's shorter side.
     static let blastDiameterFraction: CGFloat = 0.75
-    /// How far the cracks reach from the impact, same reference. "A part of
-    /// the screen", not the whole of it — that is tile #90's job.
-    static let crackRadiusFraction: CGFloat = 0.32
 
     /// Turns it tumbles through, in the direction it flies (clockwise to the
     /// right). The total, 4¼ turns, leaves it lying on its side.
@@ -196,85 +193,199 @@ enum GrenadeToss {
 
     // MARK: The crack
 
-    /// The cracked glass around the impact: `lines` is every crack as one path
-    /// (radials and the rings between them), `hole` the jagged black hole at
-    /// the centre, `holeCells` the pieces that hole is made of — the shards
-    /// that fall out of it.
+    /// How much of the screen the blast leaves black and broken (Victor,
+    /// 2026-11-12: "cam 25% din ecran să devină negru/stricat"). Counted ON
+    /// the glass: next to an edge the hole grows to make up for what the edge
+    /// cuts off.
+    static let brokenAreaFraction: CGFloat = 0.25
+    /// The cracked-but-whole glass reaches this far past the hole's radius.
+    static let webReach: CGFloat = 1.7
+    /// The hole's pieces: 16 slices around, 4 per slice.
+    static let crackSlices = 16
+
+    /// The radius of a disc at `c` whose part inside `b` is `brokenAreaFraction`
+    /// of `b`. Bisection over a sampled grid — exact enough, and a few ms.
+    static func holeRadius(at c: CGPoint, in b: CGRect) -> CGFloat {
+        let target = brokenAreaFraction
+        func covered(_ r: CGFloat) -> CGFloat {
+            let n = 60
+            var inside = 0
+            for i in 0..<n { for j in 0..<n {
+                let p = CGPoint(x: b.minX + (CGFloat(i) + 0.5) / CGFloat(n) * b.width,
+                                y: b.minY + (CGFloat(j) + 0.5) / CGFloat(n) * b.height)
+                if hypot(p.x - c.x, p.y - c.y) <= r { inside += 1 }
+            } }
+            return CGFloat(inside) / CGFloat(n * n)
+        }
+        var lo: CGFloat = 0, hi = hypot(b.width, b.height)
+        for _ in 0..<18 {
+            let mid = (lo + hi) / 2
+            if covered(mid) < target { lo = mid } else { hi = mid }
+        }
+        return (lo + hi) / 2
+    }
+
+    /// One piece of the hole, and where its middle is (the way it flies out).
+    struct Shard {
+        var path: CGPath
+        var centroid: CGPoint
+    }
+
+    /// The broken glass around the impact: `hole` is the jagged black region,
+    /// `shards` the pieces it is made of (they fly out of it), `lines` every
+    /// crack in the glass that stays (radials on from the hole's rim, and
+    /// rings linking some of them).
     struct Crack {
         var lines: CGPath
         var hole: CGPath
-        var holeCells: [CGPath]
+        var shards: [Shard]
     }
 
     /// Seeded, so a recording looks the same twice; the seed is per press in
     /// the app, so two presses don't crack the same way.
-    static func crack(at c: CGPoint, radius r: CGFloat, seed: UInt64) -> Crack {
+    static func crack(at c: CGPoint, holeRadius rh: CGFloat, seed: UInt64) -> Crack {
         var rnd = Rand(state: seed)
-        let n = 13
+        let n = crackSlices
         let angles = (0..<n).map { (CGFloat($0) + rnd.range(-0.3, 0.3)) / CGFloat(n) * 2 * .pi }
-        // Distances every radial is sampled at: the hole's rim, three rings, its tip.
-        let ringFractions: [CGFloat] = [0.3, 0.55, 0.8]
-
-        // radials[i][k]: the point of radial i at its k-th distance (0 = the hole's rim).
-        var radials: [[CGPoint]] = []
-        var lengths: [CGFloat] = []
+        // Inside the hole: points on each radial at three distances, the last
+        // one the rim. Jittered, so the pieces are not a dartboard.
+        let inner: [CGFloat] = [0.3, 0.62, 1.0]
+        var pts: [[CGPoint]] = []
         for a in angles {
-            let rim = r * rnd.range(0.09, 0.14)
-            let length = r * rnd.range(0.55, 1.0)
-            lengths.append(length)
-            var pts: [CGPoint] = []
+            var row: [CGPoint] = []
             var heading = a
-            for d in [rim] + ringFractions.map({ $0 * r }).filter({ $0 < length }) + [length] {
-                heading += rnd.range(-0.09, 0.09)   // glass cracks are never quite straight
-                pts.append(CGPoint(x: c.x + cos(heading) * d, y: c.y + sin(heading) * d))
+            for f in inner {
+                heading += rnd.range(-0.08, 0.08)
+                let d = rh * f * rnd.range(0.88, 1.08)
+                row.append(CGPoint(x: c.x + cos(heading) * d, y: c.y + sin(heading) * d))
             }
-            radials.append(pts)
+            pts.append(row)
+        }
+        // A jag in the rim between each pair of radials, shared by the hole's
+        // outline and the outer shard, so they fit edge to edge.
+        var jags: [CGPoint] = []
+        for i in 0..<n {
+            let p = pts[i][2], q = pts[(i + 1) % n][2]
+            let out = rnd.range(-0.06, 0.1) * rh
+            let mid = CGPoint(x: (p.x + q.x) / 2, y: (p.y + q.y) / 2)
+            let len = max(1, hypot(mid.x - c.x, mid.y - c.y))
+            jags.append(CGPoint(x: mid.x + (mid.x - c.x) / len * out, y: mid.y + (mid.y - c.y) / len * out))
         }
 
-        let lines = CGMutablePath()
-        for pts in radials {
-            lines.move(to: pts[0])
-            for p in pts.dropFirst() { lines.addLine(to: p) }
+        func poly(_ ps: [CGPoint]) -> Shard {
+            let path = CGMutablePath()
+            path.addLines(between: ps); path.closeSubpath()
+            let cx = ps.map(\.x).reduce(0, +) / CGFloat(ps.count)
+            let cy = ps.map(\.y).reduce(0, +) / CGFloat(ps.count)
+            return Shard(path: path, centroid: CGPoint(x: cx, y: cy))
         }
-        // The rings: short jagged links between neighbouring radials, not all of
-        // them — a full web reads as a dartboard.
+        var shards: [Shard] = []
         for i in 0..<n {
             let j = (i + 1) % n
-            for (k, f) in ringFractions.enumerated() where lengths[i] > f * r && lengths[j] > f * r {
-                guard rnd.next() < (k == 0 ? 0.95 : k == 1 ? 0.7 : 0.4) else { continue }
-                let p = radials[i][k + 1], q = radials[j][k + 1]
-                let bulge = rnd.range(-0.06, 0.06) * r
-                let mid = CGPoint(x: (p.x + q.x) / 2 + (p.x + q.x - 2 * c.x) / (2 * f * r) * bulge,
-                                  y: (p.y + q.y) / 2 + (p.y + q.y - 2 * c.y) / (2 * f * r) * bulge)
+            shards.append(poly([c, pts[i][0], pts[j][0]]))
+            shards.append(poly([pts[i][0], pts[i][1], pts[j][1], pts[j][0]]))
+            // The outer ring is the biggest: split corner to corner, two pieces.
+            shards.append(poly([pts[i][1], pts[i][2], jags[i]]))
+            shards.append(poly([pts[i][1], jags[i], pts[j][2], pts[j][1]]))
+        }
+
+        let hole = CGMutablePath()
+        hole.move(to: pts[0][2])
+        for i in 0..<n { hole.addLine(to: jags[i]); hole.addLine(to: pts[(i + 1) % n][2]) }
+        hole.closeSubpath()
+
+        // The glass that stays: radials from the rim outward, then rings.
+        let rw = rh * webReach
+        var outer: [[CGPoint]] = []
+        let ringFractions: [CGFloat] = [0.3, 0.65]   // of the way from the rim to `rw`
+        let lines = CGMutablePath()
+        for (i, a) in angles.enumerated() {
+            let reach = rnd.range(0.35, 1.0)
+            var heading = a
+            var row: [CGPoint] = [pts[i][2]]
+            for f in ringFractions + [reach] where f <= reach {
+                heading += rnd.range(-0.1, 0.1)
+                let d = rh + (rw - rh) * f
+                row.append(CGPoint(x: c.x + cos(heading) * d, y: c.y + sin(heading) * d))
+            }
+            outer.append(row)
+            lines.move(to: row[0])
+            for p in row.dropFirst() { lines.addLine(to: p) }
+            // Now and then a crack forks.
+            if rnd.next() < 0.4, row.count > 2 {
+                let fork = heading + rnd.range(0.25, 0.5) * (rnd.next() < 0.5 ? -1 : 1)
+                let from = row[1], d = (rw - rh) * rnd.range(0.2, 0.45)
+                lines.move(to: from)
+                lines.addLine(to: CGPoint(x: from.x + cos(fork) * d, y: from.y + sin(fork) * d))
+            }
+        }
+        for i in 0..<n {
+            let j = (i + 1) % n
+            for k in 0..<ringFractions.count where outer[i].count > k + 1 && outer[j].count > k + 1 {
+                guard rnd.next() < (k == 0 ? 0.85 : 0.5) else { continue }
+                let p = outer[i][k + 1], q = outer[j][k + 1]
+                let mid = CGPoint(x: (p.x + q.x) / 2 + rnd.range(-0.03, 0.03) * rw,
+                                  y: (p.y + q.y) / 2 + rnd.range(-0.03, 0.03) * rw)
                 lines.move(to: p); lines.addLine(to: mid); lines.addLine(to: q)
             }
         }
-
-        // The hole: the radials' rim points, with a jag between each pair.
-        let hole = CGMutablePath()
-        var cells: [CGPath] = []
-        for i in 0..<n {
-            let p = radials[i][0], q = radials[(i + 1) % n][0]
-            let jag = CGPoint(x: (p.x + q.x) / 2 + rnd.range(-0.03, 0.03) * r,
-                              y: (p.y + q.y) / 2 + rnd.range(-0.03, 0.03) * r)
-            if i == 0 { hole.move(to: p) }
-            hole.addLine(to: jag); hole.addLine(to: q)
-            let cell = CGMutablePath()
-            cell.addLines(between: [c, p, jag, q]); cell.closeSubpath()
-            cells.append(cell)
-        }
-        hole.closeSubpath()
-        return Crack(lines: lines, hole: hole, holeCells: cells)
+        return Crack(lines: lines, hole: hole, shards: shards)
     }
 
+    /// Every shard as its own small picture, cut out of `shot` (the desktop
+    /// photograph, laid over `bounds`) with a bright glass edge — or, with no
+    /// photograph, as smoked glass. Pictures, not masked full-screen layers:
+    /// 64 masks moving at once would each cost an offscreen pass per frame.
+    /// Safe off the main thread.
+    static func shardImages(_ crack: Crack, shot: CGImage?, bounds: CGRect,
+                            scale: CGFloat) -> [(image: CGImage, frame: CGRect)] {
+        crack.shards.compactMap { shard in
+            let box = shard.path.boundingBoxOfPath.insetBy(dx: -2, dy: -2).integral
+            let pw = Int(ceil(box.width * scale)), ph = Int(ceil(box.height * scale))
+            guard pw > 0, ph > 0,
+                  let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: EmojiAnimator.nativeBitmapInfo) else { return nil }
+            ctx.scaleBy(x: scale, y: scale)
+            ctx.translateBy(x: -box.minX, y: -box.minY)
+            ctx.saveGState()
+            ctx.addPath(shard.path)
+            ctx.clip()
+            if let shot {
+                ctx.draw(shot, in: bounds)
+                ctx.setFillColor(rgba(1, 1, 1, 0.08))   // a sheen: it is glass now
+                ctx.fill(box)
+            } else {
+                ctx.setFillColor(rgba(0.55, 0.62, 0.66, 0.55))
+                ctx.fill(box)
+            }
+            ctx.restoreGState()
+            ctx.addPath(shard.path)
+            ctx.setStrokeColor(rgba(1, 1, 1, 0.75))
+            ctx.setLineWidth(1.5)
+            ctx.strokePath()
+            guard let img = ctx.makeImage() else { return nil }
+            return (img, box)
+        }
+    }
+
+    /// Where a shard flying out of the hole is, `t` seconds after the glass
+    /// broke: thrown away from the impact (and a little upward), then down
+    /// under gravity. Pure, so the tests can ask it.
+    static func shardPosition(from p: CGPoint, velocity v: CGVector, at t: Double) -> CGPoint {
+        let g: CGFloat = 2600
+        let t = CGFloat(t)
+        return CGPoint(x: p.x + v.dx * t, y: p.y + v.dy * t - g * t * t / 2)
+    }
+    static let shardFlight: Double = 1.5
+
     /// The crack as layers, every animation un-begun (they start in the
-    /// caller's transaction): the black hole, the shards of it falling out over
-    /// `shot` (the desktop photograph — without one the hole is simply black),
-    /// and the lines, dark with a bright edge so they read on a white slide and
-    /// on a dark one, revealed from the impact outward.
-    static func makeCrack(at c: CGPoint, in bounds: CGRect, shot: CGImage?, seed: UInt64) -> CALayer {
-        let r = min(bounds.width, bounds.height) * crackRadiusFraction
-        let crack = crack(at: c, radius: r, seed: seed)
+    /// caller's transaction): the black hole with a few dead-LCD bleed lines,
+    /// the shards bursting out of it, and the cracked glass around it — dark
+    /// lines on a bright edge so they read on a white slide and on a dark one,
+    /// revealed from the impact outward.
+    static func makeCrack(_ crack: Crack, at c: CGPoint, holeRadius rh: CGFloat, in bounds: CGRect,
+                          shards: [(image: CGImage, frame: CGRect)], scale: CGFloat, seed: UInt64) -> CALayer {
         let container = CALayer()
         container.frame = bounds
         var rnd = Rand(state: seed ^ 0x5eed)
@@ -282,35 +393,74 @@ enum GrenadeToss {
         let hole = CAShapeLayer()
         hole.frame = bounds
         hole.path = crack.hole
-        hole.fillColor = rgba(0.02, 0.02, 0.02, 0.95)
+        hole.fillColor = rgba(0.01, 0.01, 0.01, 0.97)
+        hole.strokeColor = rgba(0.85, 0.88, 0.9, 0.6)   // the broken edge catches the light
+        hole.lineWidth = 1.5
         container.addSublayer(hole)
 
-        if let shot {
-            for cell in crack.holeCells {
-                let piece = CALayer()
-                piece.frame = bounds
-                piece.contents = shot
-                piece.contentsGravity = .resize
-                let mask = CAShapeLayer()
-                mask.path = cell
-                piece.mask = mask
-                container.addSublayer(piece)
-                let delay = Double(rnd.range(0.02, 0.25)), dur = Double(rnd.range(0.45, 0.7))
-                let fall = CAKeyframeAnimation(keyPath: "position")
-                let p0 = piece.position
-                let p1 = CGPoint(x: p0.x + rnd.range(-0.25, 0.25) * r, y: p0.y - bounds.height * 1.1)
-                fall.values = [NSValue(point: p0), NSValue(point: p0), NSValue(point: p1)]
-                fall.keyTimes = [0, NSNumber(value: delay / (delay + dur)), 1]
-                fall.timingFunctions = [CAMediaTimingFunction(name: .linear), CAMediaTimingFunction(name: .easeIn)]
-                fall.duration = delay + dur
-                fall.fillMode = .forwards
-                fall.isRemovedOnCompletion = false
-                piece.add(fall, forKey: "fall")
+        // A dead panel bleeds: a few thin stripes of stuck colour running from
+        // the hole to the screen's edge. What says "broken screen", not "black blob".
+        let bleed: [CGColor] = [rgba(1, 0.1, 0.8, 0.85), rgba(0.1, 0.95, 1, 0.8),
+                                rgba(0.2, 1, 0.3, 0.75), rgba(1, 1, 1, 0.8)]
+        for i in 0..<8 {
+            let x = c.x + rnd.range(-0.85, 0.85) * rh
+            let up = i % 2 == 0
+            let edgeY = c.y + (up ? 1 : -1) * sqrt(max(0, rh * rh - (x - c.x) * (x - c.x))) * 0.8
+            let far = up ? bounds.maxY : bounds.minY
+            let len = abs(far - edgeY) * rnd.range(0.35, 1)
+            let w = rnd.range(1, 3.5)
+            let stripe = CALayer()
+            stripe.frame = CGRect(x: x, y: up ? edgeY : edgeY - len, width: w, height: len)
+            stripe.backgroundColor = bleed[i % bleed.count]
+            container.addSublayer(stripe)
+        }
+
+        // The shards: out in every direction from the impact, spinning,
+        // growing as they come at the viewer, fading as they go.
+        let fps = 30.0
+        let steps = Int(shardFlight * fps)
+        for (image, frame) in shards {
+            let p = CGPoint(x: frame.midX, y: frame.midY)
+            var dx = p.x - c.x, dy = p.y - c.y
+            let len = hypot(dx, dy)
+            if len < 1 { let a = rnd.range(0, 2 * .pi); dx = cos(a); dy = sin(a) } else { dx /= len; dy /= len }
+            let turn = rnd.range(-0.5, 0.5)
+            let dir = CGVector(dx: dx * cos(turn) - dy * sin(turn), dy: dx * sin(turn) + dy * cos(turn))
+            let speed = rnd.range(500, 1500) * (0.7 + 0.6 * min(1, len / rh))
+            let v = CGVector(dx: dir.dx * speed, dy: dir.dy * speed + rnd.range(150, 600))
+
+            let l = CALayer()
+            l.contents = image
+            l.contentsScale = scale
+            l.frame = frame
+            container.addSublayer(l)
+
+            let pos = CAKeyframeAnimation(keyPath: "position")
+            pos.values = (0...steps).map { NSValue(point: shardPosition(from: p, velocity: v, at: Double($0) / fps)) }
+            pos.duration = shardFlight
+            pos.calculationMode = .linear
+            let spin = CABasicAnimation(keyPath: "transform.rotation.z")
+            spin.fromValue = 0
+            spin.toValue = rnd.range(-9, 9)
+            spin.duration = shardFlight
+            let grow = CABasicAnimation(keyPath: "transform.scale")
+            grow.fromValue = 1
+            grow.toValue = rnd.range(1.1, 1.7)
+            grow.duration = shardFlight
+            let fade = CAKeyframeAnimation(keyPath: "opacity")
+            fade.values = [1, 1, 0]
+            fade.keyTimes = [0, 0.7, 1]
+            fade.duration = shardFlight
+            for a in [pos, spin, grow, fade] as [CAAnimation] {
+                a.fillMode = .forwards
+                a.isRemovedOnCompletion = false
             }
+            l.add(pos, forKey: "fly"); l.add(spin, forKey: "spin")
+            l.add(grow, forKey: "grow"); l.add(fade, forKey: "fade")
         }
 
         // Bright edge under, dark crack over it, a hair to the side: glass.
-        // In their own layer, the only one the reveal masks — the pieces fall
+        // In their own layer, the only one the reveal masks — the shards fly
         // far outside it and must not be clipped on the way.
         let web = CALayer()
         web.frame = bounds
@@ -328,23 +478,21 @@ enum GrenadeToss {
             l.lineCap = .butt
             web.addSublayer(l)
         }
-
-        // Revealed from the impact outward: a disc mask that grows past the tips.
+        let rw = rh * webReach * 1.1
         let reveal = CAShapeLayer()
         reveal.frame = bounds
-        reveal.path = CGPath(ellipseIn: CGRect(x: c.x - r * 1.1, y: c.y - r * 1.1, width: r * 2.2, height: r * 2.2),
-                             transform: nil)
+        reveal.path = CGPath(ellipseIn: CGRect(x: c.x - rw, y: c.y - rw, width: rw * 2, height: rw * 2), transform: nil)
         reveal.anchorPoint = .zero
         reveal.position = .zero
         web.mask = reveal
-        let grow = CABasicAnimation(keyPath: "transform")
-        grow.fromValue = NSValue(caTransform3D: CATransform3DConcat(
-            CATransform3DConcat(CATransform3DMakeTranslation(-c.x, -c.y, 0), CATransform3DMakeScale(0.05, 0.05, 1)),
+        let spread = CABasicAnimation(keyPath: "transform")
+        spread.fromValue = NSValue(caTransform3D: CATransform3DConcat(
+            CATransform3DConcat(CATransform3DMakeTranslation(-c.x, -c.y, 0), CATransform3DMakeScale(0.3, 0.3, 1)),
             CATransform3DMakeTranslation(c.x, c.y, 0)))
-        grow.toValue = NSValue(caTransform3D: CATransform3DIdentity)
-        grow.duration = crackSpread
-        grow.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        reveal.add(grow, forKey: "spread")
+        spread.toValue = NSValue(caTransform3D: CATransform3DIdentity)
+        spread.duration = crackSpread
+        spread.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        reveal.add(spread, forKey: "spread")
 
         let fade = CAKeyframeAnimation(keyPath: "opacity")
         let total = crackHold + crackFade
