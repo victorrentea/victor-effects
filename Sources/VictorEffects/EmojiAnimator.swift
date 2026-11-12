@@ -12052,8 +12052,17 @@ class EmojiAnimator {
 
     // MARK: - 💣 Grenade (tile #87 "Fire in the hole!")
 
-    /// The tile's own clip is the shout only; the boom is the tail of the nuke's.
+    /// The tile's own clip is the shout only — Counter-Strike's radio line — so
+    /// the boom is Counter-Strike's too: the HE grenade blast of CS 1.6, which is
+    /// Half-Life's `weapons/explode3|4|5.wav`, one at random per grenade as the
+    /// game does. Valve's, so they live in `assetsDir` (`cs-he-explode*.wav`,
+    /// in the private ledger), never in this repo.
     static let grenadeSound = "87_grenade.mp3"
+    static let grenadeCSBooms = ["cs-he-explode3.wav", "cs-he-explode4.wav", "cs-he-explode5.wav"]
+    /// ~10 dB louder on average than the nuke's tail (dense 8-bit, all attack):
+    /// at 0.4 it lands about as loud as the boom it replaced, not a jump.
+    static let grenadeCSBoomVolume: Float = 0.4
+    /// Without them (anyone but the maintainer): the tail of the nuke's clip.
     static let grenadeBoom = "03_explosion.mp3"
     /// The crack's sound: tile #90's smash, whose attack is its first frame.
     static let grenadeGlass = "90_breaking-glass.mp3"
@@ -12130,8 +12139,15 @@ class EmojiAnimator {
             CATransaction.commit()
             // The link is warm — the shout has just played — so no Bluetooth
             // start delay: it would land the boom late off its own fireball.
-            SoundManager.shared.playOverlapping(Self.grenadeBoom, volume: 0.9, bluetoothCompensated: false,
-                                                startAt: Self.explosionBlastOnset)
+            // Every CS blast has its attack on its first frame, so no seek.
+            // (Played through a variable, which `StopSilencesTheSoundTests`
+            // cannot parse: both stops name `grenadeCSBooms` by hand.)
+            if let cs = Self.grenadeCSBooms.filter({ SoundManager.shared.originalURL(for: $0) != nil }).randomElement() {
+                SoundManager.shared.playOverlapping(cs, volume: Self.grenadeCSBoomVolume, bluetoothCompensated: false)
+            } else {
+                SoundManager.shared.playOverlapping(Self.grenadeBoom, volume: 0.9, bluetoothCompensated: false,
+                                                    startAt: Self.explosionBlastOnset)
+            }
         }
 
         // Once the shake has died, a quarter of the screen around the impact
@@ -14905,6 +14921,7 @@ class EmojiAnimator {
         // 💣 The boom is the effect's own (the nuke's clip, seeked), not the tile's.
         case "grenade":
             SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)
+            for boom in Self.grenadeCSBooms { SoundManager.shared.stopOverlapping(boom, fade: SoundManager.interruptFade) }
             SoundManager.shared.stopOverlapping(Self.grenadeGlass, fade: SoundManager.interruptFade)
         // The raid has no `activeEffects` key: without this a re-press cut the head
         // clip and left the targets, the falling nuke and the click-eating tap up.
@@ -15018,6 +15035,7 @@ class EmojiAnimator {
         SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)   // 💣 the grenade's borrowed boom
+        for boom in Self.grenadeCSBooms { SoundManager.shared.stopOverlapping(boom, fade: SoundManager.interruptFade) }  // 💣 …or CS's
         SoundManager.shared.stopOverlapping(Self.grenadeGlass, fade: SoundManager.interruptFade)  // 💣 …and its crack
         silenceFable()
     }

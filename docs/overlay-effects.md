@@ -1339,9 +1339,22 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - **The clip is the shout only** (1.51 s; the words run 0.22–1.2 s, no blast in it), so the
     timeline is fitted to the voice: in the air while it is said, landing on "hole", the blast
     at **1.45 s**, a quarter of a second after the last word — the warning ends, then the bang.
-  - **The boom is borrowed**: `03_explosion.mp3` seeked straight to its blast
-    (`explosionBlastOnset`), `playOverlapping` with no Bluetooth start delay (the link is warm,
-    the shout just played), so it lands on the fireball's first frame.
+  - **The boom is Counter-Strike's** (Victor, 2026-11-12: "ideal cel din Counter-Strike"), as
+    the shout is: the HE grenade blast of CS 1.6, which is Half-Life's `weapons/explode3|4|5.wav`,
+    **one of the three at random per grenade**, as the game does. Valve's, so they live in
+    `assetsDir` as `cs-he-explode{3,4,5}.wav` and in the private copyright ledger, never in
+    this repo. Found as Git LFS files in an open-source Source mod
+    (`Polybagel/open-fortress-legacy`, `sound/hl1/weapons/`): 8-bit 22 kHz, ~28 KB, the
+    1998 originals' format. Their attack is the first frame, so no seek; they are ~10 dB louder
+    on average than the nuke's tail, so they play at **0.4**. Played through a variable that
+    `StopSilencesTheSoundTests` cannot parse, so both stops name `grenadeCSBooms` by hand and
+    `GrenadeBoomStopsTests` pins that. **Without the files** (anyone but the maintainer) it falls
+    back to the nuke's clip, `03_explosion.mp3`, seeked to its blast (`explosionBlastOnset`).
+    Rejected on the way: myinstants' "cs:go grenade" (no energy under 250 Hz — a throw or a
+    bounce, not the blast), and CS:Source-named `hegrenade/explode*.wav` from another mod
+    (`BSVino/DoubleAction`), whose provenance could not be told from the mod's own sounds.
+    Every press is a `playOverlapping`, no Bluetooth start delay: the link is warm, the shout
+    just played, and it lands on the fireball's first frame.
   - **Drawn in code, no asset.** The nuke's `explosion.gif` was the obvious reuse and the wrong
     one: it is a mushroom cloud, and reads as tile #3. Every puff is one of four cached soft
     discs drawn at 1×, the sparks are NOT additive (added light vanishes on a white slide),
@@ -1376,10 +1389,6 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     - #90's smash (`90_breaking-glass.mp3`, attack on its first frame) at 0.75. Seeded per
       press, so no two breaks look alike. Holds 2.6 s, fades over 0.6 s; the effect is gone
       5.15 s after the press. ~3 ms a frame through `CARenderer` during the burst, p95 ~10 ms.
-  - **The boom is not Counter-Strike's yet** (asked for, 2026-11-12). The only "CS:GO grenade"
-    on the soundboard sites is not an explosion (no energy under 250 Hz: a throw or a bounce),
-    and the real one (`explode3.wav` in CS 1.6, the HE blast in CS:GO/CS2) only comes out of
-    the game's own files. Valve's, so it would live in `assetsDir`, never here.
   - Press-driven and self-terminating (`trackEffect`); the blast and the crack are scheduled
     behind an identity check on the effect's container, so a stop-all or a re-press cancels
     whatever has not happened yet, and both stops name the boom and the glass.

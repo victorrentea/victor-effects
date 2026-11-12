@@ -157,3 +157,22 @@ final class GrenadeCrackTests: XCTestCase {
         XCTAssertEqual(GrenadeToss.shardImages(crack, shot: nil, bounds: screen, scale: 1).count, crack.shards.count)
     }
 }
+
+/// 💣 The Counter-Strike blast is played through a variable (one of three at
+/// random), which `StopSilencesTheSoundTests` cannot follow — so this pins the
+/// two stops naming the list by hand.
+final class GrenadeBoomStopsTests: XCTestCase {
+    func testBothStopsSilenceTheCounterStrikeBlast() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let swift = try String(contentsOf: root.appendingPathComponent("Sources/VictorEffects/EmojiAnimator.swift"),
+                               encoding: .utf8)
+        func body(_ marker: String) throws -> String {
+            let start = try XCTUnwrap(swift.range(of: marker))
+            let end = try XCTUnwrap(swift.range(of: "\n    }\n", range: start.upperBound..<swift.endIndex))
+            return String(swift[start.lowerBound..<end.lowerBound])
+        }
+        XCTAssertTrue(try body("func stopEffect(named name: String)").contains("Self.grenadeCSBooms"))
+        XCTAssertTrue(try body("func stopAllActiveEffects()").contains("Self.grenadeCSBooms"))
+    }
+}
