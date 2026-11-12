@@ -1326,7 +1326,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `GrenadeToss`, 2026-11-12): a pineapple grenade is lobbed in from a **bottom corner**,
   big (2.2×) and shrinking to its resting size as it flies away into the screen, tumbling
   through an arc, bounces twice and comes to rest on its side **where the pointer was at the
-  press**, rattles, and blows up there: a warm full-screen flash, a white-hot core, a cluster
+  press**, rattles, and blows up there, then cracks the glass around that spot: a warm full-screen flash, a white-hot core, a cluster
   of fire puffs, a shockwave ring, sparks and shrapnel falling back under gravity, smoke that
   rises and thins, and a scorch mark left on the floor. Gone 3.85 s after the press.
   - **Aimed at the pointer, read once at the press** (Victor, same day: "să ajungă grenada unde
@@ -1350,9 +1350,21 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - **The desktop shakes with the blast** — the nuke's photograph trick (`BombShake`,
     `shakeTheWholePicture`), the shot taken at the press while the grenade is still past the
     corner. Degrades to the blast shaking alone without Screen Recording.
-  - Press-driven and self-terminating (`trackEffect`); the blast is scheduled behind an
-    identity check on the effect's container, so a stop-all or a re-press during the flight
-    also cancels the bang and its boom.
+  - **Then the glass cracks where it fell** (Victor, same day: "ulterior să crape o parte din
+    ecran unde a căzut, după ce zguduie un pic ecranul"). At `crackAt` = blast +
+    `BombShake.seconds`, so the crack comes once the shake has died, never during it: a
+    spider-web of 13 jagged radials (`GrenadeToss.crack`, reaching 0.32 of the shorter side,
+    i.e. *a part* of the screen; the whole screen shattering is #90's) with rings linking
+    some neighbours, revealed from the impact outward in 0.12 s, a black hole at the centre
+    whose 13 pieces fall out of it, cut from the shake's desktop photograph so what falls is
+    the desktop itself (zoomed, or without Screen Recording, the hole is just black). Dark
+    lines on a bright edge, so it reads on a white slide and on a dark one. #90's smash
+    (`90_breaking-glass.mp3`, attack on its first frame) at 0.6. Seeded per press, so no two
+    cracks look alike. Holds 2.6 s, fades over 0.6 s; the effect is gone 5.15 s after the
+    press.
+  - Press-driven and self-terminating (`trackEffect`); the blast and the crack are scheduled
+    behind an identity check on the effect's container, so a stop-all or a re-press cancels
+    whatever has not happened yet, and both stops name the boom and the glass.
 
 - **🙅 Wasn't me** (tile #76 `76_sfx_118.mp3` → `wasnt-me`, `showWasntMe`): a 3D hand
   wagging its index finger "no-no", parked in the **bottom-left (SW) quarter** of the desktop

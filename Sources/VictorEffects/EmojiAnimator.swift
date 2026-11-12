@@ -12055,6 +12055,8 @@ class EmojiAnimator {
     /// The tile's own clip is the shout only; the boom is the tail of the nuke's.
     static let grenadeSound = "87_grenade.mp3"
     static let grenadeBoom = "03_explosion.mp3"
+    /// The crack's sound: tile #90's smash, whose attack is its first frame.
+    static let grenadeGlass = "90_breaking-glass.mp3"
 
     /// A grenade lobbed in from a bottom corner that bounces to where the
     /// pointer was at the press and blows up there (`GrenadeToss`). Press-driven and
@@ -12112,6 +12114,21 @@ class EmojiAnimator {
             // start delay: it would land the boom late off its own fireball.
             SoundManager.shared.playOverlapping(Self.grenadeBoom, volume: 0.9, bluetoothCompensated: false,
                                                 startAt: Self.explosionBlastOnset)
+        }
+
+        // Once the shake has died, the glass cracks where it fell. The
+        // photograph is the one the shake used: the pieces of the hole are cut
+        // out of it, so what falls out is the desktop itself. Zoomed, the
+        // photograph is a slice and would not line up — the hole is just black.
+        let seed = UInt64.random(in: 1...UInt64.max)
+        DispatchQueue.main.asyncAfter(deadline: .now() + GrenadeToss.crackAt) { [weak self, weak container] in
+            guard let self, let container, self.activeEffects["grenade"] === container else { return }
+            let pieces = (shot?.slice.unit == nil) ? shot?.image : nil
+            let crack = GrenadeToss.makeCrack(at: target, in: bounds, shot: pieces, seed: seed)
+            CATransaction.begin()
+            container.addSublayer(crack)
+            CATransaction.commit()
+            SoundManager.shared.playOverlapping(Self.grenadeGlass, volume: 0.6, bluetoothCompensated: false)
         }
     }
 
@@ -14870,7 +14887,9 @@ class EmojiAnimator {
             silenceFable()
         case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
         // 💣 The boom is the effect's own (the nuke's clip, seeked), not the tile's.
-        case "grenade":       SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)
+        case "grenade":
+            SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)
+            SoundManager.shared.stopOverlapping(Self.grenadeGlass, fade: SoundManager.interruptFade)
         // The raid has no `activeEffects` key: without this a re-press cut the head
         // clip and left the targets, the falling nuke and the click-eating tap up.
         case "explosion":
@@ -14983,6 +15002,7 @@ class EmojiAnimator {
         SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)   // 💣 the grenade's borrowed boom
+        SoundManager.shared.stopOverlapping(Self.grenadeGlass, fade: SoundManager.interruptFade)  // 💣 …and its crack
         silenceFable()
     }
 }

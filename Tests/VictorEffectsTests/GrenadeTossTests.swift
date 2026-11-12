@@ -90,3 +90,32 @@ final class GrenadeTossTests: XCTestCase {
         XCTAssertGreaterThan(GrenadeToss.makeBlast(at: CGPoint(x: 500, y: 400), in: screen).sublayers?.count ?? 0, 10)
     }
 }
+
+/// 💥 The crack where it fell: after the shake, inside "a part of the screen".
+final class GrenadeCrackTests: XCTestCase {
+    private let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+
+    func testTheGlassCracksOnlyOnceTheShakeIsOver() {
+        XCTAssertGreaterThanOrEqual(GrenadeToss.crackAt, GrenadeToss.blastAt + BombShake.seconds)
+        XCTAssertGreaterThanOrEqual(GrenadeToss.totalDuration,
+                                    GrenadeToss.crackAt + GrenadeToss.crackHold + GrenadeToss.crackFade)
+    }
+
+    func testTheCrackStaysAroundTheImpact() {
+        let c = CGPoint(x: 1200, y: 400)
+        let r = min(screen.width, screen.height) * GrenadeToss.crackRadiusFraction
+        let crack = GrenadeToss.crack(at: c, radius: r, seed: 42)
+        let box = crack.lines.boundingBoxOfPath
+        XCTAssertTrue(CGRect(x: c.x - r * 1.1, y: c.y - r * 1.1, width: r * 2.2, height: r * 2.2).contains(box), "\(box)")
+        XCTAssertTrue(crack.hole.boundingBoxOfPath.contains(c))
+        XCTAssertLessThan(crack.hole.boundingBoxOfPath.width, r * 0.4)
+        XCTAssertEqual(crack.holeCells.count, 13)
+    }
+
+    func testTwoPressesCrackDifferentlyButOneSeedTheSame() {
+        let c = CGPoint(x: 800, y: 500)
+        let a = GrenadeToss.crack(at: c, radius: 300, seed: 1).lines
+        XCTAssertEqual(a, GrenadeToss.crack(at: c, radius: 300, seed: 1).lines)
+        XCTAssertNotEqual(a, GrenadeToss.crack(at: c, radius: 300, seed: 2).lines)
+    }
+}

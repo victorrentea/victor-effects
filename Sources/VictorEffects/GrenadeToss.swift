@@ -40,8 +40,17 @@ enum GrenadeToss {
     static let blastAt: Double = 1.45
     /// How long the blast's own layers live (the smoke is the slowest).
     static let blastDuration: Double = 2.4
+    /// The glass cracks where it fell — once the shake has died (Victor,
+    /// 2026-11-12: "ulterior să crape o parte din ecran unde a căzut, după ce
+    /// zguduie un pic ecranul"). Derived from the shake, so the two can't overlap.
+    static let crackAt: Double = blastAt + BombShake.seconds
+    /// How long the crack stays, whole, before it fades.
+    static let crackHold: Double = 2.6
+    static let crackFade: Double = 0.6
+    /// The crack runs out from the impact over this long — fast, as glass does.
+    static let crackSpread: Double = 0.12
     /// When everything is gone. `trackEffect` removes the container here.
-    static let totalDuration: Double = blastAt + blastDuration
+    static let totalDuration: Double = max(blastAt + blastDuration, crackAt + crackHold + crackFade)
 
     // MARK: Geometry (fractions of the screen)
 
@@ -61,6 +70,9 @@ enum GrenadeToss {
     static let land2OffsetFraction: CGFloat = 0.03
     /// Fireball diameter, as a fraction of the screen's shorter side.
     static let blastDiameterFraction: CGFloat = 0.75
+    /// How far the cracks reach from the impact, same reference. "A part of
+    /// the screen", not the whole of it — that is tile #90's job.
+    static let crackRadiusFraction: CGFloat = 0.32
 
     /// Turns it tumbles through, in the direction it flies (clockwise to the
     /// right). The total, 4¼ turns, leaves it lying on its side.
@@ -180,6 +192,169 @@ enum GrenadeToss {
             "transform.rotation.z": track("transform.rotation.z", poses.map { $0.angle }),
             "transform.scale": track("transform.scale", poses.map { $0.scale }),
         ]
+    }
+
+    // MARK: The crack
+
+    /// The cracked glass around the impact: `lines` is every crack as one path
+    /// (radials and the rings between them), `hole` the jagged black hole at
+    /// the centre, `holeCells` the pieces that hole is made of — the shards
+    /// that fall out of it.
+    struct Crack {
+        var lines: CGPath
+        var hole: CGPath
+        var holeCells: [CGPath]
+    }
+
+    /// Seeded, so a recording looks the same twice; the seed is per press in
+    /// the app, so two presses don't crack the same way.
+    static func crack(at c: CGPoint, radius r: CGFloat, seed: UInt64) -> Crack {
+        var rnd = Rand(state: seed)
+        let n = 13
+        let angles = (0..<n).map { (CGFloat($0) + rnd.range(-0.3, 0.3)) / CGFloat(n) * 2 * .pi }
+        // Distances every radial is sampled at: the hole's rim, three rings, its tip.
+        let ringFractions: [CGFloat] = [0.3, 0.55, 0.8]
+
+        // radials[i][k]: the point of radial i at its k-th distance (0 = the hole's rim).
+        var radials: [[CGPoint]] = []
+        var lengths: [CGFloat] = []
+        for a in angles {
+            let rim = r * rnd.range(0.09, 0.14)
+            let length = r * rnd.range(0.55, 1.0)
+            lengths.append(length)
+            var pts: [CGPoint] = []
+            var heading = a
+            for d in [rim] + ringFractions.map({ $0 * r }).filter({ $0 < length }) + [length] {
+                heading += rnd.range(-0.09, 0.09)   // glass cracks are never quite straight
+                pts.append(CGPoint(x: c.x + cos(heading) * d, y: c.y + sin(heading) * d))
+            }
+            radials.append(pts)
+        }
+
+        let lines = CGMutablePath()
+        for pts in radials {
+            lines.move(to: pts[0])
+            for p in pts.dropFirst() { lines.addLine(to: p) }
+        }
+        // The rings: short jagged links between neighbouring radials, not all of
+        // them — a full web reads as a dartboard.
+        for i in 0..<n {
+            let j = (i + 1) % n
+            for (k, f) in ringFractions.enumerated() where lengths[i] > f * r && lengths[j] > f * r {
+                guard rnd.next() < (k == 0 ? 0.95 : k == 1 ? 0.7 : 0.4) else { continue }
+                let p = radials[i][k + 1], q = radials[j][k + 1]
+                let bulge = rnd.range(-0.06, 0.06) * r
+                let mid = CGPoint(x: (p.x + q.x) / 2 + (p.x + q.x - 2 * c.x) / (2 * f * r) * bulge,
+                                  y: (p.y + q.y) / 2 + (p.y + q.y - 2 * c.y) / (2 * f * r) * bulge)
+                lines.move(to: p); lines.addLine(to: mid); lines.addLine(to: q)
+            }
+        }
+
+        // The hole: the radials' rim points, with a jag between each pair.
+        let hole = CGMutablePath()
+        var cells: [CGPath] = []
+        for i in 0..<n {
+            let p = radials[i][0], q = radials[(i + 1) % n][0]
+            let jag = CGPoint(x: (p.x + q.x) / 2 + rnd.range(-0.03, 0.03) * r,
+                              y: (p.y + q.y) / 2 + rnd.range(-0.03, 0.03) * r)
+            if i == 0 { hole.move(to: p) }
+            hole.addLine(to: jag); hole.addLine(to: q)
+            let cell = CGMutablePath()
+            cell.addLines(between: [c, p, jag, q]); cell.closeSubpath()
+            cells.append(cell)
+        }
+        hole.closeSubpath()
+        return Crack(lines: lines, hole: hole, holeCells: cells)
+    }
+
+    /// The crack as layers, every animation un-begun (they start in the
+    /// caller's transaction): the black hole, the shards of it falling out over
+    /// `shot` (the desktop photograph — without one the hole is simply black),
+    /// and the lines, dark with a bright edge so they read on a white slide and
+    /// on a dark one, revealed from the impact outward.
+    static func makeCrack(at c: CGPoint, in bounds: CGRect, shot: CGImage?, seed: UInt64) -> CALayer {
+        let r = min(bounds.width, bounds.height) * crackRadiusFraction
+        let crack = crack(at: c, radius: r, seed: seed)
+        let container = CALayer()
+        container.frame = bounds
+        var rnd = Rand(state: seed ^ 0x5eed)
+
+        let hole = CAShapeLayer()
+        hole.frame = bounds
+        hole.path = crack.hole
+        hole.fillColor = rgba(0.02, 0.02, 0.02, 0.95)
+        container.addSublayer(hole)
+
+        if let shot {
+            for cell in crack.holeCells {
+                let piece = CALayer()
+                piece.frame = bounds
+                piece.contents = shot
+                piece.contentsGravity = .resize
+                let mask = CAShapeLayer()
+                mask.path = cell
+                piece.mask = mask
+                container.addSublayer(piece)
+                let delay = Double(rnd.range(0.02, 0.25)), dur = Double(rnd.range(0.45, 0.7))
+                let fall = CAKeyframeAnimation(keyPath: "position")
+                let p0 = piece.position
+                let p1 = CGPoint(x: p0.x + rnd.range(-0.25, 0.25) * r, y: p0.y - bounds.height * 1.1)
+                fall.values = [NSValue(point: p0), NSValue(point: p0), NSValue(point: p1)]
+                fall.keyTimes = [0, NSNumber(value: delay / (delay + dur)), 1]
+                fall.timingFunctions = [CAMediaTimingFunction(name: .linear), CAMediaTimingFunction(name: .easeIn)]
+                fall.duration = delay + dur
+                fall.fillMode = .forwards
+                fall.isRemovedOnCompletion = false
+                piece.add(fall, forKey: "fall")
+            }
+        }
+
+        // Bright edge under, dark crack over it, a hair to the side: glass.
+        // In their own layer, the only one the reveal masks — the pieces fall
+        // far outside it and must not be clipped on the way.
+        let web = CALayer()
+        web.frame = bounds
+        container.addSublayer(web)
+        // Wide enough to survive a projector: 2.2 pt of crack on 4 pt of edge.
+        for (color, width, dx) in [(rgba(1, 1, 1, 0.85), CGFloat(4), CGFloat(1)),
+                                   (rgba(0.08, 0.08, 0.1, 0.9), CGFloat(2.2), CGFloat(0))] {
+            let l = CAShapeLayer()
+            l.frame = bounds.offsetBy(dx: dx, dy: -dx)
+            l.path = crack.lines
+            l.fillColor = nil
+            l.strokeColor = color
+            l.lineWidth = width
+            l.lineJoin = .miter
+            l.lineCap = .butt
+            web.addSublayer(l)
+        }
+
+        // Revealed from the impact outward: a disc mask that grows past the tips.
+        let reveal = CAShapeLayer()
+        reveal.frame = bounds
+        reveal.path = CGPath(ellipseIn: CGRect(x: c.x - r * 1.1, y: c.y - r * 1.1, width: r * 2.2, height: r * 2.2),
+                             transform: nil)
+        reveal.anchorPoint = .zero
+        reveal.position = .zero
+        web.mask = reveal
+        let grow = CABasicAnimation(keyPath: "transform")
+        grow.fromValue = NSValue(caTransform3D: CATransform3DConcat(
+            CATransform3DConcat(CATransform3DMakeTranslation(-c.x, -c.y, 0), CATransform3DMakeScale(0.05, 0.05, 1)),
+            CATransform3DMakeTranslation(c.x, c.y, 0)))
+        grow.toValue = NSValue(caTransform3D: CATransform3DIdentity)
+        grow.duration = crackSpread
+        grow.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        reveal.add(grow, forKey: "spread")
+
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        let total = crackHold + crackFade
+        fade.values = [1, 1, 0]
+        fade.keyTimes = [0, NSNumber(value: crackHold / total), 1]
+        fade.duration = total
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        container.add(fade, forKey: "fade")
+        return container
     }
 
     // MARK: The grenade
