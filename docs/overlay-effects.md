@@ -1367,10 +1367,14 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     o parte din ecran unde a căzut, după ce zguduie un pic ecranul", then "să se spargă mai multe
     fragmente, să sară în toate părțile, cam 25% din ecran să devină negru/stricat"), and
     **on the blast** since the same evening ("geamul ecranului să se spargă sincron cu
-    explozia"): `crackAt` = `blastAt`. The broken glass goes in **under** the fireball, in the
-    blast's own transaction, so the explosion is seen through the break and the black shows as
-    the fire clears; it is shaken by the same `BombShake` animation as the fireball and the
-    photograph, one clock.
+    explozia"): `crackAt` = `blastAt`. The fireball goes **between** the two halves of the broken
+    glass, in the blast's own transaction: the black hole and its bleed stripes under it (the
+    explosion is seen against the hole, the black shows as the fire clears), the shards and
+    the cracks over it — the glass is the screen's surface, so it shatters *in front of* the
+    fire. All of it first went under the fireball, which hid the shards for the first
+    half-second and made the break read as coming after the bang ("nu poți suprapune explozia
+    cu geamul care se sparge?"). Both halves are shaken by the same `BombShake` animation as
+    the fireball and the photograph, one clock.
     - **25 % counted on the glass**: `holeRadius` bisects the radius of a disc at the impact
       until the part of it INSIDE the screen is `brokenAreaFraction` — so near an edge or a
       corner the hole grows to make up for what the edge cuts off.

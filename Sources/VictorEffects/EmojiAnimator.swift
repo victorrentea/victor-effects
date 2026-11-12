@@ -12136,16 +12136,20 @@ class EmojiAnimator {
             // The glass breaks on the same frame (`GrenadeToss.crackAt`): a
             // quarter of the screen around the impact, its shards bursting out
             // in every direction, leaving it black and the glass round it
-            // cracked. UNDER the fireball, so the explosion is seen through the
-            // break and the black shows as the fire clears; shaken with the
-            // rest of the picture, one clock, one transaction.
+            // cracked. The fireball goes BETWEEN the two halves — the black
+            // hole under it, the shards and cracks over it — so the glass is
+            // seen shattering through the explosion, not after it. All of it
+            // shaken with the picture, one clock, one transaction.
             let glass = GrenadeToss.makeCrack(crack, at: target, holeRadius: holeRadius, in: bounds,
                                               shards: shards, scale: scale, seed: seed)
             CATransaction.begin()
-            container.addSublayer(glass)
+            container.addSublayer(glass.under)
             container.addSublayer(blast)
+            container.addSublayer(glass.over)
             self.shakeTheWholePicture(fireball: blast, shot: shot)
-            glass.add(BombShake.animation(width: bounds.width), forKey: BombShake.animationKey)
+            for layer in [glass.under, glass.over] {
+                layer.add(BombShake.animation(width: bounds.width), forKey: BombShake.animationKey)
+            }
             CATransaction.commit()
             SoundManager.shared.playOverlapping(Self.grenadeGlass, volume: 0.75, bluetoothCompensated: false)
             // The link is warm — the shout has just played — so no Bluetooth

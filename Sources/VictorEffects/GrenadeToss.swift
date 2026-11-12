@@ -406,15 +406,24 @@ enum GrenadeToss {
     }
     static let shardFlight: Double = 1.5
 
-    /// The crack as layers, every animation un-begun (they start in the
-    /// caller's transaction): the black hole with a few dead-LCD bleed lines,
-    /// the shards bursting out of it, and the cracked glass around it — dark
-    /// lines on a bright edge so they read on a white slide and on a dark one,
-    /// revealed from the impact outward.
+    /// The broken glass as two layers, every animation un-begun (they start in
+    /// the caller's transaction), because the fireball goes BETWEEN them:
+    ///  - `under`: the black hole and its dead-LCD bleed lines — what the
+    ///    explosion is seen against, and what is left when it clears;
+    ///  - `over`: the shards bursting out of the hole and the cracked glass
+    ///    round it — dark lines on a bright edge, so they read on a white slide
+    ///    and on a dark one, revealed from the impact outward.
+    /// The glass is the screen's surface, so it shatters IN FRONT of the fire
+    /// (Victor, 2026-11-12: "nu poți suprapune explozia cu geamul care se
+    /// sparge?" — with all of it under the fireball, the shards were hidden
+    /// for the first half-second and the break read as coming after the bang).
     static func makeCrack(_ crack: Crack, at c: CGPoint, holeRadius rh: CGFloat, in bounds: CGRect,
-                          shards: [(image: CGImage, frame: CGRect)], scale: CGFloat, seed: UInt64) -> CALayer {
+                          shards: [(image: CGImage, frame: CGRect)], scale: CGFloat,
+                          seed: UInt64) -> (under: CALayer, over: CALayer) {
         let container = CALayer()
         container.frame = bounds
+        let over = CALayer()
+        over.frame = bounds
         var rnd = Rand(state: seed ^ 0x5eed)
 
         let hole = CAShapeLayer()
@@ -460,7 +469,7 @@ enum GrenadeToss {
             l.contents = image
             l.contentsScale = scale
             l.frame = frame
-            container.addSublayer(l)
+            over.addSublayer(l)
 
             let pos = CAKeyframeAnimation(keyPath: "position")
             pos.values = (0...steps).map { NSValue(point: shardPosition(from: p, velocity: v, at: Double($0) / fps)) }
@@ -491,7 +500,7 @@ enum GrenadeToss {
         // far outside it and must not be clipped on the way.
         let web = CALayer()
         web.frame = bounds
-        container.addSublayer(web)
+        over.addSublayer(web)
         // Wide enough to survive a projector: 2.2 pt of crack on 4 pt of edge.
         for (color, width, dx) in [(rgba(1, 1, 1, 0.85), CGFloat(4), CGFloat(1)),
                                    (rgba(0.08, 0.08, 0.1, 0.9), CGFloat(2.2), CGFloat(0))] {
@@ -529,7 +538,8 @@ enum GrenadeToss {
         fade.fillMode = .forwards
         fade.isRemovedOnCompletion = false
         container.add(fade, forKey: "fade")
-        return container
+        over.add(fade, forKey: "fade")
+        return (container, over)
     }
 
     // MARK: The grenade
