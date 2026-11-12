@@ -49,9 +49,11 @@ final class TileAudioTests: XCTestCase {
         }
     }
 
-    func testAnAlternatingTileIsHeardAsBothTakes() {
-        XCTAssertEqual(TileAudio.files(forTile: "19_fail.mp3", exists: all), ["19_fail.mp3", "20_fail2.mp3"])
-        XCTAssertEqual(TileAudio.files(forTile: "49_wrong.mp3", exists: all), ["49_wrong.mp3", "49b_tiktok_core.mp3"])
+    func testTheFormerAlternatingTakesAreEachTheirOwnTile() {
+        XCTAssertEqual(TileAudio.files(forTile: "19_fail.mp3", exists: all), ["19_fail.mp3"])
+        XCTAssertEqual(TileAudio.files(forTile: "20_fail2.mp3", exists: all), ["20_fail2.mp3"])
+        XCTAssertEqual(TileAudio.files(forTile: "49_wrong.mp3", exists: all), ["49_wrong.mp3"])
+        XCTAssertEqual(TileAudio.files(forTile: "49b_tiktok_core.mp3", exists: all), ["49b_tiktok_core.mp3"])
     }
 
     func testAFileIsOwnedByTheTileThatIsIt() {

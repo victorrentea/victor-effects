@@ -44,13 +44,9 @@ enum SoundEffectMap {
         "63_air_horn.mp3":       "siren-lamp",
         "10_red_phone.mp3":      "phone-ring",
         "19_fail.mp3":           "fail",
-        // 20_fail2.mp3 is NOT here any more. It is still #19's second take
-        // (`AlternatingSounds`), but since the ⛈️ storm took over square #20 it
-        // is no longer a tile anybody can press — and the press path reports the
-        // KEY of a pair, never the file that was actually played, so the entry
-        // could only ever have fired for a direct press that can no longer
-        // happen. Leaving it would have put a ⭐ on an asset with no tile, which
-        // `SoundEffectMapDriftTests` reads as a renamed or deleted mp3.
+        // 19b (since 2026-11-12): #19's second trombone take, its own press
+        // under #19 instead of every other run of it — same picture, same desktop.
+        "20_fail2.mp3":          "fail",
         "78_projector.mp3":      "sepia",
         "67_sfx_109.mp3":        "brother",
         "70_cavalry.mp3":        "cavalry",
@@ -99,6 +95,10 @@ enum SoundEffectMap {
         "55_star_wars.mp3":      "star-wars",
         "37_rainbow.mp3":        "rainbow",
         "49_wrong.mp3":          "wrong-x",
+        // 49b (since 2026-11-12, alternated with #49 before): TikTok Core, its
+        // note at the X's midpoint — the 1.37 s of silence inside the mp3 is the
+        // clock (`docs/sound-routing.md`).
+        "49b_tiktok_core.mp3":   "wrong-x",
         "50_gong.mp3":           "gong",
         "26_drum.mp3":           "drum-roll",
         "40_joker.mp3":          "blood-drip",

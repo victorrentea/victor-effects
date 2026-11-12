@@ -46,7 +46,7 @@ final class EffectsEngine {
     private(set) var playing: (asset: String, durationMs: Int, startedAt: Date)?
 
     /// The last `/sound/play` this Mac took, by the asset the client ASKED for
-    /// (before `AlternatingSounds`): the press that follows it is captioned in
+    /// the press that follows it is captioned in
     /// step with audio that is only heard ~1.3 s later on the JBL.
     private var routedPlay: (asset: String, at: Date, wake: TimeInterval)?
 
@@ -705,20 +705,10 @@ final class EffectsEngine {
     /// same call as their audio because the cue lives at a fixed offset INSIDE
     /// the clip, and a separately-clocked visual slides off it.
     func playSound(_ name: String, volumePct: Int?) -> String? {
-        // 🔀 A few tiles are a PAIR behind one press (#19 fail alternates with
-        // #20 fail2, run by run — `AlternatingSounds`). Resolved here, before
-        // anything else, so the whole method and everything downstream of it —
-        // the special cases, the duration handed back, `playing`, the log —
-        // speak about the file that is really being played rather than the one
-        // that was asked for. An unpaired asset comes back unchanged, and so does
-        // a pair whose partner this Mac does not have: the starter pack ships
-        // only the key, and half the presses of a tile must not go silent.
+        // Every tile plays its own file: the alternating pairs (#19 ⇄ fail2,
+        // #49 ⇄ TikTok Core) became layer-B tiles on 2026-11-12, so what was
+        // asked for is what plays.
         let requested = name
-        let turn = AlternatingSounds.shared.next(for: requested)
-        let name = SoundManager.shared.soundURL(for: turn) != nil ? turn : requested
-        if name != requested {
-            effectsInfo("🔀 \(requested) → playing \(name) (alternating pair)")
-        }
 
         let volume = volumePct.map { Float($0) / 100 }
         // 🔉 Every clip started below plays at the TILE's own volume

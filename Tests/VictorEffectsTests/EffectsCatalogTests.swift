@@ -17,7 +17,7 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 53 tiles, 52 of the 91 on layer A plus 55b (#7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 55 tiles, 52 of the 91 on layer A plus 19b, 49b and 55b (19b and 49b were #19's and #49's alternating second takes until 2026-11-12, now presses of their own under them, firing their host's effect; #7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
@@ -34,6 +34,7 @@ final class EffectsCatalogTests: XCTestCase {
         "15_flatline.mp3":       "pulse",
         "18_chainsaw.mp3":       "chainsaw",
         "19_fail.mp3":           "fail",
+        "20_fail2.mp3":          "fail",           // 19b, the second trombone take under #19
         "20_storm.mp3":          "storm",          // took square #20 off fail2
         "22_minigun.mp3":        "bullet-holes",
         "23_radar.mp3":          "sonar",          // in-clip cue
@@ -53,6 +54,7 @@ final class EffectsCatalogTests: XCTestCase {
         "44_small_dog.mp3":      "small-dog",      // 🐕 in-clip cue: Basti barks and jumps on the clip's barks
         "46_michael_buble.mp3":  "snow",
         "49_wrong.mp3":          "wrong-x",
+        "49b_tiktok_core.mp3":   "wrong-x",        // 49b, its note at the X's midpoint
         "50_gong.mp3":           "gong",
         "51_beethoven.mp3":      "beethoven",      // in-clip cue
         "53_rain.mp3":           "money",          // in-clip cue

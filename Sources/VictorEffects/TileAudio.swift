@@ -10,8 +10,6 @@ import Foundation
 /// Most tiles are heard as their own mp3. The exceptions:
 /// - a tile that plays ANOTHER file (#31's iris rings a gong, #53's money a
 ///   "ching", #14 the minions' cut, #9 the long hymn, #34 the phoenix's cry);
-/// - a tile that alternates between two takes (`AlternatingSounds`) — both
-///   files, the ▲ follows the louder;
 /// - a tile whose sound is made in code (none today: the sonar plays
 ///   `23_radar.mp3`) — `synthesized`, no file, no hint.
 ///
@@ -58,7 +56,6 @@ enum TileAudio {
     /// the phoenix pick the first that is, as their players do).
     static func files(forTile tile: String, exists: (String) -> Bool = { SoundManager.shared.originalURL(for: $0) != nil }) -> [String] {
         if synthesized.contains(tile) { return [] }
-        if let cycle = AlternatingSounds.defaultTable[tile] { return cycle }
         if let r = remaps[tile] { return r }
         switch tile {
         case "31_tarzan.mp3":

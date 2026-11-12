@@ -56,74 +56,34 @@ is a silent placeholder on the client whose reported duration
 is the *on-screen* life of the effect, so a non-restartable tile stays
 "playing" for as long as the visual runs.
 
-## One button, two clips (`AlternatingSounds`)
+## Second takes are layer-B tiles, not alternations (since 2026-11-12)
 
-A few tiles are a **pair behind one press**. `EffectsEngine.playSound` resolves
-the requested file through `AlternatingSounds.shared.next(for:)` before anything
-else, so the whole method — the special cases above, the `durationMs` handed
-back, `playing` in `/state`, the log line — speaks about the file that is really
-being played and not the one that was asked for.
+Until 2026-11-12 two tiles were a **pair behind one press** (`AlternatingSounds`,
+now deleted): #19 played `19_fail.mp3` and `20_fail2.mp3` in turns, #49 played
+`49_wrong.mp3` and `49b_tiktok_core.mp3`. Victor: there are two sounds, so there
+should be two buttons, and **no tile alternates any more**. Each second take is
+now the `under` tile (layer B, the folded bottom-left corner) of its host in
+`tiles.json`, and fires the host's desktop effect from `SoundEffectMap.onPress`:
 
-The first entry: **`19_fail.mp3` alternates with
-`20_fail2.mp3`**, run by run (19 → 20 → 19 → …). The same trombone joke was
-sitting on two squares of a 13-column board and the room only ever heard
-whichever one Victor's thumb landed on; now one button carries both takes and the
-second press of the evening is not the same noise as the first.
+| tile | file | picture | desktop |
+|---|---|---|---|
+| 19b | `20_fail2.mp3` (the second trombone) | `sfx_20_fail2.jpg` (FAIL #2) | `fail` |
+| 49b | `49b_tiktok_core.mp3` (myinstants "TikTok Core") | `sfx_49_wrong.jpg`, the same as #49 | `wrong-x` |
 
-**`49_wrong.mp3` alternates with `49b_tiktok_core.mp3`** (2026-11-05), the
-"TikTok Core" button from myinstants, 0.7 s long. The original buzzer lands on the
-strike; this one was asked to sound on the X once it stands complete, *"fix înainte
-ca X-urile să dispară"*. **The delay is 0.9 s of silence inside the mp3**, with no
-timer in the code: the press path starts `wrong-x` and the play path starts the
-file at the same moment, and the Bluetooth wake-up delays both by the same amount,
-so a file is the one clock they cannot disagree on. `showWrongX` draws for 0.5 s,
-holds to 1.54 s, then fades for 1.2 s; the note sounds from 0.96 s to 1.6 s, ending
-as the fade begins. **On the JBL it arrives ~0.55 s later** (the A2DP latency below),
-1.5–2.15 s, with the X half faded by its end. Changing that hold means re-cutting
-the lead-in. A clip with a lead-in of silence is also the cheapest way to delay any
-other partner, since `durationMs` and the stop path need no special case.
+**49b's note sounds at the midpoint of the X.** `showWrongX` draws for 0.5 s,
+holds to 1.54 s and fades for 1.2 s: 2.74 s in all, midpoint **1.37 s**. The
+delay is **1.37 s of silence inside the mp3**, with no timer in the code: the
+press path starts `wrong-x` and the play path starts the file at the same moment,
+and a routed clip's Bluetooth wake-up and output latency delay the picture by the
+same amount (`currentPictureDelay`), so the file is the one clock they cannot
+disagree on. The same re-cut made it **×1.3 louder** (+2.3 dB, peak −5.5 dBFS):
+it was 0.9 s of lead-in, timed to the finished X, until then. Changing the X's
+timings means re-cutting this lead-in (`silencedetect` should put the onset at
+the new midpoint). A lead-in of silence stays the cheapest way to delay any
+paired clip: `durationMs` and the stop path need no special case.
 
-A partner this Mac does not have is skipped and the key plays instead: the
-starter pack ships `49_wrong.mp3` and `19_fail.mp3` but neither partner, and until
-this check every second press of those tiles there was a 404.
-
-**`20_fail2.mp3` no longer has a tile at all** (2026-09-19). It kept square #20
-and its `N/A` label for a week — the grid is numbered `#NN` **by position**, so
-removing a row would renumber sixty tiles — but a labelled square is still a
-square, and #20 was the only one the board had spare when the ⛈️ storm arrived
-(`docs/overlay-effects.md`). The square is now the storm's; the clip stayed
-exactly where it was, in `soundsDir`, as the second take it always was. That is
-what "merged away" was supposed to mean all along: **a partner needs a file, not
-a square.** Two things follow, and both are pinned by tests:
-
-- Its `SoundEffectMap.onPress` entry is gone. The press path reports the *key* of
-  a pair and never the file that was actually played, so that mapping could only
-  ever have fired for a direct press of #20 — which no longer exists. Leaving it
-  would have put a ⭐ on an asset with no tile, which `SoundEffectMapDriftTests`
-  correctly reads as a renamed or deleted mp3.
-- `AlternatingSoundsTests` checks the two halves of a cycle against **different**
-  things now: the KEY must be a tile in `tiles.json` (something has to press it),
-  every FILE must exist in `soundsDir` (something has to play it). A partner may
-  carry no effect of its own, but never a *different* one from the key's — that
-  would be a mapping which looks like it fires every other run and never fires at
-  all.
-
-Three properties are deliberate:
-
-- **The cursor is in memory only.** A restart begins each pair at its first file.
-  The point is variety within a session, not a ledger across them, and nothing on
-  disk is worth the alternation being one file "off" after a crash mid-workshop.
-- **The client knows nothing about it.** The table is keyed by the asset the
-  client presses and its first entry is that same asset, so the tablet, the
-  panel and every script keep sending `/sound/play/19_fail.mp3`. The paired
-  `/sound/pressed/19_fail.mp3` still fires `fail` — the effect belongs to the
-  press, the alternation only to the audio — which is why both files of a cycle
-  must carry the *same* desktop effect (`AlternatingSoundsTests` asserts it).
-- **Pressing a partner directly is left alone.** `20_fail2.mp3` played by name is
-  `20_fail2.mp3`, exactly as before: one entry point per pair keeps "what does
-  this press do" answerable by reading one row.
-
-Adding the next pair is one line in `AlternatingSounds.defaultTable`.
+`20_fail2.mp3` still has no square of its own (#20 is the ⛈️ storm since
+2026-09-19); as 19b it needs none.
 
 ## Interrupted sounds fade, they never cut
 
