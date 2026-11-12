@@ -34,6 +34,11 @@ enum SoundEffectMap {
         "27_clapping.mp3":       "applause",
         "42_saxophone.mp3":      "spiral-hearts",
         "89_fireworks.mp3":      "fireworks",
+        // Tile 87 (💣 "Fire in the hole!"): a pineapple grenade is lobbed in
+        // from the bottom-left corner, bounces to the middle of the screen and
+        // blows up there, with the nuke's boom. The clip is the shout alone, so
+        // the picture is fitted to the voice (`GrenadeToss`). Self-terminating.
+        "87_grenade.mp3":        "grenade",
         "08_scream_man.mp3":     "fear",
         "22_minigun.mp3":        "bullet-holes",
         "65_school_bell.mp3":    "fire-alarm",

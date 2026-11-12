@@ -12050,6 +12050,69 @@ class EmojiAnimator {
         if playSound { SoundManager.shared.play("50_gong.mp3") }
     }
 
+    // MARK: - 💣 Grenade (tile #87 "Fire in the hole!")
+
+    /// The tile's own clip is the shout only; the boom is the tail of the nuke's.
+    static let grenadeSound = "87_grenade.mp3"
+    static let grenadeBoom = "03_explosion.mp3"
+
+    /// A grenade lobbed in from the bottom-left corner that bounces to the
+    /// middle of the screen and blows up there (`GrenadeToss`). Press-driven and
+    /// self-terminating; a re-press while it runs takes it off, like the gong.
+    func showGrenade(playSound: Bool = false) {
+        if cancelIfRunning("grenade", sound: playSound ? Self.grenadeSound : nil) { return }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
+
+        let container = CALayer()
+        container.frame = bounds
+        stageLayer.addSublayer(container)
+        trackEffect("grenade", layer: container, duration: GrenadeToss.totalDuration,
+                    sound: playSound ? Self.grenadeSound : nil)
+
+        let h = GrenadeToss.restHeight(in: bounds)
+        let grenade = CALayer()
+        grenade.bounds = CGRect(x: 0, y: 0, width: h * GrenadeToss.spriteAspect, height: h)
+        grenade.contents = GrenadeToss.grenadeImage(height: h, scale: scale)
+        grenade.contentsScale = scale
+        grenade.position = GrenadeToss.startPoint(in: bounds)
+        container.addSublayer(grenade)
+        CATransaction.begin()
+        for (key, anim) in GrenadeToss.flightAnimations(in: bounds) { grenade.add(anim, forKey: key) }
+        CATransaction.commit()
+        if playSound { SoundManager.shared.play(Self.grenadeSound) }
+
+        // The photograph the blast shakes (the nuke's trick, `BombShake`): taken
+        // now, while the grenade is still off-screen past the corner.
+        var shot: (image: CGImage, slice: ZoomSlice)? = nil
+        if CGPreflightScreenCaptureAccess() {
+            let slice = ZoomSlice.current(in: bounds)
+            DispatchQueue.global(qos: .userInitiated).async { [weak self, weak container] in
+                let image = slice.crop(Self.captureBuiltInDisplayFast() ?? Self.captureBuiltInDisplay())
+                DispatchQueue.main.async {
+                    guard let self, let container, let image,
+                          self.activeEffects["grenade"] === container else { return }
+                    shot = (image, slice)
+                }
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + GrenadeToss.blastAt) { [weak self, weak container, weak grenade] in
+            guard let self, let container, self.activeEffects["grenade"] === container else { return }
+            grenade?.removeFromSuperlayer()
+            let blast = GrenadeToss.makeBlast(at: GrenadeToss.restPoint(in: bounds), in: bounds)
+            CATransaction.begin()
+            container.addSublayer(blast)
+            self.shakeTheWholePicture(fireball: blast, shot: shot)
+            CATransaction.commit()
+            // The link is warm — the shout has just played — so no Bluetooth
+            // start delay: it would land the boom late off its own fireball.
+            SoundManager.shared.playOverlapping(Self.grenadeBoom, volume: 0.9, bluetoothCompensated: false,
+                                                startAt: Self.explosionBlastOnset)
+        }
+    }
+
     // MARK: - Wrong X (two diagonal brush strokes, drawn one after the other)
 
     func showWrongX(playSound: Bool = true) {

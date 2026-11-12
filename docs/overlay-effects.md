@@ -1322,6 +1322,31 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `crt-shutdown` while it runs. `/test/crt-shutdown` and `/effect/crt-shutdown`
   fire the closing alone.
 
+- **💣 Grenade** (tile #87 `87_grenade.mp3` "Fire in the hole!" → `grenade`, `showGrenade`,
+  `GrenadeToss`, 2026-11-12): a pineapple grenade is lobbed in from the **bottom-left corner**,
+  big (2.2×) and shrinking to its resting size as it flies away into the screen, tumbling
+  clockwise through an arc, bounces twice and comes to rest on its side **in the middle of the
+  screen**, rattles, and blows up there: a warm full-screen flash, a white-hot core, a cluster
+  of fire puffs, a shockwave ring, sparks and shrapnel falling back under gravity, smoke that
+  rises and thins, and a scorch mark left on the floor. Gone 3.85 s after the press.
+  - **The clip is the shout only** (1.51 s; the words run 0.22–1.2 s, no blast in it), so the
+    timeline is fitted to the voice: in the air while it is said, landing on "hole", the blast
+    at **1.45 s**, a quarter of a second after the last word — the warning ends, then the bang.
+  - **The boom is borrowed**: `03_explosion.mp3` seeked straight to its blast
+    (`explosionBlastOnset`), `playOverlapping` with no Bluetooth start delay (the link is warm,
+    the shout just played), so it lands on the fireball's first frame.
+  - **Drawn in code, no asset.** The nuke's `explosion.gif` was the obvious reuse and the wrong
+    one: it is a mushroom cloud, and reads as tile #3. Every puff is one of four cached soft
+    discs drawn at 1×, the sparks are NOT additive (added light vanishes on a white slide),
+    and the flight is three keyframe tracks sampled from `GrenadeToss.pose(at:in:)` at 60 fps,
+    run by the window server — ~1 ms a frame through `CARenderer`.
+  - **The desktop shakes with the blast** — the nuke's photograph trick (`BombShake`,
+    `shakeTheWholePicture`), the shot taken at the press while the grenade is still past the
+    corner. Degrades to the blast shaking alone without Screen Recording.
+  - Press-driven and self-terminating (`trackEffect`); the blast is scheduled behind an
+    identity check on the effect's container, so a stop-all or a re-press during the flight
+    also cancels the bang and its boom.
+
 - **🙅 Wasn't me** (tile #76 `76_sfx_118.mp3` → `wasnt-me`, `showWasntMe`): a 3D hand
   wagging its index finger "no-no", parked in the **bottom-left (SW) quarter** of the desktop
   for exactly as long as the clip runs, then fading out on its own over the last 0.8 s. The

@@ -380,6 +380,7 @@ final class EffectsEngine {
         case "tsunami":       animator.showTsunami()
         case "tsunami/stop":  animator.stopTsunami()
         case "gong":          animator.showGong(playSound: false)
+        case "grenade":       animator.showGrenade(playSound: false)
         case "rainbow":       animator.showRainbow(playSound: false)
         case "rainbow/stop":  animator.stopRainbow()
         case "snow":          animator.showSnow()
