@@ -2970,6 +2970,17 @@ webhook is the smallest thing that carries the gesture across. The event kept
 its old name so the addons side did not have to move. With no `eventWebhook`
 configured the ☕ still fills and still bursts; nothing else happens.
 
+**🌮 The taco is a link** (Victor, 2026-11-12). A 🌮 reaction rides the plain
+rise like any other, but while the pointer is on it (10 pt slop) its layer's
+clock is **paused** (QA1673 `speed = 0` + `timeOffset`: rise, growth and fade
+all hold) and a `PeekHitPanel` — the 🤖 peek mascot's hand-cursor click target,
+one level over the overlay — is laid over it, because the overlay itself
+ignores the mouse. Pointer off → panel gone, arrow back, the flight resumes
+from where it hung. A click opens `EmojiAnimator.tacoLink` (a YouTube video)
+in the default browser and pops the taco away. The hover is polled from the
+same 60 Hz `CoffeePourMonitor` tick as the pour (`tickTacoHover`). Try it with
+`/effect/emoji?e=🌮&count=5`.
+
 `/effect/coffee` spawns three (not a salvo: they fill and pop small);
 `/effect/coffee/storm` is 8 in one second (a salvo: touch one and it bursts);
 `/effect/coffee/pop` (`popCoffeeForTest`) pops one mid-screen exactly as a

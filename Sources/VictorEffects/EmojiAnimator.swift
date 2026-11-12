@@ -429,6 +429,119 @@ class EmojiAnimator {
                        scaleValues: [1.0, Self.emojiRiseScale],
                        scaleKeyTimes: [0, 1],
                        fadeStartFraction: 0.4)
+        if emoji == Self.tacoEmoji { tacos.append(FloatingTaco(layer: layer)) }
+    }
+
+    // MARK: - 🌮 The taco link
+
+    /// Victor, 2026-11-12: a rising 🌮 under the mouse stops rising, the pointer
+    /// becomes a hand, and a click plays the taco song in the browser. The
+    /// overlay ignores the mouse, so the hand and the click come from a
+    /// `PeekHitPanel` laid over the taco only while it is hovered.
+    static let tacoEmoji = "🌮"
+    static let tacoLink = URL(string: "https://www.youtube.com/watch?v=npjF032TDDQ")!
+    private static let tacoHitSlop: CGFloat = 10
+
+    private final class FloatingTaco {
+        let layer: CATextLayer
+        var panel: PeekHitPanel?
+        init(layer: CATextLayer) { self.layer = layer }
+        var hovered: Bool { panel != nil }
+    }
+    private var tacos: [FloatingTaco] = []
+
+    /// Called at 60 Hz with the global cursor point (`CoffeePourMonitor`).
+    func tickTacoHover(cursorGlobalPoint g: CGPoint) {
+        guard !tacos.isEmpty else { return }
+        // A taco whose flight ended removed itself from the screen.
+        for taco in tacos where taco.layer.superlayer == nil { taco.panel?.dismiss(); taco.panel = nil }
+        tacos.removeAll { $0.layer.superlayer == nil }
+        guard let screen = Self.builtInScreenFrame() else { return }
+        for taco in tacos {
+            let box = tacoGlobalFrame(taco.layer, screenOrigin: screen.origin)
+                .insetBy(dx: -Self.tacoHitSlop, dy: -Self.tacoHitSlop)
+            let over = box.contains(g)
+            if over, !taco.hovered {
+                effectsInfo("🌮 hovered → held, hand cursor")
+                Self.pauseLayer(taco.layer)
+                taco.panel = PeekHitPanel(frame: box) { [weak self, weak taco] in
+                    guard let self, let taco else { return }
+                    self.playTaco(taco)
+                }
+                NSCursor.pointingHand.set()
+            } else if !over, taco.hovered {
+                taco.panel?.dismiss()
+                taco.panel = nil
+                NSCursor.arrow.set()
+                Self.resumeLayer(taco.layer)
+            }
+        }
+    }
+
+    private func playTaco(_ taco: FloatingTaco) {
+        effectsInfo("🌮 clicked → \(Self.tacoLink.absoluteString)")
+        NSWorkspace.shared.open(Self.tacoLink)
+        taco.panel?.dismiss()
+        taco.panel = nil
+        NSCursor.arrow.set()
+        tacos.removeAll { $0 === taco }
+        // Gone with a quick pop: it did its job.
+        let layer = taco.layer
+        let shown = layer.presentation()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.removeAllAnimations()
+        layer.speed = 1
+        layer.timeOffset = 0
+        layer.beginTime = 0
+        layer.position = shown?.position ?? layer.position
+        layer.opacity = shown?.opacity ?? 1
+        CATransaction.commit()
+        let pop = CABasicAnimation(keyPath: "transform.scale")
+        pop.fromValue = 1.0
+        pop.toValue = 1.8
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = layer.opacity
+        fade.toValue = 0
+        let group = CAAnimationGroup()
+        group.animations = [pop, fade]
+        group.duration = 0.25
+        group.fillMode = .forwards
+        group.isRemovedOnCompletion = false
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak layer] in layer?.removeFromSuperlayer() }
+        layer.add(group, forKey: "tacoPop")
+        CATransaction.commit()
+    }
+
+    /// Where the taco IS (its presentation frame, carried out of the zoom stage
+    /// into the host layer), in global coordinates.
+    private func tacoGlobalFrame(_ layer: CALayer, screenOrigin: CGPoint) -> CGRect {
+        let f = (layer.presentation() ?? layer).frame
+        let inHost = layer.superlayer.map { $0 === hostLayer ? f : hostLayer.convert(f, from: $0) } ?? f
+        return inHost.offsetBy(dx: screenOrigin.x, dy: screenOrigin.y)
+    }
+
+    /// Apple's QA1673 pause/resume: the layer's own clock stops, so its whole
+    /// flight — rise, growth and fade — holds and later carries on from there.
+    private static func pauseLayer(_ layer: CALayer) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let t = layer.convertTime(CACurrentMediaTime(), from: nil)
+        layer.speed = 0
+        layer.timeOffset = t
+        CATransaction.commit()
+    }
+
+    private static func resumeLayer(_ layer: CALayer) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let paused = layer.timeOffset
+        layer.speed = 1
+        layer.timeOffset = 0
+        layer.beginTime = 0
+        layer.beginTime = layer.convertTime(CACurrentMediaTime(), from: nil) - paused
+        CATransaction.commit()
     }
 
     // MARK: - ☕ The chimney flight
