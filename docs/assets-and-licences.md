@@ -55,6 +55,11 @@ shipped or listed here):
 `phoenix.png` `red-phone.png` `santa-hat.png` `wasnt-me.gif` `wolf-howl.gif`
 `zorro_fire.gif`
 
+**People's voices** for the whip (`voices/<lang>-<slug>.m4a`, e.g.
+`voices/nl-alsjeblieft.m4a`) are drop-ins too and never committed: recordings of
+real people, with no licence to publish them (`docs/whip.md`). The name is
+computed from the phrase, so they are not in the list below.
+
 Plus the ones that were never in the repo: `brother_full.gif`,
 `love_hand_left.png`, `love_hand_right.png`, `pngtree-fail-stamp-cleaned.png`,
 `wazzup.png`, `siren_lamp.png`, `scared_cat.gif`, `red_button.gif`,

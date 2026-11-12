@@ -89,6 +89,35 @@ enum WhipVoice {
         return c?.url
     }
 
+    // MARK: - People's voices
+
+    /// **A real person's voice beats Google's** (2026-11-12, Victor: the list
+    /// grows from *"fragmente de voce"* recorded from the people he meets — the
+    /// first, a Dutch *alsjeblieft* off the ⏺️ Record voice row in addons).
+    /// They are not committed: a stranger's voice is not ours to publish in a
+    /// public repo. They sit in `assetsDir/voices/<recordedName>.m4a` (or
+    /// .mp3/.wav), cut to the one word and loudness-matched to the TTS (~−15 LUFS).
+    static let recordedExtensions = ["m4a", "mp3", "wav"]
+
+    /// `nl-alsjeblieft`, `ro-te-rog-frumos`, `fr-sil-vous-plait`: the language,
+    /// then the words folded to ASCII, one dash between them.
+    static func recordedName(for phrase: String) -> String {
+        // Any-Latin then Latin-ASCII: æ → ae, ø → o, моля → mola, ă → a.
+        let words = (key(WhipPleas.flagged(phrase).words)
+            .applyingTransform(StringTransform("Any-Latin; Latin-ASCII; Lower"), reverse: false) ?? "")
+        let slug = words.unicodeScalars
+            .map { CharacterSet.alphanumerics.contains($0) && $0.isASCII ? String($0) : " " }
+            .joined().split(separator: " ").joined(separator: "-")
+        return language(of: phrase) + "-" + slug
+    }
+
+    static func recordedURL(for phrase: String, assetsDir: URL = EffectsConfig.shared.assetsDir) -> URL? {
+        let base = assetsDir.appendingPathComponent("voices", isDirectory: true)
+            .appendingPathComponent(recordedName(for: phrase))
+        return recordedExtensions.lazy.map { base.appendingPathExtension($0) }
+            .first { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
     // MARK: - Fetching
 
     private static var prefetched = false
@@ -136,11 +165,15 @@ enum WhipVoice {
     private static var player: AVAudioPlayer?
     private static let synthesizer = AVSpeechSynthesizer()
 
-    /// Says `phrase`: the cached Google voice, else fetched now, else macOS's.
-    /// A new right-click cuts the previous one short.
+    /// Says `phrase`: a person's recording, else the cached Google voice, else
+    /// fetched now, else macOS's. A new right-click cuts the previous one short.
     static func speak(_ phrase: String) {
         player?.stop()
         synthesizer.stopSpeaking(at: .immediate)
+        if let recorded = recordedURL(for: phrase) {
+            play(recorded, fallback: phrase)
+            return
+        }
         let cached = cacheURL(for: phrase)
         if FileManager.default.fileExists(atPath: cached.path) {
             play(cached, fallback: phrase)

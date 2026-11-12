@@ -677,23 +677,25 @@ enum WhipPleas {
     /// Europe only (Schengen ∪ euro) from 2026-10-23 until 🇬🇧 came in the same
     /// edit and Japan, China, India and Moldova were asked for (2026-11-11);
     /// the rule now is that every flag has a voice (`WhipVoice.languageByCountry`).
-    static let maxWords = 3
+    ///
+    /// **Eight, from 2026-11-12, and from here on the list grows by voice**
+    /// (Victor: *"o să reducem la minim … și o să adunăm de la oamenii cu care
+    /// mă întâlnesc fragmente de voce ca asta ca să completez lista"*): the 38
+    /// pleas of the day before went down to the everyday seven plus *săru-mâna*, and a new one
+    /// comes in with a recording of a real person saying it
+    /// (`WhipVoice.recordedURL`). *alsjeblieft* is the first with one.
+    /// Romania's are *te rog io mult* and *săru-mâna* (Victor, the same day) —
+    /// the first is four words, so four at most. Eight in all.
+    static let maxWords = 4
     static let phrases = [
+        "te rog io mult 🇷🇴",
+        "săru-mâna 🇷🇴",
+        "por favor 🇪🇸",
+        "per favore 🇮🇹",
         "s'il vous plaît 🇫🇷",
-        "per favore 🇮🇹", "ti prego 🇮🇹",
-        "bitte 🇩🇪", "bitte schön 🇦🇹",
-        "por favor 🇪🇸", "porfa 🇪🇸", "porfi 🇪🇸", "se faz favor 🇵🇹",
-        "alsjeblieft 🇳🇱", "snälla 🇸🇪", "vær så snill 🇳🇴", "vær sød 🇩🇰",
-        "vinsamlegast 🇮🇸", "ole kiltti 🇫🇮", "palun 🇪🇪", "lūdzu 🇱🇻",
-        "proszę 🇵🇱", "prosím 🇨🇿", "prosím ťa 🇸🇰",
-        "kérlek 🇭🇺", "légyszi 🇭🇺", "molim te 🇭🇷",
-        "моля 🇧🇬", "παρακαλώ 🇬🇷", "jekk jogħġbok 🇲🇹",
-        "pretty please 🇬🇧", "if you please 🇬🇧",
-        "onegai shimasu 🇯🇵", "onegai 🇯🇵",
-        "qǐng 🇨🇳", "bàituō le 🇨🇳",
-        "kripaya 🇮🇳", "meharbani 🇮🇳",
-        "te rog frumos 🇷🇴", "fii bun 🇷🇴", "săru-mâna 🇷🇴",
-        "hai, davai! 🇲🇩",
+        "bitte 🇩🇪",
+        "pretty please 🇬🇧",
+        "alsjeblieft 🇳🇱",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
     /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),

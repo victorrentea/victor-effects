@@ -143,6 +143,21 @@ tras tare* were turned down as praise for work already done. Japanese, Chinese
 and Hindi are shown romanised and spoken from their native script
 (`WhipVoice.nativeScript`).
 
+**Since 2026-11-12 the list is eight and grows by voice** (Victor: *"o să
+reducem la minim … și o să adunăm de la oamenii cu care mă întâlnesc fragmente
+de voce ca asta ca să completez lista"*): *te rog io mult* and *săru-mâna* 🇷🇴,
+*por favor* 🇪🇸, *per favore* 🇮🇹, *s'il vous plaît* 🇫🇷, *bitte* 🇩🇪, *pretty
+please* 🇬🇧, *alsjeblieft* 🇳🇱. No Chinese, Japanese or Hindi until someone who
+speaks them is recorded. Four words at most (*te rog io mult*). A new phrase
+comes in with a real person's recording: `assetsDir/voices/<lang>-<ascii-slug>.m4a`
+(`WhipVoice.recordedName`: `nl-alsjeblieft`, `ro-te-rog-io-mult`,
+`fr-sil-vous-plait`), cut to the one word and loudness-matched to the TTS
+(~−15 LUFS, mono) — recorded with addons' ⏺️ Record voice row. **A recording
+beats Google**; the TTS stays the fallback for the phrases nobody has said yet.
+Never committed: a stranger's voice is not this public repo's to publish. The
+first one, *alsjeblieft*, was taken for Danish in the room and is Dutch —
+Whisper (`language=nl`) settled it; check a new one the same way before naming it.
+
 **Right-click says it out loud** (2026-11-11, Victor: *"ultimul afișat să fie
 pronunțat corect (ia de pe google …) + să apară țara din care vine … SUB acel
 mulțumesc"*). While the whip is up, a right-click takes the newest thank-you

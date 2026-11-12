@@ -69,4 +69,25 @@ final class WhipVoiceTests: XCTestCase {
         early.explainedMs = 200
         XCTAssertEqual(WhipPleas.progress(early, now: 1000), 200 / WhipPleas.lifeMs, accuracy: 1e-9, "frozen mid-rise")
     }
+
+    /// People's recordings are found by a name anyone can type (2026-11-12).
+    func testRecordedVoiceNamesAreAsciiSlugs() {
+        XCTAssertEqual(WhipVoice.recordedName(for: "alsjeblieft 🇳🇱"), "nl-alsjeblieft")
+        XCTAssertEqual(WhipVoice.recordedName(for: "te rog frumos 🇷🇴"), "ro-te-rog-frumos")
+        XCTAssertEqual(WhipVoice.recordedName(for: "s'il vous plaît 🇫🇷"), "fr-sil-vous-plait")
+        XCTAssertEqual(WhipVoice.recordedName(for: "vær sød 🇩🇰"), "da-vaer-sod")
+        XCTAssertEqual(WhipVoice.recordedName(for: "proszę 🇵🇱"), "pl-prosze")
+    }
+
+    func testARecordingInAssetsDirIsPreferred() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let voices = dir.appendingPathComponent("voices")
+        try FileManager.default.createDirectory(at: voices, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        XCTAssertNil(WhipVoice.recordedURL(for: "alsjeblieft 🇳🇱", assetsDir: dir))
+        let file = voices.appendingPathComponent("nl-alsjeblieft.m4a")
+        try Data([0]).write(to: file)
+        XCTAssertEqual(WhipVoice.recordedURL(for: "alsjeblieft 🇳🇱", assetsDir: dir)?.lastPathComponent,
+                       "nl-alsjeblieft.m4a")
+    }
 }
