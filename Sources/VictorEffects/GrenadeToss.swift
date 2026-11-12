@@ -40,10 +40,10 @@ enum GrenadeToss {
     static let blastAt: Double = 1.45
     /// How long the blast's own layers live (the smoke is the slowest).
     static let blastDuration: Double = 2.4
-    /// The glass cracks where it fell — once the shake has died (Victor,
-    /// 2026-11-12: "ulterior să crape o parte din ecran unde a căzut, după ce
-    /// zguduie un pic ecranul"). Derived from the shake, so the two can't overlap.
-    static let crackAt: Double = blastAt + BombShake.seconds
+    /// The glass breaks ON the blast (Victor, 2026-11-12: "geamul ecranului să
+    /// se spargă sincron cu explozia" — after first asking for it once the shake
+    /// had died). The broken glass shakes with the rest of the picture.
+    static let crackAt: Double = blastAt
     /// How long the crack stays, whole, before it fades.
     static let crackHold: Double = 2.6
     static let crackFade: Double = 0.6
@@ -200,8 +200,10 @@ enum GrenadeToss {
     static let brokenAreaFraction: CGFloat = 0.25
     /// The cracked-but-whole glass reaches this far past the hole's radius.
     static let webReach: CGFloat = 1.7
-    /// The hole's pieces: 16 slices around, 4 per slice.
-    static let crackSlices = 16
+    /// The hole's pieces: 20 slices around, `shardsPerSlice` in each — 160
+    /// (Victor, same day: "fă mai multe fragmente", after 64).
+    static let crackSlices = 20
+    static let shardsPerSlice = 8
 
     /// The radius of a disc at `c` whose part inside `b` is `brokenAreaFraction`
     /// of `b`. Bisection over a sampled grid — exact enough, and a few ms.
@@ -249,7 +251,7 @@ enum GrenadeToss {
         let angles = (0..<n).map { (CGFloat($0) + rnd.range(-0.3, 0.3)) / CGFloat(n) * 2 * .pi }
         // Inside the hole: points on each radial at three distances, the last
         // one the rim. Jittered, so the pieces are not a dartboard.
-        let inner: [CGFloat] = [0.3, 0.62, 1.0]
+        let inner: [CGFloat] = [0.22, 0.45, 0.72, 1.0]
         var pts: [[CGPoint]] = []
         for a in angles {
             var row: [CGPoint] = []
@@ -265,7 +267,7 @@ enum GrenadeToss {
         // outline and the outer shard, so they fit edge to edge.
         var jags: [CGPoint] = []
         for i in 0..<n {
-            let p = pts[i][2], q = pts[(i + 1) % n][2]
+            let p = pts[i][3], q = pts[(i + 1) % n][3]
             let out = rnd.range(-0.06, 0.1) * rh
             let mid = CGPoint(x: (p.x + q.x) / 2, y: (p.y + q.y) / 2)
             let len = max(1, hypot(mid.x - c.x, mid.y - c.y))
@@ -282,16 +284,26 @@ enum GrenadeToss {
         var shards: [Shard] = []
         for i in 0..<n {
             let j = (i + 1) % n
-            shards.append(poly([c, pts[i][0], pts[j][0]]))
-            shards.append(poly([pts[i][0], pts[i][1], pts[j][1], pts[j][0]]))
-            // The outer ring is the biggest: split corner to corner, two pieces.
-            shards.append(poly([pts[i][1], pts[i][2], jags[i]]))
-            shards.append(poly([pts[i][1], jags[i], pts[j][2], pts[j][1]]))
+            let a = pts[i], b = pts[j]
+            shards.append(poly([c, a[0], b[0]]))
+            // The two middle rings, each quad split corner to corner — which
+            // corner alternates, so the cracks don't line up into a spiral.
+            for k in 0..<2 {
+                if (i + k) % 2 == 0 {
+                    shards.append(poly([a[k], a[k + 1], b[k + 1]])); shards.append(poly([a[k], b[k + 1], b[k]]))
+                } else {
+                    shards.append(poly([a[k], a[k + 1], b[k]])); shards.append(poly([a[k + 1], b[k + 1], b[k]]))
+                }
+            }
+            // The outer ring, the biggest, fanned from its jag into three.
+            shards.append(poly([a[2], a[3], jags[i]]))
+            shards.append(poly([a[2], jags[i], b[2]]))
+            shards.append(poly([b[2], jags[i], b[3]]))
         }
 
         let hole = CGMutablePath()
-        hole.move(to: pts[0][2])
-        for i in 0..<n { hole.addLine(to: jags[i]); hole.addLine(to: pts[(i + 1) % n][2]) }
+        hole.move(to: pts[0][3])
+        for i in 0..<n { hole.addLine(to: jags[i]); hole.addLine(to: pts[(i + 1) % n][3]) }
         hole.closeSubpath()
 
         // The glass that stays: radials from the rim outward, then rings.
@@ -302,7 +314,7 @@ enum GrenadeToss {
         for (i, a) in angles.enumerated() {
             let reach = rnd.range(0.35, 1.0)
             var heading = a
-            var row: [CGPoint] = [pts[i][2]]
+            var row: [CGPoint] = [pts[i][3]]
             for f in ringFractions + [reach] where f <= reach {
                 heading += rnd.range(-0.1, 0.1)
                 let d = rh + (rw - rh) * f
@@ -332,10 +344,23 @@ enum GrenadeToss {
         return Crack(lines: lines, hole: hole, shards: shards)
     }
 
+    /// The part of `shot` (a photograph laid over all of `bounds`) under `box`,
+    /// and where it goes — `box` clipped to the screen, since a shard at the
+    /// edge sticks out of it. y flips: the image counts from its top.
+    static func crop(_ shot: CGImage, to box: CGRect, of bounds: CGRect) -> (CGImage, CGRect)? {
+        let visible = box.intersection(bounds)
+        guard !visible.isNull, visible.width > 0, visible.height > 0 else { return nil }
+        let sx = CGFloat(shot.width) / bounds.width, sy = CGFloat(shot.height) / bounds.height
+        let px = CGRect(x: (visible.minX - bounds.minX) * sx, y: (bounds.maxY - visible.maxY) * sy,
+                        width: visible.width * sx, height: visible.height * sy).integral
+        guard let piece = shot.cropping(to: px) else { return nil }
+        return (piece, visible)
+    }
+
     /// Every shard as its own small picture, cut out of `shot` (the desktop
     /// photograph, laid over `bounds`) with a bright glass edge — or, with no
     /// photograph, as smoked glass. Pictures, not masked full-screen layers:
-    /// 64 masks moving at once would each cost an offscreen pass per frame.
+    /// 160 masks moving at once would each cost an offscreen pass per frame.
     /// Safe off the main thread.
     static func shardImages(_ crack: Crack, shot: CGImage?, bounds: CGRect,
                             scale: CGFloat) -> [(image: CGImage, frame: CGRect)] {
@@ -351,8 +376,10 @@ enum GrenadeToss {
             ctx.saveGState()
             ctx.addPath(shard.path)
             ctx.clip()
-            if let shot {
-                ctx.draw(shot, in: bounds)
+            if let shot, let (piece, rect) = crop(shot, to: box, of: bounds) {
+                // Only this shard's corner of the photograph: drawing the whole
+                // screen 160 times, clipped, is what made cutting them slow.
+                ctx.draw(piece, in: rect)
                 ctx.setFillColor(rgba(1, 1, 1, 0.08))   // a sheen: it is glass now
                 ctx.fill(box)
             } else {

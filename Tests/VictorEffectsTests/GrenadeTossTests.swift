@@ -95,8 +95,8 @@ final class GrenadeTossTests: XCTestCase {
 final class GrenadeCrackTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1728, height: 1117)
 
-    func testTheGlassBreaksOnlyOnceTheShakeIsOver() {
-        XCTAssertGreaterThanOrEqual(GrenadeToss.crackAt, GrenadeToss.blastAt + BombShake.seconds)
+    func testTheGlassBreaksOnTheBlast() {
+        XCTAssertEqual(GrenadeToss.crackAt, GrenadeToss.blastAt)
         XCTAssertGreaterThanOrEqual(GrenadeToss.totalDuration,
                                     GrenadeToss.crackAt + GrenadeToss.crackHold + GrenadeToss.crackFade)
     }
@@ -126,7 +126,8 @@ final class GrenadeCrackTests: XCTestCase {
         let c = CGPoint(x: 864, y: 558)
         let r = GrenadeToss.holeRadius(at: c, in: screen)
         let crack = GrenadeToss.crack(at: c, holeRadius: r, seed: 42)
-        XCTAssertEqual(crack.shards.count, GrenadeToss.crackSlices * 4)
+        XCTAssertEqual(crack.shards.count, GrenadeToss.crackSlices * GrenadeToss.shardsPerSlice)
+        XCTAssertGreaterThanOrEqual(crack.shards.count, 150, "Victor asked for more than 64")
         XCTAssertTrue(crack.hole.boundingBoxOfPath.contains(c))
         for shard in crack.shards {
             XCTAssertTrue(crack.hole.boundingBoxOfPath.insetBy(dx: -1, dy: -1).contains(shard.path.boundingBoxOfPath))
@@ -174,5 +175,22 @@ final class GrenadeBoomStopsTests: XCTestCase {
         }
         XCTAssertTrue(try body("func stopEffect(named name: String)").contains("Self.grenadeCSBooms"))
         XCTAssertTrue(try body("func stopAllActiveEffects()").contains("Self.grenadeCSBooms"))
+    }
+}
+
+final class GrenadeShardCropTests: XCTestCase {
+    /// A shard's corner of the photograph, y flipped, clipped at the edge.
+    func testTheCropIsTheShardsCornerOfThePhotograph() throws {
+        let bounds = CGRect(x: 0, y: 0, width: 100, height: 50)
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: 200, height: 100, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: EmojiAnimator.nativeBitmapInfo))
+        let shot = try XCTUnwrap(ctx.makeImage())
+        let (piece, rect) = try XCTUnwrap(GrenadeToss.crop(shot, to: CGRect(x: 10, y: 30, width: 20, height: 10), of: bounds))
+        XCTAssertEqual(rect, CGRect(x: 10, y: 30, width: 20, height: 10))
+        XCTAssertEqual(piece.width, 40); XCTAssertEqual(piece.height, 20)
+        let (_, edge) = try XCTUnwrap(GrenadeToss.crop(shot, to: CGRect(x: 90, y: -5, width: 20, height: 10), of: bounds))
+        XCTAssertEqual(edge, CGRect(x: 90, y: 0, width: 10, height: 5))
+        XCTAssertNil(GrenadeToss.crop(shot, to: CGRect(x: 200, y: 200, width: 5, height: 5), of: bounds))
     }
 }

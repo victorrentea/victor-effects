@@ -12133,10 +12133,21 @@ class EmojiAnimator {
             guard let self, let container, self.activeEffects["grenade"] === container else { return }
             grenade?.removeFromSuperlayer()
             let blast = GrenadeToss.makeBlast(at: target, in: bounds)
+            // The glass breaks on the same frame (`GrenadeToss.crackAt`): a
+            // quarter of the screen around the impact, its shards bursting out
+            // in every direction, leaving it black and the glass round it
+            // cracked. UNDER the fireball, so the explosion is seen through the
+            // break and the black shows as the fire clears; shaken with the
+            // rest of the picture, one clock, one transaction.
+            let glass = GrenadeToss.makeCrack(crack, at: target, holeRadius: holeRadius, in: bounds,
+                                              shards: shards, scale: scale, seed: seed)
             CATransaction.begin()
+            container.addSublayer(glass)
             container.addSublayer(blast)
             self.shakeTheWholePicture(fireball: blast, shot: shot)
+            glass.add(BombShake.animation(width: bounds.width), forKey: BombShake.animationKey)
             CATransaction.commit()
+            SoundManager.shared.playOverlapping(Self.grenadeGlass, volume: 0.75, bluetoothCompensated: false)
             // The link is warm — the shout has just played — so no Bluetooth
             // start delay: it would land the boom late off its own fireball.
             // Every CS blast has its attack on its first frame, so no seek.
@@ -12150,18 +12161,6 @@ class EmojiAnimator {
             }
         }
 
-        // Once the shake has died, a quarter of the screen around the impact
-        // breaks: its shards burst out in every direction and leave it black,
-        // the glass around it cracked.
-        DispatchQueue.main.asyncAfter(deadline: .now() + GrenadeToss.crackAt) { [weak self, weak container] in
-            guard let self, let container, self.activeEffects["grenade"] === container else { return }
-            let layer = GrenadeToss.makeCrack(crack, at: target, holeRadius: holeRadius, in: bounds,
-                                              shards: shards, scale: scale, seed: seed)
-            CATransaction.begin()
-            container.addSublayer(layer)
-            CATransaction.commit()
-            SoundManager.shared.playOverlapping(Self.grenadeGlass, volume: 0.75, bluetoothCompensated: false)
-        }
     }
 
     // MARK: - Wrong X (two diagonal brush strokes, drawn one after the other)

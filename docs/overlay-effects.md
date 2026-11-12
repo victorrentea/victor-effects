@@ -1365,19 +1365,26 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     corner. Degrades to the blast shaking alone without Screen Recording.
   - **Then a quarter of the screen breaks where it fell** (Victor, same day: "ulterior să crape
     o parte din ecran unde a căzut, după ce zguduie un pic ecranul", then "să se spargă mai multe
-    fragmente, să sară în toate părțile, cam 25% din ecran să devină negru/stricat"). At
-    `crackAt` = blast + `BombShake.seconds`, so it breaks once the shake has died, never during
-    it.
+    fragmente, să sară în toate părțile, cam 25% din ecran să devină negru/stricat"), and
+    **on the blast** since the same evening ("geamul ecranului să se spargă sincron cu
+    explozia"): `crackAt` = `blastAt`. The broken glass goes in **under** the fireball, in the
+    blast's own transaction, so the explosion is seen through the break and the black shows as
+    the fire clears; it is shaken by the same `BombShake` animation as the fireball and the
+    photograph, one clock.
     - **25 % counted on the glass**: `holeRadius` bisects the radius of a disc at the impact
       until the part of it INSIDE the screen is `brokenAreaFraction` — so near an edge or a
       corner the hole grows to make up for what the edge cuts off.
-    - **64 shards** (`crack`: 16 jittered slices × 4 pieces, the outer ring split corner to
-      corner, the rim jagged and shared edge to edge with the hole's outline) burst out of it in
+    - **160 shards** (`crack`: 20 jittered slices × `shardsPerSlice` 8 — a centre triangle,
+      the two middle rings split corner to corner, alternating corners so the cracks never line
+      up into a spiral, the outer ring fanned into three from the rim's jag, which is shared edge
+      to edge with the hole's outline; 64 until Victor asked for more) burst out of it in
       every direction — away from the impact, a little upward, then down under gravity
       (`shardPosition`), spinning, growing up to 1.7× as they come at the viewer, fading over the
       last 30 % of their 1.5 s. Each is a small **picture**, cut out of the shake's desktop
-      photograph with a bright glass edge, so what flies is the screen itself. Pictures and not
-      64 masked full-screen layers, because each mask would cost an offscreen pass per frame;
+      photograph with a bright glass edge, so what flies is the screen itself — from its own
+      corner of it only (`GrenadeToss.crop`, `CGImage.cropping`, which shares the bytes):
+      160 shards off a Retina screenshot in ~17 ms. Pictures and not
+      160 masked full-screen layers, because each mask would cost an offscreen pass per frame;
       they are cut off the main thread at the press (smoked glass first, the photograph's cut
       once it is in), so the break itself only adds layers. Zoomed, or with no Screen
       Recording, the shards are smoked glass.
@@ -1386,9 +1393,9 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
       "broken screen" rather than "black blob" — and the **cracked glass around it**, radials
       on from the rim to 1.7× its radius with forks and rings, revealed outward in 0.12 s, dark
       on a bright edge so it reads on a white slide and on a dark one.
-    - #90's smash (`90_breaking-glass.mp3`, attack on its first frame) at 0.75. Seeded per
+    - #90's smash (`90_breaking-glass.mp3`, attack on its first frame) at 0.75, under the CS blast. Seeded per
       press, so no two breaks look alike. Holds 2.6 s, fades over 0.6 s; the effect is gone
-      5.15 s after the press. ~3 ms a frame through `CARenderer` during the burst, p95 ~10 ms.
+      4.65 s after the press. ~2 ms a frame through `CARenderer` during the burst, p95 ~3 ms.
   - Press-driven and self-terminating (`trackEffect`); the blast and the crack are scheduled
     behind an identity check on the effect's container, so a stop-all or a re-press cancels
     whatever has not happened yet, and both stops name the boom and the glass.
