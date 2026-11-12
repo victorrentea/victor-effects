@@ -494,6 +494,47 @@ class SoundManager {
         }
     }
 
+    /// Several copies of one sound at fixed offsets from now, **sample-accurate
+    /// against each other**: every player is built and prepared up front and
+    /// scheduled with `play(atTime:)` on the output device's one clock, under
+    /// ONE Bluetooth compensation. Firing them one by one from timers (the 🤖
+    /// Opus claws until 2026-11-12) let main-thread jitter and the mp3 decode
+    /// move each hit — and on Bluetooth the first copy woke the speaker, so
+    /// the next ones read a compensation of ~0 and started BEFORE it: three
+    /// rings heard as one. Returns the players, so the caller can stop them.
+    @discardableResult
+    func playOverlappingTrain(_ filename: String, offsets: [TimeInterval], volume: Float = 1.0) -> [AVAudioPlayer] {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard !offsets.isEmpty, let url = soundURL(for: filename) else {
+            overlayError("Sound file not found: \(filename)")
+            return []
+        }
+        let level = max(0.0, min(1.0, volume * tileGain(forFile: filename)))
+        let train: [AVAudioPlayer]
+        do {
+            train = try offsets.map { _ in
+                let p = try SoundManager.player(contentsOf: url)
+                p.volume = level
+                p.prepareToPlay()
+                return p
+            }
+        } catch {
+            overlayError("Sound play failed \(filename): \(error)")
+            return []
+        }
+        let comp = SoundTimingConfig.shared.currentBluetoothCompensation
+        if comp > 0 { BluetoothOutput.playWakeTone(seconds: comp) }
+        let base = train[0].deviceCurrentTime + comp
+        for (p, offset) in zip(train, offsets) { p.play(atTime: base + max(offset, 0)) }
+        overlappingPlayers.append(contentsOf: train)
+        let last = offsets.max() ?? 0
+        noteStarted(train[0], after: comp + last)
+        DispatchQueue.main.asyncAfter(deadline: .now() + comp + last + train[0].duration + 0.1) { [weak self] in
+            self?.overlappingPlayers.removeAll { !$0.isPlaying }
+        }
+        return train
+    }
+
     /// Play a sound as a fixed-length "clip": it plays for `seconds`, fading out
     /// over the final `fade` seconds so the cut is clean. Layers over other sounds.
     /// `volume` (0..1) sets the playback level; the fade-out goes from it to 0.

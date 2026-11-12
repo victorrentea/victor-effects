@@ -13641,6 +13641,9 @@ class EmojiAnimator {
     /// ⌘⌃O a second time still takes it down sooner.
     static let opusLifetime: Double = 7
 
+    /// The claw train of the head on screen, stopped with it (`stopOpus`).
+    private var opusClawPlayers: [AVAudioPlayer] = []
+
     /// Centred on the screen at 60% of its height — the size the head has on
     /// the slide it was cut out of, which is the look this key reproduces.
     /// Since 2026-10-23 it sits a tenth of the screen above centre, so the
@@ -13715,6 +13718,8 @@ class EmojiAnimator {
     func stopOpus() {
         guard let layer = activeEffects["opus"] else { return }
         activeEffects.removeValue(forKey: "opus")
+        opusClawPlayers.forEach { $0.stop() }   // taken down before the rake: no claws after it
+        opusClawPlayers = []
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.removeFromSuperlayer()
@@ -13959,23 +13964,21 @@ class EmojiAnimator {
     /// without it the rake is silent and one line is logged.
     static let opusClawSound = "opus-claw.mp3"
 
-    /// Fires the three rings so they *land* on the claws: on Bluetooth
-    /// SoundManager holds each one back by the compensation, so it is fired
-    /// that much earlier — the 0.7 s before the rake covers the ~0.55 s it
-    /// usually takes, and the head stays a cut, with no delay of its own.
+    /// The three rings, scheduled now as ONE train on the audio clock
+    /// (`playOverlappingTrain`), so they stay exactly `opusClawStagger` apart.
+    /// Fired one per timer until 2026-11-12 they drifted — sometimes three
+    /// hits, sometimes one smear (Victor). To *land* on the claws, the train
+    /// starts the picture delay earlier: SoundManager adds the Bluetooth
+    /// wake-up on top, and the 0.7 s before the rake covers the ~0.55 s it
+    /// usually takes, so the head stays a cut, with no delay of its own.
     func soundOpusClaws(for layer: CALayer) {
         guard SoundManager.shared.soundURL(for: Self.opusClawSound) != nil else {
             overlayInfo("🤖 opus: no \(Self.opusClawSound) in assetsDir — the claws are silent")
             return
         }
-        let comp = SoundTimingConfig.shared.currentPictureDelay
-        for i in 0..<3 {
-            let at = max(Self.opusClawDelay + Double(i) * Self.opusClawStagger - comp, 0)
-            DispatchQueue.main.asyncAfter(deadline: .now() + at) { [weak self, weak layer] in
-                guard let self, let layer, self.activeEffects["opus"] === layer else { return }
-                SoundManager.shared.playOverlapping(Self.opusClawSound, volume: 0.7)
-            }
-        }
+        let lead = max(Self.opusClawDelay - SoundTimingConfig.shared.currentPictureDelay, 0)
+        let offsets = (0..<3).map { lead + Double($0) * Self.opusClawStagger }
+        opusClawPlayers = SoundManager.shared.playOverlappingTrain(Self.opusClawSound, offsets: offsets, volume: 0.7)
     }
 
     /// Where the title goes in the caption's points (y up): "OPUS" and "SOL"
