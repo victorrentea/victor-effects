@@ -12,6 +12,16 @@ final class ShatterTests: XCTestCase {
         XCTAssertEqual(triangles.map(area).reduce(0, +), 1, accuracy: 0.0001)
     }
 
+    /// The jitter is random, so one run proves little: a folded triangle showed
+    /// up about one build in two before the diagonal was chosen (2026-11-12).
+    func testNoPieceEverFoldsOverItsNeighbour() {
+        for _ in 0..<2000 {
+            let triangles = Shatter.triangles(columns: 6, rows: 6)
+            XCTAssertEqual(triangles.map(area).reduce(0, +), 1, accuracy: 0.0001)
+            XCTAssertTrue(triangles.allSatisfy { Shatter.signedArea($0) > 0 })
+        }
+    }
+
     func testEveryPieceFliesAwayFromTheMiddle() throws {
         let ctx = try XCTUnwrap(CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
                                           space: CGColorSpaceCreateDeviceRGB(),

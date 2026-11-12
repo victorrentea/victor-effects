@@ -23,6 +23,10 @@ enum Shatter {
     /// The triangles covering the unit square, y down. Inner grid points are
     /// moved by up to `jitter` of a cell; the border stays put, so nothing is
     /// lost from the picture and nothing overlaps.
+    static func signedArea(_ t: [CGPoint]) -> CGFloat {
+        ((t[1].x - t[0].x) * (t[2].y - t[0].y) - (t[2].x - t[0].x) * (t[1].y - t[0].y)) / 2
+    }
+
     static func triangles(columns: Int, rows: Int, jitter: CGFloat = 0.35) -> [[CGPoint]] {
         func point(_ c: Int, _ r: Int) -> CGPoint {
             CGPoint(x: CGFloat(c) / CGFloat(columns), y: CGFloat(r) / CGFloat(rows))
@@ -38,10 +42,17 @@ enum Shatter {
         for r in 0..<rows {
             for c in 0..<columns {
                 let (a, b, d, e) = (grid[r][c], grid[r][c + 1], grid[r + 1][c], grid[r + 1][c + 1])
-                if Bool.random() {
-                    out += [[a, b, d], [b, e, d]]
-                } else {
-                    out += [[a, b, e], [a, e, d]]
+                // Jitter can make a cell non-convex; then one of its diagonals
+                // runs outside it and folds a triangle over its neighbour
+                // (overlapping shards, area > 1 — the flaky ShatterTests of
+                // 2026-11-12). Only a diagonal that keeps both triangles the
+                // same way round as the unjittered grid is allowed.
+                let one = [[a, b, d], [b, e, d]], other = [[a, b, e], [a, e, d]]
+                let ok = { (pair: [[CGPoint]]) in pair.allSatisfy { signedArea($0) > 0 } }
+                switch (ok(one), ok(other)) {
+                case (true, false): out += one
+                case (false, true): out += other
+                default: out += Bool.random() ? one : other
                 }
             }
         }
