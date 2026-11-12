@@ -141,6 +141,9 @@ final class WhipController {
     /// thrown from here rather than from wherever the tip happens to be.
     private var pleaLash: (speed: Double, handle: CGPoint, tip: CGPoint, heading: CGVector)?
     private var pleaBag = WhipPleas.Bag()
+    /// The last word thrown, kept after it fades so a right-click can bring it
+    /// back (`explainLastPlea`). Survives `hide()`/`show()` too.
+    private var lastPlea: (text: String, at: CGPoint)?
     /// The handle's last `WhipPleas.headingWindowMs` of positions: where the
     /// pointer was heading when the rope snapped, which is where the word goes.
     private var handleTrail: [(ms: Double, at: CGPoint)] = []
@@ -157,9 +160,11 @@ final class WhipController {
         guard let view, let handle = physics?.points.first, let tip = physics?.points.last else { return }
         let from = lash.map { ($0.handle, $0.tip, $0.heading) }
             ?? (CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y), heading)
-        view.pleas.append(WhipView.Plea(
+        let plea = WhipView.Plea(
             text: pleaBag.next(), at: WhipPleas.launchPoint(handle: from.0, tip: from.1, heading: from.2),
-            bornMs: now))
+            bornMs: now)
+        view.pleas.append(plea)
+        lastPlea = (plea.text, plea.at)
     }
 
     /// The ROPE is up. The panel can outlive it for a moment: the words
@@ -367,12 +372,26 @@ final class WhipController {
     /// Right-click: the newest thank-you still on screen is said out loud in
     /// its own language and its country appears under it; it then stays up
     /// long enough to be read (`WhipPleas.explainHoldMs`).
+    ///
+    /// **Any time, from anywhere** (2026-11-12, Victor: *"să pot să dau click
+    /// … butonul drept și la distanță. Oricând după ce s-a auzit un sunet de
+    /// mulțumesc, la click apare din nou … și vocea se aude din nou"*): the
+    /// click need not land on the word, and a word that has already faded comes
+    /// back where it was, explained, and is said again — as often as he clicks.
+    /// Only while the whip is up: put away, the panel lets clicks through, and a
+    /// right-click everywhere else stays the app's own context menu.
     private func explainLastPlea() {
-        guard let view, let i = view.pleas.indices.last else { return }
+        guard let view else { return }
         let now = nowMs()
-        guard WhipPleas.isAlive(view.pleas[i], now: now) else { return }
-        if view.pleas[i].explainedMs == nil { view.pleas[i].explainedMs = now }
-        WhipVoice.speak(view.pleas[i].text)
+        if let i = view.pleas.indices.last, WhipPleas.isAlive(view.pleas[i], now: now) {
+            if view.pleas[i].explainedMs == nil { view.pleas[i].explainedMs = now }
+            WhipVoice.speak(view.pleas[i].text)
+        } else if let last = lastPlea {
+            view.pleas.append(WhipPleas.replay(last.text, at: last.at, now: now))
+            WhipVoice.speak(last.text)
+        } else {
+            return
+        }
         view.needsDisplay = true
     }
 
@@ -754,6 +773,16 @@ enum WhipPleas {
         let held = now - explained
         if held < explainHoldMs { return frozen }
         return min(1, 0.6 + 0.4 * (held - explainHoldMs) / fadeMs)
+    }
+
+    /// A faded word brought back by a right-click: born `replayAgeShare` of a
+    /// life ago, i.e. exactly where an explained word holds (full size, full
+    /// colour, at the top of its float), so it neither pops from half size nor
+    /// jumps up when the hold ends and the fade begins. Explained now, so it
+    /// holds with its country under it, then fades.
+    static let replayAgeShare = 0.6
+    static func replay(_ text: String, at: CGPoint, now: Double) -> Plea {
+        Plea(text: text, at: at, bornMs: now - replayAgeShare * lifeMs, explainedMs: now)
     }
 
     static func isAlive(_ plea: Plea, now: Double) -> Bool {

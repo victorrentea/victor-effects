@@ -104,4 +104,15 @@ final class WhipPleasTests: XCTestCase {
         let inside = CGRect(x: 100, y: 100, width: 120, height: 40)
         XCTAssertEqual(WhipPleas.clamp(inside, into: screen), inside)
     }
+
+    /// A right-click after the word faded brings it back (2026-11-12): at full
+    /// size, holding with its country, then fading like any explained word.
+    func testAReplayedWordHoldsThenFades() {
+        let now = 100_000.0
+        let p = WhipPleas.replay("alsjeblieft 🇳🇱", at: .zero, now: now)
+        XCTAssertEqual(WhipPleas.progress(p, now: now), WhipPleas.replayAgeShare, accuracy: 1e-9)
+        XCTAssertTrue(WhipPleas.isAlive(p, now: now + WhipPleas.explainHoldMs))
+        XCTAssertEqual(WhipPleas.progress(p, now: now + WhipPleas.explainHoldMs - 1), WhipPleas.replayAgeShare, accuracy: 1e-9)
+        XCTAssertFalse(WhipPleas.isAlive(p, now: now + WhipPleas.explainHoldMs + WhipPleas.fadeMs + 1))
+    }
 }

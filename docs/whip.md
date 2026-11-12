@@ -173,6 +173,16 @@ and Basque under 🇪🇸, French in 🇨🇭). Where Google has no voice (Malte
 400) or the Mac is offline, macOS's own voice for that language reads it. Once
 the whip is put away the panel no longer catches clicks, so a word still
 flying after `hide()` can't be explained.
+
+**…any time, and again** (2026-11-12, Victor: *"să pot să dau click … butonul
+drept și la distanță. Oricând după ce s-a auzit un sunet de mulțumesc, la click
+apare din nou … și vocea se aude din nou"*). The right-click need not land on the
+word — anywhere on the whip's panel will do — and once the last word has faded,
+it comes back where it was thrown (`lastPlea`, kept across `hide()`/`show()`),
+explained and spoken again (`WhipPleas.replay`, born at `replayAgeShare` = 0.6 so
+it shows at full size and fades from where it holds, without a jump). As many
+times as he clicks. Still only while the whip is up: put away, the panel lets
+clicks through and a right-click is the focused app's own again.
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,
