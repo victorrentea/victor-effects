@@ -194,6 +194,17 @@ from the `.srt` lines as it parses them, the files themselves are untouched).
   a late stop of an older press never blanks a newer one (2026-11-03: the
   Hallelujah words stayed up after the sound was stopped). A line said again is listed again, each
   repetition on its own clock (Who let the dogs out, Can't touch this: one line until 2026-11-04).
+- **🎵 A video snippet's soundtrack-only play is sung too** (Victor, 2026-11-12: "only the
+  sounds … the subtitle at the bottom, karaoke style"). Addons' `VideoSoundtrackPlayer` has no
+  window to burn its `.srt` into, so when its seek lands it sends the cues of the play window
+  (start second → its 10 s cap, rebased to the first sound) to `/caption/video/<id>`; this app
+  plays them as an ordinary track (`VideoCaptions`, asset `video:<id>`, after the speaker's
+  output latency). **The fill is paced, not heard**: a cue only says when its line starts and
+  ends, so its span is shared by the letters of each word. Across a 1–2 s cue that lands each
+  word within a beat; over a whole soundboard clip an even pace read as wrong
+  (`withWords`), which is why the two are not one mechanism. A stop from outside (second hold,
+  a real clip starting, `/video/sound/stop`) sends `/caption/video/<id>/stop`; the cap and the
+  clip's own end leave the last line its `readHold`.
 - **Karaoke fill, word by word** (Victor, 2026-10-23: "TikTok style, yellow on
   white, as it is said" — and "only colour a word at the moment it is
   pronounced"). A sung or spoken line goes up dimmed (`upcomingColor`, white

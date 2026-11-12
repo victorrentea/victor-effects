@@ -235,6 +235,22 @@ final class EffectsEngine {
         CaptionOverlay.play(lines, on: screen, after: delay, asset: asset)
     }
 
+    /// 🎵 A video snippet's `.srt` lines while addons plays its soundtrack
+    /// alone (`VideoCaptions`). Addons sends them the moment the audio starts;
+    /// what is left is the speaker's own latency. False when nothing went up.
+    @discardableResult
+    func showVideoCaption(id: String, cues: [VideoCaptions.Cue]) -> Bool {
+        guard SubtitlesSwitch.isOn else { return false }
+        let lines = VideoCaptions.lines(cues)
+        guard !lines.isEmpty else { return false }
+        if isSuspended { effectsInfo("⏸️ suspended — dropping video caption for \(id)"); return false }
+        guard let screen = Screens.overlayScreen() else { return false }
+        CaptionOverlay.play(lines, on: screen, after: SoundTimingConfig.shared.currentOutputLatency,
+                            asset: VideoCaptions.asset(id))
+        effectsInfo("💬 video caption \(id): \(lines.count) line(s)")
+        return true
+    }
+
     /// How long until a clip just routed to THIS Mac is actually heard: its
     /// Bluetooth silence plus the speaker's own latency, counted from the
     /// play. 0 for a clip played elsewhere (the tablet) or long started.

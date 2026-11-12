@@ -71,6 +71,8 @@ press cannot drift apart.
 | `GET /effect/stop-all` | `ok` | sound + every active effect + the progress bar + the whip + 🙏 pray + 🫰 snap |
 | `GET /test/<name>` | as `/effect/<name>` | the historical alias list — `docs/testing.md` |
 | `GET /test/caption/<asset>` | `ok` | the press caption alone — no sound, no effect, no press counted; nothing while Subtitles is off |
+| `GET /caption/video/<id>?cues=<json>` | `ok`, `not-shown` (Subtitles off, no words, suspended), 400 on bad JSON | 🎵 addons' soundtrack-only play hands over the `.srt` cues of its window, `[{at,end,text}]` in seconds from the first sound; sung karaoke-style as track `video:<id>` (`VideoCaptions`) |
+| `GET /caption/video/<id>/stop` | `ok` | that soundtrack was stopped from outside: its lines go (`hide(asset: "video:<id>")`) |
 | `GET /tiles` | `tiles.json` **plus** `effect` per tile and a top-level `effectsHash` | **404** `{"error":"no tiles.json in <soundsDir>"}`. See **the ⭐ catalogue** |
 | `GET /sounds/captions` | `{"<asset>":{"durationSeconds":12.4,"cues":[{"start":0.0,"end":6.0,"text":"…"}]},…}` | Every asset in `tiles.json`, layer A and `under` B. Built from `SoundCaptions.live(for:clipSeconds:)` with the clip's real length, so it is exactly what the Mac shows; a cue's `end` is `start` + the seconds the caption stays up; a timed line also has `words`, the onsets into the clip. A silent asset has `"cues":[]`. Cached by `soundsHash`+`tilesHash` (durations open every mp3) — `CaptionsExport` |
 | `GET /sounds/captions/base` | same shape | The same without the karaoke tuner's edits (`CaptionEdits`): what the app ships with, what `tools/karaoke-sync.py` publishes |

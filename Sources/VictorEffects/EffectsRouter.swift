@@ -67,6 +67,11 @@ final class EffectsRouter {
         /// `/test/caption/<asset>` — the press caption alone: no sound, no
         /// effect, not counted, so its karaoke fill can be watched in silence.
         case testCaption(String)
+        /// 🎵 `GET /caption/video/<id>?cues=<json>` — a video snippet's `.srt`
+        /// lines while addons plays its soundtrack alone (`VideoCaptions`).
+        case videoCaption(String, String)
+        /// `GET /caption/video/<id>/stop` — that soundtrack was stopped early.
+        case videoCaptionStop(String)
         /// `GET /usage` — the press counts behind the tablet's green dots.
         case usage
         /// `GET /usage/import?counts=<asset>:<n>,…` — a client's historical
@@ -260,6 +265,15 @@ final class EffectsRouter {
         if pathOnly.hasPrefix("/test/caption/") {
             let name = String(pathOnly.dropFirst("/test/caption/".count))
             if !name.isEmpty { return .testCaption(name) }
+        }
+        if pathOnly.hasPrefix("/caption/video/") {
+            let rest = String(pathOnly.dropFirst("/caption/video/".count))
+            if rest.hasSuffix("/stop") {
+                let id = String(rest.dropLast("/stop".count))
+                return id.isEmpty ? .unknown : .videoCaptionStop(id)
+            }
+            guard !rest.isEmpty, !rest.contains("/"), let cues = q("cues") else { return .unknown }
+            return .videoCaption(rest, cues)
         }
         if pathOnly.hasPrefix("/sound/stopped/") {
             let name = String(pathOnly.dropFirst("/sound/stopped/".count))
@@ -455,6 +469,14 @@ final class EffectsRouter {
 
         case .testCaption(let file):
             engine.showCaption(for: file)
+            return .ok()
+
+        case .videoCaption(let id, let json):
+            guard let cues = VideoCaptions.decode(json) else { return EffectsResponse(status: 400, body: Data("cues is not a JSON array of {at,end,text}".utf8)) }
+            return engine.showVideoCaption(id: id, cues: cues) ? .ok() : .ok("not-shown")
+
+        case .videoCaptionStop(let id):
+            CaptionOverlay.hide(asset: VideoCaptions.asset(id))
             return .ok()
 
         case .soundStopped(let file):
