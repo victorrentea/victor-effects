@@ -1,9 +1,11 @@
 import AppKit
 import QuartzCore
 
-/// 💣 Tile #87 "Fire in the hole!": a pineapple grenade is lobbed in from the
-/// bottom-left corner, tumbles through an arc, bounces twice, rattles, and
-/// blows up in the middle of the screen.
+/// 💣 Tile #87 "Fire in the hole!": a pineapple grenade is lobbed in from a
+/// bottom corner, tumbles through an arc, bounces twice, rattles, and blows up
+/// **where the pointer was at the press** (Victor, 2026-11-12: "să ajungă
+/// grenada unde era mouse-ul la începutul efectului") — the middle of the
+/// screen when the pointer is on another display.
 ///
 /// The clip (`87_grenade.mp3`, 1.51 s) is only the shout — the words run from
 /// 0.22 s to ~1.2 s and there is no blast in it — so the timeline is fitted to
@@ -53,15 +55,15 @@ enum GrenadeToss {
     /// The two bounces, as fractions of the screen height.
     static let bounce1HeightFraction: CGFloat = 0.07
     static let bounce2HeightFraction: CGFloat = 0.025
-    /// Where it first touches down, left of where it comes to rest — the
-    /// bounces carry it the rest of the way to the centre.
+    /// Where it first touches down, short of where it comes to rest — the
+    /// bounces carry it the rest of the way to the target.
     static let land1OffsetFraction: CGFloat = 0.09
     static let land2OffsetFraction: CGFloat = 0.03
     /// Fireball diameter, as a fraction of the screen's shorter side.
     static let blastDiameterFraction: CGFloat = 0.75
 
-    /// Turns it tumbles through, clockwise (it flies to the right). The total,
-    /// 4¼ turns, leaves it lying on its side with the fuse to the right.
+    /// Turns it tumbles through, in the direction it flies (clockwise to the
+    /// right). The total, 4¼ turns, leaves it lying on its side.
     static let flightTurns: Double = 3.3
     static let bounce1Turns: Double = 0.6
     static let bounce2Turns: Double = 0.35
@@ -70,14 +72,30 @@ enum GrenadeToss {
     static let rattleAmplitude: Double = 0.10
     static let rattleHz: Double = 14
 
-    /// The middle of the screen: where it rests and where it explodes.
-    static func restPoint(in b: CGRect) -> CGPoint { CGPoint(x: b.midX, y: b.midY) }
+    /// Where it lands and explodes: the pointer at the press, kept far enough
+    /// inside the screen that the grenade and its first bounce stay on the
+    /// glass. nil (the pointer is on another display) → the middle.
+    static func target(pointer: CGPoint?, in b: CGRect) -> CGPoint {
+        guard let p = pointer, b.contains(p) else { return CGPoint(x: b.midX, y: b.midY) }
+        let m = restHeight(in: b)
+        return CGPoint(x: min(max(p.x, b.minX + m), b.maxX - m),
+                       y: min(max(p.y, b.minY + m), b.maxY - m - bounce1HeightFraction * b.height))
+    }
 
-    /// On the bottom-left corner, just outside it: at `startScale` the grenade
-    /// already overlaps the corner on the first frame, so the room sees it come
-    /// IN from there rather than appear on the left edge.
-    static func startPoint(in b: CGRect) -> CGPoint {
-        CGPoint(x: b.minX - 0.02 * b.width, y: b.minY - 0.04 * b.height)
+    /// +1 thrown to the right (from the bottom-left corner), -1 to the left.
+    /// From the bottom corner on the FAR side of the target, so a pointer near
+    /// a corner still gets a throw across the screen instead of a drop.
+    static func direction(toward target: CGPoint, in b: CGRect) -> CGFloat {
+        target.x >= b.midX ? 1 : -1
+    }
+
+    /// Just outside that bottom corner: at `startScale` the grenade already
+    /// overlaps the corner on the first frame, so the room sees it come IN from
+    /// there rather than appear on the side edge.
+    static func startPoint(toward target: CGPoint, in b: CGRect) -> CGPoint {
+        direction(toward: target, in: b) > 0
+            ? CGPoint(x: b.minX - 0.02 * b.width, y: b.minY - 0.04 * b.height)
+            : CGPoint(x: b.maxX + 0.02 * b.width, y: b.minY - 0.04 * b.height)
     }
 
     static func restHeight(in b: CGRect) -> CGFloat { min(b.width, b.height) * restHeightFraction }
@@ -90,13 +108,18 @@ enum GrenadeToss {
     }
 
     /// Where the grenade is, how it is turned and how big it is, `t` seconds
-    /// after the press. Clamped: before 0 it is at the corner, after the blast
-    /// it stays where it went off.
-    static func pose(at t: Double, in b: CGRect) -> Pose {
-        let start = startPoint(in: b), rest = restPoint(in: b)
-        let land1 = CGPoint(x: rest.x - land1OffsetFraction * b.width, y: rest.y)
-        let land2 = CGPoint(x: rest.x - land2OffsetFraction * b.width, y: rest.y)
-        let turn = -2 * Double.pi
+    /// after the press, on its way to `rest` (a `target(pointer:in:)`).
+    /// Clamped: before 0 it is at the corner, after the blast it stays where it
+    /// went off.
+    static func pose(at t: Double, to rest: CGPoint, in b: CGRect) -> Pose {
+        let dir = direction(toward: rest, in: b)
+        let start = startPoint(toward: rest, in: b)
+        let land1 = CGPoint(x: rest.x - dir * land1OffsetFraction * b.width, y: rest.y)
+        let land2 = CGPoint(x: rest.x - dir * land2OffsetFraction * b.width, y: rest.y)
+        // Never through the top: the arc's peak is at most `arc` above the
+        // target (the straight line only climbs towards it).
+        let arc = min(arcHeightFraction * b.height, max(0, b.maxY - restHeight(in: b) - rest.y))
+        let turn = -2 * Double.pi * Double(dir)
         let t = max(0, min(t, blastAt))
 
         func lerp(_ a: CGFloat, _ b: CGFloat, _ u: CGFloat) -> CGFloat { a + (b - a) * u }
@@ -108,7 +131,7 @@ enum GrenadeToss {
             // or the corner is crossed in a frame and never seen.
             let u = 1 - pow(1 - s, 1.2)
             let x = lerp(start.x, land1.x, u)
-            let y = lerp(start.y, land1.y, u) + arcHeightFraction * b.height * hop(u)
+            let y = lerp(start.y, land1.y, u) + arc * hop(u)
             return Pose(position: CGPoint(x: x, y: y),
                         angle: turn * flightTurns * Double(s),
                         scale: lerp(startScale, 1, u))
@@ -139,10 +162,10 @@ enum GrenadeToss {
 
     /// The flight as three keyframe animations (position, rotation, scale),
     /// sampled at 60 fps up to the blast.
-    static func flightAnimations(in b: CGRect) -> [String: CAKeyframeAnimation] {
+    static func flightAnimations(to rest: CGPoint, in b: CGRect) -> [String: CAKeyframeAnimation] {
         let fps = 60.0
         let n = Int((blastAt * fps).rounded())
-        let poses = (0...n).map { pose(at: Double($0) / fps, in: b) }
+        let poses = (0...n).map { pose(at: Double($0) / fps, to: rest, in: b) }
         func track(_ keyPath: String, _ values: [Any]) -> CAKeyframeAnimation {
             let a = CAKeyframeAnimation(keyPath: keyPath)
             a.values = values

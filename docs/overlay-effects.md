@@ -1323,12 +1323,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   fire the closing alone.
 
 - **💣 Grenade** (tile #87 `87_grenade.mp3` "Fire in the hole!" → `grenade`, `showGrenade`,
-  `GrenadeToss`, 2026-11-12): a pineapple grenade is lobbed in from the **bottom-left corner**,
+  `GrenadeToss`, 2026-11-12): a pineapple grenade is lobbed in from a **bottom corner**,
   big (2.2×) and shrinking to its resting size as it flies away into the screen, tumbling
-  clockwise through an arc, bounces twice and comes to rest on its side **in the middle of the
-  screen**, rattles, and blows up there: a warm full-screen flash, a white-hot core, a cluster
+  through an arc, bounces twice and comes to rest on its side **where the pointer was at the
+  press**, rattles, and blows up there: a warm full-screen flash, a white-hot core, a cluster
   of fire puffs, a shockwave ring, sparks and shrapnel falling back under gravity, smoke that
   rises and thins, and a scorch mark left on the floor. Gone 3.85 s after the press.
+  - **Aimed at the pointer, read once at the press** (Victor, same day: "să ajungă grenada unde
+    era mouse-ul la începutul efectului") — moving the mouse during the flight changes nothing.
+    It is thrown from the bottom corner on the **far side** of the target (bottom-left for the
+    right half, bottom-right for the left half), so a pointer near a corner still gets a throw
+    across the screen and not a drop. The target is pulled in from the edges by one grenade
+    height (and the first bounce from the top), and the arc is lowered for a high target so it
+    never leaves through the top edge. A pointer on another display → the middle of the screen.
   - **The clip is the shout only** (1.51 s; the words run 0.22–1.2 s, no blast in it), so the
     timeline is fitted to the voice: in the air while it is said, landing on "hole", the blast
     at **1.45 s**, a quarter of a second after the last word — the warning ends, then the bang.

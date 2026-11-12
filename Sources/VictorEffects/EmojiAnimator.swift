@@ -12056,14 +12056,16 @@ class EmojiAnimator {
     static let grenadeSound = "87_grenade.mp3"
     static let grenadeBoom = "03_explosion.mp3"
 
-    /// A grenade lobbed in from the bottom-left corner that bounces to the
-    /// middle of the screen and blows up there (`GrenadeToss`). Press-driven and
+    /// A grenade lobbed in from a bottom corner that bounces to where the
+    /// pointer was at the press and blows up there (`GrenadeToss`). Press-driven and
     /// self-terminating; a re-press while it runs takes it off, like the gong.
     func showGrenade(playSound: Bool = false) {
         if cancelIfRunning("grenade", sound: playSound ? Self.grenadeSound : nil) { return }
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
+        // Read once, now: the grenade goes where the pointer WAS, not after it.
+        let target = GrenadeToss.target(pointer: mouseInHostLayer(), in: bounds)
 
         let container = CALayer()
         container.frame = bounds
@@ -12076,10 +12078,10 @@ class EmojiAnimator {
         grenade.bounds = CGRect(x: 0, y: 0, width: h * GrenadeToss.spriteAspect, height: h)
         grenade.contents = GrenadeToss.grenadeImage(height: h, scale: scale)
         grenade.contentsScale = scale
-        grenade.position = GrenadeToss.startPoint(in: bounds)
+        grenade.position = GrenadeToss.startPoint(toward: target, in: bounds)
         container.addSublayer(grenade)
         CATransaction.begin()
-        for (key, anim) in GrenadeToss.flightAnimations(in: bounds) { grenade.add(anim, forKey: key) }
+        for (key, anim) in GrenadeToss.flightAnimations(to: target, in: bounds) { grenade.add(anim, forKey: key) }
         CATransaction.commit()
         if playSound { SoundManager.shared.play(Self.grenadeSound) }
 
@@ -12101,7 +12103,7 @@ class EmojiAnimator {
         DispatchQueue.main.asyncAfter(deadline: .now() + GrenadeToss.blastAt) { [weak self, weak container, weak grenade] in
             guard let self, let container, self.activeEffects["grenade"] === container else { return }
             grenade?.removeFromSuperlayer()
-            let blast = GrenadeToss.makeBlast(at: GrenadeToss.restPoint(in: bounds), in: bounds)
+            let blast = GrenadeToss.makeBlast(at: target, in: bounds)
             CATransaction.begin()
             container.addSublayer(blast)
             self.shakeTheWholePicture(fireball: blast, shot: shot)
