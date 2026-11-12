@@ -53,16 +53,12 @@ final class MenuBar: NSObject, NSMenuDelegate {
     /// panel. The mouse-only way in, for a Mac without the Accessibility grant.
     var onShowPanel: ((PanelPage) -> Void)?
     var onQuit: (() -> Void)?
-    /// 🎙️ Record voice (`VoiceRecorder`): a live read and a toggle.
-    var isRecording: (() -> Bool)?
-    var onToggleRecording: (() -> Void)?
 
     private var statusItem: NSStatusItem!
     private var menu: NSMenu!
     private var whipItem: NSMenuItem!
     private var keepAliveItem: NSMenuItem!
     private var subtitlesItem: NSMenuItem!
-    private var recordItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
     private var accessibilitySeparator: NSMenuItem!
 
@@ -343,14 +339,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
         subtitlesItem.isEnabled = true
         menu.addItem(subtitlesItem)
 
-        // 🎙️ Record voice — the room's voices into an .m4a (`VoiceRecorder`).
-        // While it runs a red ⏹ + clock stands next to 𝓯𝔁 and is the stop
-        // button; this row says "Stop recording" too, for whoever looks here.
-        recordItem = NSMenuItem(title: "", action: #selector(toggleRecordingAction), keyEquivalent: "")
-        recordItem.target = self
-        recordItem.isEnabled = true
-        menu.addItem(recordItem)
-
         menu.addItem(.separator())
 
         // The build stamp on its own disabled row, above Quit (2026-09-13). It
@@ -422,7 +410,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menuIsOpen = true
         refreshKeepAliveRow()
         refreshSubtitlesRow()
-        refreshRecordRow()
         layOutHints()
     }
 
@@ -469,17 +456,6 @@ final class MenuBar: NSObject, NSMenuDelegate {
     @objc private func toggleSubtitlesAction() {
         SubtitlesSwitch.set(!SubtitlesSwitch.isOn)
         refreshSubtitlesRow()
-    }
-
-    @objc private func toggleRecordingAction() { onToggleRecording?() }
-
-    private func refreshRecordRow() {
-        guard let recordItem else { return }
-        let on = isRecording?() ?? false
-        recordItem.title = on ? "⏹️ Stop recording" : "🎙️ Record voice"
-        recordItem.toolTip = on
-            ? "Stop, save the .m4a and show it in Finder (the red ⏹ in the menu bar does the same)."
-            : "Record from the default microphone into an .m4a; a red ⏹ appears in the menu bar to stop it."
     }
 
     private func refreshSubtitlesRow() {

@@ -96,8 +96,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keepAlive.setEnabled(!keepAlive.isEnabled)
         }
         menuBar.onQuit = { [weak self] in self?.tearDownForReplacement() }
-        menuBar.isRecording = { VoiceRecorder.shared.isRecording }
-        menuBar.onToggleRecording = { VoiceRecorder.shared.toggle() }
 
         // Warm the manifest (a few MB of SHA-256) off the main thread: /ping is
         // proxied with about a 1.5 s budget and answers from this cache only.
@@ -227,7 +225,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // requests the new instance should own is worse than a moment's 503.
         server?.stop()
         engine?.stopAll()
-        // A recording cut by a quit must still be a playable file.
-        VoiceRecorder.shared.stop()
     }
 }

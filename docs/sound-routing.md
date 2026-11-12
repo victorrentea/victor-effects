@@ -518,25 +518,3 @@ loudness (both counted as heard on two speakers: a mono mic as dual-mono, like a
 here). What the meeting does next — Zoom's own mic AGC and its share-audio mix — is not
 in the formula; that is what the −3 dB offset is for, and it is to be calibrated against a
 local Zoom recording of a real share (Victor's checklist in the 2026-11-09 report).
-
-## 🎙️ Record voice (`VoiceRecorder`, 2026-11-12)
-
-The 𝓯𝔁 menu's **🎙️ Record voice** row records the default input device (whatever
-macOS has selected as microphone) into a mono AAC `.m4a`, named
-`Voice yyyy-MM-dd HH.mm.ss.m4a`, in `recordingsDir` (config key, default
-`~/Music/Victor Effects Recordings`). For capturing what people in the room say.
-
-- **The stop button is a second status item**, red ⏹ + elapsed clock, standing
-  next to 𝓯𝔁 only while recording. One click stops, finalises the file and
-  reveals it in Finder. The menu row also reads `⏹️ Stop recording` meanwhile.
-- **Not the 🛑 face of 𝓯𝔁**: that is the emergency stop for what the room sees,
-  and a panicked click on a broken demo must not also end a recording. Stop-all
-  does not touch it.
-- **Not an overlay**: the built-in screen may be mirrored to the room.
-- **No self-termination timer** — the deliberate exception to the rule, because
-  a recording is not an effect. Instead the lamp never goes out while it runs,
-  teardown (`tearDownForReplacement`) stops it so a quit still leaves a playable
-  file, and a lost input (mic unplugged) ends it via the recorder's delegate.
-- Needs `NSMicrophoneUsageDescription` (in `build-app.sh`'s Info.plist) and the
-  Microphone TCC grant; on a denial the log says so and System Settings opens on
-  Privacy › Microphone.

@@ -50,9 +50,6 @@ struct EffectsConfigValues: Equatable {
     /// `VICTOR_EFFECTS_PRESS_LOG` overrides it.
     var pressLogFile: String = "~/.victor-effects/presses.jsonl"
 
-    /// 🎙️ Where the menu's Record voice saves its .m4a files (`VoiceRecorder`).
-    var recordingsDir: String = "~/Music/Victor Effects Recordings"
-
     /// The Bluetooth address of the speaker wearing a physical mark, when two
     /// boxes look the same: its chip on the tablet gets the same mark
     /// (`SpeakerBattery.marks`). Empty = no mark. `:` or `-`, either case.
@@ -87,7 +84,6 @@ struct EffectsConfigValues: Equatable {
             if let s = obj["usageFile"] as? String, !s.isEmpty { v.usageFile = s }
             if let s = obj["captionEditsFile"] as? String, !s.isEmpty { v.captionEditsFile = s }
             if let s = obj["pressLogFile"] as? String, !s.isEmpty { v.pressLogFile = s }
-            if let s = obj["recordingsDir"] as? String, !s.isEmpty { v.recordingsDir = s }
             if let s = obj["addonsBaseURL"] as? String { v.addonsBaseURL = s }
             if let s = obj["markedSpeakerMac"] as? String { v.markedSpeakerMac = s }
             if let s = obj["videosDir"] as? String { v.videosDir = s }
@@ -174,7 +170,6 @@ final class EffectsConfig {
         return configured
     }
     var assetsDir: URL { URL(fileURLWithPath: Self.expand(values.assetsDir)) }
-    var recordingsDir: URL { URL(fileURLWithPath: Self.expand(values.recordingsDir)) }
     var eventWebhook: String { values.eventWebhook }
     var bluetoothSpeakerNameMatch: String { values.bluetoothSpeakerNameMatch }
     var overlayScreen: String { values.overlayScreen }

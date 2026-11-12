@@ -102,12 +102,10 @@ this one only routes.
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
   failure to explain. Only ⌃W and ⌃⇧W ever return `nil`; everything else passes through.
-- **The ⭐ menu is not a second surface.** Nine rows: `✨ Effects` (Right ⌘),
+- **The ⭐ menu is not a second surface.** Eight rows: `✨ Effects` (Right ⌘),
   `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🫰 Snap` (⌃⇧W), `✓/x BT Keepalive` (the Bluetooth
   keep-alive's switch — `docs/sound-routing.md`), `✓/x Subtitles` (soundboard
-  captions AND video `.srt` lines, off by default — `docs/overlay-effects.md`), `🎙️ Record voice`
-  (an .m4a from the default mic; a red ⏹ + clock status item next to 𝓯𝔁 is its stop button —
-  `docs/sound-routing.md`), ⓘ Built <stamp> (opens the GitHub repo) and ⏻ Quit
+  captions AND video `.srt` lines, off by default — `docs/overlay-effects.md`), ⓘ Built <stamp> (opens the GitHub repo) and ⏻ Quit
   — plus ⚠️ Accessibility while that grant is missing. **No row carries a
   `keyEquivalent`**: `NSMenu` draws key equivalents in a column outside the
   titles that a tab stop cannot reach, so one native ⌘Q left every hint an icon

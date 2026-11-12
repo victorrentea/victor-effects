@@ -129,8 +129,6 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <true/>
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>Victor Effects reads the battery of your connected JBL speaker, to show it on the soundboard tablet.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Victor Effects records voices from the microphone when you pick Record voice in its menu.</string>
     <key>NSAccessibilityUsageDescription</key>
     <string>Victor Effects listens for the right ⌘ key (plus right ⇧ for its videos page) and puts the mouse in effects like the fire cursor.</string>
 </dict>
