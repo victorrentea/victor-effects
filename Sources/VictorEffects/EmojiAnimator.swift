@@ -14867,6 +14867,8 @@ class EmojiAnimator {
         case "fable":
             silenceFable()
         case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
+        // 💣 The boom is the effect's own (the nuke's clip, seeked), not the tile's.
+        case "grenade":       SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)
         // The raid has no `activeEffects` key: without this a re-press cut the head
         // clip and left the targets, the falling nuke and the click-eating tap up.
         case "explosion":
@@ -14978,6 +14980,7 @@ class EmojiAnimator {
         stopBombBooms()
         SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         SoundManager.shared.stopOverlapping(Self.phoenixVideoSound, fade: SoundManager.interruptFade)
+        SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)   // 💣 the grenade's borrowed boom
         silenceFable()
     }
 }
