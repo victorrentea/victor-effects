@@ -68,7 +68,7 @@ now the `under` tile (layer B, the folded bottom-left corner) of its host in
 | tile | file | picture | desktop |
 |---|---|---|---|
 | 19b | `20_fail2.mp3` (the second trombone) | `sfx_20_fail2.jpg` (FAIL #2) | `fail` |
-| 49b | `49b_tiktok_core.mp3` (myinstants "TikTok Core") | `sfx_49_wrong.jpg`, the same as #49 | `wrong-x` |
+| 49b | `49b_tiktok_core.mp3` (myinstants "TikTok Core") | `sfx_49b_wrong.png`: #49's ✗, shrunk to fit wholly inside the folded corner's triangle | `wrong-x` |
 
 **49b's note sounds at the midpoint of the X.** `showWrongX` draws for 0.5 s,
 holds to 1.54 s and fades for 1.2 s: 2.74 s in all, midpoint **1.37 s**. The
