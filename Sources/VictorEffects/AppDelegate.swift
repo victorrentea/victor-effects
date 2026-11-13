@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelController.claimRouterHooks()
 
         server = EffectsHttpServer(router: router)
-        server.start(port: EffectsConfig.shared.port)
+        server.start(port: EffectsConfig.shared.port, lanAccess: EffectsConfig.shared.lanAccess)
 
         coffeeMonitor = CoffeePourMonitor(animator: engine.animator)
         coffeeMonitor.start()

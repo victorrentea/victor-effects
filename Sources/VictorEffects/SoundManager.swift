@@ -308,9 +308,19 @@ class SoundManager {
         return originalURL(for: filename)
     }
 
+    /// A file name that stays inside the folder it is appended to: relative,
+    /// with no `..` step.
+    static func isContainedName(_ name: String) -> Bool {
+        !name.isEmpty && !name.hasPrefix("/") && !name.hasPrefix("~")
+            && !name.split(separator: "/", omittingEmptySubsequences: false).contains("..")
+    }
+
     /// Where `filename` itself lives — soundsDir, then assetsDir, then the
     /// bundle. What gets measured and what a ＋ is rendered FROM.
     func originalURL(for filename: String) -> URL? {
+        // The name comes off the URL of an HTTP request: never let it climb out
+        // of the sound folders (`/sound/play/../../Documents/x.m4a`).
+        guard Self.isContainedName(filename) else { return nil }
         if let dir = Self.sharedSoundsDir() {
             let shared = dir.appendingPathComponent(filename)
             if FileManager.default.fileExists(atPath: shared.path) { return shared }

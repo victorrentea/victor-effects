@@ -15,11 +15,21 @@ final class EffectsHttpServer {
         self.router = router
     }
 
-    func start(port: UInt16) {
+    /// Loopback only unless `lanAccess` is set: every route here is an
+    /// unauthenticated GET, so on a shared Wi-Fi (a training room, a hotel) an
+    /// open listener hands the soundboard and the overlays to the whole room.
+    func start(port: UInt16, lanAccess: Bool = false) {
         let tcpParams = NWParameters.tcp
         tcpParams.allowLocalEndpointReuse = true
-        guard let nwPort = NWEndpoint.Port(rawValue: port),
-              let listener = try? NWListener(using: tcpParams, on: nwPort) else {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+            effectsError("EffectsHttpServer: failed to bind port \(port)")
+            return
+        }
+        if !lanAccess {
+            tcpParams.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: nwPort)
+        }
+        guard let listener = lanAccess ? try? NWListener(using: tcpParams, on: nwPort)
+                                       : try? NWListener(using: tcpParams) else {
             effectsError("EffectsHttpServer: failed to bind port \(port)")
             return
         }
@@ -28,7 +38,7 @@ final class EffectsHttpServer {
         listener.newConnectionHandler = { [weak self] conn in self?.handle(conn) }
         listener.stateUpdateHandler = { state in
             switch state {
-            case .ready: effectsInfo("HTTP server on :\(port)")
+            case .ready: effectsInfo("HTTP server on \(lanAccess ? "*" : "127.0.0.1"):\(port)")
             case .failed(let err): effectsError("HTTP server failed: \(err)")
             default: break
             }

@@ -3,8 +3,9 @@
 Everything this app can be asked to do is a **GET** on
 `http://127.0.0.1:<port>`, default **55124** (`EffectsConfig.port`, env
 `VICTOR_EFFECTS_PORT`). The listener (`EffectsHttpServer`, an `NWListener`)
-binds all interfaces, not just loopback, so a device on the LAN can reach it the
-same way a local script can.
+binds **127.0.0.1 only** since 2026-11-13. `"lanAccess": true` in the config
+opens it on every interface — only on a network you trust, since no route asks
+for a password (on a shared Wi-Fi the whole room could drive the overlays).
 
 One request line, one response, close. There is no authentication, no TLS and no
 body parsing: this is a local control surface, deliberately small enough that a

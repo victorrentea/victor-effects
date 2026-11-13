@@ -8,6 +8,10 @@ import Foundation
 /// `~/.victor-effects/config.json` and can be re-read with `GET /config/reload`.
 struct EffectsConfigValues: Equatable {
     var port: UInt16 = 55124
+    /// Listen on every interface instead of 127.0.0.1 only. Off by default:
+    /// the routes carry no authentication. Turn on only on a network you trust
+    /// (a tablet talking to this app directly, with nothing in between).
+    var lanAccess: Bool = false
     /// Folder with the `NN_name.mp3` soundboard files, `sound-timing.json`,
     /// `tiles.json` and `tiles/`. Shared with the tablet repo on this Mac.
     var soundsDir: String = "~/.victor-effects/sounds"
@@ -75,6 +79,7 @@ struct EffectsConfigValues: Equatable {
             if let p = obj["port"] as? NSNumber, p.intValue > 0, p.intValue < 65536 {
                 v.port = UInt16(p.intValue)
             }
+            if let b = obj["lanAccess"] as? Bool { v.lanAccess = b }
             if let s = obj["soundsDir"] as? String, !s.isEmpty { v.soundsDir = s }
             if let s = obj["assetsDir"] as? String, !s.isEmpty { v.assetsDir = s }
             if let s = obj["eventWebhook"] as? String { v.eventWebhook = s }
@@ -143,6 +148,7 @@ final class EffectsConfig {
     func override(_ v: EffectsConfigValues) { values = v }
 
     var port: UInt16 { values.port }
+    var lanAccess: Bool { values.lanAccess }
     /// The soundboard folder: the configured one when it exists, else the
     /// free starter pack inside the app (2026-10-14) — so a fresh install has
     /// a working panel and tablet grid before anyone writes a config. A
