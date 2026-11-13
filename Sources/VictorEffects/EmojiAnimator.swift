@@ -12058,6 +12058,8 @@ class EmojiAnimator {
     /// game does. Valve's, so they live in `assetsDir` (`cs-he-explode*.wav`,
     /// in the private ledger), never in this repo.
     static let grenadeSound = "87_grenade.mp3"
+    /// 87b: the same shout, its own file — a layer-B tile is its own asset.
+    static let poopGrenadeSound = "87b_poop_grenade.mp3"
     static let grenadeCSBooms = ["cs-he-explode3.wav", "cs-he-explode4.wav", "cs-he-explode5.wav"]
     /// ~10 dB louder on average than the nuke's tail (dense 8-bit, all attack):
     /// at 0.4 it lands about as loud as the boom it replaced, not a jump.
@@ -12070,8 +12072,14 @@ class EmojiAnimator {
     /// A grenade lobbed in from a bottom corner that bounces to where the
     /// pointer was at the press and blows up there (`GrenadeToss`). Press-driven and
     /// self-terminating; a re-press while it runs takes it off, like the gong.
-    func showGrenade(playSound: Bool = false) {
-        if cancelIfRunning("grenade", sound: playSound ? Self.grenadeSound : nil) { return }
+    ///
+    /// `poop` is tile 87b, the same grenade full of shit (`makePoopSplatter`):
+    /// its own key, so the two can run side by side and each re-press takes
+    /// off only its own.
+    func showGrenade(playSound: Bool = false, poop: Bool = false) {
+        let key = poop ? "poop-grenade" : "grenade"
+        let sound = poop ? Self.poopGrenadeSound : Self.grenadeSound
+        if cancelIfRunning(key, sound: playSound ? sound : nil) { return }
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
@@ -12081,8 +12089,8 @@ class EmojiAnimator {
         let container = CALayer()
         container.frame = bounds
         stageLayer.addSublayer(container)
-        trackEffect("grenade", layer: container, duration: GrenadeToss.totalDuration,
-                    sound: playSound ? Self.grenadeSound : nil)
+        trackEffect(key, layer: container, duration: GrenadeToss.totalDuration,
+                    sound: playSound ? sound : nil)
 
         let h = GrenadeToss.restHeight(in: bounds)
         let grenade = CALayer()
@@ -12094,7 +12102,7 @@ class EmojiAnimator {
         CATransaction.begin()
         for (key, anim) in GrenadeToss.flightAnimations(to: target, in: bounds) { grenade.add(anim, forKey: key) }
         CATransaction.commit()
-        if playSound { SoundManager.shared.play(Self.grenadeSound) }
+        if playSound { SoundManager.shared.play(sound) }
 
         // The broken glass is decided now, at the press, and its shards are cut
         // off the main thread long before the glass breaks: first as smoked
@@ -12122,7 +12130,7 @@ class EmojiAnimator {
                     ? GrenadeToss.shardImages(crack, shot: image, bounds: bounds, scale: scale) : nil
                 DispatchQueue.main.async {
                     guard let self, let container, let image,
-                          self.activeEffects["grenade"] === container else { return }
+                          self.activeEffects[key] === container else { return }
                     shot = (image, slice)
                     if let cut { shards = cut }
                 }
@@ -12130,7 +12138,7 @@ class EmojiAnimator {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + GrenadeToss.blastAt) { [weak self, weak container, weak grenade] in
-            guard let self, let container, self.activeEffects["grenade"] === container else { return }
+            guard let self, let container, self.activeEffects[key] === container else { return }
             grenade?.removeFromSuperlayer()
             let blast = GrenadeToss.makeBlast(at: target, in: bounds)
             // The glass breaks on the same frame (`GrenadeToss.crackAt`): a
@@ -12146,8 +12154,12 @@ class EmojiAnimator {
             container.addSublayer(glass.under)
             container.addSublayer(blast)
             container.addSublayer(glass.over)
+            // 87b: the shit lands on the glass, in front of everything.
+            let splatter = poop ? GrenadeToss.makePoopSplatter(at: target, holeRadius: holeRadius, in: bounds,
+                                                               scale: scale, seed: seed) : nil
+            if let splatter { container.addSublayer(splatter) }
             self.shakeTheWholePicture(fireball: blast, shot: shot)
-            for layer in [glass.under, glass.over] {
+            for layer in [glass.under, glass.over] + (splatter.map { [$0] } ?? []) {
                 layer.add(BombShake.animation(width: bounds.width), forKey: BombShake.animationKey)
             }
             CATransaction.commit()
@@ -14925,6 +14937,7 @@ class EmojiAnimator {
             silenceFable()
         case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
         // 💣 The boom is the effect's own (the nuke's clip, seeked), not the tile's.
+        case "poop-grenade": fallthrough   // 💩 87b: the same grenade's sounds
         case "grenade":
             SoundManager.shared.stopOverlapping(Self.grenadeBoom, fade: SoundManager.interruptFade)
             for boom in Self.grenadeCSBooms { SoundManager.shared.stopOverlapping(boom, fade: SoundManager.interruptFade) }

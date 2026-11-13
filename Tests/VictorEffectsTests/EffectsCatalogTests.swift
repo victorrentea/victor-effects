@@ -17,7 +17,7 @@ import XCTest
 /// promise being made, so the diff says "and this tile gains a star" out loud.
 final class EffectsCatalogTests: XCTestCase {
 
-    /// Asset → the effect its tile fires on the desktop. 56 tiles, 53 of the 91 on layer A plus 19b, 49b and 55b (#87 gained the 💣 grenade on 2026-11-12; 19b and 49b were #19's and #49's alternating second takes until 2026-11-12, now presses of their own under them, firing their host's effect; #7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
+    /// Asset → the effect its tile fires on the desktop. 57 tiles, 53 of the 91 on layer A plus 19b, 49b, 55b and 87b (87b, the 💩 grenade under #87, on 2026-11-13; #87 gained the 💣 grenade on 2026-11-12; 19b and 49b were #19's and #49's alternating second takes until 2026-11-12, now presses of their own under them, firing their host's effect; #7 gained the 🔴 red button and #9 the 🙏 hands and praying men on 2026-11-05; #12 gained the 🦗 cricket and moon on 2026-11-04; the 🌊 tsunami folded under #55 arrived with its effect on 2026-10-30; #35 gained the ✋ stop signs on 2026-10-30; #61 gained the 😇 light from heaven; #39 gained the 💀 skull boom when it replaced the dreamer song; #44 lost its 🤣 laugh when it became the barking chihuahua, and got the 🐕 barking dogs back on 2026-10-26; #63 gained the 🚨 beacon).
     private let expected: [String: String] = [
         "02_siren.mp3":          "alarm",          // the one toggled overlay, via /alarm/*
         "03_explosion.mp3":      "explosion",
@@ -73,6 +73,7 @@ final class EffectsCatalogTests: XCTestCase {
         "76_sfx_118.mp3":        "wasnt-me",
         "78_projector.mp3":      "sepia",
         "87_grenade.mp3":        "grenade",        // 💣 lobbed in from the corner, blows up mid-screen
+        "87b_poop_grenade.mp3":  "poop-grenade",   // 💩 the same grenade, full of shit: splats, and a 💩 in the hole
         "89_fireworks.mp3":      "fireworks",
         "90_breaking-glass.mp3": "broken-glass",
     ]

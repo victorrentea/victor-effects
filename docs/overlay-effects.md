@@ -1403,6 +1403,22 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - Press-driven and self-terminating (`trackEffect`); the blast and the crack are scheduled
     behind an identity check on the effect's container, so a stop-all or a re-press cancels
     whatever has not happened yet, and both stops name the boom and the glass.
+  - **💩 87b, the same grenade full of shit** (layer B under #87, `87b_poop_grenade.mp3` →
+    `poop-grenade`, `showGrenade(poop: true)`, `GrenadeToss.makePoopSplatter` in
+    `PoopGrenade.swift`, 2026-11-13; Victor: "the same grenade, but then sprawling shit all
+    around, or at least leaving shit where it explodes, in that dark place"). Throw, shout,
+    blast, boom and broken glass are #87's, untouched; the clip is a byte copy of
+    `87_grenade.mp3` (a layer-B tile is its own asset). On the blast, OVER the glass (the shit is
+    on the screen's surface): **22 splats** drawn in code (a lumpy blob, droplets, a wet shine),
+    half round the hole and half up to 4 hole-radii away, flung out of the blast in 0.1–0.3 s
+    and slapped flat (1.25× for a frame); one in three **runs down the glass** over ~2 s;
+    **26 💩** tumbling out the shards' way, under gravity; and a **big 💩 sitting in the black
+    hole** on a puddle of itself, rising out of it 0.3 s after the blast (after the white-hot
+    core) with a wobble, three green stink lines rising off it. All of it fades with the crack
+    — the same 4.65 s — and shakes with it. Its own `activeEffects` key, so #87 and 87b run
+    side by side; `stopEffect` falls through to the grenade's sounds.
+    `PoopGrenadeRenderTests` renders it offscreen and wants brown in the hole AND beyond it, in
+    at least three quarters round it (`poop-grenade-*.png` in `$TMPDIR`).
 
 - **🙅 Wasn't me** (tile #76 `76_sfx_118.mp3` → `wasnt-me`, `showWasntMe`): a 3D hand
   wagging its index finger "no-no", parked in the **bottom-left (SW) quarter** of the desktop

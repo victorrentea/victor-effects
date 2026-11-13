@@ -107,6 +107,7 @@ enum SoundCaptions {
         "85_joy.mp3":                 "[Ode to Joy]",
         "86_doorbell.mp3":            "[doorbell]",
         "87_grenade.mp3":             "Fire in the hole!",
+        "87b_poop_grenade.mp3":       "Fire in the hole!",
         "88_all_you_need_is_love.mp3": "All you need is love",
         "91_sinking.mp3":             "[ship sinking]",
     ]

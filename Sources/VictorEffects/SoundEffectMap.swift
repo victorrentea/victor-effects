@@ -39,6 +39,9 @@ enum SoundEffectMap {
         // blows up there, with the nuke's boom. The clip is the shout alone, so
         // the picture is fitted to the voice (`GrenadeToss`). Self-terminating.
         "87_grenade.mp3":        "grenade",
+        // 87b (2026-11-13, layer B under #87): the same grenade, full of shit —
+        // brown splats all over the glass and a 💩 left sitting in the hole.
+        "87b_poop_grenade.mp3":  "poop-grenade",
         "08_scream_man.mp3":     "fear",
         "22_minigun.mp3":        "bullet-holes",
         "65_school_bell.mp3":    "fire-alarm",

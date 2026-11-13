@@ -68,6 +68,7 @@ now the `under` tile (layer B, the folded bottom-left corner) of its host in
 | tile | file | picture | desktop |
 |---|---|---|---|
 | 19b | `20_fail2.mp3` (the second trombone) | `sfx_20_fail2.jpg` (FAIL #2) | `fail` |
+| 87b | `87b_poop_grenade.mp3` (a copy of #87's shout) | `sfx_87b_poop_grenade.png` (💩 + 💥 inside the fold, on black) | `poop-grenade` (2026-11-13: not a second take but a second effect) |
 | 49b | `49b_tiktok_core.mp3` (myinstants "TikTok Core") | `sfx_49b_wrong.png`: #49's ✗, shrunk to fit wholly inside the folded corner's triangle | `wrong-x` |
 
 **49b's note sounds at the midpoint of the X.** `showWrongX` draws for 0.5 s,
