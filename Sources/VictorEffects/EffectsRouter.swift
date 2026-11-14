@@ -176,6 +176,8 @@ final class EffectsRouter {
         "/test/whip/crack": "whip/crack",
         "/test/pray": "pray",
         "/test/pray/sing": "pray/sing",
+        "/test/pray/bigger": "pray/bigger",
+        "/test/pray/smaller": "pray/smaller",
         "/test/snap": "snap",
         "/test/snap/click": "snap/click",
     ]

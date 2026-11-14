@@ -17,6 +17,9 @@ import Foundation
 ///   • with no click it lasts exactly the tile's clip. Each click can only push
 ///     the end out, to that man's end: the long take sings on for as long as it
 ///     takes to see them all, and fades out as the last one goes,
+///   • the **wheel** sizes the hands, from the size they come up at to 3× that
+///     (`PrayScale`); a click plants a man of the size the hands had, and the
+///     men already planted keep theirs,
 ///   • a re-press, Esc or stop-all ends it.
 ///
 /// The same window and geometry as the whip — `WhipPanel` (the level fix
@@ -49,6 +52,10 @@ final class PrayController {
     private var escLocalMonitor: Any?
 
     private var choir = PrayChoir()
+    /// How big the pointer's hands are, and the next man with them. Starts
+    /// where the last run left it, as the 🫶 love hands do.
+    private var scale = PrayScale(value: PrayController.lastScale)
+    private static var lastScale: CGFloat = PrayScale.min
     /// The one hymn all the planted men share. Our own player, not
     /// `playOverlapping`: a later click has to reach THIS voice to push its
     /// end out (or take back a fade already under way), and a by-name stop
@@ -100,6 +107,13 @@ final class PrayController {
         let v = PrayView(frame: NSRect(origin: .zero, size: screenFrame.size))
         v.figure = Self.loadFigure()
         v.onMouseDown = { [weak self] in self?.sing() }
+        v.onScroll = { [weak self] event in
+            guard let self else { return }
+            self.resize(notches: self.scale.notches(precise: event.hasPreciseScrollingDeltas,
+                                                    deltaY: event.scrollingDeltaY))
+        }
+        scale = PrayScale(value: Self.lastScale)
+        v.scale = scale.value
         p.contentView = v
         appliedVisible = .null
         placeForZoom(p)
@@ -194,7 +208,7 @@ final class PrayController {
     /// `/effect/pray/sing`, so the click can be checked without a mouse.
     func sing() {
         guard let view else { return }
-        choir.plant(at: view.at, nowMs: nowMs())
+        choir.plant(at: view.at, scale: scale.value, nowMs: nowMs())
         view.prayers = choir.prayers
         onSing?()
         if hymnFading, let player = hymnPlayer {
@@ -202,6 +216,17 @@ final class PrayController {
             hymnFading = false
         }
         effectsInfo("🙏 pray — \(choir.prayers.count) praying, the hymn runs on")
+    }
+
+    /// The wheel: up grows the pointer's hands, down shrinks them back. Only
+    /// they change — a man already planted stays the size he was planted at.
+    /// Also `/effect/pray/bigger` and `/smaller`, one notch each, so it can be
+    /// checked without a mouse.
+    func resize(notches: Int) {
+        guard let view, notches != 0 else { return }
+        scale.step(notches)
+        Self.lastScale = scale.value
+        view.scale = scale.value
     }
 
     private var hymnLevel: Float = 1
@@ -303,6 +328,8 @@ struct PrayChoir {
         /// Where his hands were when clicked, in view points.
         var at: CGPoint
         var sinceMs: Double
+        /// The size of the hands he was planted from (`PrayScale`).
+        var scale: CGFloat = 1
     }
 
     /// More than this and the oldest goes. 20 since 2026-11-04 (was 8):
@@ -315,8 +342,8 @@ struct PrayChoir {
 
     mutating func hold(untilMs: Double) { holdUntilMs = untilMs }
 
-    mutating func plant(at: CGPoint, nowMs: Double) {
-        prayers.append(Prayer(at: at, sinceMs: nowMs))
+    mutating func plant(at: CGPoint, scale: CGFloat = 1, nowMs: Double) {
+        prayers.append(Prayer(at: at, sinceMs: nowMs, scale: scale))
         if prayers.count > Self.maxPrayers { prayers.removeFirst() }
     }
 
@@ -339,6 +366,41 @@ struct PrayChoir {
     var fadeStartMs: Double? { endMs.map { $0 - PrayController.hymnFadeMs } }
 }
 
+// MARK: - Scale
+
+/// How big the hands are, as a multiple of the size they have always had —
+/// pure, like the choir. The wheel only ever makes him bigger than that: from
+/// 1× up to 3× (Victor, 2026-11-14: *"până la 3x de la cât e acuma"*), a notch
+/// at a time, the 🫶 love hands' step.
+struct PrayScale: Equatable {
+    static let min: CGFloat = 1
+    static let max: CGFloat = 3
+    static let stepFactor: CGFloat = 1.12
+    /// Trackpad points that count as one notch of a wheel.
+    static let pointsPerNotch: CGFloat = 12
+
+    private(set) var value: CGFloat
+    private var trackpadPoints: CGFloat = 0
+
+    init(value: CGFloat = PrayScale.min) { self.value = Self.clamp(value) }
+
+    static func clamp(_ v: CGFloat) -> CGFloat { Swift.min(max, Swift.max(min, v)) }
+
+    mutating func step(_ notches: Int) {
+        value = Self.clamp(value * pow(Self.stepFactor, CGFloat(notches)))
+    }
+
+    /// One scroll event as notches: a wheel click is one, whatever its
+    /// acceleration says; a trackpad's points add up to notch-sized steps.
+    mutating func notches(precise: Bool, deltaY: CGFloat) -> Int {
+        guard precise else { return deltaY > 0 ? 1 : (deltaY < 0 ? -1 : 0) }
+        trackpadPoints += deltaY
+        let n = Int(trackpadPoints / Self.pointsPerNotch)   // truncates toward zero
+        trackpadPoints -= CGFloat(n) * Self.pointsPerNotch
+        return n
+    }
+}
+
 // MARK: - View
 
 /// His joined hands, centred on the pointer, breathing slowly. A click leaves
@@ -352,15 +414,20 @@ struct PrayChoir {
 /// The hands are not a second picture: they are the same figure drawn through
 /// `handsOutline`, on top of the whole man at full opacity, so as he fades in
 /// they are the very pixels he grows around — no seam, no jump.
-private final class PrayView: NSView {
+/// Internal, not private, only so `PrayViewScaleTests` can draw it into a bitmap.
+final class PrayView: NSView {
 
-    var figure: NSImage? { didSet { cachedSprites = nil } }
+    var figure: NSImage? { didSet { cachedSprites = [:] } }
     var at: CGPoint = .zero
     var nowMs = 0.0
     var prayers: [PrayChoir.Prayer] = []
     /// The pointer's hands: they go with the rest at the very end.
     var handsAlpha: CGFloat = 1
     var onMouseDown: (() -> Void)?
+    var onScroll: ((NSEvent) -> Void)?
+    /// The pointer's hands, × `figureHeight` (`PrayScale`). Each planted man
+    /// carries his own.
+    var scale: CGFloat = 1
 
     /// 260 since 2026-10-30 (was 200): Victor wanted him 30% bigger.
     static let figureHeight: CGFloat = 260
@@ -391,6 +458,9 @@ private final class PrayView: NSView {
     override var wantsDefaultClipping: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) { onMouseDown?() }
+    /// Taken, not passed on: the wheel sizes the hands instead of scrolling
+    /// the window under them.
+    override func scrollWheel(with event: NSEvent) { onScroll?(event) }
 
     /// 0…1 ramp: up over `upMs` from `start` ms after his click, down over
     /// his last `fadeOutMs`.
@@ -416,37 +486,40 @@ private final class PrayView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let breathe = 1 + 0.02 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 3.2))
-        let h = Self.figureHeight * breathe
         let aspect = figure.map { $0.size.width / max(1, $0.size.height) } ?? 1
-        let w = h * aspect
         // Placed by his hands, not his middle: they are what follows the
-        // pointer, and they must not move when the rest of him appears.
-        func figureRect(at p: CGPoint) -> CGRect {
-            CGRect(x: p.x - w * Self.handsCentre.x, y: p.y - h * Self.handsCentre.y, width: w, height: h)
+        // pointer, and they must not move when the rest of him appears — nor
+        // when the wheel sizes him, which is why he grows about them too.
+        func figureRect(at p: CGPoint, scale: CGFloat) -> CGRect {
+            let h = Self.figureHeight * breathe * scale, w = h * aspect
+            return CGRect(x: p.x - w * Self.handsCentre.x, y: p.y - h * Self.handsCentre.y, width: w, height: h)
         }
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
         // Every ray and every glow first, so no man stands behind another's light.
-        if let light = renderLight(radius: h * 0.85, figureRect: figureRect) {
+        if let light = renderLight(figureRect: { figureRect(at: $0.at, scale: $0.scale) }) {
             ctx.interpolationQuality = .low
             ctx.draw(light, in: bounds)
         }
 
-        guard let figure, let sprites = sprites(of: figure) else {
-            let str = NSAttributedString(string: "🙏", attributes: [.font: NSFont.systemFont(ofSize: h * 0.4)])
+        guard let figure else {
+            let str = NSAttributedString(string: "🙏", attributes: [.font: NSFont.systemFont(ofSize: Self.figureHeight * breathe * scale * 0.4)])
             let s = str.size()
             str.draw(at: CGPoint(x: at.x - s.width / 2, y: at.y - s.height / 2))
             return
         }
         for p in prayers {
-            let rect = figureRect(at: p.at)
+            guard let sprites = sprites(of: figure, scale: p.scale) else { continue }
+            let rect = figureRect(at: p.at, scale: p.scale)
             let m = man(p), hands = fadingOut(p)
             if m > 0 { stamp(sprites.man, ctx, in: rect, fraction: m) }
             // Only while they are ahead of him: once he has caught up, these
             // would be the same pixels stamped twice.
             if m < hands { stamp(sprites.hands, ctx, in: rect, fraction: hands) }
         }
-        stamp(sprites.hands, ctx, in: figureRect(at: at), fraction: handsAlpha)
+        if let sprites = sprites(of: figure, scale: scale) {
+            stamp(sprites.hands, ctx, in: figureRect(at: at, scale: scale), fraction: handsAlpha)
+        }
     }
 
     // MARK: - Twenty men at 60 Hz
@@ -468,7 +541,7 @@ private final class PrayView: NSView {
     /// All the rays and glows of this frame, or nil with nobody planted. The
     /// buffer is NOT flipped, on purpose: it is drawn in y-down view points and
     /// the bitmap lands the right way up in this flipped view.
-    private func renderLight(radius: CGFloat, figureRect: (CGPoint) -> CGRect) -> CGImage? {
+    private func renderLight(figureRect: (PrayChoir.Prayer) -> CGRect) -> CGImage? {
         guard !prayers.isEmpty else { return nil }
         let w = Int(bounds.width * Self.lightScale), h = Int(bounds.height * Self.lightScale)
         if lightBuffer?.width != w || lightBuffer?.height != h {
@@ -479,38 +552,42 @@ private final class PrayView: NSView {
         ctx.clear(CGRect(origin: .zero, size: bounds.size))
         for p in prayers {
             let g = light(p)
-            if g > 0 { drawBeam(ctx, onto: figureRect(p.at), for: p, strength: g) }
+            if g > 0 { drawBeam(ctx, onto: figureRect(p), for: p, strength: g) }
         }
         for p in prayers {
             let gl = glow(p)
             guard gl > 0 else { continue }
-            let rect = figureRect(p.at)
+            let rect = figureRect(p)
             let pulse = 1 + 0.06 * CGFloat(sin(nowMs / 1000 * 2 * .pi / 1.6))
             let colors = [Self.glowColor.withAlphaComponent(0.75 * gl).cgColor,
                           Self.glowColor.withAlphaComponent(0).cgColor] as CFArray
             if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
                 let c = CGPoint(x: rect.midX, y: rect.midY - rect.height * 0.1)
                 ctx.drawRadialGradient(gradient, startCenter: c, startRadius: 0,
-                                       endCenter: c, endRadius: radius * pulse, options: [])
+                                       endCenter: c, endRadius: rect.height * 0.85 * pulse, options: [])
             }
         }
         return ctx.makeImage()
     }
 
     private struct Sprites { let man: CGImage; let hands: CGImage }
-    private var cachedSprites: Sprites?
+    /// By size, in hundredths of `PrayScale`: the wheel moves in notches, so a
+    /// run only ever meets a dozen of them, and each is resampled once.
+    private var cachedSprites: [Int: Sprites] = [:]
 
     /// The man, and the man through `handsOutline`, each resampled once at the
     /// size he is drawn: the breathing only ever scales these by ±2%.
-    private func sprites(of figure: NSImage) -> Sprites? {
-        if let cachedSprites { return cachedSprites }
+    private func sprites(of figure: NSImage, scale figureScale: CGFloat) -> Sprites? {
+        let key = Int((figureScale * 100).rounded())
+        if let cached = cachedSprites[key] { return cached }
         let scale = window?.backingScaleFactor ?? 2
-        let height = (Self.figureHeight * 1.02 * scale).rounded(.up)
+        let height = (Self.figureHeight * figureScale * 1.02 * scale).rounded(.up)
         let size = CGSize(width: (height * figure.size.width / max(1, figure.size.height)).rounded(.up), height: height)
         guard let man = Self.raster(figure, size: size, through: nil),
               let hands = Self.raster(figure, size: size, through: Self.handsOutline) else { return nil }
-        cachedSprites = Sprites(man: man, hands: hands)
-        return cachedSprites
+        let made = Sprites(man: man, hands: hands)
+        cachedSprites[key] = made
+        return made
     }
 
     private static func bitmap(width: Int, height: Int) -> CGContext? {

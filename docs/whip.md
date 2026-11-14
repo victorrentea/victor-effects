@@ -412,6 +412,17 @@ it headless).
   man (260 pt tall — 200 until 2026-10-30) is placed by his hands and grows around those very pixels. Same panel
   (`WhipPanel`, `maximumWindow`) and the same `ZoomedPanel` mapping every frame,
   so ⌥-scroll and the ⌥⇧ zoom treat him exactly as they treat the rope.
+- **The wheel sizes him** (2026-11-14, Victor: *"scroll cu mouse-ul în sus, mâinile
+  și omul care apare după să își mărească dimensiunea până la 3x"*). Scroll up
+  grows the pointer's hands about the pointer, a notch of ×1.12 at a time, from
+  the 260 pt they come up at to 3× that; scroll down brings them back, never
+  below 1× (`PrayScale`, pure). A click plants a man of the size the hands had
+  (`Prayer.scale`) — ray and glow scale with him — and the men already planted
+  keep theirs. The view takes the wheel (`PrayView.scrollWheel`), so the window
+  underneath does not scroll. The size is kept for the next press of the tile,
+  as 🫶 does. `/effect/pray/bigger` and `/smaller` are one notch each. Sprites
+  are cached per size (`cachedSprites`), so the budget below holds per man at
+  1×; a 3× man covers nine times the pixels.
 - **A click plants a man, nothing is typed** (2026-10-20, Victor: *"when I
   click the hands remain there, and the human appears behind those hands … I
   can click multiple times to put multiple people praying"*). His hands stay

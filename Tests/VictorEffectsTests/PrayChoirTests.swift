@@ -68,3 +68,103 @@ final class PrayChoirTests: XCTestCase {
         XCTAssertEqual(choir.prayers.first?.sinceMs, 1)
     }
 }
+
+/// 🙏 The wheel sizes the hands, and the man planted from them (2026-11-14).
+final class PrayScaleTests: XCTestCase {
+    func testItComesUpAtTheSizeItAlwaysHad() {
+        XCTAssertEqual(PrayScale().value, 1)
+    }
+
+    func testScrollingUpStopsAtThreeTimes() {
+        var scale = PrayScale()
+        scale.step(1)
+        XCTAssertEqual(scale.value, PrayScale.stepFactor, accuracy: 0.0001)
+        scale.step(100)
+        XCTAssertEqual(scale.value, 3)
+    }
+
+    func testScrollingDownNeverGoesBelowTheOriginalSize() {
+        var scale = PrayScale(value: 2)
+        scale.step(-100)
+        XCTAssertEqual(scale.value, 1)
+    }
+
+    func testAWheelClickIsOneNotchWhateverItsAcceleration() {
+        var scale = PrayScale()
+        XCTAssertEqual(scale.notches(precise: false, deltaY: 7), 1)
+        XCTAssertEqual(scale.notches(precise: false, deltaY: -0.1), -1)
+        XCTAssertEqual(scale.notches(precise: false, deltaY: 0), 0)
+    }
+
+    func testTrackpadPointsAddUpToNotches() {
+        var scale = PrayScale()
+        XCTAssertEqual(scale.notches(precise: true, deltaY: 7), 0)
+        XCTAssertEqual(scale.notches(precise: true, deltaY: 7), 1)
+        XCTAssertEqual(scale.notches(precise: true, deltaY: -40), -3, "2 points were left over: -38")
+    }
+
+    func testAManKeepsTheSizeOfTheHandsHeWasPlantedFrom() {
+        var choir = PrayChoir()
+        choir.plant(at: .zero, scale: 1, nowMs: 0)
+        choir.plant(at: .zero, scale: 3, nowMs: 10)
+        XCTAssertEqual(choir.prayers.map(\.scale), [1, 3])
+    }
+}
+
+/// 🙏 What the wheel does to the PICTURE: `PrayView` drawn into a bitmap, with
+/// a plain red rectangle for the cut-out, and the painted box measured.
+final class PrayViewScaleTests: XCTestCase {
+    private let pointer = CGPoint(x: 700, y: 600)
+
+    /// The box of everything painted, in view points (y down).
+    private func paintedBox(scale: CGFloat, planted: Bool) throws -> CGRect {
+        let view = PrayView(frame: NSRect(x: 0, y: 0, width: 1400, height: 1200))
+        let figure = NSImage(size: NSSize(width: 265, height: 324))
+        figure.lockFocus()
+        NSColor.red.setFill()
+        NSRect(x: 0, y: 0, width: 265, height: 324).fill()
+        figure.unlockFocus()
+        view.figure = figure
+        view.at = pointer
+        view.nowMs = 0                       // the breathing is at exactly 1
+        if planted {
+            // 1 s in: all of him is there, and the ray has not started yet.
+            view.prayers = [PrayChoir.Prayer(at: pointer, sinceMs: -1000, scale: scale)]
+            view.handsAlpha = 0
+        } else {
+            view.scale = scale
+        }
+        let rep = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: rep)
+        let k = CGFloat(rep.pixelsHigh) / view.bounds.height
+        var minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
+        for y in 0..<rep.pixelsHigh {
+            for x in 0..<rep.pixelsWide where (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 {
+                minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        XCTAssertGreaterThan(maxX, -1, "nothing was painted")
+        return CGRect(x: CGFloat(minX) / k, y: CGFloat(minY) / k,
+                      width: CGFloat(maxX - minX + 1) / k, height: CGFloat(maxY - minY + 1) / k)
+    }
+
+    func testThePointersHandsGrowThreefoldAboutThePointer() throws {
+        let small = try paintedBox(scale: 1, planted: false)
+        let big = try paintedBox(scale: 3, planted: false)
+        XCTAssertEqual(big.height / small.height, 3, accuracy: 0.1)
+        XCTAssertEqual(big.width / small.width, 3, accuracy: 0.1)
+        XCTAssertEqual(small.midY, pointer.y, accuracy: 3)
+        XCTAssertEqual(big.midY, pointer.y, accuracy: 5)
+        XCTAssertEqual(big.midX, pointer.x, accuracy: 5)
+    }
+
+    func testAManPlantedFromBigHandsIsAsBigAsThey() throws {
+        let small = try paintedBox(scale: 1, planted: true)
+        let big = try paintedBox(scale: 3, planted: true)
+        XCTAssertEqual(small.height, 260, accuracy: 3)
+        XCTAssertEqual(big.height, 780, accuracy: 6)
+        // His hands are where they were clicked, whatever his size.
+        XCTAssertEqual(small.minY + small.height * 0.53, pointer.y, accuracy: 3)
+        XCTAssertEqual(big.minY + big.height * 0.53, pointer.y, accuracy: 5)
+    }
+}

@@ -499,6 +499,10 @@ final class EffectsEngine {
             redButtonController?.click()
         case "pray/sing":
             prayController?.sing()
+        case "pray/bigger":
+            prayController?.resize(notches: 1)
+        case "pray/smaller":
+            prayController?.resize(notches: -1)
         case "snap":
             toggleSnap()
         case "snap/click":
