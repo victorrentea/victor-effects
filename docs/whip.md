@@ -419,8 +419,8 @@ it headless).
   below 1× (`PrayScale`, pure). A click plants a man of the size the hands had
   (`Prayer.scale`) — ray and glow scale with him — and the men already planted
   keep theirs. The view takes the wheel (`PrayView.scrollWheel`), so the window
-  underneath does not scroll. The size is kept for the next press of the tile,
-  as 🫶 does. `/effect/pray/bigger` and `/smaller` are one notch each. Sprites
+  underneath does not scroll. Every press of the tile starts at 1× again — the
+  size is not remembered, unlike 🫶 (2026-11-15; it was for one day). `/effect/pray/bigger` and `/smaller` are one notch each. Sprites
   are cached per size (`cachedSprites`), so the budget below holds per man at
   1×; a 3× man covers nine times the pixels.
 - **A click plants a man, nothing is typed** (2026-10-20, Victor: *"when I

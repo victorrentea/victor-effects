@@ -52,10 +52,10 @@ final class PrayController {
     private var escLocalMonitor: Any?
 
     private var choir = PrayChoir()
-    /// How big the pointer's hands are, and the next man with them. Starts
-    /// where the last run left it, as the 🫶 love hands do.
-    private var scale = PrayScale(value: PrayController.lastScale)
-    private static var lastScale: CGFloat = PrayScale.min
+    /// How big the pointer's hands are, and the next man with them. Every
+    /// press starts at 1× again: the size is NOT remembered from the last run
+    /// (Victor, 2026-11-15: *"la început aceeași dimensiune mereu"*).
+    private var scale = PrayScale()
     /// The one hymn all the planted men share. Our own player, not
     /// `playOverlapping`: a later click has to reach THIS voice to push its
     /// end out (or take back a fade already under way), and a by-name stop
@@ -112,7 +112,7 @@ final class PrayController {
             self.resize(notches: self.scale.notches(precise: event.hasPreciseScrollingDeltas,
                                                     deltaY: event.scrollingDeltaY))
         }
-        scale = PrayScale(value: Self.lastScale)
+        scale = PrayScale()
         v.scale = scale.value
         p.contentView = v
         appliedVisible = .null
@@ -225,7 +225,6 @@ final class PrayController {
     func resize(notches: Int) {
         guard let view, notches != 0 else { return }
         scale.step(notches)
-        Self.lastScale = scale.value
         view.scale = scale.value
     }
 
