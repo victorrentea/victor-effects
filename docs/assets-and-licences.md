@@ -89,12 +89,19 @@ generated with Gemini on 2026-10-31 — until then out of usagif.com's
 
 ## The soundboard
 
-None of the maintainer's soundboard audio is published: almost all of it is
-YouTube rips (the DASH container signature is in the files) or a commercial
-library (Sound Ideas). The app ships a separate **starter pack** instead
-(`starter-pack/`), sourced only from CC0 / public-domain / CC-BY material and
-from sounds synthesized for this project, each file credited in
-`starter-pack/CREDITS.md` and checked by `tools/check-starter-pack.py`.
+The app ships a separate **starter pack** (`starter-pack/`), sourced only from
+CC0 / public-domain / CC-BY material and from sounds synthesized for this
+project, each file credited in `starter-pack/CREDITS.md` and checked by
+`tools/check-starter-pack.py`.
+
+### The published soundboard (2026-11-16)
+
+`soundboard/` holds all 108 MP3s of the maintainer's tablet soundboard
+(`victor-vibe-board/app/src/main/assets/`), published **knowingly**, third-party
+material included: almost all of it is YouTube rips or a commercial library
+(Sound Ideas), and the maintainer accepted that risk for the public repo. The
+ledger still marks every one of them `publish: false`; `copyright-guard.py check`
+skips `soundboard/` for that reason and nothing else. Nothing else is exempt.
 
 ## The guard
 

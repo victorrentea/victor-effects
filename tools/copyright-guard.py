@@ -68,6 +68,11 @@ def check(path):
         p = os.path.join(repo, rel)
         if os.path.splitext(rel)[1].lower() not in MEDIA or not os.path.isfile(p):
             continue
+        if rel.startswith("soundboard/"):
+            # The maintainer's deliberate decision (2026-11-16): the soundboard
+            # MP3s are published here knowingly, third-party or not. See
+            # docs/assets-and-licences.md, "The published soundboard".
+            continue
         h = sha(p)
         if h in blocked:
             bad.append(f"{rel}  ==  {blocked[h]['root']}/{blocked[h]['file']}  ({blocked[h]['class']})")

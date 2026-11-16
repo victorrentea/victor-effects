@@ -86,6 +86,8 @@ this one only routes.
 - **Only media we may publish is committed** (`docs/assets-and-licences.md`):
   own work, or licensed for redistribution and credited in
   `Sources/VictorEffects/Resources/CREDITS.md` / `starter-pack/credits.json`.
+  One deliberate exception: `soundboard/` (the maintainer's 108 tablet MP3s, published
+  knowingly on 2026-11-16 — `docs/assets-and-licences.md`). Nothing else is exempt.
   Anything else lives in `assetsDir` and is looked up with
   `EffectsResources.url(name, ext)`; `build-app.sh` runs `copyright-guard.py`,
   which fails if a file from the private ledger is tracked here.
