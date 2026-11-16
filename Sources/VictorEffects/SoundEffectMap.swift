@@ -108,6 +108,11 @@ enum SoundEffectMap {
         // clock (`docs/sound-routing.md`).
         "49b_tiktok_core.mp3":   "wrong-x",
         "50_gong.mp3":           "gong",
+        // Tile 57 (✅ the success chime): one big green tick swiped across the
+        // whole desktop left to right, as if by a brush (`GreenCheck`). Silent
+        // on this side and gone in 2.2 s, so no onStop entry. (#53's money
+        // "ching" is its own copy of this clip and never comes through here.)
+        "57_checkmark.mp3":      "checkmark",
         "26_drum.mp3":           "drum-roll",
         "40_joker.mp3":          "blood-drip",
         // Tile 46 IS the Christmas tile — Michael Bublé's "It's Beginning to Look

@@ -448,6 +448,7 @@ final class EffectsEngine {
         case "zorro":         animator.showZorro()
         case "laugh":         animator.showLaugh()
         case "sketch-arrow":  animator.showSketchArrow()
+        case "checkmark":     animator.showCheckmark()
         case "coffee":
             // Spawn a few rising ☕ so the pour can be exercised headlessly —
             // move the cursor onto one: it becomes a pot and fills the cup,

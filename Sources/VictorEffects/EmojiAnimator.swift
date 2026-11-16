@@ -14914,6 +14914,22 @@ class EmojiAnimator {
         trackEffect("sketch-arrow", layer: layer, duration: SketchArrow.totalDuration)
     }
 
+    // MARK: - ✅ Green check (tile #57, the success chime)
+
+    /// One big green tick swiped across the desktop left to right, as if by a
+    /// brush (`GreenCheck.swift`). Silent — the chime plays down the ordinary
+    /// routed path. Not a toggle: a second press swipes it again, which is what
+    /// the chime does too. Self-terminates at `GreenCheck.totalDuration`.
+    func showCheckmark() {
+        _ = cancelIfRunning("checkmark")
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
+        let screen = Screens.overlayScreen()
+        let menuBar = screen.map { max(0, $0.frame.maxY - $0.visibleFrame.maxY) } ?? 0
+        let layer = GreenCheck.makeLayer(in: hostLayer.bounds, topInset: menuBar, scale: scale)
+        stageLayer.addSublayer(layer)
+        trackEffect("checkmark", layer: layer, duration: GreenCheck.totalDuration)
+    }
+
     var activeEffectNames: [String] { activeEffects.keys.sorted() }
 
     /// Stop ONE effect by its catalogue name — its tile was pressed again while

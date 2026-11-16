@@ -404,7 +404,7 @@ ones. Two tools now cover them:
   wolf, small dog, pulse (all four layers), wazzup, blood drip, phoenix, sonar, love hands,
   Star Wars, snow, fire alarm, cavalry, wasn't-me, universal minions,
   rainbow, brother, gangnam, gong, wrong-x, drum roll, laugh, elephant, panda, opus,
-  game over and its CRT, sketch arrow, the reaction emojis (☕ too since
+  game over and its CRT, sketch arrow, the green check, the reaction emojis (☕ too since
   2026-10-16, with the pot and stream that pour into it), the ❌ fail
   stamp (no longer a frozen `ZoomSlice`), and the **progress bar**
   (`ProgressBarOverlay(host:)` asks for the stage at every use).
@@ -2825,6 +2825,28 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   the ordinary routed `/sound/play` path, which is why #71 needs no special case
   in `playSound` and no `onStop` entry. `stop-all` clears it like any other
   tracked effect; re-firing redraws it (it is not a toggle).
+- **✅ Green check** (sfx #57 `57_checkmark.mp3` → `checkmark`, `GreenCheck.swift`,
+  2026-11-16; Victor: *a big green tick on the whole screen, swiped left to right,
+  as if drawn by hand*). One tick filling **94 %** of the visible desktop (menu bar
+  excluded, box 1.2 : 1), laid down in **0.45 s** — the short stroke down into the
+  corner in the first 40 % of that, slowing, then the long one flung up to the top
+  right — held 1.05 s and dissolved over 0.7 s: **2.2 s** in all, `trackEffect`'s to
+  remove. The chime's attack is at 0 of its 1.34 s clip, so the pen is down inside it.
+  **A filled ribbon under a moving mask, not a stroked path**: a `CAShapeLayer` stroke
+  has one width end to end and reads as a diagram. The ink is two polygons whose
+  width follows the hand's pressure (0.62 → 1 of the brush into the corner, 1 → 0.42
+  out of it; brush = 0.16 of the box height) with each edge wavering on its own, a
+  lighter wet streak down the middle, and discs for the round start, the corner and
+  the tip; the thing that animates is the mask, a fat stroke along the same centre
+  line whose `strokeEnd` runs 0 → 1. The strokes are separate layers because
+  overlapping subpaths wound opposite ways would punch a hole at the corner. The
+  black shadow (one layer, so it costs nothing — see the next section) sits on the
+  container, a level above the mask, and is what keeps a green tick legible on a
+  green or a white slide. Silent on this side, no `onStop`; a second press swipes it
+  again (not a toggle), a re-press while the clip still plays takes it down through
+  `stopTile`. `GreenCheckTests` checks the pen never doubles back and renders it
+  mid-swipe and finished (`green-check-*.png` in `$TMPDIR`). `#53`'s money "ching"
+  is its own copy of this clip and never fires it.
 
 ## 🏎️ Glow without a shadow — what a full-screen effect may cost
 
