@@ -11,7 +11,7 @@ Three files, one overlay:
 |---|---|
 | `WhipPhysics.swift` | the simulation: 28 Verlet segments, gravity, constraint iterations, the flick detector. Pure — no AppKit, no time source of its own |
 | `WhipOverlay.swift` | `WhipController` + `WhipPanel` + `WhipView`: the window, the per-frame draw, the cursor poll, the crack sounds |
-| `WhipVoice.swift` | the right-click: the last thank-you's voice (Google TTS, cached) and country |
+| `WhipVoice.swift` | the right-click's voice: the word it cracks out, said in its language (Google TTS, cached), and its country |
 | `WhipMacro.swift` | what a click USED to type into the focused app (unused since 2026-11-11) |
 
 **Under ⌥-scroll zoom the rope keeps its size** (2026-10-16): the panel is
@@ -158,31 +158,26 @@ Never committed: a stranger's voice is not this public repo's to publish. The
 first one, *alsjeblieft*, was taken for Danish in the room and is Dutch —
 Whisper (`language=nl`) settled it; check a new one the same way before naming it.
 
-**Right-click says it out loud** (2026-11-11, Victor: *"ultimul afișat să fie
-pronunțat corect (ia de pe google …) + să apară țara din care vine … SUB acel
-mulțumesc"*). While the whip is up, a right-click takes the newest thank-you
-still flying, plays it in its own language and writes its country (English,
-`Locale`) under it in white; the word stops where it was, back at full colour,
-for `explainHoldMs` (3.5 s), then fades as usual (`WhipPleas.progress`). The
+**Right-click cracks, then says the word out loud** (2026-11-17, Victor: *"să
+dea și bici și să și pronunțe cuvântul după ce plesnește biciul"*). While the
+whip is up, a right-click anywhere on its panel cracks it exactly like a left
+click (`forceCrack`: scripted flick, crack, a new word thrown), and the word that
+crack throws is the one spoken — `sayAfterCrackMs` (0.4 s) after the crack, so
+the room hears the crack first and the word after, never on top of each other
+(`WhipOverlay.crackAndSay` → `throwPlea`). The word gets its country (English,
+`Locale`) under it in white and holds still at full colour for `explainHoldMs`
+(3.5 s), then fades as usual (`WhipPleas.progress`). From 2026-11-11 to 11-16 a
+right-click only re-said the last word thrown, without a crack (and brought it
+back if it had faded); that went. The
 voice is Google Translate's TTS (`translate_tts`, `client=tw-ob`), one mp3 per
 language+words in `~/.victor-effects/voice/`, all fetched in the background on
 the first `show()` of a launch (`WhipVoice.prefetch`) so the room never waits on
 the network; none of it is committed. The language is the flag's
 (`languageByCountry`) unless the words say otherwise (`languageByWords`: Catalan
 and Basque under 🇪🇸, French in 🇨🇭). Where Google has no voice (Maltese answers
-400) or the Mac is offline, macOS's own voice for that language reads it. Once
-the whip is put away the panel no longer catches clicks, so a word still
-flying after `hide()` can't be explained.
-
-**…any time, and again** (2026-11-12, Victor: *"să pot să dau click … butonul
-drept și la distanță. Oricând după ce s-a auzit un sunet de mulțumesc, la click
-apare din nou … și vocea se aude din nou"*). The right-click need not land on the
-word — anywhere on the whip's panel will do — and once the last word has faded,
-it comes back where it was thrown (`lastPlea`, kept across `hide()`/`show()`),
-explained and spoken again (`WhipPleas.replay`, born at `replayAgeShare` = 0.6 so
-it shows at full size and fades from where it holds, without a jump). As many
-times as he clicks. Still only while the whip is up: put away, the panel lets
-clicks through and a right-click is the focused app's own again.
+400) or the Mac is offline, macOS's own voice for that language reads it. Only
+while the whip is up: put away, the panel lets clicks through and a right-click
+is the focused app's own again.
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,
