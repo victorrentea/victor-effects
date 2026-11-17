@@ -101,7 +101,10 @@ project, each file credited in `starter-pack/CREDITS.md` and checked by
 material included: almost all of it is YouTube rips or a commercial library
 (Sound Ideas), and the maintainer accepted that risk for the public repo. The
 ledger still marks every one of them `publish: false`; `copyright-guard.py check`
-skips `soundboard/` for that reason and nothing else. Nothing else is exempt.
+skips `soundboard/` for that reason and nothing else.
+
+`docs/img/panel-*.jpg` (2026-11-17) are the README's two screenshots of that same
+board, thumbnails and all, published on the same decision. Nothing else is exempt.
 
 ## The guard
 

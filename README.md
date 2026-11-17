@@ -9,6 +9,15 @@ Everything is addressable over a small local HTTP API, so a tablet, a phone, a
 shell script, an editor plugin or another app can fire an effect. Hold the right
 ⌘ key and the soundboard itself appears as a grid of thumbnails you can click.
 
+![The soundboard panel, page 1: 91 sound tiles; the 𝓯𝔁 badge marks the ones that also animate the desktop](docs/img/panel-effects.jpg)
+
+Add the right ⇧ while holding it and the same window flips to page 2, the 🎬 video snippets:
+
+![The soundboard panel, page 2: 28 video snippets](docs/img/panel-videos.jpg)
+
+*That is the maintainer's own board, the same one the tablet shows. A fresh install starts
+with the smaller free starter pack (42 tiles). Page 2 only appears when [victor-macos-addons](https://github.com/victorrentea/victor-macos-addons) is running.*
+
 It was extracted from [victor-macos-addons](https://github.com/victorrentea/victor-macos-addons),
 which keeps the training/transcription half and proxies the effect routes here.
 
