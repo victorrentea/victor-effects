@@ -709,19 +709,36 @@ enum WhipPleas {
     /// (`WhipVoice.recordedURL`). *alsjeblieft* is the first with one.
     /// Romania's are *te rog io mult* and *săru-mâna* (Victor, the same day) —
     /// the first is four words, so four at most. Eight in all — ten from
-    /// 2026-11-18, with Sweden's *snälla* and *var så snäll*.
+    /// 2026-11-18, with Sweden's *snälla* and *var så snäll*, and the same
+    /// evening every country of the room got at least two (Victor: *"at least
+    /// two phrases in NL, FR, Swedish, German, Italian, Serbian, Spanish and
+    /// Portuguese, Hungarian and Polish"*), so the local third never shows the
+    /// same word twice in a row.
     static let maxWords = 4
     static let phrases = [
         "te rog io mult 🇷🇴",
         "săru-mâna 🇷🇴",
         "por favor 🇪🇸",
+        "porfa 🇪🇸",
         "per favore 🇮🇹",
+        "per piacere 🇮🇹",
         "s'il vous plaît 🇫🇷",
+        "s'il te plaît 🇫🇷",
         "bitte 🇩🇪",
+        "bitte bitte 🇩🇪",
         "pretty please 🇬🇧",
         "alsjeblieft 🇳🇱",
+        "alstublieft 🇳🇱",
         "snälla 🇸🇪",
         "var så snäll 🇸🇪",
+        "se faz favor 🇵🇹",
+        "por favor 🇵🇹",
+        "molim te 🇷🇸",
+        "molim vas 🇷🇸",
+        "kérlek szépen 🇭🇺",
+        "légyszi 🇭🇺",
+        "proszę 🇵🇱",
+        "bardzo proszę 🇵🇱",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
     /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),
@@ -834,16 +851,20 @@ enum WhipPleas {
     /// Where Victor is today, as ISO 3166: the Break timer's country (addons
     /// pins it at the day's first timer start, or a manual pick) when it is
     /// today's, else the Mac's own timezone. Nil when neither maps to a country.
-    static func hereISO() -> String? {
-        let addons = UserDefaults(suiteName: "ro.victorrentea.macos-addons")
+    /// A manual pick in addons' ☕️ Break › Country beats the timezone — that
+    /// is how a remote group abroad gets its own language while Victor sits in
+    /// Bucharest (2026-11-18, Victor: *"in case I manually set it (as for a
+    /// remote private group)"*).
+    static func hereISO(addons: UserDefaults? = UserDefaults(suiteName: "ro.victorrentea.macos-addons"),
+                        now: Date = Date(), macZone: String = TimeZone.current.identifier) -> String? {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
-        if addons?.string(forKey: "BreakTimer.country.day") == f.string(from: Date()),
+        if addons?.string(forKey: "BreakTimer.country.day") == f.string(from: now),
            let tz = addons?.string(forKey: "BreakTimer.country.tz"), let iso = isoByTimeZone[tz] {
             return iso
         }
-        return isoByTimeZone[TimeZone.current.identifier]
+        return isoByTimeZone[macZone]
     }
 
     /// IANA zone → ISO 3166 country, from the system's tzdb `zone.tab`.
@@ -871,7 +892,7 @@ enum WhipPleas {
         private let here: () -> String?
         private let roll: () -> Double
 
-        init(here: @escaping () -> String? = WhipPleas.hereISO,
+        init(here: @escaping () -> String? = { WhipPleas.hereISO() },
              roll: @escaping () -> Double = { Double.random(in: 0..<1) }) {
             self.here = here
             self.roll = roll

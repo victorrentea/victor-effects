@@ -169,6 +169,16 @@ timezone — both mapped to ISO through the system's `zone.tab`. A country with 
 phrase of its own leaves one bag of everything, as before. Sweden came in the
 same day with *snälla* and *var så snäll* 🇸🇪 — ten phrases now.
 
+**Every country of the room has at least two** (2026-11-18, the same evening):
+🇳🇱 *alsjeblieft / alstublieft*, 🇫🇷 *s'il vous plaît / s'il te plaît*, 🇸🇪, 🇩🇪
+*bitte / bitte bitte*, 🇮🇹 *per favore / per piacere*, 🇷🇸 *molim te / molim
+vas*, 🇪🇸 *por favor / porfa*, 🇵🇹 *se faz favor / por favor*, 🇭🇺 *kérlek
+szépen / légyszi*, 🇵🇱 *proszę / bardzo proszę* — 23 phrases. Serbian's voice is
+Google's `sr`. A country picked by hand in addons' ☕️ Break › Country (a remote
+group abroad while Victor sits in Bucharest) wins over the Mac's timezone for
+that day — `WhipPleas.hereISO` reads it, `testTodaysManualPickInAddonsBeatsTheMacsZone`
+holds it.
+
 **Right-click cracks, then says the word out loud** (2026-11-17, Victor: *"să
 dea și bici și să și pronunțe cuvântul după ce plesnește biciul"*). While the
 whip is up, a right-click anywhere on its panel cracks it exactly like a left

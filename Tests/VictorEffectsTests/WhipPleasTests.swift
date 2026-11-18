@@ -31,6 +31,32 @@ final class WhipPleasTests: XCTestCase {
         for (a, b) in zip(draws, draws.dropFirst()) { XCTAssertNotEqual(a, b) }
     }
 
+    /// Every country of the room has at least two pleas (2026-11-18), so its
+    /// local third can alternate instead of going quiet after one word.
+    func testEveryRoomCountryHasAtLeastTwoPleas() {
+        for iso in ["NL", "FR", "SE", "DE", "IT", "RS", "ES", "PT", "HU", "PL", "RO"] {
+            let count = WhipPleas.phrases.filter { WhipPleas.flagged($0).iso == iso }.count
+            XCTAssertGreaterThanOrEqual(count, 2, "\(iso) has \(count) plea(s)")
+        }
+    }
+
+    /// A country picked by hand in addons today (a remote group abroad) beats
+    /// the Mac's own timezone; yesterday's pick does not.
+    func testTodaysManualPickInAddonsBeatsTheMacsZone() throws {
+        let suite = "whip-test-\(UUID().uuidString)"
+        let addons = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { addons.removePersistentDomain(forName: suite) }
+        let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.dateFormat = "yyyy-MM-dd"
+        let now = Date()
+        addons.set("Europe/Warsaw", forKey: "BreakTimer.country.tz")
+        addons.set(day.string(from: now), forKey: "BreakTimer.country.day")
+        XCTAssertEqual(WhipPleas.hereISO(addons: addons, now: now, macZone: "Europe/Bucharest"), "PL")
+        addons.set(day.string(from: now.addingTimeInterval(-86_400)), forKey: "BreakTimer.country.day")
+        XCTAssertEqual(WhipPleas.hereISO(addons: addons, now: now, macZone: "Europe/Bucharest"), "RO")
+    }
+
     func testStockholmIsSweden() {
         XCTAssertEqual(WhipPleas.isoByTimeZone["Europe/Stockholm"], "SE")
         XCTAssertEqual(WhipPleas.isoByTimeZone["Europe/Bucharest"], "RO")

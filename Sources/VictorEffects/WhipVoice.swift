@@ -57,7 +57,7 @@ enum WhipVoice {
         "FR": "fr", "GB": "en-GB", "GR": "el", "HR": "hr", "HU": "hu", "IE": "en-IE",
         "IN": "hi", "IS": "is", "IT": "it", "JP": "ja", "LI": "de", "LT": "lt",
         "LU": "lb", "LV": "lv", "MD": "ro", "MT": "mt", "NL": "nl", "NO": "no",
-        "PL": "pl", "PT": "pt-PT", "RO": "ro", "SE": "sv", "SI": "sl", "SK": "sk",
+        "PL": "pl", "PT": "pt-PT", "RO": "ro", "RS": "sr", "SE": "sv", "SI": "sl", "SK": "sk",
         "TW": "zh-TW", "US": "en-US",
     ]
 
