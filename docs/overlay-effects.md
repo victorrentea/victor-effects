@@ -663,17 +663,6 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
-  **The word "Fable"** (2026-11-18, Victor's slide): Lucida Blackletter, gold `#F4C241`, drawn
-  UNDER the clip (a `CAShapeLayer` from the glyph outlines, so it stays sharp at 5×). It starts
-  4 s before the clip ends, in the golden burst, and **stretches** down to its place: ×5 high and
-  ×9 wide, both easing to 1× on one curve, so it is wider than itself the whole way and settles
-  into its real proportions as it lands — 60 % of the screen width (≤ 43 % of the height; 86 % was
-  too big), fully opaque 0.5 s after the clip ended. The fade-in is slow (12 % at 40 % of the way,
-  45 % at 75 %). It stays alone 0.8 s, then **dissolves** over 1.4 s: the letters are masked by
-  fine round grains (width/120) that fade off in random order — golden stars were tried first,
-  Victor preferred a plain dissolve. The face is Microsoft's, never committed:
-  `assetsDir/LucidaBlackletter.ttf`, else PowerPoint's own copy in its bundle, else Didot Bold.
-  A re-press / stop / stop-all take it down with the clip (one holder layer).
 - **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
   `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
   the moon plus stars, on a transparent background, in the bottom-left corner"*): the silence
