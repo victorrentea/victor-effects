@@ -388,8 +388,16 @@ and the effect both live on the tablet's thumbnail now, and ⌃⇧W only switche
 (`/effect/pray` is the same thing; `/effect/pray/sing` is the click, for checking
 it headless).
 
-- **Its length.** With no click it lasts exactly the tile's clip (20.84 s plus any
-  Bluetooth wake-up). A click can only push the end out, to that man's end
+- **The press is silent; the first click starts the hymn and its subtitles**
+  (2026-11-18, Victor: *"subtitles of Ave Maria should only be displayed after I
+  click mouse and song starts playing"*). The hands come up at the press so there
+  is something to aim with; `PrayController.sing()` starts the long take on the
+  first click and `onHymnStart` puts the tile's caption track up, delayed by the
+  Bluetooth wake-up + output latency (`SoundCaptions.captionedAtFirstClick` keeps
+  the router from captioning the press). With no click at all the hands wait,
+  silent, for the tile's clip (20.84 s) and go — the self-termination rule.
+- **Its length.** From the first click, with no other click it lasts exactly the
+  tile's clip (20.84 s plus any Bluetooth wake-up). A click can only push the end out, to that man's end
   (`PrayChoir.endMs`), and the hands, the men and the hymn all fade out together
   as the last one goes. To have something to stretch, the long take plays in the
   clip's place from the first second: `pray-hymn-tablet.mp3` is the same recording
@@ -444,7 +452,7 @@ it headless).
   by drawing `PrayView` into a bitmap; the remaining cost is 8 ms for that blow-up
   and ~2 ms a man. Going further means real `CALayer`s, which would also have to
   follow `ZoomedPanel`.
-- **One Ave Maria for all of them.** The press starts the hymn at the tile's
+- **One Ave Maria for all of them.** The first click starts the hymn at the tile's
   level — `pray-hymn-tablet.mp3` when `assetsDir` has it, else
   the shipped `pray-hymn-long.mp3` (47 s, `Resources/CREDITS.md`).
   **They are the same Schubert and still not the same song to the room**

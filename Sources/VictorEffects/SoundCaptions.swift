@@ -243,8 +243,14 @@ enum SoundCaptions {
     /// waits for the first shot (Victor, 2026-11-04: "after they start firing").
     static let captionedAtFirstShot: Set<String> = ["22_minigun.mp3"]
 
+    /// Tiles whose press only raises the 🙏 hands: the hymn, and so its words,
+    /// start on the first click (Victor, 2026-11-18). `PrayController.onHymnStart`.
+    static let captionedAtFirstClick: Set<String> = ["09_ave_maria.mp3"]
+
     /// Whether the press itself puts the caption up.
-    static func captionsAtPress(_ asset: String) -> Bool { !captionedAtFirstShot.contains(asset) }
+    static func captionsAtPress(_ asset: String) -> Bool {
+        !captionedAtFirstShot.contains(asset) && !captionedAtFirstClick.contains(asset)
+    }
 
     /// The caption for a press. A tile added to
     /// `tiles.json` before anyone wrote its line still gets one, made from its

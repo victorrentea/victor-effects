@@ -221,7 +221,7 @@ final class EffectsEngine {
     /// A song in `SoundCaptions.lyrics` gets its words line by line, as sung;
     /// a clip tuned in the karaoke tuner gets that track instead (`CaptionEdits`).
     /// Nothing at all while the ✓ Subtitles row is off (`SubtitlesSwitch`).
-    func showCaption(for asset: String) {
+    func showCaption(for asset: String, after heardIn: TimeInterval? = nil) {
         guard SubtitlesSwitch.isOn else { return }
         let lines = SoundCaptions.live(for: asset, clipSeconds: SoundManager.shared.soundDuration(asset))
         guard !lines.isEmpty else { return }
@@ -230,7 +230,7 @@ final class EffectsEngine {
         // The words are timed into the CLIP; a clip routed here is heard only
         // after its Bluetooth silence and the speaker's own latency, so the
         // track waits for that (2026-10-23: it led the voice by ~1.3 s).
-        let delay = heardIn(asset)
+        let delay = heardIn ?? self.heardIn(asset)
         if delay > 0 { effectsInfo(String(format: "💬 caption %@ in %.0f ms (heard then)", asset, delay * 1000)) }
         CaptionOverlay.play(lines, on: screen, after: delay, asset: asset)
     }
@@ -688,6 +688,10 @@ final class EffectsEngine {
         // 🦀 The praying man gives Clawd hope — when he shows, and each time
         // one is planted and starts to pray.
         controller.onSing = { [weak self] in self?.animator.clawdFeel(.hopeful) }
+        // 💬 Its subtitles come with the hymn, i.e. with the first click.
+        controller.onHymnStart = { [weak self] heardIn in
+            self?.showCaption(for: PrayController.tile, after: heardIn)
+        }
         let lasts = controller.show(volume: volume)
         animator.clawdFeel(.hopeful)
         return lasts

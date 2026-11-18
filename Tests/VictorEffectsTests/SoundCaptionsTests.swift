@@ -97,6 +97,7 @@ final class SoundCaptionsTests: XCTestCase {
     func testTheGunIsCaptionedAtItsFirstShotNotItsPress() {
         XCTAssertEqual(SoundCaptions.caption(for: "22_minigun.mp3"), "[AK47 firing]")
         XCTAssertFalse(SoundCaptions.captionsAtPress("22_minigun.mp3"))
+        XCTAssertFalse(SoundCaptions.captionsAtPress("09_ave_maria.mp3"), "the hymn and its words wait for the first click")
         XCTAssertTrue(SoundCaptions.captionsAtPress("04_wolf.mp3"))
     }
 

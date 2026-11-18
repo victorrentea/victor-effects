@@ -14,9 +14,13 @@ import Foundation
 ///     from the sky onto him, with a golden glow; 9.5 s later he fades away.
 ///     The pointer keeps a fresh pair of hands, so more clicks plant more men.
 ///     ONE Ave Maria sings for all of them,
-///   • with no click it lasts exactly the tile's clip. Each click can only push
-///     the end out, to that man's end: the long take sings on for as long as it
-///     takes to see them all, and fades out as the last one goes,
+///   • the hymn — and its subtitles — wait for the FIRST click (Victor,
+///     2026-11-18: *"subtitles … only displayed after I click mouse and song
+///     starts playing"*); with no click the hands wait, silent, for the tile's
+///     clip and go. From the first click a run with no other click lasts that
+///     clip again. Each click can only push the end out, to that man's end: the
+///     long take sings on for as long as it takes to see them all, and fades
+///     out as the last one goes,
 ///   • the **wheel** sizes the hands, from the size they come up at to 3× that
 ///     (`PrayScale`); a click plants a man of the size the hands had, and the
 ///     men already planted keep theirs,
@@ -39,6 +43,9 @@ final class PrayController {
     var onEscape: (() -> Void)?
     /// A man was planted and starts to pray (`sing()`): 🦀 Clawd turns hopeful.
     var onSing: (() -> Void)?
+    /// The first click started the hymn, heard this many seconds from now:
+    /// the tile's subtitles go up then, not at the press.
+    var onHymnStart: ((TimeInterval) -> Void)?
 
     private var panel: WhipPanel?
     private var view: PrayView?
@@ -93,8 +100,9 @@ final class PrayController {
 
     // MARK: - Show / hide
 
-    /// Up from the press, in place of the tile's plain clip. Returns how long a
-    /// run with no click lasts, Bluetooth wake-up included.
+    /// Up from the press, in place of the tile's plain clip — the hands only;
+    /// the hymn waits for the first click (`sing()`). Returns how long a run
+    /// with no click lasts.
     @discardableResult
     func show(volume: Float? = nil) -> TimeInterval {
         hide()
@@ -124,18 +132,18 @@ final class PrayController {
         p.orderFrontRegardless()
         cursorHide = CursorHide()
 
-        // The hymn may end up running long: keep the A2DP link warm under it
-        // (no-op off Bluetooth).
+        // The hymn will start on a click: keep the A2DP link warm until then
+        // and under it (no-op off Bluetooth), so the click is heard at once.
         let clip = SoundManager.shared.soundDuration(Self.tile) ?? Self.tileFallbackSeconds
-        let wake = startHymn(volume: volume, clip: clip)
+        hymnVolume = volume
+        hymnStarted = false
         BluetoothOutput.startContinuousWarm()
-        heardAtMs = nowMs() + (wake + SoundTimingConfig.shared.currentOutputLatency) * 1000
-        choir.hold(untilMs: nowMs() + (wake + clip) * 1000)
+        choir.hold(untilMs: nowMs() + clip * 1000)
         Self.isUp = true
 
         installEscMonitors()
         startTimer()
-        return wake + clip
+        return clip
     }
 
     func hide() {
@@ -149,6 +157,7 @@ final class PrayController {
         if hymnPlayer != nil { SoundTimingConfig.shared.noteSilenced() }
         hymnPlayer = nil
         hymnFading = false
+        hymnStarted = false
         choir.clear()
         Self.isUp = false
         BluetoothOutput.stopContinuousWarm()
@@ -192,8 +201,8 @@ final class PrayController {
         if let end = choir.endMs, now >= end { hide(); return }
         choir.expire(nowMs: now)
         view.prayers = choir.prayers
-        // Not before the hymn is heard: a sound and its picture start together.
-        view.handsAlpha = now < heardAtMs ? 0 : CGFloat(min(1, ((choir.endMs ?? now) - now) / Self.fadeOutMs))
+        // Up from the press: they are what the first click is aimed with.
+        view.handsAlpha = CGFloat(min(1, ((choir.endMs ?? now) - now) / Self.fadeOutMs))
         steerHymn(now: now)
         view.nowMs = now
         view.needsDisplay = true
@@ -208,6 +217,15 @@ final class PrayController {
     /// `/effect/pray/sing`, so the click can be checked without a mouse.
     func sing() {
         guard let view else { return }
+        if !hymnStarted {
+            // The first click: the hymn starts, and the tile's own length
+            // counts from here, as if the press had been now.
+            hymnStarted = true
+            let clip = SoundManager.shared.soundDuration(Self.tile) ?? Self.tileFallbackSeconds
+            let wake = startHymn(volume: hymnVolume, clip: clip)
+            choir.hold(untilMs: nowMs() + (wake + clip) * 1000)
+            if hymnPlayer != nil { onHymnStart?(wake + SoundTimingConfig.shared.currentOutputLatency) }
+        }
         choir.plant(at: view.at, scale: scale.value, nowMs: nowMs())
         view.prayers = choir.prayers
         onSing?()
@@ -229,7 +247,9 @@ final class PrayController {
     }
 
     private var hymnLevel: Float = 1
-    private var heardAtMs = 0.0
+    private var hymnVolume: Float?
+    /// Set by the first click of a run; the press alone is silent.
+    private var hymnStarted = false
 
     /// The long take in the tile's place, with the tile's Bluetooth wake-up, as
     /// `SoundManager` would give it. Returns that wait.
