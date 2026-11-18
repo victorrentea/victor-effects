@@ -708,7 +708,8 @@ enum WhipPleas {
     /// comes in with a recording of a real person saying it
     /// (`WhipVoice.recordedURL`). *alsjeblieft* is the first with one.
     /// Romania's are *te rog io mult* and *săru-mâna* (Victor, the same day) —
-    /// the first is four words, so four at most. Eight in all.
+    /// the first is four words, so four at most. Eight in all — ten from
+    /// 2026-11-18, with Sweden's *snälla* and *var så snäll*.
     static let maxWords = 4
     static let phrases = [
         "te rog io mult 🇷🇴",
@@ -719,6 +720,8 @@ enum WhipPleas {
         "bitte 🇩🇪",
         "pretty please 🇬🇧",
         "alsjeblieft 🇳🇱",
+        "snälla 🇸🇪",
+        "var så snäll 🇸🇪",
     ]
     /// The flag's ISO code sits right after it, small and below the baseline
     /// (2026-10-23, Victor: *"codul ISO … mai bine subscript după [steag]"*),
@@ -822,21 +825,79 @@ enum WhipPleas {
     }
     static let color = NSColor(red: 1.0, green: 0.36, blue: 0.62, alpha: 1)
 
+    /// The share of cracks that throw a please of the country Victor is in
+    /// today (2026-11-18, Victor: *"the 'please' in the country I am currently
+    /// in … should display with 33% probability"*): the room hears its own
+    /// language every third crack, the rest of Europe the other two.
+    static let localShare = 1.0 / 3
+
+    /// Where Victor is today, as ISO 3166: the Break timer's country (addons
+    /// pins it at the day's first timer start, or a manual pick) when it is
+    /// today's, else the Mac's own timezone. Nil when neither maps to a country.
+    static func hereISO() -> String? {
+        let addons = UserDefaults(suiteName: "ro.victorrentea.macos-addons")
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        if addons?.string(forKey: "BreakTimer.country.day") == f.string(from: Date()),
+           let tz = addons?.string(forKey: "BreakTimer.country.tz"), let iso = isoByTimeZone[tz] {
+            return iso
+        }
+        return isoByTimeZone[TimeZone.current.identifier]
+    }
+
+    /// IANA zone → ISO 3166 country, from the system's tzdb `zone.tab`.
+    static let isoByTimeZone: [String: String] = {
+        guard let tab = try? String(contentsOfFile: "/usr/share/zoneinfo/zone.tab", encoding: .utf8)
+        else { return [:] }
+        var map: [String: String] = [:]
+        for line in tab.split(separator: "\n") where !line.hasPrefix("#") {
+            let cols = line.split(separator: "\t")
+            if cols.count >= 3 { map[String(cols[2])] = String(cols[0]) }
+        }
+        return map
+    }()
+
     /// A shuffle-bag, not `randomElement()`: a random pick repeats itself often
     /// enough to be noticed, and this one visits every phrase before any comes
     /// back — never the same word twice in a row, even across refills.
+    /// Two bags since 2026-11-18: today's country's phrases (`here`) come up
+    /// `localShare` of the time, the others the rest; a country with no
+    /// phrase of its own leaves one bag of everything.
     struct Bag {
         private var queue: [String] = []
+        private var localQueue: [String] = []
         private var last: String?
+        private let here: () -> String?
+        private let roll: () -> Double
+
+        init(here: @escaping () -> String? = WhipPleas.hereISO,
+             roll: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+            self.here = here
+            self.roll = roll
+        }
 
         mutating func next() -> String {
-            if queue.isEmpty {
-                queue = phrases.shuffled()
-                if queue.count > 1, queue.first == last { queue.swapAt(0, queue.count - 1) }
-            }
-            let word = queue.removeFirst()
+            let iso = here()
+            let isLocal = { (p: String) in iso != nil && WhipPleas.flagged(p).iso == iso }
+            let local = phrases.filter(isLocal)
+            let others = phrases.filter { !isLocal($0) }
+            // A lone local phrase that just flew yields to the others, never repeats.
+            let useLocal = !local.isEmpty && roll() < localShare && local != [last]
+            let word = useLocal ? Self.draw(from: local, into: &localQueue, after: last)
+                                : Self.draw(from: others.isEmpty ? local : others, into: &queue, after: last)
             last = word
             return word
+        }
+
+        private static func draw(from pool: [String], into queue: inout [String], after last: String?) -> String {
+            queue.removeAll { !pool.contains($0) }      // the country changed under the bag
+            if queue.isEmpty {
+                queue = pool.shuffled()
+                if queue.count > 1, queue.first == last { queue.swapAt(0, queue.count - 1) }
+            }
+            if queue.count > 1, queue.first == last { queue.swapAt(0, 1) }
+            return queue.removeFirst()
         }
     }
 

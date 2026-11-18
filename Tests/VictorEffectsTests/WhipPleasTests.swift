@@ -6,7 +6,7 @@ final class WhipPleasTests: XCTestCase {
     /// Every phrase comes up once per round, and no word ever follows itself —
     /// not even across the refill between two rounds.
     func testBagVisitsEveryPhraseAndNeverRepeatsBackToBack() {
-        var bag = WhipPleas.Bag()
+        var bag = WhipPleas.Bag(here: { nil })
         let n = WhipPleas.phrases.count
         var previous: String?
         for _ in 0..<50 {
@@ -17,6 +17,23 @@ final class WhipPleasTests: XCTestCase {
                 previous = word
             }
         }
+    }
+
+    /// In Sweden a third of the cracks are Swedish (2026-11-18), the rest are
+    /// everyone else's, and still no word follows itself.
+    func testTodaysCountryComesUpAThirdOfTheTime() {
+        var bag = WhipPleas.Bag(here: { "SE" })
+        let draws = (0..<6000).map { _ in bag.next() }
+        let swedish = draws.filter { WhipPleas.flagged($0).iso == "SE" }
+        XCTAssertEqual(Double(swedish.count) / Double(draws.count), WhipPleas.localShare, accuracy: 0.03)
+        XCTAssertEqual(Set(swedish), ["snälla 🇸🇪", "var så snäll 🇸🇪"])
+        XCTAssertEqual(Set(draws), Set(WhipPleas.phrases))
+        for (a, b) in zip(draws, draws.dropFirst()) { XCTAssertNotEqual(a, b) }
+    }
+
+    func testStockholmIsSweden() {
+        XCTAssertEqual(WhipPleas.isoByTimeZone["Europe/Stockholm"], "SE")
+        XCTAssertEqual(WhipPleas.isoByTimeZone["Europe/Bucharest"], "RO")
     }
 
     /// The whip thanks, it never apologises (2026-10-22).

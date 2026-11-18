@@ -158,6 +158,17 @@ Never committed: a stranger's voice is not this public repo's to publish. The
 first one, *alsjeblieft*, was taken for Danish in the room and is Dutch —
 Whisper (`language=nl`) settled it; check a new one the same way before naming it.
 
+**Since 2026-11-18 the room's own country comes up a third of the time**
+(Victor: *"the 'please' in the country I am currently in … should display with
+33% probability (preference for local language)"*): `WhipPleas.Bag` keeps two
+shuffle-bags, today's country's phrases and everyone else's, and draws from the
+local one `WhipPleas.localShare` (⅓) of the cracks. *Today's country* is the
+Break timer's (`BreakTimer.country.tz` in addons' defaults, pinned at the day's
+first timer start or picked by hand) when it is dated today, else the Mac's own
+timezone — both mapped to ISO through the system's `zone.tab`. A country with no
+phrase of its own leaves one bag of everything, as before. Sweden came in the
+same day with *snälla* and *var så snäll* 🇸🇪 — ten phrases now.
+
 **Right-click cracks, then says the word out loud** (2026-11-17, Victor: *"să
 dea și bici și să și pronunțe cuvântul după ce plesnește biciul"*). While the
 whip is up, a right-click anywhere on its panel cracks it exactly like a left
