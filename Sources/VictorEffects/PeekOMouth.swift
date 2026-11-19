@@ -22,6 +22,8 @@ enum PeekOMouth {
         switch mascot {
         case .claude: return (ClawdArt.mouthFraction.x, ClawdArt.mouthFraction.y, 0.10, 0.16)
         case .copilot: return (0.5, 0.865, 0.095, 0.10)
+        // Measured off geppetto-icon.png (537×573): over his open mouth, under the moustache.
+        case .geppetto: return (0.735, 0.755, 0.12, 0.10)
         }
     }
 

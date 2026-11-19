@@ -33,8 +33,10 @@ final class PeekMascotChoiceTests: XCTestCase {
 
     func testClickingAgainGoesBack() {
         let day = PeekMascotChoice.dayKey(today)
-        let back = PeekMascotChoice.flipped(stored: PeekMascot.copilot.rawValue, storedDay: day, now: today)
-        XCTAssertEqual(back, .claude, "the gesture is its own undo")
+        let next = PeekMascotChoice.flipped(stored: PeekMascot.copilot.rawValue, storedDay: day, now: today)
+        XCTAssertEqual(next, .geppetto, "Copilot hands over to Geppetto")
+        let back = PeekMascotChoice.flipped(stored: PeekMascot.geppetto.rawValue, storedDay: day, now: today)
+        XCTAssertEqual(back, .claude, "the ring closes: one more click is back to Claude")
     }
 
     func testYesterdaysChoiceIsNotTodaysDefault() {
@@ -91,6 +93,7 @@ final class PeekMascotChoiceTests: XCTestCase {
             )
         }
         XCTAssertEqual(PeekMascot.claude.flipped, .copilot)
-        XCTAssertEqual(PeekMascot.copilot.flipped, .claude)
+        XCTAssertEqual(PeekMascot.copilot.flipped, .geppetto)
+        XCTAssertEqual(PeekMascot.geppetto.flipped, .claude)
     }
 }

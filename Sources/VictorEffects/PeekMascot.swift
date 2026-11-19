@@ -7,10 +7,18 @@ import AppKit
 enum PeekMascot: String, CaseIterable {
     case claude = "claude-icon"
     case copilot = "copilot-icon"
+    /// 👴 Geppetto (2026-11-19): a cut-out of a picture Victor pasted, the
+    /// woodcarver who made a wooden boy talk — a third costume for the key.
+    /// Like Copilot, a drop-in PNG in `assetsDir`, never committed.
+    case geppetto = "geppetto-icon"
 
-    /// The other one. A two-case enum is the whole reason the click is a
-    /// *toggle* and not a menu: there is nothing to choose between.
-    var flipped: PeekMascot { self == .claude ? .copilot : .claude }
+    /// The next one round the ring, in declaration order: Claude → Copilot →
+    /// Geppetto → Claude. Still a click and not a menu: three costumes are
+    /// two clicks at most, and a menu would mean a second gesture to learn.
+    var flipped: PeekMascot {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
 }
 
 /// Who waves on ⌘⌃Q, as pure functions over what is stored.
@@ -27,8 +35,9 @@ enum PeekMascot: String, CaseIterable {
 /// - **Clicking the mascot while it is on screen flips it**, and the flip is
 ///   sticky for the rest of that calendar day — a Copilot day is declared once
 ///   and stays declared, rather than being re-declared before every press.
-/// - **Clicking again flips back.** The gesture is its own undo, which is what
-///   makes it safe to try mid-session in front of a room.
+/// - **Clicking again moves on round the ring** (Claude → Copilot → Geppetto
+///   → Claude), so a click is never more than two clicks from being undone,
+///   which is what makes it safe to try mid-session in front of a room.
 ///
 /// Day-scoping is the same trick as `BreakCountries.savedToday()`: store the
 /// pick *and* the `yyyy-MM-dd` it was made on, and treat a stamp that is not

@@ -50,7 +50,7 @@ shipped or listed here):
 `bullet_hole.png` `cavalry.png` `chainsaw-frames.png` `claude-icon.png`
 `confetti.mp3` `copilot-icon.png` `counter-strike.png` `death-star.png`
 `drum.gif` `ecg_line.png` `explosion.gif` `falling-bomb.png` `fire-alarm.gif`
-`fire-frames.png` `fireball-sun.png` `game-over.png` `gong.gif`
+`fire-frames.png` `fireball-sun.png` `game-over.png` `geppetto-icon.png` `gong.gif`
 `heartbeat-dog.png` `leg.png` `phoenix.mp3`
 `phoenix.png` `red-phone.png` `santa-hat.png` `wasnt-me.gif` `wolf-howl.gif`
 `zorro_fire.gif`
