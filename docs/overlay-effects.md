@@ -663,6 +663,21 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
+- **🪲 Bug walk** (⌘⌃9 in `victor-macos-addons` → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
+  2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.
+  He dragged three boxes on a 3456×2234 capture (*"walk from somewhere here, somewhere here, to
+  somewhere here"*): it **starts** in a random point of the small box low on the right, **ends** in
+  the box up on the left, and the curve's control point is drawn from the big box between them — a
+  fresh arc each press, and a quadratic curve never leaves the triangle of its points, so the walk
+  stays on the screen. The picture is `assetsDir/bug-walk.png`, 13 frames side by side (a GIPHY GIF
+  of a beetle walking in place, 100 ms a frame, licence unknown so it stays out of the repo),
+  cut out by `tools/make-bug-walk.py`: white → alpha, the soft shadow kept as translucent black so
+  it reads on a dark editor, the body's interior opaque. The legs loop (`contents` keyframes,
+  discrete) for exactly the length of the walk; position follows the path with `.rotateAuto` on an
+  outer layer, while the sprite inside is turned once by -132.5° (the body's axis in the GIF points
+  up-left) so its head leads. 170 pt/s, clamped to 2.5–9 s; 0.25 s fade in, 0.9 s standing still at
+  the end, 0.6 s fade out. Silent. A re-press while it walks takes it away. Without the strip: a log
+  line. `/test/bug`, `/test/bug/stop`, `/effect/bug`.
 - **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
   `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
   the moon plus stars, on a transparent background, in the bottom-left corner"*): the silence

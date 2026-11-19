@@ -72,6 +72,8 @@ a CC BY take, `pray-hymn-long.mp3`, started shipping in Resources),
 sound effect" by Paracetamol Sounds, played once per claw — silent claws without it),
 `small-dog.gif` (🐕 #44, 2026-10-26: Maresch&Sturm's Dribbble shot "Basti is barking",
 BiRefNet-matted and re-timed to bark on the clip, `docs/overlay-effects.md`),
+`bug-walk.png` (🪲 ⌘⌃9, 2026-11-19: 13 frames of a GIPHY beetle GIF Victor copied off Google
+Images, cut out by `tools/make-bug-walk.py`, licence unknown — no beetle without it),
 `cricket-moon.mov` (🦗 tile 12, 2026-11-04: keyed by `tools/make-cricket-moon.py` out of a clip
 Victor generated with Gemini; the tile is plain noise without it),
 `cricket-brush.png` (🦗 the black stroke behind him, 2026-11-05: cut out by

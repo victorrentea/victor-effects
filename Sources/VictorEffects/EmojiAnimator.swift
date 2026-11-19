@@ -3173,6 +3173,84 @@ class EmojiAnimator {
         fablePlayer = nil
     }
 
+    // MARK: - 🪲 Bug walk (⌃⌘9, 2026-11-19)
+
+    /// A beetle walks from the low right of the screen to the upper left along a
+    /// fresh arc each press, its legs looping the whole way, rests a moment and
+    /// fades (`BugWalk`). Silent. A re-press while it walks takes it away.
+    func showBugWalk() {
+        if cancelIfRunning(BugWalk.effectName) { return }
+        guard let url = EffectsConfig.shared.assetURL(BugWalk.spriteName),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let strip = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            overlayError("\(BugWalk.spriteName) not in \(EffectsConfig.shared.assetsDir.path)")
+            return
+        }
+        let frames = BugWalk.frames(from: strip)
+        guard let first = frames.first else { return }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+
+        var rng = SystemRandomNumberGenerator()
+        let route = BugWalk.route(in: bounds, using: &rng)
+        let walk = BugWalk.walkDuration(route)
+        let life = walk + BugWalk.rest + BugWalk.fadeOut
+        let size = BugWalk.size(in: bounds, sprite: CGSize(width: first.width, height: first.height))
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // The walker carries position and heading; the sprite inside it is turned
+        // once so its head points along +x, the direction `.rotateAuto` steers.
+        let walker = CALayer()
+        walker.bounds = CGRect(origin: .zero, size: size)
+        walker.position = route.end
+        let sprite = CALayer()
+        sprite.frame = walker.bounds
+        sprite.contents = first
+        sprite.contentsGravity = .resizeAspect
+        sprite.transform = CATransform3DMakeRotation(-BugWalk.spriteHeading, 0, 0, 1)
+        walker.addSublayer(sprite)
+
+        // The legs: the strip's frames on a loop for exactly as long as it walks,
+        // so it stands still once it has arrived.
+        let legs = CAKeyframeAnimation(keyPath: "contents")
+        legs.values = frames
+        legs.calculationMode = .discrete
+        legs.duration = Double(frames.count) * BugWalk.frameDuration
+        legs.repeatCount = Float(walk / legs.duration)
+        sprite.add(legs, forKey: "legs")
+
+        let path = CGMutablePath()
+        path.move(to: route.start)
+        path.addQuadCurve(to: route.end, control: route.control)
+        let move = CAKeyframeAnimation(keyPath: "position")
+        move.path = path
+        move.duration = walk
+        move.calculationMode = .paced
+        move.rotationMode = .rotateAuto
+        move.fillMode = .forwards
+        move.isRemovedOnCompletion = false
+        walker.add(move, forKey: "walk")
+
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = [0, 1, 1, 0]
+        fade.keyTimes = [0, NSNumber(value: BugWalk.fadeIn / life),
+                         NSNumber(value: (life - BugWalk.fadeOut) / life), 1]
+        fade.duration = life
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        walker.add(fade, forKey: "fade")
+
+        stageLayer.addSublayer(walker)
+        CATransaction.commit()
+        trackEffect(BugWalk.effectName, layer: walker, duration: life)
+    }
+
+    /// Explicit exit; `showBugWalk` already scheduled its own end.
+    func stopBugWalk() {
+        _ = cancelIfRunning(BugWalk.effectName)
+    }
+
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)
 
     static let smallDogSound = "44_small_dog.mp3"

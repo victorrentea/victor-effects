@@ -433,6 +433,8 @@ final class EffectsEngine {
         case "opus/stop":     animator.stopOpus()
         case "fable":         animator.showFable()
         case "fable/stop":    animator.stopFable()
+        case "bug":           animator.showBugWalk()
+        case "bug/stop":      animator.stopBugWalk()
         case "claude-peek":
             animator.showClaudePeek()
             // 🦀 He says hello in his entrance mood, then notices what is in
