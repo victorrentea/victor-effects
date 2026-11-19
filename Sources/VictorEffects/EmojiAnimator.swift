@@ -3090,29 +3090,70 @@ class EmojiAnimator {
     /// glow translucent, so the burst lights the desktop instead of covering it
     /// with a black frame — and shipped as HEVC with PREMULTIPLIED alpha, the
     /// phoenix's player. It FILLS the display (aspect-fill: the figure is centred,
-    /// the sides it loses are black). **The sound is the SAME file's audio track
-    /// (-14 LUFS), played by the same AVPlayer**: through `playClip` it started at
-    /// once (Bluetooth-compensated, i.e. early) while the picture waited for its
-    /// first frame, and the bursts missed their bangs (Victor, 2026-11-12). One
-    /// player keeps them in step by construction. In `assetsDir`; without it, a log line.
+    /// the sides it loses are black). Played by `playAlphaClip`, sound included.
+    /// In `assetsDir`; without it, a log line.
     static let fableVideoName = "fable-descent.mov"
-    /// The running clip's player, kept so every stop can silence it at once
-    /// rather than whenever the torn-down layer happens to release it.
-    private var fablePlayer: AVPlayer?
-    private static let fableFadeIn: Double = 0.3
-    private static let fableFadeOut: Double = 0.8
 
     func showFable() {
         if cancelIfRunning("fable") { silenceFable(); return }
-        guard let url = EffectsConfig.shared.assetURL(Self.fableVideoName) else {
-            overlayError("\(Self.fableVideoName) not in \(EffectsConfig.shared.assetsDir.path)")
+        playAlphaClip(effect: "fable", file: Self.fableVideoName, fadeIn: 0.3, fadeOut: 0.8)
+    }
+
+    /// Explicit exit; `showFable` already scheduled its own end.
+    func stopFable() {
+        _ = cancelIfRunning("fable")
+        silenceFable()
+    }
+
+    /// Silences the clip's own audio now (re-press, `/stop`, stop-all).
+    func silenceFable() { silenceAlphaClip("fable") }
+
+    // MARK: - 🔥 Grilled (⌃⌘8, 2026-11-19)
+
+    /// Two men in suits are grilled over a barbecue: flames, a storm of question
+    /// marks, a golden "?" burst, then smoke while they straighten their ties.
+    /// Victor's Gemini clip; its first second (a cartoon grill on WHITE) is cut,
+    /// the rest is on black. Keyed by `tools/make-grilled.py`: alpha = max(the
+    /// BirefNet matte of the men and the grill, a glow key on the brightest
+    /// channel), colour = the source, i.e. premultiplied — so the dark suits stay
+    /// solid while fire, sparks, question marks and smoke glow over the desktop.
+    /// Fills the display, sound inside, like ✨ Fable.
+    static let grilledVideoName = "grilled.mov"
+
+    func showGrilled() {
+        if cancelIfRunning("grilled") { silenceGrilled(); return }
+        playAlphaClip(effect: "grilled", file: Self.grilledVideoName, fadeIn: 0.3, fadeOut: 0.6)
+    }
+
+    func stopGrilled() {
+        _ = cancelIfRunning("grilled")
+        silenceGrilled()
+    }
+
+    func silenceGrilled() { silenceAlphaClip("grilled") }
+
+    // MARK: - Alpha clips with their own sound (✨ Fable, 🔥 Grilled)
+
+    /// The running clips' players, kept so every stop can silence one at once
+    /// rather than whenever the torn-down layer happens to release it.
+    private var alphaClipPlayers: [String: AVPlayer] = [:]
+
+    /// An HEVC clip with PREMULTIPLIED alpha, filling the display, fading in and
+    /// out. **The sound is the SAME file's audio track, played by the same
+    /// AVPlayer**: through `playClip` it started at once (Bluetooth-compensated,
+    /// i.e. early) while the picture waited for its first frame, and Fable's bursts
+    /// missed their bangs (Victor, 2026-11-12). One player keeps them in step by
+    /// construction. The audio fades with the picture (an `AVAudioMix` ramp).
+    private func playAlphaClip(effect: String, file: String, fadeIn: Double, fadeOut: Double) {
+        guard let url = EffectsConfig.shared.assetURL(file) else {
+            overlayError("\(file) not in \(EffectsConfig.shared.assetsDir.path)")
             return
         }
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
         let asset = AVURLAsset(url: url)
         guard asset.tracks(withMediaType: .video).first != nil else {
-            overlayError("\(Self.fableVideoName) has no video track")
+            overlayError("\(file) has no video track")
             return
         }
         let d = CMTimeGetSeconds(asset.duration)
@@ -3120,11 +3161,11 @@ class EmojiAnimator {
 
         let item = AVPlayerItem(asset: asset)
         if let audio = asset.tracks(withMediaType: .audio).first {
-            // the sound fades with the picture over the last fableFadeOut seconds
+            // the sound fades with the picture over the last fadeOut seconds
             let p = AVMutableAudioMixInputParameters(track: audio)
-            let start = CMTime(seconds: max(0, life - Self.fableFadeOut), preferredTimescale: 600)
+            let start = CMTime(seconds: max(0, life - fadeOut), preferredTimescale: 600)
             p.setVolumeRamp(fromStartVolume: 1, toEndVolume: 0,
-                            timeRange: CMTimeRange(start: start, duration: CMTime(seconds: Self.fableFadeOut, preferredTimescale: 600)))
+                            timeRange: CMTimeRange(start: start, duration: CMTime(seconds: fadeOut, preferredTimescale: 600)))
             let mix = AVMutableAudioMix(); mix.inputParameters = [p]
             item.audioMix = mix
         }
@@ -3132,10 +3173,9 @@ class EmojiAnimator {
         player.volume = SoundManager.shared.currentTabletVolume
         player.actionAtItemEnd = .pause
         let video = AVPlayerLayer(player: player)
-        // FILLS the display (16:9 on 16:10 loses a sliver of each side, which is
-        // only black): a fitted video left an empty band, and at the burst the
-        // rays stopped on a hard straight edge there. The figure is centred, so
-        // nothing of it is cut.
+        // FILLS the display (16:9 on 16:10 loses a sliver of each side): a fitted
+        // video left an empty band, and Fable's rays stopped on a hard straight
+        // edge there.
         video.frame = bounds
         video.videoGravity = .resizeAspectFill
         video.pixelBufferAttributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
@@ -3147,30 +3187,23 @@ class EmojiAnimator {
         container.addSublayer(video)
         let fade = CAKeyframeAnimation(keyPath: "opacity")
         fade.values = [0, 1, 1, 0]
-        fade.keyTimes = [0, NSNumber(value: Self.fableFadeIn / life),
-                         NSNumber(value: (life - Self.fableFadeOut) / life), 1]
+        fade.keyTimes = [0, NSNumber(value: fadeIn / life),
+                         NSNumber(value: (life - fadeOut) / life), 1]
         fade.duration = life
         fade.fillMode = .forwards
         fade.isRemovedOnCompletion = false
-        container.add(fade, forKey: "fableFade")
+        container.add(fade, forKey: "\(effect)Fade")
         stageLayer.addSublayer(container)
 
-        fablePlayer?.pause()
-        fablePlayer = player
+        alphaClipPlayers[effect]?.pause()
+        alphaClipPlayers[effect] = player
         player.play()
-        trackEffect("fable", layer: container, duration: life)
+        trackEffect(effect, layer: container, duration: life)
     }
 
-    /// Explicit exit; `showFable` already scheduled its own end.
-    func stopFable() {
-        _ = cancelIfRunning("fable")
-        silenceFable()
-    }
-
-    /// Silences the clip's own audio now (re-press, `/stop`, stop-all).
-    func silenceFable() {
-        fablePlayer?.pause()
-        fablePlayer = nil
+    private func silenceAlphaClip(_ effect: String) {
+        alphaClipPlayers[effect]?.pause()
+        alphaClipPlayers[effect] = nil
     }
 
     // MARK: - 🪲 Bug walk (⌃⌘9, 2026-11-19)
@@ -15029,6 +15062,8 @@ class EmojiAnimator {
             SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         case "fable":
             silenceFable()
+        case "grilled":
+            silenceGrilled()
         case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
         // 💣 The boom is the effect's own (the nuke's clip, seeked), not the tile's.
         case "poop-grenade": fallthrough   // 💩 87b: the same grenade's sounds
@@ -15151,5 +15186,6 @@ class EmojiAnimator {
         for boom in Self.grenadeCSBooms { SoundManager.shared.stopOverlapping(boom, fade: SoundManager.interruptFade) }  // 💣 …or CS's
         SoundManager.shared.stopOverlapping(Self.grenadeGlass, fade: SoundManager.interruptFade)  // 💣 …and its crack
         silenceFable()
+        silenceGrilled()
     }
 }

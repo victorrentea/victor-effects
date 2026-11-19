@@ -678,6 +678,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   up-left) so its head leads. 170 pt/s, clamped to 2.5–9 s; 0.25 s fade in, 0.9 s standing still at
   the end, 0.6 s fade out. Silent. A re-press while it walks takes it away. Without the strip: a log
   line. `/test/bug`, `/test/bug/stop`, `/effect/bug`.
+- **🔥 Grilled** (⌘⌃8 in `victor-macos-addons` → `grilled` / `grilled/stop`, `showGrilled`,
+  2026-11-19, Victor's Gemini clip): two men in suits are grilled over a red barbecue — flames,
+  a storm of question marks, a golden "?" burst, then smoke while they straighten their ties.
+  The clip's first second (a cartoon grill on WHITE fading to black) is cut: from 1.0 s on it is
+  black. Fable's luminance key alone would have made the navy suits see-through, so
+  `tools/make-grilled.py` keys **alpha = max(BirefNet matte, glow key on the brightest channel)**
+  (0.03 → 0.60, γ 0.85, Fable's curve) with the source as premultiplied colour: the men and the
+  grill stay solid, fire, sparks, question marks and smoke glow translucently over the desktop,
+  and over black it is the source pixel for pixel. HEVC with alpha, sound inside, -14 LUFS, in
+  `assetsDir/grilled.mov`. Same player as Fable (`playAlphaClip`, shared since this effect):
+  fills the display, 0.3 s fade in, 0.6 s out (sound ramped with it), life = the clip's length;
+  a re-press, `/stop` or stop-all end it and pause its player. Without the video: a log line.
+  `/test/grilled`, `/test/grilled/stop`, `/effect/grilled`.
 - **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
   `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
   the moon plus stars, on a transparent background, in the bottom-left corner"*): the silence
