@@ -6,7 +6,8 @@ import QuartzCore
 /// the joke. Songs show the line that is sung, plain (no ♪ in any subtitle,
 /// Victor, 2026-11-04), a said line is not wrapped in quotes (same day), and
 /// everything else names the noise or the music the way TV captions do
-/// ([wolf howling], [piano music]).
+/// ([wolf howling], [piano music]) — brackets kept in the tables to mark a
+/// noise, dropped on the glass (`onScreen`, Victor, 2026-11-19).
 ///
 /// Only while the ✓ Subtitles row is on (`SubtitlesSwitch`, off by default).
 ///
@@ -260,6 +261,17 @@ enum SoundCaptions {
         if uncaptioned.contains(asset) { return nil }
         if let line = table[asset] { return line }
         return fallback(for: asset)
+    }
+
+    /// What the glass shows: the line without its TV-caption brackets —
+    /// `[wolf howling]` goes up as `wolf howling` (Victor, 2026-11-19: no `[ ]`
+    /// on screen). The tables keep them: a leading `[` is how a noise is told
+    /// from a sung line (`schedule`, `tools/caption-align.py`).
+    static func onScreen(_ text: String) -> String {
+        text.replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .joined(separator: " ")
     }
 
     static func fallback(for asset: String) -> String? {
@@ -696,6 +708,7 @@ enum CaptionOverlay {
     }
 
     static func show(_ text: String, seconds: TimeInterval, words: [TimeInterval] = [], lastWordEnd: TimeInterval? = nil, on screen: NSScreen) {
+        let text = SoundCaptions.onScreen(text)
         // Laid out once at the rest size; the zoom only ever scales it.
         let label = Self.label(text, color: words.isEmpty ? .white : upcomingColor)
         let maxTextWidth = screen.frame.width * 0.8

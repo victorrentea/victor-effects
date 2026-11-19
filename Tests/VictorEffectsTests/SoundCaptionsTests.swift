@@ -20,6 +20,18 @@ final class SoundCaptionsTests: XCTestCase {
         XCTAssertEqual(SoundCaptions.fallback(for: "99_breaking-glass.mp3"), "[breaking glass]")
     }
 
+    func testTheGlassShowsNoBrackets() {
+        XCTAssertEqual(SoundCaptions.onScreen("[wolf howling]"), "wolf howling")
+        XCTAssertEqual(SoundCaptions.onScreen("🐮 [cow mooing]"), "🐮 cow mooing")
+        XCTAssertEqual(SoundCaptions.onScreen("Let go"), "Let go")
+        for asset in SoundCaptions.table.keys {
+            for line in SoundCaptions.schedule(for: asset, clipSeconds: 10) {
+                let shown = SoundCaptions.onScreen(line.text)
+                XCTAssertFalse(shown.contains("[") || shown.contains("]"), "\(asset): \(shown)")
+            }
+        }
+    }
+
     func testLifetimeFollowsTheClipWithinBounds() {
         XCTAssertEqual(SoundCaptions.lifetime(clipSeconds: 4), 4)
         XCTAssertEqual(SoundCaptions.lifetime(clipSeconds: 0.4), SoundCaptions.minSeconds,
