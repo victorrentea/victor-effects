@@ -41,7 +41,7 @@ enum SoundCaptions {
         "17_my_precious.mp3":         "My precious…",
         "19_fail.mp3":                "[sad trombone]",
         "20_fail2.mp3":               "[sad trombone]",
-        "20_storm.mp3":               "[thunderstorm]",
+        "20_storm.mp3":               "[rain]",
         "21_sfx_41.mp3":              "Isn't that cute? BUT IT'S WRONG!",
         "22_minigun.mp3":             "[AK47 firing]",
         "23_radar.mp3":               "[sonar scanning]",

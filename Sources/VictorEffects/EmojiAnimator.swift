@@ -9958,16 +9958,11 @@ class EmojiAnimator {
     /// which cannot be misread and can be asserted without opening a window.
     private var stormRainTimer: Timer?
 
-    /// The layer the lightning flashes on, kept so a stop can take the strikes
-    /// still to come off it: the container's fade lasts 1.4 s, plenty for one more
-    /// flash out of a storm that has been told to end.
-    private var stormFlash: CALayer?
-
     /// ⛈️ Seven fluffy clouds slide in onto the top edge and cartoon raindrops
-    /// fall out of their base for as long as the clip plays — with lightning,
-    /// irregular, on the thunder rolls. No gloom since 2026-11-20: cheerful.
+    /// fall out of their base for as long as the clip plays. Cheerful since
+    /// 2026-11-20: no gloom, no lightning, and a clip with no thunder in it.
     ///
-    /// One container holds all three parts (rain, clouds, flash) so the end is
+    /// One container holds both parts (rain, clouds) so the end is
     /// a single fade and `stopAllActiveEffects` needs no special case beyond
     /// cancelling the pending self-stop. The rain is UNDER the clouds, so every
     /// drop comes out of one.
@@ -10054,30 +10049,7 @@ class EmojiAnimator {
             layer.add(sway, forKey: "stormDrift")
         }
 
-        // 3. Lightning on the clip's thunder rolls, each one its own strength.
-        // Above the clouds: a flash that lit the desktop but not the sky it came
-        // out of would read as a monitor glitch. Every strike is booked here, on
-        // this layer, so there is no timer to outlive the storm; `clearStorm`
-        // takes back the ones still to come.
-        let flash = CAGradientLayer()
-        flash.name = RainStorm.flashLayerName
-        flash.frame = bounds
-        flash.colors = [NSColor(white: 1, alpha: RainStorm.flashFloor).cgColor, NSColor.white.cgColor]
-        flash.startPoint = CGPoint(x: 0.5, y: 0)   // the bottom edge, y up
-        flash.endPoint = CGPoint(x: 0.5, y: 1)
-        flash.opacity = 0
-        container.addSublayer(flash)
-        stormFlash = flash
-        for strike in RainStorm.strikes(within: clip) {
-            let stutter = CAKeyframeAnimation(keyPath: "opacity")
-            stutter.values = strike.opacities
-            stutter.keyTimes = strike.keyTimes
-            stutter.duration = RainStorm.flashSeconds
-            stutter.beginTime = CACurrentMediaTime() + strike.at
-            flash.add(stutter, forKey: "stormFlash\(strike.at)")
-        }
-
-        // 4. The rain, ramping up rather than switching on: the tick rate is
+        // 3. The rain, ramping up rather than switching on: the tick rate is
         // fixed and the number of drops it releases is what grows, so the sky
         // is dry until there are clouds to rain out of and the shower then
         // builds. Into the layer laid down in step 1, under the clouds.
@@ -10166,9 +10138,6 @@ class EmojiAnimator {
         // the app runs.
         stormRainTimer?.invalidate()
         stormRainTimer = nil
-        // The lightning ends with the order, not with the fade under it.
-        stormFlash?.removeAllAnimations()
-        stormFlash = nil
         guard let container = activeEffects["storm"] else { return }
         activeEffects.removeValue(forKey: "storm")
         guard fadeDuration > 0 else { container.removeFromSuperlayer(); return }

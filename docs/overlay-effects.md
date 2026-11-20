@@ -970,7 +970,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   cartoon raindrops fall out of them for the length of the clip — cheerful, no gloom
   since 2026-11-20** (Victor: *"drop the darkening too, keep it cheerful and draw some
   rain drops cartoon style"*) (18.9 s, read
-  off the mp3 via `AVURLAsset`) — with lightning on the thunder rolls inside it. Victor's
+  off the mp3 via `AVURLAsset`) — rain only, no thunder or lightning since 2026-11-20. Victor's
   ask, 2026-09-19, and it took the one square the board had left: #20 used to be the
   `N/A` row holding #19's second trombone take (`docs/sound-routing.md`).
 
@@ -1083,51 +1083,14 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   identity-guarded against `activeEffects["storm"]` and invalidated by `clearStorm`, or it
   would keep dropping rain into a detached layer for as long as the app runs.
 
-  **The lightning is the recording's own irregularity** (`RainStorm.strikes`; reworked
-  2026-11-04, Victor: *"occasional lightning, not a metronome"*). Nine strikes at 2.60 /
-  3.45 / 5.40 / 9.35 / 11.80 / 13.60 / 14.45 / 15.05 / 16.60 s, each where a roll starts to
-  rise out of the rain (20–300 Hz RMS, 100 ms frames, on the tablet's mp3). The gaps run
-  from 0.6 s to almost 4 s because the storm's do; a random schedule would have been
-  irregular and wrong. The list is fixed, so every press is the same storm: that is what
-  stays on the thunder. It replaced four strikes of equal strength, and 11.40 and 12.35 are
-  left out because they sit inside 11.80's roll. **The starter pack's `20_storm.mp3` is a
-  different, 10 s recording**: `strikes(within:)` drops what would finish past the clip, and
-  the four that remain are not on its thunder.
+  **No lightning and no thunder** (since 2026-11-20, Victor: *"fără tunete, doar
+  ploaie"*). Until then nine fixed strikes (`RainStorm.strikes`) flashed a white gradient
+  on the thunder rolls of the old clip, capped under WCAG 2.3.1's three strokes a second;
+  that code and its tests are in git history. The tile stays press-driven, so the desktop
+  still rains when the tablet plays the clip through its own speaker and the Mac never
+  sees a `/sound/play`.
 
-  One strike is a **stutter, not a fade**: real lightning is often two or three strokes a
-  few tens of ms apart, and a single smooth ramp looks like someone turning a lamp on. So
-  the near rolls get two strokes (`[0, 1, 0.15, 0.7, 0.09, 0]` × strength over 0.55 s) and
-  the distant ones a single one, at 0.45–1 of `flashPeak` by how loud the roll is, which is
-  a second irregularity, in brightness. Every strike begins and ends at fully transparent,
-  which is what keeps an interrupted one from leaving the desktop under a white sheet with
-  nothing running to take it off; and the onsets are spaced further apart than a strike
-  lasts, because two keyframe animations on one layer do not blend — the later one simply
-  wins and the earlier one stops mid-stroke.
-
-  **It must not hurt.** The old flash was white at 0.55 flat across the screen, which took a
-  dark editor's dimmed pixels from 0.07 to 0.43 in one frame. `flashPeak` is 0.45 now, only
-  the loudest roll reaches it, and only at the top edge: the flash is a **gradient** coming
-  out of the clouds, down to `flashFloor` (0.4) of that at the bottom, so the sky takes the
-  light and the demo a part of it. Rendered, the loudest strike takes the middle of a dark
-  screen from 0.07 to 0.34 and a light slide from 0.51 to 0.64. No second carries more than
-  **three strokes**, wherever it starts (the photosensitivity line, WCAG 2.3.1), which is
-  why a strike under a second from a double is a single. Tests hold the cap and the count.
-
-  **It ends with the storm.** Every strike is a CoreAnimation animation booked on the flash
-  layer at the press, so there is no timer to outlive anything; and `clearStorm` takes the
-  ones still to come off the layer **at once** rather than leaving them to the container:
-  the stop's fade lasts 1.4 s, plenty for one more flash out of a storm told to end. The
-  natural end needs nothing, no strike runs past the clip.
-
-  This is the one in-clip-cue effect driven from the **press** path rather than from
-  `playSound`, and that is deliberate. Every roll in this recording swells over ~300 ms,
-  so a flash inside a swell still reads as the flash that caused it — unlike the FBI
-  knock's 22 ms bang or the heartbeat's onsets, which need the visual to own the audio. In
-  exchange the tile still storms when the tablet plays the clip through its own speaker
-  and the Mac never sees a `/sound/play` at all, which is exactly what the seven play-path
-  tiles give up.
-
-  Everything hangs in **one container** (rain, clouds, flash, in that order — the drops
+  Everything hangs in **one container** (rain, then clouds — the drops
   under the clouds so each comes out of one), so the end is a
   single 1.4 s fade of the lot rather than the clouds sliding back out, which would cost
   another 2.3 s after the sound has stopped. The self-stop at the clip's length is the
@@ -1137,189 +1100,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   under whatever the next press put there. `/test/storm`, `/test/storm/stop` and
   `/effect/storm` fire it silently.
 
-  The clip itself is **public domain**: *Rain and thunder* by David Öhlin (2006),
-  Wikimedia Commons, normalised to −14.6 LUFS / −1.2 dBTP like the rest of the board.
-- **😇 Heaven** (tile #61 `61_hallelujah.mp3`, Bocelli's Hallelujah → `heaven` /
-  `heaven/stop`, `showHeaven`, layout and sprites in `HeavenlyLight.swift`; added
-  2026-10-22 — Victor: *"să se coboare lumină pe ecran, să văd încă translucent,
-  dar să fie emoție de îngerească"*). Light comes down from heaven for exactly the
-  clip, and **everything is see-through** — the slide under it is the demo being
-  blessed and has to stay readable:
-  - a warm gold **glow** from the top edge (alpha 0.42 there, gone by ~78% down) and a
-    fan of **9 god-rays** out of a point above the screen, each breathing and
-    swaying on its own clock. Glow and rays arrive as ONE layer that **slides down
-    from above** (3.6 s, ease-out) while it fades in — that slide is the "light
-    coming down". A reveal mask would look the same but costs an offscreen pass
-    every frame over swaying rays; the slide costs nothing.
-  - the rays are one cached 64×256 sprite (gaussian across × falloff along)
-    stretched per beam, hung from its top end so a rotation fans it; no masks, no
-    shadows — ~3 ms a frame at 4K (`EffectsRenderCostTests.testHeavenRenderCost`).
-  - **golden motes** (10–28 pt, 8 a second) drift down and twinkle — a timer flying
-    each between two points, not a `CAEmitterLayer`, for the storm's reason.
-  - **three 👼** in soft halos glide down into the top third (the middle one higher
-    and larger, staggered 0.8 / 1.4 / 2.0 s), bob gently, and **rise back up**
-    2.4 s before the clip ends, while the last Hallelujah is still sounding.
-  - On white the glow almost vanishes (light on white), on a dark editor it reads
-    as light; the room usually sees the dark one. The tablet's stop fades it out
-    (1.6 s); the clip's length is the guaranteed end.
-- **🌊 Tsunami** (tile 55b `55b_tsunami.mp3`, folded under #55 Star Wars → `tsunami` /
-  `tsunami/stop`, `Tsunami` + `showTsunami`, 2026-10-30, Victor: *"un tsunami să mă măture
-  ecranul și să-mi curețe textul, să lase fundalul cumva gri … un val mare să rupă tot"*).
-  One capture (`captureBuiltInDisplayFast`, zoom-safe through `ZoomSlice` like the skull boom)
-  stays on top, so the first frame looks like nothing happened, and **under it is plain black**
-  (2026-11-04, *"să rămână negru, nu gri"*; until then a blurred grey copy under a teal wet
-  film). A
-  **plunging breaker** slides left → right at constant speed: the lip touches the left edge
-  **0.35 s** after the press and the right edge **2.5 s** later (`frontEnters`,
-  `frontCrosses`). **The wave sweeps, it does not tear** (Victor, 2026-10-30: *"nu mai rupe
-  ecranul ci doar mătură ecranul cu valul"* — until then the screen was cut into 18 columns of
-  pieces flung into the crest): the capture on top is masked to whatever the water has not
-  reached, the mask's edge riding with the wave just behind its water on every row. What the
-  wave leaves stays black until the clip ends (7.3 s, read off the file), with the real screen fading back over the
-  last 0.8 s. **On that black, dead centre, the command the wave was: `/compact`** (2026-11-04,
-  Victor) in JetBrains Mono (Courier New where it is not installed), white, 6 % of the screen's
-  height, with a block cursor. It comes up 0.1 s after the water has left the glass and the cursor
-  blinks **three times** across the time left before the fade (`promptWindow`, ~0.8 s a blink on
-  the filmed wave), staying lit as the dark takes the text away with it. The clip is **our own, synthesized with ffmpeg** (brown-noise rumble, pink-noise
-  roar, a thump as it breaks, a hissing foam tail) and made for this timeline: the roar starts
-  and **pans L → R exactly over the 2.5 s crossing**; re-cut it and those two numbers move.
-  Silent here (the tablet routes the clip); re-press, stop-all, `/test/tsunami/stop` end it.
-  `/test/tsunami`, `/effect/tsunami`.
-  - **The filmed wave** (2026-10-30, Victor: *"folosește GIF-ul ăsta"*; since 2026-10-31 a clip
-    he generated with Gemini, *"use it for the wave effect to wipe the screen"*): when
-    `assetsDir/tsunami-wave/NN.png` is there, a real cartoon breaker replaces the drawn one —
-    60 frames at 15 fps curling in place, 1.25 × the screen's height, bottom-aligned (so the
-    crest reaches the top edge and every row is swept by water, not sky), carried by the same
-    slide. `tools/make-tsunami-wave.py` takes the 4 s of the clip where the wave is fully grown
-    and breaking (2.7 s in) and:
-    - **keys by connectivity, not colour** — the foam is the same ~245 grey as the background,
-      so the background is the near-grey region connected to the frame's top/left/right
-      border (the drawing's blue outlines wall the foam off), plus large flat enclosed pockets
-      of it (the inside of the barrel once the lip closes onto the water); edges un-mixed
-      from the background colour;
-    - **holds the wave in place** — the film's wave travels across its own frame, but here the
-      slide does the travelling, so each frame is cropped to a window riding the crest's
-      front (smoothed: the crest stalls mid-curl and surges as it crashes, so a straight-line
-      fit let the curl run off the window);
-    - fades the window's left 30 % (from where the film starts, not from the window's edge,
-      which early on reaches past the film) and right 4 % (a hard edge of sea would slide along).
-    Its front is the other way round from the drawn breaker's: the sea at the bottom leads
-    (98 % of the frame's width), the crest trails (~52 %) — so the screen is swept row by row
-    as *that row's* water reaches it, from a profile read off the frames at load
-    (`frontProfile`, which places the lip). The sweep's edge (`Sprite.edge`, 2 % of the frame
-    behind the water) follows a stricter profile, `sweepProfile`: per row, how far the water
-    reaches in its **shortest** frame, with the hollow under the curl (a gap ≥ 4 % of the frame)
-    counting as not reached, and a speck of spray ahead of or behind the longest run of water not
-    counting at all. The top 38 % of the frame (`crestShare`, crest and spray, no hollow) takes
-    `front` instead: going by the shortest frame there left the old screen standing above the
-    crest after the wave had passed (2026-11-04). Until 2026-11-03 it followed the majority front, so the grey of the time
-    showed through the barrel and under the sea's tongue in the frames where it ran short
-    (Victor: *"sub valul ăla … e gri sub el, doamne ferește"*); ahead of the edge the old screen
-    shows through any gap, which reads right — the wave has not got there yet. **The mask is one rectangle per row** (`aheadPath`), not one polygon through the
-    edge: the 540-point concave polygon was tessellated with a diagonal wedge of the screen
-    already swept before the wave arrived (found offscreen with CARenderer, 2026-10-31, with
-    the GIF's frames too). The lip crosses the glass on the same 2.5 s, then the wave leaves in
-    `spriteExit` 1.2 s, so the black and the `/compact` have the clip's last ~2.5 s to themselves. Without the
-    frames, the drawn breaker as above.
-- **🌑 Death Star** (sfx #55 `55_star_wars.mp3` → `star-wars` / `star-wars/stop`,
-  `showStarWars`): a Death Star climbs the diagonal out of the bottom-left corner and
-  **stops low and left of centre** (`starWarsRestPoint` = 0.272 W, 0.347 H — its
-  centre, a spot Victor drew on the screen himself), 0.69 of the screen height
-  across, in 6.5 s of the 10 s clip; the last 3.5 s it simply hangs there.
-  - **The artwork is the Death Star II, mirrored** (2026-09-18, the second art
-    change that day). `124-1240061_death-star-2-…png`, 460 × 440 and the only
-    copy of this render with a real alpha channel: the unfinished sphere, its
-    superlaser dish on one side, the ribbed construction lattice eating the
-    other. The source has the dish up-**left** — pointing back down the diagonal
-    the thing has just climbed. **Flipped on OX it leads with the dish** and
-    drags its scaffolding behind it, which is the only orientation that reads as
-    arriving rather than leaving.
-  - **The recipe is one flip and one integer crop. Nothing is resampled.** The
-    circle is *measured*, not assumed: a least-squares fit to the smooth left
-    limb (max residual 1.0 px) gives centre 235.0, 222.5 and r 191.4, and no
-    opaque pixel anywhere stands more than 0.9 px outside it. The flipped image
-    is cropped to a 429 × 429 box centred on that circle, so the sphere fills
-    **0.8924** of the artwork's height: `starWarsSphereFraction` (0.893) and
-    every size derived from it are untouched, the sphere is still centred in its
-    canvas the way `layer.position` assumes, and **no code changed**. The box is
-    integer on purpose — the source's transparent background is *white*
-    (255,255,255,0), so any resampling would bleed white into the limb, the
-    fringe this effect has already been burned by once.
-  - **The alpha is kept, not redrawn — this art is meant to have holes.** The
-    previous asset threw its alpha away and painted an exact circle, because a
-    whole sphere that is subtly translucent reads on cream slides as a ghost.
-    Here the gaps ARE the picture: 15.9% of the sphere's trailing half is fully
-    transparent (the construction lattice) against 0.0% of its leading half, and
-    a circular mask would fill that lattice with the source's white background.
-    What was checked instead is the thing that actually bit us — the limb
-    averages rgb 23/31/34 over 1139 samples and 0.4% of it is near-white, so
-    there is no cut-out halo to inherit.
-  - **429 px where the last one was 966**, so the sphere is magnified ~4× on the
-    retina instead of ~1.8×. That is the price of the alpha channel: the 860 ×
-    906 version of the same render downloaded beside it is *fully opaque*, with
-    the transparency checkerboard baked in as pixels.
-  - **Two shapes failed before it and both lessons still bind.** The first
-    `death-star.png` was a *crop*, cut off flat along its left and bottom edges,
-    so the only place those cuts were invisible was welded into the bottom-left
-    corner; pulled 10% inboard it showed two straight slices. Its missing limb
-    was then **rebuilt** by radial extrapolation, which bought back the
-    silhouette but not the picture — the fabricated limb was a pale smeared
-    crescent that read as the sphere being half transparent, the exact complaint
-    it was meant to fix. The third was a whole render
-    (`wallpapers.com/images/hd/death-star-artwork-png-nvm-xpb738481cx20df5.png`),
-    squared from 4.5% oblate and cut to an exact circle. Hence the two rules
-    above: **measure the circle, invent no pixels.**
-  - **Candidates are rejected on their drop shadow, not their looks.** Most Death
-    Star cut-outs on stock sites carry an opaque shadow blob fused to the
-    silhouette; a circular mask makes it fully opaque and it lands on screen as a
-    grey smudge welded to the limb. A candidate whose alpha≥128 bbox is an ellipse
-    *and* whose filled area matches that ellipse is shadow-free — that test, not the
-    thumbnail, picked the previous render out of ~50.
-  - The result ships **in the app bundle**, and only there — it
-    used to have a downloads-folder fallback, where one tidy-up would have
-    silently killed the effect. (The four effects that still read an external
-    file — love-hands, brother, gangnam, fail — go through
-    `EffectsConfig.assetURL(_:)` and degrade to doing nothing.)
-  - **Sizes are stated as the SPHERE, never as the picture** (`starWarsSphereHeight`
-    0.69, `starWarsSphereFraction` 0.893 = how much of the artwork's height the sphere
-    fills). The old code sized the *image* to 0.40 H, but the image was a crop, so the
-    sphere was really 0.462 H — which is why "half again bigger" is 0.69 and not 0.60.
-    Re-cut the art and `starWarsSphereFraction` is the only number to change.
-  - **It starts tangent to the corner**, i.e. exactly one radius outside it along the
-    line to the rest point, so the first frame already has a sliver on screen. The old
-    start was a hand-tuned bbox offset that still spent ~0.3 s on an empty screen
-    (and, before that tuning, ~3 s — the image's top-right corner is transparent).
-  - **Speed**: the path is now ~2.5× longer than the corner-park it replaced, and it is
-    covered in 6.5 s instead of 8, so the thing moves **three times** as fast as it did.
-    Twice was the ask; at exactly twice, the longer journey would need 9.8 s and no
-    longer fit under the clip.
-- **🕳️ Iris close** (tile #31, repurposed from Tarzan): a cinematic "iris out"
-  blackout. The Android tile #31 is redrawn as a **black circle
-  with a white centre and four inward-pointing arrows** (vector `sfx_31_iris.xml`);
-  its own mp3 is a **silent clip** but keeps the asset id `31_tarzan.mp3` (protocol/
-  manifest stable). It **stays in `SoundEffectMap`** (`31_tarzan.mp3` → `iris`):
-  the **press path** drives the visual, so it isn't double-triggered. **Paired
-  sound:** the iris was originally soundless, but to keep **every** tablet
-  thumbnail audible on the Mac, `onSoundPlay` now special-cases `31_tarzan.mp3` to
-  play the **dramatic gong** (~8.6s ≈ the iris length) — since 2026-11-09 from
-  **its own copy, `iris_gong.mp3`** (byte-identical to #50's `50_gong.mp3`), so a ＋ or a
-  ▲ on #31 never changes #50 and the other way round (`TileAudio`) — like
-  radar/money, the routed play path owns the sound while the press path owns the
-  visual. `showIrisClose` itself stays silent (the CALayer effect plays no audio).
-  `showIrisClose` overlays a **radial
-  `CAGradientLayer`** (square, side = screen diagonal, so the gradient is a true
-  circle and location 1.0 lands on the corners) — transparent centre, opaque
-  black edge, with a soft transition band. Animating the gradient `locations`
-  shrinks the clear hole from the screen-circumscribing circle (nothing hidden)
-  to nothing over **5s** (`.easeIn`) — black creeps in **from the corners** and
-  swallows the screen. It then **dwells ~1s on full black and auto-fades back out
-  over ~1s** to reveal the screen (no second press needed). **Pressing the tile
-  again** before that auto-reveal cancels early with a quick (~0.35s) fade
-  (`cancelIris`). The effect is deliberately **kept out of `activeEffects`** so
-  `stopAllActiveEffects()` (which the tablet fires before *every* press) leaves it
-  alone — that's what lets the second press reach `showIrisClose` and toggle
-  instead of being wiped + restarted. `/test/iris` and `/effect/iris` call
-  `showIrisClose` directly.
+  The clip itself is **public domain**: *Rain* (Wikimedia Commons `File:Rain.ogg`,
+  recorded 2007-04-04 by Commons user ジダネ), 10.3 s of steady rain looped once with a
+  1.5 s crossfade to 18.9 s, normalised to −14.6 LUFS / −1.8 dBTP like the rest of the
+  board. It replaced *Rain and thunder* by David Öhlin (2006) on 2026-11-20.
 
 - **💀 Game over → 📺 CRT shutdown** (tile #59 `59_game_over.mp3` → `game-over` /
   `game-over/stop`, `showGameOver` + `showCrtShutdown`/`CrtShutdown.swift`): the

@@ -121,11 +121,10 @@ enum SoundEffectMap {
         "46_michael_buble.mp3":  "snow",
         // Tile 20 (⛈️ storm) — the square #19's second trombone take used to
         // hold. Seven fluffy clouds slide in onto the top edge and cartoon
-        // raindrops fall out of them for the length of the clip (no gloom),
-        // with lightning on the thunder rolls. Press-driven on purpose: the
-        // rolls in this recording swell over ~300 ms, so nothing here needs the
-        // sample accuracy that puts the FBI knock on the play path — and this
-        // way the desktop still storms when the tablet plays the clip through
+        // raindrops fall out of them for the length of the clip — no gloom, no
+        // lightning, and since 2026-11-20 a rain-only clip with no thunder.
+        // Press-driven on purpose: nothing here needs sample accuracy, and this
+        // way the desktop still rains when the tablet plays the clip through
         // its own speaker and the Mac never sees a /sound/play.
         "20_storm.mp3":          "storm",
         // Tile 61 (Bocelli's Hallelujah, since 2026-09-25; plain until

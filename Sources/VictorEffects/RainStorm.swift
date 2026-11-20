@@ -24,8 +24,9 @@ enum RainStorm {
 
     // MARK: - The clip
 
-    /// The tile's own audio (rain, with six rolls of thunder in it). The visual
-    /// lasts exactly as long as this plays.
+    /// The tile's own audio: steady rain, **no thunder** since 2026-11-20 (Victor:
+    /// *"fără tunete, doar ploaie"*). The visual lasts exactly as long as this
+    /// plays.
     static let soundName = "20_storm.mp3"
 
     /// Measured 18.90 s. Only used when `soundsDir` has no copy to ask.
@@ -35,73 +36,6 @@ enum RainStorm {
     /// 2026-10-03: the rain was too loud next to the other tiles). A gain in
     /// code rather than a re-encoded mp3: the asset lives in the tablet's repo.
     static let soundGain: Float = 0.5
-
-    /// One flash of lightning: when, how hard, and in how many strokes.
-    struct Strike {
-        /// Seconds into the clip.
-        let at: Double
-        /// 0…1 of [flashPeak]. The loudest roll gets 1; a short distant one, under half.
-        let strength: Float
-        /// 1 or 2. Real lightning is often two or three strokes a few tens of ms
-        /// apart, and a single smooth ramp looks like someone turning a lamp on.
-        let strokes: Int
-
-        /// The layer's opacity through this strike. Starts and ends at zero, so a
-        /// strike cut off halfway leaves nothing on the desktop.
-        var opacities: [Float] {
-            let peak = flashPeak * strength
-            return strokes > 1 ? [0, peak, peak * 0.15, peak * 0.7, peak * 0.09, 0]
-                               : [0, peak, peak * 0.12, 0]
-        }
-
-        var keyTimes: [NSNumber] {
-            strokes > 1 ? [0, 0.04, 0.12, 0.2, 0.34, 1.0] : [0, 0.04, 0.2, 1.0]
-        }
-
-        /// When each stroke peaks, in seconds into the clip.
-        var strokeTimes: [Double] {
-            let peaks = strokes > 1 ? [1, 3] : [1]
-            return peaks.map { at + keyTimes[$0].doubleValue * flashSeconds }
-        }
-    }
-
-    /// The storm's lightning: **the irregularity is the recording's own.** Each
-    /// strike sits where a roll starts to rise out of the rain, read off the clip
-    /// (20–300 Hz RMS, 100 ms frames; re-measured 2026-11-04, Victor: *"occasional
-    /// lightning, not a metronome"*), which gives the gaps of a real storm for free
-    /// — 0.6 s between two, then a lull of almost 4 s — and a flash the ear agrees
-    /// with. A random schedule would have been irregular and wrong.
-    ///
-    /// The list is fixed, so every press is the same storm: that is what stays on
-    /// the thunder. Two rises are left out on purpose: 11.40 s and 12.35 s sit
-    /// inside 11.80's roll, no further from it than a strike lasts.
-    ///
-    /// The strikes are fired from the **press** path, which is a different HTTP
-    /// request from the one that starts the audio, so these land within a
-    /// couple hundred ms of the sound rather than on its exact sample. That is
-    /// affordable *here* and would not be for the FBI knock or the heartbeat:
-    /// every roll in this recording swells over ~300 ms, and a flash inside a
-    /// swell reads as the flash that caused it. It is also what keeps the tile
-    /// working when the tablet plays the clip through its own speaker and the
-    /// Mac never sees a `/sound/play` at all.
-    static let strikes: [Strike] = [
-        Strike(at: 2.60, strength: 0.75, strokes: 2),
-        Strike(at: 3.45, strength: 0.60, strokes: 1),
-        Strike(at: 5.40, strength: 0.65, strokes: 2),
-        Strike(at: 9.35, strength: 0.80, strokes: 2),
-        Strike(at: 11.80, strength: 0.70, strokes: 2),
-        Strike(at: 13.60, strength: 0.45, strokes: 1),
-        Strike(at: 14.45, strength: 0.60, strokes: 1),
-        Strike(at: 15.05, strength: 1.00, strokes: 2),
-        Strike(at: 16.60, strength: 0.45, strokes: 1),
-    ]
-
-    /// The strikes that finish before the clip does: a flash past its end would go
-    /// off in the storm's fade-out. This is more than arithmetic: the starter
-    /// pack's public clip is a different, 10 s recording.
-    static func strikes(within clip: Double) -> [Strike] {
-        strikes.filter { $0.at + flashSeconds < clip }
-    }
 
     // MARK: - Timeline
 
@@ -123,34 +57,10 @@ enum RainStorm {
     static let rainLeadIn: Double = 1.5
     static let rainRampSeconds: Double = 2.6
 
-    /// The whole storm fades out together at the end of the clip — clouds,
-    /// darkness and rain — rather than the clouds sliding back out. A retreat
+    /// The whole shower fades out together at the end of the clip — clouds
+    /// and rain — rather than the clouds sliding back out. A retreat
     /// would cost another 2.3 s after the sound has already stopped.
     static let fadeOutSeconds: Double = 1.4
-
-    /// One strike's length, afterglow included; the strokes are in its first third.
-    static let flashSeconds: Double = 0.55
-
-    /// **The hardest the sky ever flashes**, as the opacity of white at the top
-    /// edge. It was 0.55 flat across the screen until 2026-11-04, which took a dark
-    /// editor's dimmed pixels from 0.07 to 0.43 in one frame: fine four times, a
-    /// complaint nine times over in a room with the lights down. One strike only
-    /// (15.05 s, the loudest roll) reaches this; the middle of the screen gets less,
-    /// see [flashFloor].
-    static let flashPeak: Float = 0.45
-
-    /// The flash's alpha at the BOTTOM edge, as a fraction of the top's. Lightning
-    /// comes out of the clouds, so the sky takes the light and the demo under it a
-    /// part: it reads better than a white sheet and sends less light into the room.
-    static let flashFloor: CGFloat = 0.4
-
-    /// So a test can find the layer in the tree.
-    static let flashLayerName = "storm-flash"
-
-    /// Most strokes in any one second, the line under which a flash cannot provoke
-    /// a seizure (WCAG 2.3.1). Strokes come in pairs, so two strikes under a second
-    /// apart may not both be doubles. `RainStormTests` holds it.
-    static let maxStrokesPerSecond = 3
 
     // MARK: - The cloud band
 
