@@ -14,11 +14,12 @@ Keyed like 🔥 Grilled (tools/make-grilled.py):
 
 so the hands and the dark sleeves stay solid and the lightning lights the desktop.
 
-**The ending closes the circle** (Victor: "loop it backwards … pulling the hands down at the
-end"): after the last frame the storm cross-fades in XFADE frames into CALM (hands up, no
-lightning yet), then the clip runs BACKWARDS from CALM to its first frame, so the hands sink
-out of the bottom edge. The sound does the same: the storm fades out while the opening hum,
-reversed, goes down with the hands.
+**The hands go first** (Victor, 2026-11-20: "the hands fade out right before the lightning
+disappears, while lightning is still coming out"): over HANDS_OUT the hands fade away inside their
+matte while the storm keeps raging around them; their place fills with the storm's own glow,
+blurred in from around them. The storm itself is faded by the player (playAlphaClip's fadeOut),
+not in here: faded inside the file, low alpha lost its colour to the encoder and went grey. (A first cut played the opening backwards so the hands sank out of the screen; he
+preferred this.)
 
 Mattes: the video-remove-bg skill's venv, one PNG per matted source frame, same name:
 
@@ -36,8 +37,7 @@ import numpy as np
 from PIL import Image
 
 FPS = 24
-CALM = 31             # f_0031 = hands fully up, before the first spark
-XFADE = 12            # 0.5 s from the full storm back to CALM
+HANDS_OUT = (196, 220)   # frames (0-based) over which the hands fade: 8.2 -> 9.2 s
 LO, HI, GAMMA = 0.03, 0.60, 0.85   # Fable's / Grilled's glow curve
 
 
@@ -58,12 +58,38 @@ def matte(masks: Path, frames: list, i: int, size) -> np.ndarray:
     return np.maximum.reduce([load_mask(masks / frames[j].name, size) for j in near])
 
 
-def frame_rgba(src: Path, m: np.ndarray) -> np.ndarray:
+def smooth(t: float) -> float:
+    t = min(1.0, max(0.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def blur(x: np.ndarray, size) -> np.ndarray:
+    """A wide, cheap blur: down to 1/8, Gaussian, back up."""
+    w, h = size
+    small = np.asarray(Image.fromarray(x.astype(np.float32), "F").resize((w // 8, h // 8), Image.BILINEAR))
+    r = np.arange(-18, 19)
+    g = np.exp(-(r / 6.0) ** 2 / 2); g /= g.sum()
+    small = np.apply_along_axis(lambda v: np.convolve(np.pad(v, 18, mode="edge"), g, "valid"), 0, small)
+    small = np.apply_along_axis(lambda v: np.convolve(np.pad(v, 18, mode="edge"), g, "valid"), 1, small)
+    return np.asarray(Image.fromarray(small.astype(np.float32), "F").resize((w, h), Image.BILINEAR), dtype=np.float32)
+
+
+def frame_rgba(src: Path, m: np.ndarray, hands: float) -> np.ndarray:
+    """hands: 1 = hands solid, 0 = gone — replaced by the storm's own glow around them, blurred
+    in, so no hand-shaped hole is left in the haze (there is nothing BEHIND them in the clip)."""
     s = np.asarray(Image.open(src).convert("RGB"), dtype=np.float32) / 255
     k = np.clip((s.max(axis=2) - LO) / (HI - LO), 0, 1) ** GAMMA
     a = np.maximum(m, k)
     rgb = np.minimum(s, a[..., None])
-    return np.dstack([rgb, a])
+    px = np.dstack([rgb, a])
+    if hands >= 1:
+        return px
+    size = (s.shape[1], s.shape[0])
+    out = 1 - m                                            # where the storm is not hidden
+    weight = np.maximum(blur(out, size), 1e-3)
+    fill = np.dstack([blur(px[..., c] * out, size) / weight for c in range(4)])
+    gone = (m * (1 - hands))[..., None]
+    return px * (1 - gone) + fill * gone
 
 
 def main(clip: str, masks: str, out: str) -> None:
@@ -73,30 +99,14 @@ def main(clip: str, masks: str, out: str) -> None:
                         f"{src}/f_%04d.png"], check=True)
         frames = sorted(src.glob("f_*.png"))
         size = Image.open(frames[0]).size
-        keyed = lambda i: frame_rgba(frames[i], matte(Path(masks), frames, i, size))   # 0-based
         rgba = Path(tmp, "rgba"); rgba.mkdir()
-        n = 0
-        def put(px: np.ndarray) -> None:
-            nonlocal n
-            Image.fromarray(np.round(px * 255).astype(np.uint8), "RGBA").save(f"{rgba}/{n:04d}.png")
-            n += 1
-        for i in range(len(frames)):                       # forward: rise, sparks, storm
-            put(keyed(i))
-        last, calm = keyed(len(frames) - 1), keyed(CALM - 1)
-        for j in range(1, XFADE + 1):                      # storm -> calm (premultiplied: a plain lerp)
-            t = j / (XFADE + 1)
-            t = t * t * (3 - 2 * t)
-            put(last * (1 - t) + calm * t)
-        for i in range(CALM - 1, -1, -1):                  # backwards: the hands sink
-            put(keyed(i))
+        n = len(frames)
+        for i in range(n):
+            hands = 1 - smooth((i - HANDS_OUT[0]) / (HANDS_OUT[1] - HANDS_OUT[0]))
+            px = frame_rgba(frames[i], matte(Path(masks), frames, i, size), hands)
+            Image.fromarray(np.round(px * 255).astype(np.uint8), "RGBA").save(f"{rgba}/{i:04d}.png")
 
-        main_s = len(frames) / FPS
-        tail_s = (XFADE + CALM) / FPS
-        audio = (f"[1:a]atrim=0:{main_s:.3f},asetpts=PTS-STARTPTS,"
-                 f"afade=t=out:st={main_s - 0.5:.3f}:d=0.5[a];"
-                 f"[1:a]atrim=0:{tail_s:.3f},asetpts=PTS-STARTPTS,areverse,"
-                 f"afade=t=in:d=0.4,afade=t=out:st={tail_s - 0.4:.3f}:d=0.4[b];"
-                 f"[a][b]concat=n=2:v=0:a=1,loudnorm=I=-14:TP=-1.5:LRA=11[aout]")
+        audio = "[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
         subprocess.run(["ffmpeg", "-v", "error", "-y",
                         "-framerate", str(FPS), "-i", f"{rgba}/%04d.png",
                         "-i", clip,

@@ -3163,7 +3163,8 @@ class EmojiAnimator {
     /// clip on black, keyed by `tools/make-power.py` the way 🔥 Grilled is: alpha =
     /// max(the BirefNet matte of the hands, a glow key on the brightest channel),
     /// so the hands and sleeves stay solid and the lightning lights the desktop.
-    /// Fills the display, sound inside, like ✨ Fable.
+    /// Near the end the hands dissolve into the storm (in the file); the storm
+    /// itself is faded here, by the layer (fadeOut). Sound inside, like ✨ Fable.
     static let powerVideoName = "power.mov"
 
     func showPower() {

@@ -716,10 +716,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   of blue lightnings going all over the screen, filling it up — to represent the power"*). Two old
   hands in dark robe sleeves rise from the bottom edge (0–1.3 s), sparks crawl between their
   fingers, then from ~2.4 s blue lightning shoots from the fingertips until it fills the frame.
-  **It closes the circle** (Victor: *"loop it backwards … pulling the hands down at the end"*):
-  after the last frame the storm cross-fades in 0.5 s back to frame 31 (hands up, no spark yet) and
-  the opening runs **backwards**, so the hands sink out of the bottom edge; the sound does the same
-  (the storm fades out, the opening hum plays reversed). Keyed by `tools/make-power.py` exactly like
+  **The hands go first** (Victor: *"the hands fade out right before the lightning disappears,
+  while lightning is still coming out"*): from 8.2 to 9.2 s they dissolve inside their matte while
+  the storm keeps raging, their place filled with the storm's own glow blurred in from around them
+  (the clip has nothing behind them); then the player's 0.8 s fade-out takes the lightning. A first
+  cut played the opening backwards so the hands sank out of the screen; this one replaced it the
+  same evening. The storm is NOT faded inside the file: at low alpha the HEVC encoder lost the
+  colour and the lightning went grey, so the fade is the layer's opacity. Keyed by `tools/make-power.py` exactly like
   Grilled — alpha = max(BirefNet matte of the hands, glow key on the brightest channel), colour
   premultiplied — so the hands and sleeves stay solid and the lightning lights the desktop. HEVC with
   alpha, sound inside, -14 LUFS, `assetsDir/power.mov`, played by `playAlphaClip` (fills the display,
