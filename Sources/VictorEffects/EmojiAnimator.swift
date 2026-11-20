@@ -3155,6 +3155,29 @@ class EmojiAnimator {
 
     func silenceGrilled() { silenceAlphaClip("grilled") }
 
+    // MARK: - ⚡ Unlimited power (⌃⌘6, 2026-11-20)
+
+    /// Two old hands in dark robe sleeves rise from the bottom of the screen and
+    /// loose blue lightning from their fingertips until it fills the whole screen —
+    /// *"to represent the power, this should be the feeling"* (Victor). His Gemini
+    /// clip on black, keyed by `tools/make-power.py` the way 🔥 Grilled is: alpha =
+    /// max(the BirefNet matte of the hands, a glow key on the brightest channel),
+    /// so the hands and sleeves stay solid and the lightning lights the desktop.
+    /// Fills the display, sound inside, like ✨ Fable.
+    static let powerVideoName = "power.mov"
+
+    func showPower() {
+        if cancelIfRunning("power") { silencePower(); return }
+        playAlphaClip(effect: "power", file: Self.powerVideoName, fadeIn: 0.2, fadeOut: 0.8)
+    }
+
+    func stopPower() {
+        _ = cancelIfRunning("power")
+        silencePower()
+    }
+
+    func silencePower() { silenceAlphaClip("power") }
+
     // MARK: - Alpha clips with their own sound (✨ Fable, 🔥 Grilled)
 
     /// The running clips' players, kept so every stop can silence one at once
@@ -15319,6 +15342,8 @@ class EmojiAnimator {
             silenceFable()
         case "grilled":
             silenceGrilled()
+        case "power":
+            silencePower()
         case "sonar":         SoundManager.shared.stop("23_radar.mp3", fade: SoundManager.interruptFade)
         // 💣 The boom is the effect's own (the nuke's clip, seeked), not the tile's.
         case "poop-grenade": fallthrough   // 💩 87b: the same grenade's sounds
@@ -15442,5 +15467,6 @@ class EmojiAnimator {
         SoundManager.shared.stopOverlapping(Self.grenadeGlass, fade: SoundManager.interruptFade)  // 💣 …and its crack
         silenceFable()
         silenceGrilled()
+        silencePower()
     }
 }

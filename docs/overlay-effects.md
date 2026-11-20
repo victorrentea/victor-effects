@@ -711,6 +711,20 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   fills the display, 0.3 s fade in, 0.6 s out (sound ramped with it), life = the clip's length;
   a re-press, `/stop` or stop-all end it and pause its player. Without the video: a log line.
   `/test/grilled`, `/test/grilled/stop`, `/effect/grilled`.
+- **⚡ Unlimited power** (⌘⌃6 in `victor-mac` → `power` / `power/stop`, `showPower`,
+  2026-11-20, Victor's Gemini clip; *"two hands rising from the bottom of the screen … then a bunch
+  of blue lightnings going all over the screen, filling it up — to represent the power"*). Two old
+  hands in dark robe sleeves rise from the bottom edge (0–1.3 s), sparks crawl between their
+  fingers, then from ~2.4 s blue lightning shoots from the fingertips until it fills the frame.
+  **It closes the circle** (Victor: *"loop it backwards … pulling the hands down at the end"*):
+  after the last frame the storm cross-fades in 0.5 s back to frame 31 (hands up, no spark yet) and
+  the opening runs **backwards**, so the hands sink out of the bottom edge; the sound does the same
+  (the storm fades out, the opening hum plays reversed). Keyed by `tools/make-power.py` exactly like
+  Grilled — alpha = max(BirefNet matte of the hands, glow key on the brightest channel), colour
+  premultiplied — so the hands and sleeves stay solid and the lightning lights the desktop. HEVC with
+  alpha, sound inside, -14 LUFS, `assetsDir/power.mov`, played by `playAlphaClip` (fills the display,
+  0.2 s fade in, 0.8 s out). A re-press, `/stop` or stop-all end it. Without the video: a log line.
+  `/test/power`, `/test/power/stop`, `/effect/power`.
 - **🦗 Cricket and moon** (tile #12 `12_cricket.mp3` → `cricket-moon` / `cricket-moon/stop`,
   `CricketMoon` + `showCricketMoon`, 2026-11-04, Victor's Gemini clip, *"only the cricket and
   the moon plus stars, on a transparent background, in the bottom-left corner"*): the silence

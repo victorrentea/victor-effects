@@ -78,6 +78,8 @@ Images, cut out by `tools/make-bug-walk.py`, licence unknown — no beetle witho
 (Dw6BCAZqkaQ, Victor's pick), Howard Shore's film score, faded and loudness-normalised — a silent eye without it),
 `grilled.mov` (🔥 ⌘⌃8, 2026-11-19: keyed by `tools/make-grilled.py` out of a clip Victor
 generated with Gemini, sound inside — no grill without it),
+`power.mov` (⚡ ⌘⌃6, 2026-11-20: keyed by `tools/make-power.py` out of a clip generated with
+Gemini, its ending played backwards, sound inside — no lightning without it),
 `cricket-moon.mov` (🦗 tile 12, 2026-11-04: keyed by `tools/make-cricket-moon.py` out of a clip
 Victor generated with Gemini; the tile is plain noise without it),
 `cricket-brush.png` (🦗 the black stroke behind him, 2026-11-05: cut out by

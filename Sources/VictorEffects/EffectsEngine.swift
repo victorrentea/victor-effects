@@ -439,6 +439,8 @@ final class EffectsEngine {
         case "fable/stop":    animator.stopFable()
         case "grilled":       animator.showGrilled()
         case "grilled/stop":  animator.stopGrilled()
+        case "power":         animator.showPower()
+        case "power/stop":    animator.stopPower()
         case "bug":           animator.showBugWalk()
         case "bug/stop":      animator.stopBugWalk()
         case "eye":           animator.showEyeTower()
