@@ -1,6 +1,6 @@
 import AppKit
 
-/// Where every window of this app sits: **above Victor Addons' 🔎 ShareZoom**, which
+/// Where every window of this app sits: **above Victor Mac' 🔎 ShareZoom**, which
 /// is above everything else (`maximumWindow + 3` since 2026-10-27, so Walkie Talkie's
 /// panels at `+ 1` are magnified with the rest of the screen — Victor: *"zoom-ul cel
 /// mai topmost; deasupra lui sunt doar efectele speciale"*). ShareZoom leaves these

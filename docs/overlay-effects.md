@@ -3012,5 +3012,5 @@ path; and a visual already
 queued behind Bluetooth compensation when the suspend lands is outvoted
 (`docs/sound-routing.md`, *Bluetooth wake-up compensation*).
 
-Victor Addons proxies `/effect/*` verbatim, so the caller talks to **55123** like
+Victor Mac proxies `/effect/*` verbatim, so the caller talks to **55123** like
 every other client and never needs to know this app's port.

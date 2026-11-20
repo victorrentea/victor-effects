@@ -6,7 +6,7 @@ import Foundation
 ///
 /// In a Zoom or Teams share with the computer's sound shared, the room hears the
 /// soundboard through the meeting next to his mic — and on 2026-11-09 the
-/// effects came out far louder than his voice. Victor Addons measures the voice
+/// effects came out far louder than his voice. Victor Mac measures the voice
 /// on the mic the meeting actually uses (its `VoiceMeter`) and pushes the
 /// reference here once a second while a share is up (`GET /voice/ref?sharing=1&ref=<LUFS>`)
 /// and once when it ends (`sharing=0`). Every sound that starts meanwhile is held

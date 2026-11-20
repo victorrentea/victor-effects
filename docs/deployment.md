@@ -132,7 +132,7 @@ orders their startup and neither waits for the other: the proxy answers
 `effectsUp:false` while this app is down, and this app's webhook is
 fire-and-forget.
 
-`pkill -f "Victor Addons"` does not touch this app, and vice versa — the deploy
+`pkill -f "Victor Mac"` does not touch this app, and vice versa — the deploy
 line names the app you actually changed.
 
 **Never start either by its binary path** (`.../Contents/MacOS/Victor Effects`).

@@ -425,7 +425,7 @@ Pinned by `SpeakerBatteryTests` (frames, UID parsing, choice, visit list).
 On 2026-11-09, in a Zoom call with **Share sound** on, the soundboard came out far louder
 than Victor's voice: his mic gain was low and the effects went to the room at full level.
 He changes mics (lapel, Bose, the XLR on the Elgato, the built-in, usually through Krisp),
-so no fixed attenuation fits — the voice is **measured**. Victor Addons does that
+so no fixed attenuation fits — the voice is **measured**. Victor Mac does that
 (`VoiceMeter`: K-weighted momentary loudness on the mic the meeting actually captures,
 only while he is screen-sharing in Zoom or Teams) and **pushes** the result here:
 `GET /voice/ref?sharing=1&ref=<LUFS>&src=live|held|previous|default` once a second during
