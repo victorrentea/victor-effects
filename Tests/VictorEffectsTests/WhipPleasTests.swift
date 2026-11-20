@@ -19,13 +19,16 @@ final class WhipPleasTests: XCTestCase {
         }
     }
 
-    /// In Sweden a third of the cracks are Swedish (2026-11-18), the rest are
-    /// everyone else's, and still no word follows itself.
-    func testTodaysCountryComesUpAThirdOfTheTime() {
+    /// In Sweden every third crack is Swedish, the first one included — a
+    /// count, not a probability (2026-11-20) — the rest are everyone else's,
+    /// and still no word follows itself.
+    func testEveryThirdCrackIsInTodaysLanguage() {
         var bag = WhipPleas.Bag(here: { "SE" })
         let draws = (0..<6000).map { _ in bag.next() }
         let swedish = draws.filter { WhipPleas.flagged($0).iso == "SE" }
-        XCTAssertEqual(Double(swedish.count) / Double(draws.count), WhipPleas.localShare, accuracy: 0.03)
+        for (i, word) in draws.enumerated() {
+            XCTAssertEqual(WhipPleas.flagged(word).iso == "SE", i % 3 == 0, "crack #\(i + 1): \(word)")
+        }
         XCTAssertEqual(Set(swedish), ["snälla 🇸🇪", "var så snäll 🇸🇪"])
         XCTAssertEqual(Set(draws), Set(WhipPleas.phrases))
         for (a, b) in zip(draws, draws.dropFirst()) { XCTAssertNotEqual(a, b) }

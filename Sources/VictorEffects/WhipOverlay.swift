@@ -865,11 +865,14 @@ enum WhipPleas {
     }
     static let color = NSColor(red: 1.0, green: 0.36, blue: 0.62, alpha: 1)
 
-    /// The share of cracks that throw a please of the country Victor is in
-    /// today (2026-11-18, Victor: *"the 'please' in the country I am currently
-    /// in … should display with 33% probability"*): the room hears its own
-    /// language every third crack, the rest of Europe the other two.
-    static let localShare = 1.0 / 3
+    /// Every `localEvery`-th crack throws a please of the country Victor is in
+    /// today, the first one included (2026-11-18, Victor: *"the 'please' in the
+    /// country I am currently in … should display with 33% probability"*): the
+    /// room hears its own language every third crack, the rest of Europe the
+    /// other two. A COUNT, not a dice roll, since 2026-11-20 (Victor: *"one in
+    /// every three, not probability"*) — a 1-in-3 roll left long runs with no
+    /// Portuguese at all in front of a Portuguese room.
+    static let localEvery = 3
 
     /// Where Victor is today, as ISO 3166: the Break timer's country (addons
     /// pins it at the day's first timer start, or a manual pick) when it is
@@ -912,13 +915,12 @@ enum WhipPleas {
         private var queue: [String] = []
         private var localQueue: [String] = []
         private var last: String?
+        /// Cracks drawn so far: 0, 3, 6 … are the local ones.
+        private var drawn = 0
         private let here: () -> String?
-        private let roll: () -> Double
 
-        init(here: @escaping () -> String? = { WhipPleas.hereISO() },
-             roll: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+        init(here: @escaping () -> String? = { WhipPleas.hereISO() }) {
             self.here = here
-            self.roll = roll
         }
 
         mutating func next() -> String {
@@ -926,8 +928,8 @@ enum WhipPleas {
             let isLocal = { (p: String) in iso != nil && WhipPleas.flagged(p).iso == iso }
             let local = phrases.filter(isLocal)
             let others = phrases.filter { !isLocal($0) }
-            // A lone local phrase that just flew yields to the others, never repeats.
-            let useLocal = !local.isEmpty && roll() < localShare && local != [last]
+            let useLocal = !local.isEmpty && drawn % localEvery == 0
+            drawn += 1
             let word = useLocal ? Self.draw(from: local, into: &localQueue, after: last)
                                 : Self.draw(from: others.isEmpty ? local : others, into: &queue, after: last)
             last = word

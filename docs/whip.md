@@ -162,7 +162,9 @@ Whisper (`language=nl`) settled it; check a new one the same way before naming i
 (Victor: *"the 'please' in the country I am currently in … should display with
 33% probability (preference for local language)"*): `WhipPleas.Bag` keeps two
 shuffle-bags, today's country's phrases and everyone else's, and draws from the
-local one `WhipPleas.localShare` (⅓) of the cracks. *Today's country* is the
+local one on every third crack, the first included (`WhipPleas.localEvery`) —
+a count since 2026-11-20, not a ⅓ roll (Victor: *"one in every three, not
+probability"*: the roll left long runs with no Portuguese in a Portuguese room). *Today's country* is the
 Break timer's (`BreakTimer.country.tz` in addons' defaults, pinned at the day's
 first timer start or picked by hand) when it is dated today, else the Mac's own
 timezone — both mapped to ISO through the system's `zone.tab`. A country with no
