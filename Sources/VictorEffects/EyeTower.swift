@@ -18,7 +18,14 @@ import QuartzCore
 /// light leaves the search and **follows the pointer** instead (with a little
 /// lag, so it reads as an eye turning, not a cursor); once the pointer has been
 /// still for `followGrace` it goes back to searching. The pupil looks where the
-/// light is. Silent; `lifeSeconds` long; a re-press takes it away.
+/// light is. `lifeSeconds` long; a re-press takes it away.
+///
+/// Music (Victor, the same day: *"put the LOTR theme song, the one playing when
+/// the ring of power was in sight"*, then the exact upload he wanted, *"for as
+/// long as the tower shows"*): the YouTube clip "The one ring theme"
+/// (Dw6BCAZqkaQ), its first 20 s, faded and loudness-normalised, as
+/// `assetsDir/eye-tower.mp3`. Film music, so it stays out of the repo and the
+/// eye is silent on a Mac without it.
 ///
 /// The dark is one big layer with a soft hole in the middle that travels with
 /// the spot, so "dark everywhere except where the light falls" costs one
@@ -29,6 +36,11 @@ import QuartzCore
 enum EyeTower {
 
     static let effectName = "eye"
+    static let musicName = "eye-tower"
+    static let musicVolume: Float = 0.9
+    /// When the eye goes early (a re-press, stop-all) the music fades this fast;
+    /// at its natural end the clip has already faded on its own.
+    static let musicFadeOut: Double = 0.8
 
     // MARK: - Timeline
 
@@ -151,17 +163,25 @@ enum EyeTower {
         return CGPoint(x: p.x + (target.x - p.x) * k, y: p.y + (target.y - p.y) * k)
     }
 
-    /// The beam: a quad from either side of the eye down to either side of the spot.
-    static func beamPath(eye: CGPoint, eyeSize: CGSize, spot: CGPoint, spotSize: CGSize) -> CGPath {
-        let p = CGMutablePath()
-        let top = eyeSize.width * 0.12
-        let foot = spotSize.width * 0.42
-        p.move(to: CGPoint(x: eye.x - top, y: eye.y))
-        p.addLine(to: CGPoint(x: eye.x + top, y: eye.y))
-        p.addLine(to: CGPoint(x: spot.x + foot, y: spot.y))
-        p.addLine(to: CGPoint(x: spot.x - foot, y: spot.y))
-        p.closeSubpath()
-        return p
+    /// The beam is ONE soft sprite (`beamSprite`, a cone of light with no edge
+    /// anywhere — Victor, on the hard-edged quad it replaced: *"not an exact
+    /// shape, more of a blurry shade of light"*), hung by its top from the eye
+    /// and turned so its foot lands on the spot. Stretching and turning a
+    /// sprite costs nothing per frame; blurring a shape that moves 60 times a
+    /// second would be a filter pass every frame.
+    struct Beam: Equatable {
+        let length: CGFloat
+        let width: CGFloat
+        /// Rotation about the eye; 0 points straight down.
+        let angle: CGFloat
+    }
+    /// How far past the spot's centre the cone reaches, so its fading end
+    /// melts into the spot instead of stopping at it.
+    static let beamOvershoot: CGFloat = 1.12
+    static func beam(eye: CGPoint, spot: CGPoint, spotSize: CGSize) -> Beam {
+        let dx = spot.x - eye.x, dy = spot.y - eye.y
+        let d = max(hypot(dx, dy), 1)
+        return Beam(length: d * beamOvershoot, width: spotSize.width * 1.25, angle: atan2(dx, -dy))
     }
 
     /// Where the pupil sits in the eye when the light is at `spot`: it looks
@@ -288,6 +308,38 @@ enum EyeTower {
         ctx.fillPath()
         let img = ctx.makeImage()
         cache["pupil"] = img
+        return img
+    }
+
+    /// The cone: narrow and brightest at the top (the eye), widening to the full
+    /// sprite width at the foot, gaussian across so it has no edge, fading out
+    /// over its last stretch. Row 0 is the TOP of the image.
+    static func beamSprite() -> CGImage? {
+        if let c = cache["beam"] { return c }
+        let w = 160, h = 320
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        let col = (r: 1.0, g: 0.66, b: 0.26)
+        let footEnd = Double(1 / beamOvershoot)          // where the spot's centre falls
+        for y in 0..<h {
+            let v = Double(y) / Double(h - 1)
+            let half = 0.06 + 0.40 * v                     // half-width, unit of sprite width
+            var along = 0.55 - 0.30 * v                    // dimmer as it travels
+            if v > footEnd * 0.82 { along *= max(0, 1 - (v - footEnd * 0.82) / (1 - footEnd * 0.82)) }
+            for x in 0..<w {
+                let u = (Double(x) + 0.5) / Double(w) - 0.5
+                let q = u / half
+                let a = max(0, min(1, along * exp(-q * q * 2.2)))
+                let i = (y * w + x) * 4
+                px[i] = UInt8(col.r * a * 255); px[i + 1] = UInt8(col.g * a * 255)
+                px[i + 2] = UInt8(col.b * a * 255); px[i + 3] = UInt8(a * 255)
+            }
+        }
+        let img = px.withUnsafeMutableBytes { buf -> CGImage? in
+            CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                      space: CGColorSpaceCreateDeviceRGB(),
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.makeImage()
+        }
+        cache["beam"] = img
         return img
     }
 

@@ -694,7 +694,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   Wikimedia Commons' [Barad-dûr.svg](https://commons.wikimedia.org/wiki/File:Barad-d%C3%BBr.svg)
   (CC BY 3.0) made solid near-black with faint ember lines and cut to its top 56% (*"less of the
   mountain, more of the tower"*) by `tools/make-eye-tower.py`; the eye, pupil, flames and glows are drawn
-  in code. Silent, 20 s; a re-press, `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
+  in code. 20 s, under the Ring's theme (*"the one playing when the ring of power was in sight"*; Victor then
+  picked the upload, "The one ring theme", YouTube Dw6BCAZqkaQ): `assetsDir/eye-tower.mp3`, its first 20 s
+  (the eye's whole life), faded and normalised to -18 LUFS — film music, never committed, silent without it; it fades out in 0.8 s when the
+  eye goes early. A re-press, `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
 - **🔥 Grilled** (⌘⌃8 in `victor-mac` → `grilled` / `grilled/stop`, `showGrilled`,
   2026-11-19, Victor's Gemini clip): two men in suits are grilled over a red barbecue — flames,
   a storm of question marks, a golden "?" burst, then smoke while they straighten their ties.

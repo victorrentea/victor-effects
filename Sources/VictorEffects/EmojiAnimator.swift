@@ -3362,20 +3362,18 @@ class EmojiAnimator {
             overlayError("eye-tower.png missing from the app's resources")
         }
 
-        // 3. The beam, a quad from the eye to the spot, falling off downwards.
-        let beam = CAGradientLayer()
-        beam.frame = bounds
-        beam.startPoint = CGPoint(x: 0.5, y: eye.y / bounds.height)
-        beam.endPoint = CGPoint(x: 0.5, y: 0)
-        beam.colors = [NSColor(calibratedRed: 1, green: 0.72, blue: 0.3, alpha: 0.5).cgColor,
-                       NSColor(calibratedRed: 1, green: 0.5, blue: 0.12, alpha: 0.2).cgColor,
-                       NSColor(calibratedRed: 1, green: 0.45, blue: 0.1, alpha: 0.14).cgColor]
-        beam.locations = [0, 0.5, 1]
-        let beamShape = CAShapeLayer()
-        beamShape.frame = bounds
-        beamShape.path = EyeTower.beamPath(eye: eye, eyeSize: eyeSize, spot: start, spotSize: spotSize)
-        beamShape.fillColor = NSColor.white.cgColor
-        beam.mask = beamShape
+        // 3. The beam: one soft cone hung from the eye, turned onto the spot.
+        let beam = CALayer()
+        beam.anchorPoint = CGPoint(x: 0.5, y: 1)    // unflipped: y = 1 is its top
+        beam.position = eye
+        beam.contents = EyeTower.beamSprite()
+        beam.contentsGravity = .resize
+        func aim(_ at: CGPoint) {
+            let g = EyeTower.beam(eye: eye, spot: at, spotSize: spotSize)
+            beam.bounds = CGRect(x: 0, y: 0, width: g.width, height: g.length)
+            beam.transform = CATransform3DMakeRotation(g.angle, 0, 0, 1)
+        }
+        aim(start)
         container.addSublayer(beam)
         lightFade(beam, to: 1)
 
@@ -3440,6 +3438,17 @@ class EmojiAnimator {
         CATransaction.commit()
         trackEffect(EyeTower.effectName, layer: container, duration: life)
 
+        // The Ring's theme under it, if the clip is in assetsDir (it is film
+        // music, so it never ships: silent without it).
+        eyeTowerPlayer?.stop()
+        eyeTowerPlayer = nil
+        if let url = EffectsResources.url(EyeTower.musicName, "mp3"),
+           let player = try? SoundManager.player(contentsOf: url) {
+            player.volume = EyeTower.musicVolume
+            player.play()
+            eyeTowerPlayer = player
+        }
+
         // The light's brain: search the strip, or follow a moving pointer below the eye.
         var position = start
         var target = EyeTower.nextWaypoint(from: start, in: bounds, using: &rng)
@@ -3451,6 +3460,8 @@ class EmojiAnimator {
         let timer = Timer(timeInterval: EyeTower.tickSeconds, repeats: true) { [weak self] timer in
             guard let self, self.activeEffects[EyeTower.effectName] === container else {
                 timer.invalidate()
+                // Gone — by its own end, a re-press or stop-all: the music goes with it.
+                self?.fadeOutEyeTowerMusic()
                 return
             }
             let now = CACurrentMediaTime()
@@ -3482,7 +3493,7 @@ class EmojiAnimator {
             CATransaction.setDisableActions(true)
             spot.position = position
             dark.position = position
-            beamShape.path = EyeTower.beamPath(eye: eye, eyeSize: eyeSize, spot: position, spotSize: spotSize)
+            aim(position)
             let o = EyeTower.pupilOffset(eye: eye, eyeSize: eyeSize, spot: position, in: bounds)
             pupil.position = CGPoint(x: mid.x + o.x, y: mid.y + o.y)
             CATransaction.commit()
@@ -3493,6 +3504,16 @@ class EmojiAnimator {
     /// Explicit exit; `showEyeTower` already scheduled its own end.
     func stopEyeTower() {
         _ = cancelIfRunning(EyeTower.effectName)
+        fadeOutEyeTowerMusic()
+    }
+
+    private var eyeTowerPlayer: AVAudioPlayer?
+
+    private func fadeOutEyeTowerMusic() {
+        guard let player = eyeTowerPlayer else { return }
+        eyeTowerPlayer = nil
+        player.setVolume(0, fadeDuration: EyeTower.musicFadeOut)
+        DispatchQueue.main.asyncAfter(deadline: .now() + EyeTower.musicFadeOut + 0.1) { player.stop() }
     }
 
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)

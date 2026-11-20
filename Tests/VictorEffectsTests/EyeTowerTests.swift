@@ -77,6 +77,19 @@ final class EyeTowerTests: XCTestCase {
         }
     }
 
+    func testTheBeamHangsFromTheEyeAndItsFootLandsOnTheSpot() {
+        let eye = EyeTower.eyeCenter(in: retina)
+        let s = EyeTower.spotSize(in: retina)
+        for spot in [CGPoint(x: 1400, y: 60), CGPoint(x: eye.x, y: 40), CGPoint(x: 100, y: 300)] {
+            let b = EyeTower.beam(eye: eye, spot: spot, spotSize: s)
+            // A layer hung by its top turns its "down" (0, -1) by `angle`.
+            let reach = b.length / EyeTower.beamOvershoot
+            let foot = CGPoint(x: eye.x + sin(b.angle) * reach, y: eye.y - cos(b.angle) * reach)
+            XCTAssertEqual(foot.x, spot.x, accuracy: 0.5)
+            XCTAssertEqual(foot.y, spot.y, accuracy: 0.5)
+        }
+    }
+
     func testThePupilStaysInsideTheEye() {
         let eye = EyeTower.eyeCenter(in: retina)
         let size = EyeTower.eyeSize(in: retina)
@@ -90,6 +103,7 @@ final class EyeTowerTests: XCTestCase {
     func testTheSpritesDrawAndTheTowerShips() {
         XCTAssertNotNil(EyeTower.eyeSprite())
         XCTAssertNotNil(EyeTower.pupilSprite())
+        XCTAssertNotNil(EyeTower.beamSprite())
         XCTAssertNotNil(EyeTower.darknessSprite(k: EyeTower.darknessScale(in: retina)))
         XCTAssertNotNil(EffectsResources.url("eye-tower", "png"))
     }

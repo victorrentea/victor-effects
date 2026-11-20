@@ -74,6 +74,8 @@ sound effect" by Paracetamol Sounds, played once per claw — silent claws witho
 BiRefNet-matted and re-timed to bark on the clip, `docs/overlay-effects.md`),
 `bug-walk.png` (🪲 ⌘⌃9, 2026-11-19: 13 frames of a GIPHY beetle GIF Victor copied off Google
 Images, cut out by `tools/make-bug-walk.py`, licence unknown — no beetle without it),
+`eye-tower.mp3` (👁️ ⌘⌃7, 2026-11-20: the first 20 s of the YouTube upload "The one ring theme"
+(Dw6BCAZqkaQ, Victor's pick), Howard Shore's film score, faded and loudness-normalised — a silent eye without it),
 `grilled.mov` (🔥 ⌘⌃8, 2026-11-19: keyed by `tools/make-grilled.py` out of a clip Victor
 generated with Gemini, sound inside — no grill without it),
 `cricket-moon.mov` (🦗 tile 12, 2026-11-04: keyed by `tools/make-cricket-moon.py` out of a clip
