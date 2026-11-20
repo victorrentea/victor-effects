@@ -31,7 +31,7 @@ struct EffectsConfigValues: Equatable {
     /// Emoji that charge up when the cursor hovers them and pop into a webhook.
     var chargeEmoji: [String] = ["☕"]
 
-    /// Where the **addons** app answers (`victor-macos-addons`, normally 55123).
+    /// Where the **addons** app answers (`victor-mac`, normally 55123).
     ///
     /// The panel's video page is the one thing in here that is not this app's:
     /// the list comes from that app's `GET /videos` and a tile plays through its

@@ -69,7 +69,7 @@ seven-minute recording of a desktop where nothing happens.
 
 Dependencies: **ffmpeg** (`brew install ffmpeg`), **swiftc** (Xcode command line
 tools — the recorder is compiled on first run into `.build/gallery/`), **gh**
-for `--publish`, and `~/bin/hands-off` from `victor-macos-addons` for the locks.
+for `--publish`, and `~/bin/hands-off` from `victor-mac` for the locks.
 
 ## Why the script is shaped the way it is
 

@@ -61,7 +61,7 @@ else
 fi
 echo "VictorEffects built."
 
-# NOTE: no sounds-dereference step here, unlike victor-macos-addons. The
+# NOTE: no sounds-dereference step here, unlike victor-mac. The
 # soundboard mp3s are NOT a bundle resource of this app — they are read live from
 # EffectsConfig.soundsDir, so a changed mp3 needs no rebuild and no symlink ever
 # reaches the .build bundle.

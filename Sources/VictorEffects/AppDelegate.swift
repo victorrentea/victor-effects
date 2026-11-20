@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine = EffectsEngine(overlayPanel: overlayPanel)
         engine.startWatchdog()
 
-        // ⌥⇧ zoom (victor-macos-addons) moves the cursor the room sees away from
+        // ⌥⇧ zoom (victor-mac) moves the cursor the room sees away from
         // the real pointer; effects drawn at the cursor follow the visible one.
         VisibleCursor.start()
 

@@ -16,9 +16,9 @@ Add the right ⇧ while holding it and the same window flips to page 2, the 🎬
 ![The soundboard panel, page 2: 28 video snippets](docs/img/panel-videos.jpg)
 
 *That is the maintainer's own board, the same one the tablet shows. A fresh install starts
-with the smaller free starter pack (42 tiles). Page 2 only appears when [victor-macos-addons](https://github.com/victorrentea/victor-macos-addons) is running.*
+with the smaller free starter pack (42 tiles). Page 2 only appears when [victor-mac](https://github.com/victorrentea/victor-mac) is running.*
 
-It was extracted from [victor-macos-addons](https://github.com/victorrentea/victor-macos-addons),
+It was extracted from [victor-mac](https://github.com/victorrentea/victor-mac),
 which keeps the training/transcription half and proxies the effect routes here.
 
 ## Install

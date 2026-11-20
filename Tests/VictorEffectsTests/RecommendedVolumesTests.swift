@@ -128,7 +128,7 @@ final class RecommendedVolumesTests: XCTestCase {
         if let d = EffectsConfig.shared.videosDir { return d }
         return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("victor-macos-addons/videos")
+            .appendingPathComponent("victor-mac/videos")
     }
 
     /// Clips with nothing to hear, on purpose: two snippets have no audio track

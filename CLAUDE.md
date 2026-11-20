@@ -1,6 +1,6 @@
 # victor-effects — agent notes
 
-The presentation-effects half of `victor-macos-addons`: overlays, the soundboard,
+The presentation-effects half of `victor-mac`: overlays, the soundboard,
 the whip, the HTTP API on **55124**. The addons app keeps **55123** and proxies
 every effect/sound route here, so local tools and the tablet never learned a new
 port.
@@ -42,7 +42,7 @@ this one only routes.
   convention held together by string keys is only protected by a test that
   actually runs, and the deploy is the moment the drift would reach the room.
 - **🎬 Every Video Snippet is on YouTube, in its current version — a rule, guarded by the build.**
-  Adding or changing a snippet (the tablet's page 2: `victor-macos-addons/videos/videos.json`,
+  Adding or changing a snippet (the tablet's page 2: `victor-mac/videos/videos.json`,
   its mp4 or its `.srt`) is not done until it is published:
   `cd ../victor-vibe-board/tools/youtube-publish && python3 -m ytpub publish --upload`
   (the played window with its subtitles, public unless the copyright check blocks it everywhere;

@@ -37,7 +37,7 @@ final class CursorHide {
     /// Hide ONCE MORE while already hidden. The screen edges are where the
     /// system UI lives (the menu bar, the auto-hidden Dock, hot corners), and
     /// the pointer touching one gives the real arrow back — the trick
-    /// `ShareZoom` in victor-macos-addons learned first (2026-10-01).
+    /// `ShareZoom` in victor-mac learned first (2026-10-01).
     func reassert() {
         guard depth > 0 else { return }
         hide()

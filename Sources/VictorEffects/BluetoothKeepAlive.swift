@@ -65,7 +65,7 @@ final class BluetoothKeepAlive {
     /// JBL boxes as each other's spare, and a connected box that is not the
     /// default gets no audio at all — so it timed itself out ~20 min later and
     /// was gone by the time the other one died. Holding both awake is what
-    /// lets `OutputRouter` (victor-macos-addons) hand the sound to a survivor.
+    /// lets `OutputRouter` (victor-mac) hand the sound to a survivor.
     ///
     /// No microphone = a speaker. The name alone would also catch the
     /// "JBL TUNE500BT" headphones, and the nudge's 30 Hz is felt in a pair of

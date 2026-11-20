@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// 🪲 ⌘⌃9 (2026-11-19, keyed in `victor-macos-addons`): a beetle walks across the
+/// 🪲 ⌘⌃9 (2026-11-19, keyed in `victor-mac`): a beetle walks across the
 /// projected Retina, legs going the whole way, and stops where Victor pointed.
 ///
 /// Victor's brief, dictated over four screenshots of the Retina: *"have this walk

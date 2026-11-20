@@ -4,7 +4,7 @@ import AppKit
 /// has to be drawn at.
 ///
 /// Normally that is the real pointer. While Victor zooms with **⌥⇧+scroll**
-/// (`ShareZoom` in victor-macos-addons — a magnifier done in a window so a Zoom
+/// (`ShareZoom` in victor-mac — a magnifier done in a window so a Zoom
 /// share carries it) it is not: that zoom pans only when the pointer pushes an
 /// edge, hides the real cursor and draws a magnified one where the pointer's
 /// desktop point appears on the glass. The 💓 heartbeat's bulge, the 🔍 glass and

@@ -12,7 +12,7 @@ if [ ! -x "$APP/Contents/MacOS/Victor Effects" ]; then
     exit 1
 fi
 
-# No `adb reverse` here: the tablet still talks to victor-macos-addons on 55123,
+# No `adb reverse` here: the tablet still talks to victor-mac on 55123,
 # which proxies the effect and sound routes over to this app on 55124.
 
 # `open`, NOT the bundle binary. macOS keys an Accessibility / Screen Recording

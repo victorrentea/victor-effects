@@ -288,7 +288,7 @@ also has an **input** is skipped: that is a headset (HFP mic), e.g. the
 "JBL TUNE500BT" the name would otherwise catch, and 30 Hz in a pair of
 headphones is felt. The selection is `BluetoothKeepAlive.targets`, pinned by
 `BluetoothKeepAliveTargetsTests`. Getting the spare *connected* in the first
-place is the other app's job (`SpeakerReconnect` in victor-macos-addons). It is distinct from the wake-up compensation above —
+place is the other app's job (`SpeakerReconnect` in victor-mac). It is distinct from the wake-up compensation above —
 that one warms the link immediately before each individual sound, this one stops
 the speaker switching itself off *between* sounds.
 

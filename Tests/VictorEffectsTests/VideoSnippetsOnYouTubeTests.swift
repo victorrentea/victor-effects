@@ -5,7 +5,7 @@ import XCTest
 /// until it is published again. The workshop summary links each played snippet through
 /// that upload as an emotional anchor, so a snippet without one is a hole in the summary.
 ///
-/// The snippets live in the sibling `victor-macos-addons/videos/videos.json`; the publisher
+/// The snippets live in the sibling `victor-mac/videos/videos.json`; the publisher
 /// and its ledger in the sibling `victor-vibe-board/tools/youtube-publish`. This test asks
 /// the publisher itself (`python3 -m ytpub status`) instead of re-deriving its fingerprint
 /// here, so the two can never disagree about what "changed" means. Skipped, with the reason,
@@ -24,7 +24,7 @@ final class VideoSnippetsOnYouTubeTests: XCTestCase {
         let tool = URL(fileURLWithPath: env["YTPUB_TOOL_DIR"]
             ?? workspace.appendingPathComponent("victor-vibe-board/tools/youtube-publish").path)
         let videos = URL(fileURLWithPath: env["YTPUB_VIDEOS_DIR"]
-            ?? workspace.appendingPathComponent("victor-macos-addons/videos").path)
+            ?? workspace.appendingPathComponent("victor-mac/videos").path)
         guard FileManager.default.fileExists(atPath: tool.appendingPathComponent("ytpub").path) else {
             throw XCTSkip("no publisher at \(tool.path)")
         }

@@ -122,7 +122,7 @@ fi
 
 if [ "$DRY_RUN" = 0 ] && [ -z "${GALLERY_LOCKED:-}" ]; then
   HANDS_OFF="${HANDS_OFF:-$HOME/bin/hands-off}"
-  [ -x "$HANDS_OFF" ] || die "$HANDS_OFF is missing — it is what puts the 🔒 on screen while this records. Install victor-macos-addons or set HANDS_OFF."
+  [ -x "$HANDS_OFF" ] || die "$HANDS_OFF is missing — it is what puts the 🔒 on screen while this records. Install victor-mac or set HANDS_OFF."
   exec "$HANDS_OFF" run "recording the Victor Effects gallery" -- \
        caffeinate -disu env GALLERY_LOCKED=1 "$0" ${ORIG_ARGS[@]+"${ORIG_ARGS[@]}"}
 fi

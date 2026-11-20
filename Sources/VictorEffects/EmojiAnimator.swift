@@ -1317,7 +1317,7 @@ class EmojiAnimator {
     }
 
     // The "−1" minute token that flies from an exploded coffee into the break
-    // timer lives in victor-macos-addons now, with the timer it lands on: the
+    // timer lives in victor-mac now, with the timer it lands on: the
     // flight re-samples the clock's position every frame, which cannot survive
     // a cross-process call. This app tells addons that a coffee popped (and
     // where) through the event webhook; addons launches the token.
