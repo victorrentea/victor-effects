@@ -21,4 +21,5 @@ quietly when it is missing — see `docs/assets-and-licences.md`.
 | `stop-hand.png` | Wikimedia Commons, [Blinking Stop hand.gif](https://commons.wikimedia.org/wiki/File:Blinking_Stop_hand.gif) by I Seek To Help & Repair! (a derivative of [Stop hand.svg](https://commons.wikimedia.org/wiki/File:Stop_hand.svg) by Silsor) — its lit frame, unchanged; the blink is done in code | CC BY-SA 3.0 |
 | `confetti.mp3` | Freesound, [partypopper.flac](https://freesound.org/people/Streety/sounds/26349/) by Streety, trimmed | CC0 |
 | Clawd's moods (drawn in code, `ClawdMood.swift`) | faces, colours and emotes ported from John Heibel's [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) model sheet | MIT, © 2026 John Heibel |
+| `eye-tower.png` | Wikimedia Commons, [Barad-dûr.svg](https://commons.wikimedia.org/wiki/File:Barad-d%C3%BBr.svg) by Didelile (derivative work: Rondador) — rendered, filled near-black with faint ember lines and cut to its top 56% by `tools/make-eye-tower.py` | CC BY 3.0 |
 | `icon_fx.png` | the menu bar's 𝓯𝔁 drawn large by `tools/make-icon.swift` | own work (MIT) |

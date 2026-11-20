@@ -678,6 +678,23 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   up-left) so its head leads. 170 pt/s, clamped to 2.5–9 s; 0.25 s fade in, 0.9 s standing still at
   the end, 0.6 s fade out. Silent. A re-press while it walks takes it away. Without the strip: a log
   line. `/test/bug`, `/test/bug/stop`, `/effect/bug`.
+- **👁️ Eye of the Tower** (⌘⌃7 in `victor-mac` → `eye` / `eye/stop`, `EyeTower` + `showEyeTower`,
+  2026-11-20): *"the eye of the tower of Mordor … no sound, just some light falling on the ground and
+  looking for stuff"*. A dark tower rises out of the bottom edge of the Retina on the left (Victor's box,
+  x 282…706 / y 232…2172 on a 3456×2234 capture, top kept, bottom running off the screen — *"no fade
+  jos"*), a burning eye opens between its horns (0.8 s, a lid scale from a slit), the screen goes 50%
+  dusk-dark, and a beam falls from the eye onto the strip along the bottom (his second box, x 1272…3152 /
+  y 1916…2226) and **searches** it: glides at ≤ 650 pt/s, easing in, lingers 0.35–0.9 s, moves on ≥ a
+  quarter of the strip away. While the pointer is **below the eye and has moved in the last 2 s**, the
+  light **follows the pointer** instead (exponential, 7/s — lag enough to read as an eye turning); then it
+  goes back to searching. The pupil looks toward the light. One 60 Hz timer moves spot, beam quad, dark
+  hole and pupil together (the panel is click-through, so the pointer is polled). The dark is ONE layer,
+  the spot's ellipse × k (k from the screen, so it covers it with the spot anywhere), with a soft hole in
+  its middle: a position per frame instead of a mask redraw. The tower is `Resources/eye-tower.png`:
+  Wikimedia Commons' [Barad-dûr.svg](https://commons.wikimedia.org/wiki/File:Barad-d%C3%BBr.svg)
+  (CC BY 3.0) made solid near-black with faint ember lines and cut to its top 56% (*"less of the
+  mountain, more of the tower"*) by `tools/make-eye-tower.py`; the eye, pupil, flames and glows are drawn
+  in code. Silent, 20 s; a re-press, `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
 - **🔥 Grilled** (⌘⌃8 in `victor-mac` → `grilled` / `grilled/stop`, `showGrilled`,
   2026-11-19, Victor's Gemini clip): two men in suits are grilled over a red barbecue — flames,
   a storm of question marks, a golden "?" burst, then smoke while they straighten their ties.

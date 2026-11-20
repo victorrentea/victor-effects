@@ -3284,6 +3284,217 @@ class EmojiAnimator {
         _ = cancelIfRunning(BugWalk.effectName)
     }
 
+    // MARK: - 👁️ Eye of the Tower (⌃⌘7, 2026-11-20)
+
+    /// A burning eye opens on its tower at the left of the screen, the screen
+    /// goes dark around it, and its light falls on the strip along the bottom
+    /// and searches it — or follows the pointer while it moves below the eye
+    /// (`EyeTower`). Silent. A re-press while it looks takes it away.
+    func showEyeTower() {
+        if cancelIfRunning(EyeTower.effectName) { return }
+        let bounds = hostLayer.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+
+        let life = EyeTower.lifeSeconds
+        let eye = EyeTower.eyeCenter(in: bounds)
+        let eyeSize = EyeTower.eyeSize(in: bounds)
+        let spotSize = EyeTower.spotSize(in: bounds)
+        let k = EyeTower.darknessScale(in: bounds)
+        let linear = CAMediaTimingFunction(name: .linear)
+        let lightIn = EyeTower.openSeconds / life
+        let lightFull = (EyeTower.openSeconds + EyeTower.lightInSeconds) / life
+        let outStart = (life - EyeTower.fadeOutSeconds) / life
+        var rng = SystemRandomNumberGenerator()
+        let g = EyeTower.ground(in: bounds)
+        let start = CGPoint(x: CGFloat.random(in: g.minX...g.maxX, using: &rng),
+                            y: CGFloat.random(in: g.minY...g.maxY, using: &rng))
+
+        /// The light's own fade: nothing while the eye opens, in, held, out.
+        func lightFade(_ layer: CALayer, to peak: Float) {
+            let a = CAKeyframeAnimation(keyPath: "opacity")
+            a.values = [0, 0, peak, peak, 0]
+            a.keyTimes = [0, NSNumber(value: lightIn), NSNumber(value: lightFull), NSNumber(value: outStart), 1]
+            a.duration = life
+            a.fillMode = .forwards
+            a.isRemovedOnCompletion = false
+            layer.opacity = 0
+            layer.add(a, forKey: "eyeLight")
+        }
+        /// Firelight: a quick restless flicker of the layer's size.
+        func flicker(_ layer: CALayer, depth: Double, period: Double) {
+            var r = SplitMix(seed: UInt64.random(in: 1...UInt64.max))
+            let n = 12
+            let a = CAKeyframeAnimation(keyPath: "transform.scale")
+            a.values = (0...n).map { i in i == n ? 1.0 : 1.0 - depth + 2 * depth * r.unit() }
+            a.duration = period
+            a.repeatCount = .greatestFiniteMagnitude
+            layer.add(a, forKey: "eyeFlicker")
+        }
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let container = CALayer()
+        container.frame = bounds
+
+        // 1. The dark, with the lit hole travelling under the spot.
+        let dark = CALayer()
+        dark.bounds = CGRect(x: 0, y: 0, width: spotSize.width * k, height: spotSize.height * k)
+        dark.position = start
+        dark.contents = EyeTower.darknessSprite(k: k)
+        dark.contentsGravity = .resize
+        container.addSublayer(dark)
+        lightFade(dark, to: Float(EyeTower.darknessAlpha))
+
+        // 2. The tower, standing in its box (over the dark, so it reads as a
+        // silhouette against the dusk rather than vanishing into it).
+        let towerHolder = CALayer()
+        towerHolder.frame = bounds
+        container.addSublayer(towerHolder)
+        if let url = EffectsResources.url("eye-tower", "png"),
+           let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+           let image = CGImageSourceCreateImageAtIndex(source, 0, nil) {
+            let tower = CALayer()
+            tower.frame = EyeTower.towerFrame(in: bounds)
+            tower.contents = image
+            tower.contentsGravity = .resize
+            towerHolder.addSublayer(tower)
+        } else {
+            overlayError("eye-tower.png missing from the app's resources")
+        }
+
+        // 3. The beam, a quad from the eye to the spot, falling off downwards.
+        let beam = CAGradientLayer()
+        beam.frame = bounds
+        beam.startPoint = CGPoint(x: 0.5, y: eye.y / bounds.height)
+        beam.endPoint = CGPoint(x: 0.5, y: 0)
+        beam.colors = [NSColor(calibratedRed: 1, green: 0.72, blue: 0.3, alpha: 0.5).cgColor,
+                       NSColor(calibratedRed: 1, green: 0.5, blue: 0.12, alpha: 0.2).cgColor,
+                       NSColor(calibratedRed: 1, green: 0.45, blue: 0.1, alpha: 0.14).cgColor]
+        beam.locations = [0, 0.5, 1]
+        let beamShape = CAShapeLayer()
+        beamShape.frame = bounds
+        beamShape.path = EyeTower.beamPath(eye: eye, eyeSize: eyeSize, spot: start, spotSize: spotSize)
+        beamShape.fillColor = NSColor.white.cgColor
+        beam.mask = beamShape
+        container.addSublayer(beam)
+        lightFade(beam, to: 1)
+
+        // 4. The spot where the light lands.
+        let spot = CALayer()
+        spot.bounds = CGRect(origin: .zero, size: spotSize)
+        spot.position = start
+        spot.contents = EyeTower.glowSprite("spot", r: 1, g: 0.62, b: 0.2, core: 0.55, mid: 0.28)
+        spot.contentsGravity = .resize
+        container.addSublayer(spot)
+        lightFade(spot, to: 1)
+
+        // 5. The eye's halo, the eye and its pupil.
+        let halo = CALayer()
+        halo.bounds = CGRect(x: 0, y: 0, width: eyeSize.width * 3.2, height: eyeSize.width * 2.2)
+        halo.position = eye
+        halo.contents = EyeTower.glowSprite("halo", r: 1, g: 0.4, b: 0.05, core: 0.6, mid: 0.22)
+        halo.contentsGravity = .resize
+        towerHolder.addSublayer(halo)
+        flicker(halo, depth: 0.06, period: 1.6)
+
+        let lid = CALayer()   // what opens and closes: the eye and its pupil
+        lid.bounds = CGRect(x: 0, y: 0, width: eyeSize.width / EyeTower.eyeSpriteLensShare.width,
+                            height: eyeSize.height / EyeTower.eyeSpriteLensShare.height)
+        lid.position = eye
+        towerHolder.addSublayer(lid)
+        let eyeLayer = CALayer()
+        eyeLayer.frame = lid.bounds
+        eyeLayer.contents = EyeTower.eyeSprite()
+        eyeLayer.contentsGravity = .resize
+        lid.addSublayer(eyeLayer)
+        flicker(eyeLayer, depth: 0.025, period: 0.9)
+
+        let pupil = CALayer()
+        pupil.bounds = CGRect(x: 0, y: 0, width: eyeSize.height * 0.30, height: eyeSize.height * 1.05)
+        let mid = CGPoint(x: lid.bounds.midX, y: lid.bounds.midY)
+        pupil.position = mid
+        pupil.contents = EyeTower.pupilSprite()
+        pupil.contentsGravity = .resize
+        lid.addSublayer(pupil)
+
+        // The lid: opens from a slit, stays open, closes to a slit at the end.
+        let open = CAKeyframeAnimation(keyPath: "transform.scale.y")
+        open.values = [0.04, 1, 1, 0.04]
+        open.keyTimes = [0, NSNumber(value: EyeTower.openSeconds * 0.8 / life), NSNumber(value: outStart), 1]
+        open.timingFunctions = [CAMediaTimingFunction(name: .easeOut), linear, CAMediaTimingFunction(name: .easeIn)]
+        open.duration = life
+        open.fillMode = .forwards
+        open.isRemovedOnCompletion = false
+        lid.add(open, forKey: "eyeOpen")
+
+        // Tower and eye fade in with the eye and out at the very end.
+        let show = CAKeyframeAnimation(keyPath: "opacity")
+        show.values = [0, 1, 1, 0]
+        show.keyTimes = [0, NSNumber(value: EyeTower.openSeconds * 0.5 / life), NSNumber(value: outStart), 1]
+        show.duration = life
+        show.fillMode = .forwards
+        show.isRemovedOnCompletion = false
+        towerHolder.add(show, forKey: "eyeShow")
+
+        stageLayer.addSublayer(container)
+        CATransaction.commit()
+        trackEffect(EyeTower.effectName, layer: container, duration: life)
+
+        // The light's brain: search the strip, or follow a moving pointer below the eye.
+        var position = start
+        var target = EyeTower.nextWaypoint(from: start, in: bounds, using: &rng)
+        var dwellLeft = Double.random(in: EyeTower.dwellRange, using: &rng)
+        var lastPointer = VisibleCursor.location
+        var lastMoved = -Double.infinity
+        let began = CACurrentMediaTime()
+        var lastTick = began
+        let timer = Timer(timeInterval: EyeTower.tickSeconds, repeats: true) { [weak self] timer in
+            guard let self, self.activeEffects[EyeTower.effectName] === container else {
+                timer.invalidate()
+                return
+            }
+            let now = CACurrentMediaTime()
+            let dt = min(now - lastTick, 0.1)
+            lastTick = now
+            guard now - began >= EyeTower.openSeconds * 0.6 else { return }
+
+            let global = VisibleCursor.location
+            if global != lastPointer { lastPointer = global; lastMoved = now }
+            let anchor = Self.layerAnchor(forGlobalMouse: global, panelOrigin: bounds.origin, hostLayer: self.hostLayer)
+            let onScreen = anchor.x > 0 && anchor.x < 1 && anchor.y > 0 && anchor.y < 1
+            let pointer: CGPoint? = onScreen ? CGPoint(x: anchor.x * bounds.width, y: anchor.y * bounds.height) : nil
+
+            if EyeTower.follows(pointer: pointer, eye: eye, eyeSize: eyeSize, sinceMoved: now - lastMoved),
+               let p = pointer {
+                position = EyeTower.followStep(from: position, to: p, dt: dt)
+                dwellLeft = 0          // when it lets go, it moves on at once
+            } else {
+                position = EyeTower.searchStep(from: position, to: target, dt: dt)
+                if position == target {
+                    dwellLeft -= dt
+                    if dwellLeft <= 0 {
+                        target = EyeTower.nextWaypoint(from: position, in: bounds, using: &rng)
+                        dwellLeft = Double.random(in: EyeTower.dwellRange, using: &rng)
+                    }
+                }
+            }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            spot.position = position
+            dark.position = position
+            beamShape.path = EyeTower.beamPath(eye: eye, eyeSize: eyeSize, spot: position, spotSize: spotSize)
+            let o = EyeTower.pupilOffset(eye: eye, eyeSize: eyeSize, spot: position, in: bounds)
+            pupil.position = CGPoint(x: mid.x + o.x, y: mid.y + o.y)
+            CATransaction.commit()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    /// Explicit exit; `showEyeTower` already scheduled its own end.
+    func stopEyeTower() {
+        _ = cancelIfRunning(EyeTower.effectName)
+    }
+
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)
 
     static let smallDogSound = "44_small_dog.mp3"

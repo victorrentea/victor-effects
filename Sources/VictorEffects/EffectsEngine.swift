@@ -437,6 +437,8 @@ final class EffectsEngine {
         case "grilled/stop":  animator.stopGrilled()
         case "bug":           animator.showBugWalk()
         case "bug/stop":      animator.stopBugWalk()
+        case "eye":           animator.showEyeTower()
+        case "eye/stop":      animator.stopEyeTower()
         case "claude-peek":
             animator.showClaudePeek()
             // 🦀 He says hello in his entrance mood, then notices what is in

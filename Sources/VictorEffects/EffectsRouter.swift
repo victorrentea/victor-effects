@@ -155,6 +155,8 @@ final class EffectsRouter {
         "/test/grilled/stop": "grilled/stop",
         "/test/bug": "bug",
         "/test/bug/stop": "bug/stop",
+        "/test/eye": "eye",
+        "/test/eye/stop": "eye/stop",
         "/test/heaven": "heaven",
         "/test/heaven/stop": "heaven/stop",
         "/test/elephant": "elephant",
