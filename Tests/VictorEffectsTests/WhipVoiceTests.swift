@@ -70,6 +70,24 @@ final class WhipVoiceTests: XCTestCase {
         XCTAssertEqual(WhipPleas.progress(early, now: 1000), 200 / WhipPleas.lifeMs, accuracy: 1e-9, "frozen mid-rise")
     }
 
+    /// A right-click explains the word the instant it is thrown. It must still
+    /// pop to full size, not hold at the pop's half size for 3.5 s and then
+    /// snap to full (2026-11-20, "they're small, then too big"), and it must not
+    /// leap up when the hold ends.
+    func testARightClickedPleaPopsToFullSizeAndNeverJumps() {
+        var plea = WhipPleas.Plea(text: "s'il vous plaît 🇫🇷", at: .zero, bornMs: 0)
+        plea.explainedMs = 0
+        XCTAssertEqual(WhipPleas.scale(plea, now: 0), 0.5, accuracy: 1e-9)
+        for now in stride(from: 600.0, through: WhipPleas.explainHoldMs + WhipPleas.fadeMs, by: 50) {
+            XCTAssertEqual(WhipPleas.scale(plea, now: now), 1, accuracy: 1e-9, "full size at \(now) ms")
+        }
+        let end = WhipPleas.explainHoldMs
+        XCTAssertEqual(WhipPleas.progress(plea, now: end + 16), WhipPleas.progress(plea, now: end - 1),
+                       accuracy: 0.03, "no leap when the hold ends (it was 0.6 = 42 pt)")
+        XCTAssertEqual(WhipPleas.alpha(plea, now: end - 1), 1, accuracy: 1e-9)
+        XCTAssertEqual(WhipPleas.alpha(plea, now: end + WhipPleas.fadeMs / 2), 0.5, accuracy: 1e-6)
+    }
+
     /// People's recordings are found by a name anyone can type (2026-11-12).
     func testRecordedVoiceNamesAreAsciiSlugs() {
         XCTAssertEqual(WhipVoice.recordedName(for: "alsjeblieft 🇳🇱"), "nl-alsjeblieft")

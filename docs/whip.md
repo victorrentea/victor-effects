@@ -187,7 +187,11 @@ crack throws is the one spoken — `sayAfterCrackMs` (0.4 s) after the crack, so
 the room hears the crack first and the word after, never on top of each other
 (`WhipOverlay.crackAndSay` → `throwPlea`). The word gets its country (English,
 `Locale`) under it in white and holds still at full colour for `explainHoldMs`
-(3.5 s), then fades as usual (`WhipPleas.progress`). From 2026-11-11 to 11-16 a
+(3.5 s), then rises on from where it held and fades (`WhipPleas.progress`).
+Its SIZE runs on its real age (`WhipPleas.scale`), never on that frozen clock:
+until 2026-11-20 a right-clicked word, explained at birth, held at the pop's
+starting half size for the whole 3.5 s and then snapped to full size and 42 pt
+up (Victor: *"they're small, then too big"*). From 2026-11-11 to 11-16 a
 right-click only re-said the last word thrown, without a crack (and brought it
 back if it had faded); that went. The
 voice is Google Translate's TTS (`translate_tts`, `client=tw-ob`), one mp3 per

@@ -617,9 +617,8 @@ private final class WhipView: NSView {
     /// backdrop (white until 2026-10-20 — Victor asked for a black border).
     private func drawPlea(_ plea: Plea) {
         let t = CGFloat(WhipPleas.progress(plea, now: nowMs))
-        let pop: CGFloat = t < 0.12 ? lerp(0.5, 1.15, t / 0.12)
-            : t < 0.22 ? lerp(1.15, 1.0, (t - 0.12) / 0.1) : 1.0
-        let alpha: CGFloat = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4
+        let pop = WhipPleas.scale(plea, now: nowMs)
+        let alpha = WhipPleas.alpha(plea, now: nowMs)
         let font = NSFont.systemFont(ofSize: WhipPleas.fontSize * pop, weight: .heavy)
         let shadow = NSShadow()
         shadow.shadowColor = NSColor.black.withAlphaComponent(0.55 * alpha)
@@ -796,7 +795,31 @@ enum WhipPleas {
         let frozen = min(0.6, max(0, (explained - plea.bornMs) / lifeMs))
         let held = now - explained
         if held < explainHoldMs { return frozen }
-        return min(1, 0.6 + 0.4 * (held - explainHoldMs) / fadeMs)
+        // Rises on from where it held — never a jump (it leapt from `frozen`
+        // to 0.6, i.e. up to 42 pt, the moment the hold ended).
+        return min(1, frozen + (1 - frozen) * (held - explainHoldMs) / fadeMs)
+    }
+
+    /// The size, on the plea's REAL age, never on `progress`: the pop plays
+    /// out even while an explained plea holds still. On `progress` a
+    /// right-clicked word — explained the instant it is thrown, so frozen at
+    /// 0 — sat at the pop's starting HALF size for the whole 3.5 s hold, then
+    /// snapped to full size (2026-11-20, Victor: *"they're small, then too big"*).
+    static func scale(_ plea: Plea, now: Double) -> CGFloat {
+        let t = CGFloat(min(1, max(0, (now - plea.bornMs) / lifeMs)))
+        return t < 0.12 ? 0.5 + (1.15 - 0.5) * t / 0.12
+            : t < 0.22 ? 1.15 + (1.0 - 1.15) * (t - 0.12) / 0.1 : 1.0
+    }
+
+    /// Full colour until the fade: the last 40% of an ordinary plea's life,
+    /// the `fadeMs` after the hold of an explained one.
+    static func alpha(_ plea: Plea, now: Double) -> CGFloat {
+        if let explained = plea.explainedMs {
+            let fading = now - explained - explainHoldMs
+            return fading <= 0 ? 1 : max(0, 1 - CGFloat(fading / fadeMs))
+        }
+        let t = CGFloat(progress(plea, now: now))
+        return t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4
     }
 
     static func isAlive(_ plea: Plea, now: Double) -> Bool {
