@@ -842,7 +842,16 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   (`💸💵💰🤑`) **up from the bottom edge to off the top**, swaying + tumbling
   while fading out — **one round per press ("ching")**. It is a fire-and-forget,
   **non-tracked** burst (each emoji layer self-removes), so pressing the tile
-  repeatedly **stacks overlapping rounds**. `53_rain.mp3` is intentionally
+  repeatedly **stacks overlapping rounds**. **Paced since 2026-11-20**
+  (`MoneyPacer`): two chings are never closer than **0.25 s**; a quicker press
+  waits for the next slot (sound AND its round of dollars, struck together), and
+  a press that would wait more than 0.5 s is dropped, so hammering the tile is an
+  even ching-ching-ching with no tail after the hand stops. The ching plays from a
+  **pool of pre-built players** struck with `play(atTime:)` (a fresh
+  `AVAudioPlayer` per tap decoded the mp3 on the main thread and started with
+  uneven latency), and each strike **ducks the copies still ringing to 40%**:
+  stacked at full level they peaked at +2.9 dBFS and clipped. The emoji are cached
+  pictures, not `CATextLayer`s typeset 16 at a time. `53_rain.mp3` is intentionally
   **absent from `SoundEffectMap`** so a press = a single ching + single round (no
   double-trigger). `/test/money` and `/effect/money` call `showMoneyRise` directly.
 - **🔫 Counter-Strike** (sfx #73 `73_counter_strike.mp3` → `counter-strike`,

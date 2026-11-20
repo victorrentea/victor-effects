@@ -2661,6 +2661,27 @@ class EmojiAnimator {
     /// (rise + sway + fade) but full-width and bottom→top across the screen.
     private static let moneyEmojis = ["💸", "💵", "💰", "🤑"]
 
+    /// One money emoji drawn once at the largest size a round uses, then
+    /// scaled down by the layer.
+    private static func moneyEmojiImage(_ emoji: String, scale: CGFloat) -> CGImage? {
+        let key = "\(emoji)|\(scale)"
+        if let hit = moneyImageCache[key] { return hit }
+        let px = Int(ceil(104 * scale))
+        guard let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: EmojiAnimator.nativeBitmapInfo) else { return nil }
+        let font = NSFont.systemFont(ofSize: CGFloat(px) * 0.86)
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: emoji, attributes: [.font: font]))
+        let box = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
+        ctx.textPosition = CGPoint(x: (CGFloat(px) - box.width) / 2 - box.minX,
+                                   y: (CGFloat(px) - box.height) / 2 - box.minY)
+        CTLineDraw(line, ctx)
+        let img = ctx.makeImage()
+        moneyImageCache[key] = img
+        return img
+    }
+    private static var moneyImageCache: [String: CGImage] = [:]
+
     func showMoneyRise(count: Int = 16) {
         let bounds = hostLayer.bounds
         let scale = NSScreen.screens.first?.backingScaleFactor ?? 2.0
@@ -2675,10 +2696,12 @@ class EmojiAnimator {
                 let startX = CGFloat.random(in: size...(bounds.width - size))
                 let startY = -size                              // just below the bottom edge
 
-                let layer = CATextLayer()
-                layer.string = EmojiAnimator.moneyEmojis.randomElement()!
-                layer.fontSize = size * 0.86
-                layer.alignmentMode = .center
+                // A cached picture, not a CATextLayer: sixteen emoji typeset
+                // per press, four presses a second, was main-thread work the
+                // tap rhythm could feel.
+                let layer = CALayer()
+                layer.contents = EmojiAnimator.moneyEmojiImage(EmojiAnimator.moneyEmojis.randomElement()!, scale: scale)
+                layer.contentsGravity = .resizeAspect
                 layer.frame = CGRect(x: startX - size / 2, y: startY, width: size, height: size)
                 layer.contentsScale = scale
                 self.stageLayer.addSublayer(layer)

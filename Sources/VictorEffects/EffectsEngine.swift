@@ -50,6 +50,10 @@ final class EffectsEngine {
     /// step with audio that is only heard ~1.3 s later on the JBL.
     private var routedPlay: (asset: String, at: Date, wake: TimeInterval)?
 
+    /// 💸 #53's spacing between chings, and the ching's length once heard.
+    private var moneyPacer = MoneyPacer()
+    private var moneyChingLength: TimeInterval = 1.38
+
     // MARK: whip
 
     /// Lazy: the whip allocates a panel and decodes five crack sounds, and most
@@ -785,13 +789,25 @@ final class EffectsEngine {
             animator.showSonar(playSound: true)
             return remember(5459)
         }
-        // Tile #53 was repurposed into 💸 money: every press fires one round of
-        // rising dollars and layers the checkmark "ching" (overlapping, not
-        // preempting) so hammering the tile stacks both.
+        // Tile #53 was repurposed into 💸 money: every press is one "ching"
+        // (layered, not preempting) and one round of rising dollars, struck
+        // together at the slot `MoneyPacer` gives it — at least 0.25 s after the
+        // previous ching, so hammering the tile is a clean ching-ching-ching, not
+        // a smear. A press past the short queue is dropped, sound and dollars both.
         if name == "53_rain.mp3" {
-            animator.showMoneyRise()
-            guard let duration = SoundManager.shared.playOverlappingTabletSound(TileAudio.moneySound, volume: volume) else { return nil }
-            return remember(Int(duration * 1000))
+            let now = ProcessInfo.processInfo.systemUptime
+            guard let delay = moneyPacer.slot(at: now) else {
+                effectsInfo("💸 press dropped — two chings already queued")
+                return remember(Int((moneyPacer.lastSlot - now + moneyChingLength) * 1000))
+            }
+            guard let duration = SoundManager.shared.playOverlappingTabletSound(TileAudio.moneySound, after: delay, volume: volume) else { return nil }
+            moneyChingLength = duration
+            if delay > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [animator] in animator.showMoneyRise() }
+            } else {
+                animator.showMoneyRise()
+            }
+            return remember(Int((delay + duration) * 1000))
         }
         // Tile #31 (🕳️ iris close): silent by design, so it plays the gong
         // (~8.6 s ≈ the iris length) to keep every tile audible. The blackout is

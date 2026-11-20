@@ -139,6 +139,7 @@ class SoundManager {
     /// Main thread only.
     private func fadeOutAndStop(_ player: AVAudioPlayer, over seconds: TimeInterval) {
         let others = tabletClips.map(\.player) + Array(players.values) + overlappingPlayers
+            + layeredPools.values.flatMap(\.players)
         if !others.contains(where: { $0 !== player && $0.isPlaying }) {
             SoundTimingConfig.shared.noteSilenced()
         }
@@ -687,39 +688,71 @@ class SoundManager {
     }
 
     /// Play a tablet-routed sound that LAYERS over its previous copies instead
-    /// of preempting them — used by the 💸 Money tile (53_rain.mp3 →
-    /// 57_checkmark.mp3) so rapid repeated presses STACK overlapping "ching"s
-    /// (matching the stacking rounds of rising dollars) rather than cutting the
-    /// previous sound off. Honours/remembers the tablet volume like
-    /// playTabletSound, but routes through the overlapping-players pool — never
-    /// the single `tabletPlayer` — so it neither preempts nor is wiped by
-    /// stopTabletSound / `/effect/stop-all` (which the tablet fires before every
-    /// press). Returns the clip duration for the tablet's effect-stop chain.
-    /// Synchronous — main thread only (TabletHttpServer handlers run on it).
+    /// of preempting them — the 💸 Money tile's "ching" (53_rain.mp3 →
+    /// `TileAudio.moneySound`), struck once per press at the slot `MoneyPacer`
+    /// gave it, `after` seconds from now. Honours/remembers the tablet volume
+    /// like playTabletSound, but never touches the single `tabletPlayer`, so it
+    /// neither preempts nor is wiped by stopTabletSound / `/effect/stop-all`
+    /// (which the tablet fires before every press). Returns the clip duration
+    /// for the tablet's effect-stop chain.
+    ///
+    /// **Pre-built players, struck on the device clock** (2026-11-20). Building
+    /// an `AVAudioPlayer` per press decoded the mp3 on the main thread at every
+    /// tap, and each fresh player started with its own latency, so a fast run
+    /// of presses came out uneven — "a performance glitch". Now a small pool of
+    /// prepared players (`MoneyPacer.poolSize`, enough that a copy is never
+    /// restarted while it rings) is built once per file and reused round-robin,
+    /// each strike scheduled with `play(atTime:)` so the spacing is exact.
+    /// When a copy strikes, the ones still ringing step down to `layeredDuck`:
+    /// stacked at full level they clipped (measured in `MoneyPacer`).
+    /// Main thread only.
+    static let layeredDuck: Float = 0.4
+    private var layeredPools: [String: (url: URL, players: [AVAudioPlayer], next: Int)] = [:]
+
     @discardableResult
-    func playOverlappingTabletSound(_ filename: String, volume: Float? = nil) -> TimeInterval? {
+    func playOverlappingTabletSound(_ filename: String, after delay: TimeInterval = 0, volume: Float? = nil) -> TimeInterval? {
+        dispatchPrecondition(condition: .onQueue(.main))
         if let volume { tabletVolume = max(0.0, min(1.0, volume)) }
         guard let url = soundURL(for: filename) else {
             overlayError("Tablet sound not found: \(filename)")
             return nil
         }
-        do {
-            let player = try SoundManager.player(contentsOf: url)
-            player.volume = min(1, tabletVolume * clipGain(filename))
-            player.prepareToPlay()
-            overlappingPlayers.append(player)
-            player.play()
-            noteStarted(player)
-            let duration = player.duration
-            // Release finished players after this one ends (same cleanup as playOverlapping).
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.1) { [weak self] in
-                self?.overlappingPlayers.removeAll { !$0.isPlaying }
+        // A ＋ render answers with a new URL: the pool is rebuilt on it.
+        if layeredPools[filename]?.url != url {
+            do {
+                let first = try SoundManager.player(contentsOf: url)
+                var built = [first]
+                for _ in 1..<MoneyPacer.poolSize(clip: first.duration) {
+                    built.append(try SoundManager.player(contentsOf: url))
+                }
+                built.forEach { $0.prepareToPlay() }
+                layeredPools[filename] = (url, built, 0)
+            } catch {
+                overlayError("Tablet sound play failed \(filename): \(error)")
+                return nil
             }
-            return duration
-        } catch {
-            overlayError("Tablet sound play failed \(filename): \(error)")
-            return nil
         }
+        guard var pool = layeredPools[filename] else { return nil }
+        let player = pool.players[pool.next]
+        pool.next = (pool.next + 1) % pool.players.count
+        layeredPools[filename] = pool
+
+        if player.isPlaying { player.stop() }
+        player.currentTime = 0
+        player.volume = min(1, tabletVolume * clipGain(filename))
+        player.prepareToPlay()
+        let wait = max(0, delay)
+        player.play(atTime: player.deviceCurrentTime + wait)
+        noteStarted(player, after: wait)
+
+        // The copies still ringing step back as this one strikes.
+        let older = pool.players.filter { $0 !== player }
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
+            for p in older where p.isPlaying && p.currentTime > 0 {
+                p.setVolume(p.volume * Self.layeredDuck, fadeDuration: 0.03)
+            }
+        }
+        return player.duration
     }
 
     /// Live-adjust the tablet-routed volume (applies to the sound currently
