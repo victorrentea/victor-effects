@@ -33,9 +33,9 @@ enum BugWalk {
     /// (`tools/make-bug-walk.py` prints it). The sprite is turned by minus this
     /// so its head points along +x, which is what `.rotateAuto` steers.
     static let spriteHeading: CGFloat = 132.5 * .pi / 180
-    /// Its height on the screen: about a finger's width on the Retina, the
-    /// size of the table cell it walks to.
-    static let heightShare: CGFloat = 0.085
+    /// Its height on the screen: 1.5× the first edition's 0.085 (2026-11-20,
+    /// Victor: the room should see it without looking for it).
+    static let heightShare: CGFloat = 0.1275
     /// Points per second. A beetle, not a cockroach: it should take a few
     /// seconds to cross, long enough for the room to notice it.
     static let speed: CGFloat = 170
