@@ -9940,7 +9940,7 @@ class EmojiAnimator {
         return path
     }
 
-    // MARK: - ⛈️ Storm (tile #20 — clouds roll in, the desktop darkens, it rains)
+    // MARK: - ⛈️ Storm (tile #20 — fluffy clouds roll in, cartoon rain falls)
 
     /// The storm's self-stop, kept so an explicit stop (the clip was stopped on
     /// the tablet, or a stop-all) can cancel the one that hasn't fired yet —
@@ -9962,16 +9962,14 @@ class EmojiAnimator {
     /// flash out of a storm that has been told to end.
     private var stormFlash: CALayer?
 
-    /// ⛈️ Four clouds slide in from both sides onto the top edge, the desktop
-    /// dims under them, and rain falls out of the cloud base for as long as the
-    /// clip plays — with lightning, irregular, on the thunder rolls.
+    /// ⛈️ Seven fluffy clouds slide in onto the top edge and cartoon raindrops
+    /// fall out of their base for as long as the clip plays — with lightning,
+    /// irregular, on the thunder rolls. No gloom since 2026-11-20: cheerful.
     ///
-    /// One container holds all four parts (dark, clouds, flash, rain) so the
-    /// end is a single fade and `stopAllActiveEffects` needs no special case
-    /// beyond cancelling the pending self-stop. The layer ORDER is the whole
-    /// picture: the dark goes down first because it is what the clouds and the
-    /// rain are seen *against*, and the rain goes on top because drops in front
-    /// of the gloom are the only ones that read from the back of a room.
+    /// One container holds all three parts (rain, clouds, flash) so the end is
+    /// a single fade and `stopAllActiveEffects` needs no special case beyond
+    /// cancelling the pending self-stop. The rain is UNDER the clouds, so every
+    /// drop comes out of one.
     func showStorm() {
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
@@ -9996,19 +9994,14 @@ class EmojiAnimator {
         ZoomFollower.shared.stage(container, full: bounds)
         activeEffects["storm"] = container
 
-        // 1. The gloom. Model value is the END state with a `.forwards` ramp on
-        // top, so nothing snaps back to clear if the animation is ever removed.
-        let dark = CALayer()
-        dark.frame = bounds
-        dark.backgroundColor = NSColor.black.cgColor
-        dark.opacity = RainStorm.darkenOpacity
-        container.addSublayer(dark)
-        let dim = CABasicAnimation(keyPath: "opacity")
-        dim.fromValue = 0
-        dim.toValue = RainStorm.darkenOpacity
-        dim.duration = RainStorm.darkenSeconds
-        dim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        dark.add(dim, forKey: "stormDim")
+        // 1. The rain layer goes in FIRST, under the clouds: drops are born just
+        // above the cloud base, so the clouds have to be in front of them for
+        // each drop to come OUT of a cloud rather than pop into being on top of
+        // it. (It sat on top while there was a gloom to stand out against;
+        // there has been none since 2026-11-20.) Filled by the timer in step 4.
+        let rain = CALayer()
+        rain.frame = bounds
+        container.addSublayer(rain)
 
         // 2. The clouds, each sliding in from its own side after its own delay.
         // `position.x` rather than `frame`, the same convention the wazzup mask
@@ -10085,13 +10078,8 @@ class EmojiAnimator {
 
         // 4. The rain, ramping up rather than switching on: the tick rate is
         // fixed and the number of drops it releases is what grows, so the sky
-        // is dry until there are clouds to rain out of and the downpour then
-        // builds. Drops go in a sublayer of their own so they sit ABOVE the
-        // flash and the clouds — only drops in front of the gloom read from the
-        // back of a room.
-        let rain = CALayer()
-        rain.frame = bounds
-        container.addSublayer(rain)
+        // is dry until there are clouds to rain out of and the shower then
+        // builds. Into the layer laid down in step 1, under the clouds.
         if let dropImage = RainStorm.dropImage(scale: scale) {
             let started = Date()
             let timer = Timer.scheduledTimer(withTimeInterval: 1 / RainStorm.dropSpawnHz, repeats: true) { [weak self, weak rain] timer in

@@ -344,15 +344,12 @@ final class RainStormTests: XCTestCase {
 
     // MARK: - The timeline
 
-    /// The rain must not start before there is a cloud to fall out of, and the
-    /// gloom must be all the way in before the first thunder roll.
+    /// The rain must not start before there is a cloud to fall out of.
     func testTheChoreographyIsInOrder() {
         let lastCloudLands = (RainStorm.cloudDelays.max() ?? 0) + RainStorm.cloudSlideSeconds
         XCTAssertLessThan(RainStorm.rainLeadIn, lastCloudLands,
                           "the rain should start while the band is still closing, not after it")
         XCTAssertGreaterThan(RainStorm.rainLeadIn, 0)
-        XCTAssertLessThan(RainStorm.darkenSeconds, RainStorm.strikes.first?.at ?? 0,
-                          "the desktop should be dark by the first roll of thunder")
         XCTAssertLessThan(lastCloudLands + RainStorm.rainRampSeconds, RainStorm.fallbackDuration,
                           "the storm must reach full downpour well inside the clip")
     }
@@ -375,9 +372,28 @@ final class RainStormTests: XCTestCase {
         XCTAssertTrue(RainStorm.cloudImage(index: 0, size: size, scale: 2) === image, "second ask must hit the cache")
     }
 
-    func testADropIsATallThinStreak() throws {
-        let drop = try XCTUnwrap(RainStorm.dropImage(scale: 2))
-        XCTAssertGreaterThan(drop.height, drop.width * 4, "rain reads as lines, not as dots")
+    /// A cartoon teardrop: taller than wide but nowhere near a streak, its
+    /// sprite the aspect every drop is laid out at (or the layer squashes it),
+    /// and transparent in the top corners — the pointed end, not a box.
+    func testADropIsACartoonTeardrop() throws {
+        let sprite = try XCTUnwrap(RainStorm.dropImage(scale: 2))
+        let aspect = CGFloat(sprite.height) / CGFloat(sprite.width)
+        XCTAssertGreaterThan(aspect, 1.2)
+        XCTAssertLessThan(aspect, 2.2, "that is a streak, not a drop")
+        let drop = RainStorm.drop(in: bounds, lineY: RainStorm.rainLineY(in: bounds), depth: 0.5, atX: 100)
+        XCTAssertEqual(drop.size.height / drop.size.width, aspect, accuracy: 0.05)
+        let w = sprite.width, h = sprite.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        let ctx = try XCTUnwrap(CGContext(data: &px, width: w, height: h, bitsPerComponent: 8,
+                                          bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.draw(sprite, in: CGRect(x: 0, y: 0, width: w, height: h))
+        // Memory row 0 is the TOP of the image: the tip's corners are empty,
+        // the middle of the bulb is not.
+        XCTAssertEqual(px[3], 0, "top-left corner should be clear")
+        XCTAssertEqual(px[(w - 1) * 4 + 3], 0, "top-right corner should be clear")
+        let mid = ((h * 3 / 4) * w + w / 2) * 4
+        XCTAssertEqual(px[mid + 3], 255, "the bulb should be solid")
     }
 
     // MARK: - The flight of one drop
@@ -451,10 +467,11 @@ final class RainStormTests: XCTestCase {
         XCTAssertTrue(landedRight, "nothing rains past the right edge")
     }
 
-    /// The downpour must be a downpour, and the spawner must be able to deliver
-    /// it in whole drops per tick.
-    func testTheDownpourIsDenseEnoughToReadAsRain() {
-        XCTAssertGreaterThan(RainStorm.dropsPerSecond, 100)
+    /// A shower, not a blue wall, and the spawner must be able to deliver it
+    /// in whole drops per tick.
+    func testTheShowerIsRainButNotAWall() {
+        XCTAssertGreaterThan(RainStorm.dropsPerSecond, 30)
+        XCTAssertLessThan(RainStorm.dropsPerSecond, 150, "cartoon drops this thick are a wall")
         XCTAssertGreaterThan(RainStorm.dropsPerSecond / RainStorm.dropSpawnHz, 2,
                              "fewer than a couple of drops a tick and the rain arrives in visible pulses")
         XCTAssertGreaterThanOrEqual(RainStorm.dropSpawnHz, 20, "the spawn tick would be visible as a stutter")
@@ -466,7 +483,7 @@ final class RainStormTests: XCTestCase {
     /// and evil"*. The clouds before this were photographs graded to
     /// storm-grey. This holds the brightness, so a later "make it more stormy"
     /// pass has to come and change a number here on purpose. It also leaves
-    /// `storm-clouds.png` (the band over a gloomed grey desktop) in `$TMPDIR`.
+    /// `storm-clouds.png` (the band and its drops over a dark editor and a white slide) in `$TMPDIR`.
     func testTheCloudsAreBrightWhiteAndPastelNotGrey() throws {
         var sumR = 0.0, sumG = 0.0, sumB = 0.0, weight = 0.0
         for i in 0..<RainStorm.cloudCount {
@@ -498,10 +515,26 @@ final class RainStormTests: XCTestCase {
                                           bitsPerComponent: 8, bytesPerRow: 0,
                                           space: CGColorSpaceCreateDeviceRGB(),
                                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-        ctx.setFillColor(CGColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1))
-        ctx.fill(screen)
-        ctx.setFillColor(CGColor(gray: 0, alpha: CGFloat(RainStorm.darkenOpacity)))
-        ctx.fill(screen)
+        // Left half a dark editor, right half a white slide: both must read.
+        ctx.setFillColor(CGColor(red: 0.12, green: 0.13, blue: 0.16, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: screen.midX, height: screen.height))
+        ctx.setFillColor(CGColor(gray: 0.97, alpha: 1))
+        ctx.fill(CGRect(x: screen.midX, y: 0, width: screen.midX, height: screen.height))
+        if let sprite = RainStorm.dropImage(scale: 1) {
+            for _ in 0..<70 {
+                let d = RainStorm.randomDrop(in: screen)
+                let t = CGFloat.random(in: 0...1)
+                let c = CGPoint(x: d.start.x + (d.end.x - d.start.x) * t, y: d.start.y + (d.end.y - d.start.y) * t)
+                ctx.saveGState()
+                ctx.translateBy(x: c.x, y: c.y)
+                ctx.rotate(by: -d.angle)
+                ctx.setAlpha(CGFloat(d.opacity))
+                ctx.draw(sprite, in: CGRect(x: -d.size.width / 2, y: -d.size.height / 2,
+                                            width: d.size.width, height: d.size.height))
+                ctx.restoreGState()
+            }
+        }
+        // Clouds over the drops, as in the app: every drop comes out of one.
         for (i, a) in RainStorm.arrivals(in: screen).enumerated() {
             guard let img = RainStorm.cloudImage(index: i, size: a.rest.size, scale: 1) else { continue }
             let pad = a.rest.width * RainStorm.spritePadding

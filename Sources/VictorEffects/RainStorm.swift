@@ -3,9 +3,10 @@ import CoreImage
 import ImageIO
 import QuartzCore
 
-/// ⛈️ The storm that rolls in on tile #20: seven clouds slide in from the two
-/// sides onto the top edge, the desktop goes dark under them, and it rains for
-/// the length of the clip.
+/// ⛈️ The storm that rolls in on tile #20: seven fluffy clouds slide in from the
+/// sides and the top onto the top edge, and cartoon raindrops fall out of them
+/// for the length of the clip. Cheerful on purpose (Victor, 2026-11-20): no
+/// gloom, white clouds, blue teardrops.
 ///
 /// Everything here is either a **pure function of the overlay bounds** (where
 /// each cloud starts, where it stops) or a **cached drawing** (the cloud
@@ -113,17 +114,9 @@ enum RainStorm {
     /// at once rather than sweeping across.
     static let cloudDelays: [Double] = [0.00, 0.34, 0.14, 0.46, 0.22, 0.52, 0.08]
 
-    /// The desktop dims to this, over [darkenSeconds]. Not black: what is being
-    /// darkened is a live demo, and the room still has to be able to read it —
-    /// the same trade `TvStatic.defaultAlpha` makes. Was 0.62 until
-    /// 2026-10-03 — too heavy for the room (Victor: "mai moderată").
-    ///
-    /// The ramp has to be **over before the first roll of thunder** — a screen
-    /// still visibly darkening when the lightning goes off reads as the flash
-    /// dimming the desktop, which is backwards. `RainStormTests` holds it there.
-    static let darkenOpacity: Float = 0.45
-    static let darkenSeconds: Double = 2.4
-
+    // No gloom since 2026-11-20 (Victor: *"drop the darkening too, keep it
+    // cheerful"*): the desktop stays as bright as it was, so the clouds and
+    // drops are drawn to read on a light slide AND a dark editor.
     /// Rain does not start until there is something for it to fall out of: the
     /// first cloud is most of the way across by here, and the drops ramp up to
     /// full over [rainRampSeconds] instead of switching on.
@@ -430,6 +423,24 @@ enum RainStorm {
         let body = CGRect(x: pad, y: pad, width: px.width, height: px.height)
         let all = lobeRects(seed: index, in: body)
         let split = max(0, all.count - frontRowCount)
+
+        // A soft blue-grey shadow under the whole cloud, baked into the sprite:
+        // with no gloom behind it a white cloud on a white slide would only be
+        // its crescents. Dropped a little and blurred, so it reads as the cloud
+        // floating rather than as an outline.
+        if let shade = context(),
+           let shadowColour = CGColor(colorSpace: space, components: cloudShadow) {
+            shade.setFillColor(shadowColour)
+            let drop = px.width * shadowDropFraction
+            for p in all {
+                shade.fillEllipse(in: CGRect(x: p.centre.x - p.radius, y: p.centre.y - p.radius - drop,
+                                             width: p.radius * 2, height: p.radius * 2))
+            }
+            if let sharpShade = shade.makeImage() {
+                let soft = blur(sharpShade, radius: px.width * shadowBlurFraction) ?? sharpShade
+                ctx.draw(soft, in: CGRect(origin: .zero, size: canvas))
+            }
+        }
         for group in [Array(all[..<split]), Array(all[split...])] where !group.isEmpty {
             let union = CGMutablePath()
             for p in group {
@@ -466,6 +477,13 @@ enum RainStorm {
     /// crescent under each bump is.
     static let lightScale: CGFloat = 0.93
     static let lightLift: CGFloat = 0.14
+    /// The cloud's own shadow: its colour, how far it drops and how soft it is
+    /// (fractions of the sprite's width). Faint on purpose — it is there to
+    /// lift a white cloud off a white slide, not to make it a thundercloud.
+    static let cloudShadow: [CGFloat] = [0.30, 0.42, 0.62, 0.30]
+    static let shadowDropFraction: CGFloat = 0.018
+    static let shadowBlurFraction: CGFloat = 0.014
+
     /// The light's own blur, as a fraction of the sprite's width — what makes
     /// the crescent a shade rather than a band.
     static let lightBlurFraction: CGFloat = 0.010
@@ -497,36 +515,68 @@ enum RainStorm {
 
     // MARK: - Rain
 
-    /// One drop, as a streak: rain read from across a room is lines, not dots.
-    /// White and nearly opaque at the head (the BOTTOM of the image — the drop
-    /// falls head first), transparent at the tail, so a drop looks like it is
-    /// moving even in a still frame. Drawn once per scale and stretched to each
-    /// drop's own length by its layer.
+    /// One **cartoon raindrop** (Victor, 2026-11-20: *"draw some rain drops
+    /// cartoon style"*): a teardrop, round at the bottom and pointed at the top
+    /// — it falls head first — filled sky-blue, outlined a deeper blue and with
+    /// a white glint on the bulb. The outline is what keeps it readable on a
+    /// white slide, the light fill on a dark editor; there is no gloom under it
+    /// any more to do that job. Drawn once per scale at [dropSpriteSize] and
+    /// scaled to each drop's own size by its layer (same aspect, so it never
+    /// squashes).
     static func dropImage(scale: CGFloat) -> CGImage? {
         let key = "drop@\(Int(scale * 100))"
         if let cached = spriteCache[key] { return cached }
-        let w = max(2, Int(3 * scale)), h = max(8, Int(48 * scale))
-        guard let ctx = CGContext(data: nil, width: w, height: h,
-                                  bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: CGColorSpaceCreateDeviceRGB(),
+        let w = dropSpriteSize.width * scale, h = dropSpriteSize.height * scale
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(data: nil, width: Int(w), height: Int(h),
+                                  bitsPerComponent: 8, bytesPerRow: 0, space: space,
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
-              let gradient = CGGradient(colorSpace: CGColorSpaceCreateDeviceRGB(),
-                                        colorComponents: [0.86, 0.91, 1.0, 0.95,
-                                                          0.86, 0.91, 1.0, 0.0],
-                                        locations: [0, 1], count: 2) else { return nil }
-        ctx.drawLinearGradient(gradient,
-                               start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: CGFloat(h)),
-                               options: [])
+              let fill = CGGradient(colorSpace: space,
+                                    colorComponents: [0.62, 0.84, 1.00, 1,
+                                                      0.27, 0.60, 0.98, 1],
+                                    locations: [0, 1], count: 2) else { return nil }
+        // Bitmap y is up, like the layer's: the bulb sits at the bottom.
+        let line = w * 0.08
+        let r = (w - line * 2) / 2
+        let bulb = CGPoint(x: w / 2, y: line + r)
+        let tip = CGPoint(x: w / 2, y: h - line)
+        let path = CGMutablePath()
+        // From the tip down the right flank, round the bulb, back up the left.
+        let a = asin(min(1, r / (tip.y - bulb.y)))          // where the flanks meet the bulb tangentially
+        path.move(to: tip)
+        path.addArc(center: bulb, radius: r, startAngle: a, endAngle: .pi - a, clockwise: true)
+        path.closeSubpath()
+
+        ctx.saveGState()
+        ctx.addPath(path)
+        ctx.clip()
+        ctx.drawLinearGradient(fill, start: CGPoint(x: w * 0.3, y: h), end: CGPoint(x: w * 0.7, y: 0), options: [])
+        ctx.restoreGState()
+
+        ctx.addPath(path)
+        ctx.setStrokeColor(CGColor(colorSpace: space, components: [0.13, 0.40, 0.82, 1])!)
+        ctx.setLineWidth(line)
+        ctx.setLineJoin(.round)
+        ctx.strokePath()
+
+        // The glint: a little white oval up and to the left on the bulb.
+        ctx.setFillColor(CGColor(gray: 1, alpha: 0.9))
+        ctx.fillEllipse(in: CGRect(x: bulb.x - r * 0.62, y: bulb.y - r * 0.05,
+                                   width: r * 0.42, height: r * 0.62))
+
         guard let image = ctx.makeImage() else { return nil }
         spriteCache[key] = image
         return image
     }
 
-    /// Drops released per second at full downpour, and how often the spawner
-    /// wakes up. One timer dropping a handful of layers per tick rather than
-    /// 3 600 pre-scheduled work items for the length of the clip.
-    static let dropsPerSecond: Double = 330
-    static let dropSpawnHz: Double = 30
+    /// The sprite's own size in points; every drop is this aspect.
+    static let dropSpriteSize = CGSize(width: 20, height: 30)
+
+    /// Drops released per second at full rain, and how often the spawner
+    /// wakes up. A cartoon shower is SPARSE — each drop is a little character,
+    /// and 330 of them a second (the streak rain's count) would be a blue wall.
+    static let dropsPerSecond: Double = 60
+    static let dropSpawnHz: Double = 20
 
     /// How far a drop leans while it falls, as a fraction of the distance it
     /// covers — **negative is to the left**, which is the way this storm blows
@@ -535,11 +585,10 @@ enum RainStorm {
     /// far short of the sideways drift this replaced.
     static let dropLean: CGFloat = -0.06
 
-    /// Points per second, far drop → near drop. Real rain is several times
-    /// this; at real speed the streaks smear into continuous lines and stop
-    /// reading as individual drops.
-    static let dropSpeedFar: CGFloat = 900
-    static let dropSpeedNear: CGFloat = 2000
+    /// Points per second, far drop → near drop. Cartoon-slow: a drop you can
+    /// see the shape of is one that stays in view for a second or so.
+    static let dropSpeedFar: CGFloat = 650
+    static let dropSpeedNear: CGFloat = 1050
 
     /// One drop's whole flight, in overlay coordinates (**bottom-origin, y up**).
     ///
@@ -567,8 +616,8 @@ enum RainStorm {
     /// same one-number-carries-everything trick the snow uses, so a drop can
     /// never read as a contradiction. `x` is where it enters, in points.
     static func drop(in bounds: CGRect, lineY: CGFloat, depth: CGFloat, atX x: CGFloat) -> Drop {
-        let length = 18 + depth * 46
-        let width = 1.1 + depth * 1.7
+        let width = 15 + depth * 15
+        let length = width * dropSpriteSize.height / dropSpriteSize.width
         let speed = dropSpeedFar + depth * (dropSpeedNear - dropSpeedFar)
 
         // Born just inside the cloud base and spent just past the bottom edge,
@@ -582,7 +631,7 @@ enum RainStorm {
                     end: CGPoint(x: x + drift, y: endY),
                     size: CGSize(width: width, height: length),
                     seconds: Double(fall / speed),
-                    opacity: Float(0.28 + depth * 0.52),
+                    opacity: Float(0.80 + depth * 0.20),
                     angle: atan2(drift, fall))
     }
 

@@ -963,8 +963,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   like the spiral hearts'). `/test/snow`, `/test/snow/stop` and `/effect/snow`
   fire it silently.
 - **⛈️ Storm** (tile #20 `20_storm.mp3` → `storm` / `storm/stop`, `showStorm`,
-  `RainStorm.swift`): **four clouds slide in from the two sides onto the top edge, the
-  desktop goes dark under them, and it rains for the length of the clip** (18.9 s, read
+  `RainStorm.swift`): **seven fluffy cartoon clouds slide in onto the top edge and
+  cartoon raindrops fall out of them for the length of the clip — cheerful, no gloom
+  since 2026-11-20** (Victor: *"drop the darkening too, keep it cheerful and draw some
+  rain drops cartoon style"*) (18.9 s, read
   off the mp3 via `AVURLAsset`) — with lightning on the thunder rolls inside it. Victor's
   ask, 2026-09-19, and it took the one square the board had left: #20 used to be the
   `N/A` row holding #19's second trombone take (`docs/sound-routing.md`).
@@ -979,7 +981,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `lightLift`, `lightBlurFraction`): what the white leaves is a soft blue crescent under
   each bump, and the front row's crescents are what separate its bumps from the mass. No
   outline anywhere. `testTheCloudsAreBrightWhiteAndPastelNotGrey` holds the brightness
-  and leaves `storm-clouds.png` (the band over a gloomed desktop) in `$TMPDIR`.
+  and leaves `storm-clouds.png` (the band and its drops over a dark editor and a white slide) in `$TMPDIR`.
 
   From 2026-09-19 to 2026-11-20 the clouds were **photographs** — two public-domain
   cumulus skies keyed off the sky colour, graded down to storm-grey to sit under the gloom.
@@ -1035,11 +1037,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   neighbours sway in *opposite* directions, so their overlap churns instead of opening and
   closing as one seam. All three properties are tests.
 
-  **The gloom** is a black layer ramping to **0.62** over 2.4 s. Not black — what is being
-  darkened is a live demo and the room still has to be able to read it, the same trade
-  `TvStatic.defaultAlpha` makes. The ramp is deliberately **over before the first roll of
-  thunder** (2.60 s): a screen still visibly darkening when the lightning goes off reads
-  as the flash dimming the desktop, which is backwards.
+  **No gloom** (since 2026-11-20). Until then a black layer ramped to 0.45 over 2.4 s,
+  over before the first thunder roll. With it gone, the clouds and drops have to read on
+  a white slide AND a dark editor by themselves: each cloud bakes in a faint blue-grey
+  shadow (`cloudShadow`) that lifts it off white, and each drop has a deeper-blue outline.
+
+  **The drops are cartoon teardrops** (`RainStorm.dropImage`): round at the bottom,
+  pointed at the top, sky-blue with a deeper-blue outline and a white glint, drawn once
+  and scaled to each drop (15→30 pt wide, the sprite's own 2:3 aspect). They are
+  **sparse and slow** — 60/s at 650→1050 pt/s, against the streak rain's 330/s at
+  900→2000 — because a drop you can see the shape of is a little character, and 330 of
+  them a second would be a blue wall. The rain layer sits **under** the clouds, so every
+  drop comes out of one. `storm-clouds.png` in `$TMPDIR` (written by
+  `testTheCloudsAreBrightWhiteAndPastelNotGrey`) shows both on a dark and a light half.
 
   **The rain falls between two POINTS, and that is the whole lesson.** The first cut was a
   `CAEmitterLayer`, which expresses direction as `emissionLongitude` — an angle whose zero
@@ -1053,7 +1063,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   Drops are born on the **lowest** cloud base (`rainLineY`) so none is ever born in clear
   sky above a cloud that is still covering it, and spent just past the bottom edge, so
   neither end of a streak is ever seen appearing or stopping. One number — `depth` 0…1 —
-  carries length (18→64 pt), width, speed (900→2000 pt/s) and brightness together, the
+  carries size, speed and opacity together, the
   same trick the snow uses, so a drop can never read as a contradiction. Each leans **6 %
   of its own fall to the left** (about 3.4°, Victor: *"perhaps slightly diagonally to left
   a bit"*) and the streak is **rotated onto its own path** — a vertical sprite travelling
@@ -1114,9 +1124,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   and the Mac never sees a `/sound/play` at all, which is exactly what the seven play-path
   tiles give up.
 
-  Everything hangs in **one container** (gloom, clouds, flash, rain, in that order — the
-  gloom is what the clouds and the rain are seen *against*, and the drops go on top
-  because only drops in front of the gloom read from the back of a room), so the end is a
+  Everything hangs in **one container** (rain, clouds, flash, in that order — the drops
+  under the clouds so each comes out of one), so the end is a
   single 1.4 s fade of the lot rather than the clouds sliding back out, which would cost
   another 2.3 s after the sound has stopped. The self-stop at the clip's length is the
   lifecycle rule's authoritative teardown and is identity-guarded; `clearStorm` cancels it

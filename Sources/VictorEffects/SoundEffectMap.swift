@@ -120,8 +120,8 @@ enum SoundEffectMap {
         // now snows for as long as the clip plays.
         "46_michael_buble.mp3":  "snow",
         // Tile 20 (⛈️ storm) — the square #19's second trombone take used to
-        // hold. Four clouds slide in from both sides onto the top edge, the
-        // desktop darkens under them and it rains for the length of the clip,
+        // hold. Seven fluffy clouds slide in onto the top edge and cartoon
+        // raindrops fall out of them for the length of the clip (no gloom),
         // with lightning on the thunder rolls. Press-driven on purpose: the
         // rolls in this recording swell over ~300 ms, so nothing here needs the
         // sample accuracy that puts the FBI knock on the play path — and this
