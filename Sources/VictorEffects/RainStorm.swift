@@ -13,21 +13,12 @@ import QuartzCore
 /// `TvStatic`, so the layout can be tested without a screen and the press costs
 /// no rendering after the first one.
 ///
-/// **The clouds are photographs** (`Resources/clouds/cloud-0…6.png`), cut out of
-/// two public-domain skies — see that folder's `CREDITS.md`. The drawn ones they
-/// replaced are still here as [cloudImage]'s fallback and are still what a
-/// missing sprite gets: a seeded pile of lobes with a gradient and a blur, good
-/// enough that nobody in a room would have called it wrong, and visibly not a
-/// photograph once a real cumulus is beside it.
-///
-/// Finding the photographs was most of the work, and the reason is worth
-/// writing down: the matte is keyed off the SKY, so a picture only works if its
-/// sky is a saturated, even blue right up to the cloud's edge. Almost every
-/// cloud photograph is hazy near its subject — pale blue against white cloud is
-/// no key at all — and a scored sweep of ~50 public-domain candidates produced
-/// exactly three usable ones. Hence three cumulus FORMS across seven sprites,
-/// mirrored and re-cropped, arranged so no two neighbours in the band share a
-/// form and a mirror never sits beside its original.
+/// **The clouds are fluffy cartoon puffs, drawn, white with a pastel-blue
+/// shade** (Victor, 2026-11-20: *"fun and joyful, not dark and evil"*). From
+/// September to November they were photographed cumulus graded down to
+/// storm-grey, and in a room they read as menace rather than weather; the
+/// story of those, and why finding them was hard, is in git history and in
+/// `docs/overlay-effects.md` under ⛈️ Storm.
 enum RainStorm {
 
     // MARK: - The clip
@@ -187,9 +178,9 @@ enum RainStorm {
     /// meeting leave a notch of bright desktop between them unless they overlap
     /// much harder.
     static let cloudWidthFraction: CGFloat = 0.34
-    /// Height ÷ width. **This is the sprite files' own aspect** (1200 × 780), not
-    /// a free parameter: the photographs are cut to it, base-anchored, so the
-    /// box never squashes a cloud. Change one and the other has to follow.
+    /// Height ÷ width of a cloud's box. The puffs are laid out in units of the
+    /// WIDTH and kept under this height ([lobes]), so changing it reshapes the
+    /// band and a test then says whether every puff still fits.
     static let cloudAspect: CGFloat = 0.65
 
     /// Where the clouds come to rest, as fractions of the screen width. The
@@ -327,33 +318,60 @@ enum RainStorm {
         }
     }
 
-    /// Lobes of one cloud. **Every number is in units of the cloud's WIDTH**,
-    /// including the vertical ones, so a lobe is a true circle on screen rather
-    /// than an ellipse squashed by the box's aspect — the whole point of the
-    /// pile is that it reads as billows. `y` is measured up from the cloud's
-    /// base, and no lobe reaches past [cloudAspect] (the box's height in those
-    /// same units), which is what keeps the sprite inside its own frame.
+    /// The puffs of one cloud, **back to front** — the order they are painted
+    /// in, so a lower puff always overlaps the one above it and its pale rim is
+    /// what draws the line between them. **Every number is in units of the
+    /// cloud's WIDTH**, including the vertical ones, so a puff is a true circle
+    /// on screen rather than an ellipse squashed by the box's aspect. `y` is
+    /// measured up from the cloud's base, and no puff reaches past
+    /// [cloudAspect] (the box's height in those same units), which is what keeps
+    /// the sprite inside its own frame.
+    ///
+    /// Four layers: a dome along the top (mostly above the screen edge at rest,
+    /// but seen while a top-entry cloud drops in), a fat middle that closes the
+    /// mass, a puff on each flank, and a **front row of round bumps along the
+    /// base** — the band is seen from below, so its underside IS the cloud, and
+    /// a scalloped underside is what reads as fluffy rather than as overcast
+    /// (Victor, 2026-11-20: *"fluffy… fun and joyful, not dark and evil"*).
     ///
     /// Returned rather than drawn so the shape can be inspected in a test.
     static func lobes(seed: Int) -> [(centre: CGPoint, radius: CGFloat)] {
         var rng = Seeded(UInt64(seed) &+ 11)
-        let count = 7
-        return (0..<count).map { i in
-            let t = Double(i) / Double(count - 1)
-            // Fat in the middle, tapering to the ends — a cumulus silhouette,
-            // not a row of equal bubbles.
-            let bulge = 1 - abs(t - 0.5) * 1.3
-            let r = (0.085 + 0.145 * bulge) * rng.next(0.85...1.15)
-            // Placed by its OWN radius rather than on a fixed span: the end
-            // lobes are the small ones, and spacing them evenly hung them off
-            // the side of the sprite — where the blur canvas cuts them into a
-            // straight vertical edge, the one thing that gives a drawn cloud
-            // away. The jitter is what [spritePadding] has to cover.
-            let x = r + (1 - 2 * r) * t + rng.next(-0.03...0.03)
-            let y = r * 0.75 + 0.10
-            return (CGPoint(x: x, y: y), CGFloat(r))
+        var out: [(centre: CGPoint, radius: CGFloat)] = []
+        func puff(_ x: Double, _ y: Double, _ r: Double) {
+            out.append((CGPoint(x: x, y: y), CGFloat(r)))
         }
+        let top = Double(cloudAspect) - 0.012
+        // The dome: three big puffs touching the top of the box.
+        for x in [0.27, 0.51, 0.75] {
+            let r = rng.next(0.16...0.19)
+            puff(x + rng.next(-0.025...0.025), top - r, r)
+        }
+        // The middle: what closes the mass, so no daylight between the dome
+        // and the front row.
+        for x in [0.36, 0.64] {
+            let r = rng.next(0.18...0.20)
+            puff(x + rng.next(-0.02...0.02), rng.next(0.29...0.33), r)
+        }
+        // The flanks, low and round — a cloud whose sides are straight is a
+        // pillow.
+        let leftR = rng.next(0.11...0.13), rightR = rng.next(0.11...0.13)
+        puff(0.13 + rng.next(-0.015...0.015), rng.next(0.22...0.27), leftR)
+        puff(0.87 + rng.next(-0.015...0.015), rng.next(0.22...0.27), rightR)
+        // The front row: bumps along the base of UNEQUAL size, hanging at
+        // different depths, so the underside bounces instead of reading as a
+        // row of balls.
+        for i in 0..<frontRowCount {
+            let t = Double(i) / Double(frontRowCount - 1)
+            let r = rng.next(0.085...0.135)
+            let x = 0.21 + 0.58 * t + rng.next(-0.025...0.025)
+            puff(x, r + rng.next(0.01...0.06), r)
+        }
+        return out
     }
+
+    /// The last this-many puffs of [lobes] are the front row along the base.
+    static let frontRowCount = 4
 
     /// A lobe's centre and radius in the sprite's own pixels.
     private static func lobeRects(seed: Int, in rect: CGRect) -> [(centre: CGPoint, radius: CGFloat)] {
@@ -363,133 +381,108 @@ enum RainStorm {
         }
     }
 
-    /// The silhouette: the lobes plus a flat-ish slab that closes their bases
-    /// into one mass. Without the slab the gaps between lobes show as notches
-    /// along the bottom, which reads as a caterpillar rather than as a cloud.
-    static func silhouette(seed: Int, in rect: CGRect) -> CGPath {
-        let path = CGMutablePath()
-        let base = CGRect(x: rect.minX + rect.width * 0.07,
-                          y: rect.minY,
-                          width: rect.width * 0.86,
-                          height: rect.width * 0.17)
-        path.addRoundedRect(in: base, cornerWidth: base.height * 0.45, cornerHeight: base.height * 0.45)
-        for lobe in lobeRects(seed: seed, in: rect) {
-            path.addEllipse(in: CGRect(x: lobe.centre.x - lobe.radius, y: lobe.centre.y - lobe.radius,
-                                       width: lobe.radius * 2, height: lobe.radius * 2))
-        }
-        return path
-    }
-
     /// Rendered sprites, keyed `index@WxH`. A press has to be instant; the first
     /// one pays for the blur and every later one is a dictionary hit.
     private static var spriteCache: [String: CGImage] = [:]
 
-    /// One storm cloud, `size` points at `scale`, transparent outside the
-    /// silhouette.
-    ///
-    /// Three passes make it read as weather rather than as a grey shape: a
-    /// vertical gradient (slate at the top, near-black at the base — a cloud
-    /// heavy enough to rain is lit from above and dark underneath), a soft
-    /// highlight per lobe so the mass has volume, and a **Gaussian blur over
-    /// the whole thing** so the outline is vapour and not a cut edge. The blur
-    /// is why the canvas carries [spritePadding] of slack on every side: a blur
-    /// clipped at the bitmap edge puts a hard line exactly where the softness
-    /// was supposed to be.
+    /// One cloud, `size` points at `scale`, transparent outside the puffs.
     static func cloudImage(index: Int, size: CGSize, scale: CGFloat) -> CGImage? {
         let key = "\(index)@\(Int(size.width * scale))x\(Int(size.height * scale))"
         if let cached = spriteCache[key] { return cached }
-        // The photograph, when there is one. Cached under the same key as the
-        // drawing it replaces, so the caller never learns which it got — and,
-        // unlike the drawing, it is one bitmap whatever size it is asked for:
-        // the layer scales it, which is what `contentsGravity` is for.
-        if let photo = cloudPhoto(index: index) {
-            spriteCache[key] = photo
-            return photo
-        }
         return drawnCloud(index: index, size: size, scale: scale).map {
             spriteCache[key] = $0
             return $0
         }
     }
 
-    /// The fallback: a cloud built out of nothing but numbers, at exactly the
-    /// size asked for. Kept as its own entry point so it can be tested even on a
-    /// machine where the sprites are present, and so the reason it still exists
-    /// stays visible — a missing PNG must cost a worse cloud, never no storm.
+    /// **A fluffy cartoon cloud, not a photograph** (Victor, 2026-11-20:
+    /// *"fluffy… fun and joyful, not dark and evil"*). The photographed cumulus
+    /// this replaced (Sept 2026) had been graded down to storm-grey to sit under
+    /// the gloom, and in a room it read as menace, not weather.
+    ///
+    /// Painted in two groups, the mass behind and then the front row of bumps
+    /// along the base, each the same way: its silhouette (the union of its
+    /// puffs) filled pale sky-blue, then every puff again in WHITE, a little
+    /// smaller and nudged up, blurred, over it. What the white leaves uncovered
+    /// is a soft blue crescent under each bump — light from above, shade
+    /// underneath — and because the front row is painted after the mass, its
+    /// crescents are what draw the bumps against the cloud behind them. No line
+    /// is drawn anywhere; a cartoon cloud with an outline is a sticker. A
+    /// whisper of blur at the end softens the outer edge into vapour; the
+    /// canvas carries [spritePadding] of slack on every side so that blur is
+    /// never clipped into a straight line.
     static func drawnCloud(index: Int, size: CGSize, scale: CGFloat) -> CGImage? {
         guard size.width > 1, size.height > 1 else { return nil }
 
         let px = CGSize(width: size.width * scale, height: size.height * scale)
         let pad = px.width * spritePadding
         let canvas = CGSize(width: px.width + pad * 2, height: px.height + pad * 2)
-        guard let ctx = CGContext(data: nil,
-                                  width: Int(canvas.width), height: Int(canvas.height),
-                                  bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        let space = CGColorSpaceCreateDeviceRGB()
+        func context() -> CGContext? {
+            CGContext(data: nil, width: Int(canvas.width), height: Int(canvas.height),
+                      bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        }
+        guard let ctx = context(),
+              let rim = CGColor(colorSpace: space, components: puffRim),
+              let white = CGColor(colorSpace: space, components: puffWhite) else { return nil }
 
         let body = CGRect(x: pad, y: pad, width: px.width, height: px.height)
-        let path = silhouette(seed: index, in: body)
-
-        ctx.saveGState()
-        ctx.addPath(path)
-        ctx.clip()
-
-        // Slate above, storm-belly below.
-        let space = CGColorSpaceCreateDeviceRGB()
-        let stops: [CGFloat] = [
-            0.13, 0.15, 0.18, 1,   // base
-            0.26, 0.29, 0.34, 1,
-            0.44, 0.48, 0.54, 1,
-            0.56, 0.60, 0.66, 1,   // top
-        ]
-        if let gradient = CGGradient(colorSpace: space, colorComponents: stops,
-                                     locations: [0, 0.34, 0.74, 1], count: 4) {
-            ctx.drawLinearGradient(gradient,
-                                   start: CGPoint(x: 0, y: body.minY),
-                                   end: CGPoint(x: 0, y: body.maxY),
-                                   options: [])
-        }
-
-        // Volume: a soft light on the upper-left shoulder of every lobe.
-        for lobe in lobeRects(seed: index, in: body) {
-            let r = lobe.radius
-            let highlight = CGPoint(x: lobe.centre.x - r * 0.22, y: lobe.centre.y + r * 0.34)
-            if let glow = CGGradient(colorSpace: space,
-                                     colorComponents: [1, 1, 1, 0.17, 1, 1, 1, 0],
-                                     locations: [0, 1], count: 2) {
-                ctx.drawRadialGradient(glow, startCenter: highlight, startRadius: 0,
-                                       endCenter: highlight, endRadius: r * 1.15, options: [])
+        let all = lobeRects(seed: index, in: body)
+        let split = max(0, all.count - frontRowCount)
+        for group in [Array(all[..<split]), Array(all[split...])] where !group.isEmpty {
+            let union = CGMutablePath()
+            for p in group {
+                union.addEllipse(in: CGRect(x: p.centre.x - p.radius, y: p.centre.y - p.radius,
+                                            width: p.radius * 2, height: p.radius * 2))
             }
+            // The light: each puff in white, smaller and lifted (bitmap y is
+            // up, like the layer's), blurred so the crescent it leaves fades in.
+            guard let lit = context() else { return nil }
+            lit.setFillColor(white)
+            for p in group {
+                let r = p.radius * lightScale
+                let c = CGPoint(x: p.centre.x - p.radius * 0.05, y: p.centre.y + p.radius * lightLift)
+                lit.fillEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+            }
+            guard let litSharp = lit.makeImage() else { return nil }
+            let litSoft = blur(litSharp, radius: px.width * lightBlurFraction) ?? litSharp
+
+            ctx.saveGState()
+            ctx.addPath(union)
+            ctx.clip()
+            ctx.setFillColor(rim)
+            ctx.fill(CGRect(origin: .zero, size: canvas))
+            ctx.draw(litSoft, in: CGRect(origin: .zero, size: canvas))
+            ctx.restoreGState()
         }
-        ctx.restoreGState()
 
         guard let sharp = ctx.makeImage() else { return nil }
         return blur(sharp, radius: px.width * blurFraction) ?? sharp
     }
 
-    /// The cut-out sprite for this cloud, or nil if the bundle has none — in
-    /// which case [cloudImage] draws one instead. A storm with drawn clouds is a
-    /// worse storm; a storm that refuses to run because a PNG is missing is no
-    /// storm at all.
-    static func cloudPhoto(index: Int) -> CGImage? {
-        guard let url = EffectsResources.bundle.url(forResource: "cloud-\(index % cloudCount)",
-                                          withExtension: "png",
-                                          subdirectory: "Resources/clouds"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        return image
-    }
+    /// How much of a puff the light covers, and how far up it is nudged, as
+    /// fractions of the puff's radius: together they set how thick the shaded
+    /// crescent under each bump is.
+    static let lightScale: CGFloat = 0.93
+    static let lightLift: CGFloat = 0.14
+    /// The light's own blur, as a fraction of the sprite's width — what makes
+    /// the crescent a shade rather than a band.
+    static let lightBlurFraction: CGFloat = 0.010
+
+    /// The two colours of a puff: white where the light hits, and the pale,
+    /// cheerful sky-blue its shaded rim keeps — a pastel, never grey. Grey is
+    /// what made the old clouds look like they were about to hurt someone.
+    static let puffWhite: [CGFloat] = [1.00, 1.00, 1.00, 1]
+    static let puffRim: [CGFloat] = [0.74, 0.85, 1.00, 1]
 
     /// Slack around the sprite, as a fraction of its width, so the blur has
-    /// somewhere to go. **Photographic sprites carry their own margin** (they are
-    /// trimmed to their cloud and then placed in a fixed box), so this applies to
-    /// the drawn fallback; the caller insets by it either way, which costs a
-    /// photograph 6 % of transparent edge and nothing else.
+    /// somewhere to go.
     static let spritePadding: CGFloat = 0.06
-    /// Blur radius, as a fraction of the sprite's width. Enough to turn the
-    /// outline into vapour, not so much that the lobes melt into one pillow.
-    static let blurFraction: CGFloat = 0.007
+    /// Blur radius, as a fraction of the sprite's width. Just enough to soften
+    /// the outer edge — any more and the puffs melt into one pillow, which is
+    /// the opposite of fluffy.
+    static let blurFraction: CGFloat = 0.0035
 
     private static func blur(_ image: CGImage, radius: CGFloat) -> CGImage? {
         let input = CIImage(cgImage: image)

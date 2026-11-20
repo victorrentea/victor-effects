@@ -969,38 +969,22 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   ask, 2026-09-19, and it took the one square the board had left: #20 used to be the
   `N/A` row holding #19's second trombone take (`docs/sound-routing.md`).
 
-  **The clouds are photographs** (`Resources/clouds/cloud-0…6.png`), cut out of two
-  public-domain skies; that folder's `CREDITS.md` says which. They replaced a set of drawn
-  ones — a seeded pile of lobes under a gradient and a blur — that nobody in a room would
-  have called *wrong*, and that stopped being defensible the moment a real cumulus stood
-  next to it. The drawing survives as `RainStorm.drawnCloud`, still tested, and is what a
-  missing PNG gets: a worse cloud is a fair price for a missing file, no storm is not.
+  **The clouds are fluffy cartoon puffs, drawn** (Victor, 2026-11-20: *"make the clouds
+  fluffy… fun and joyful, not dark and evil"*). Each is a seeded pile of round puffs
+  (`RainStorm.lobes`): a dome along the top, a fat middle, one on each flank and a **front
+  row of unequal bumps along the base** — the band is seen from below, so its underside is
+  the cloud, and a scalloped underside is what reads as fluffy. Painted in two groups, the
+  mass and then the front row, each as its silhouette in pale sky-blue with every puff
+  again in white over it, a little smaller, nudged up and blurred (`lightScale`,
+  `lightLift`, `lightBlurFraction`): what the white leaves is a soft blue crescent under
+  each bump, and the front row's crescents are what separate its bumps from the mass. No
+  outline anywhere. `testTheCloudsAreBrightWhiteAndPastelNotGrey` holds the brightness
+  and leaves `storm-clouds.png` (the band over a gloomed desktop) in `$TMPDIR`.
 
-  **Finding the photographs was most of the work**, and the reason is the useful part. The
-  matte is keyed off the **sky**, not off the cloud: a cumulus is neutral (R≈G≈B) and sky
-  is not, so alpha comes from each pixel's distance from a sky colour measured in the
-  crop's own four corners — which is why a crop has to be generous enough that all four
-  corners *are* sky. That only works on a saturated, even blue right up to the cloud's
-  edge, and almost every cloud photograph is hazy near its subject: pale blue against
-  white cloud is no key at all, and the first attempt (on a picture that *looked* ideal)
-  came back as an opaque rectangle. A scored sweep of ~50 public-domain candidates —
-  ranking them by sky saturation, by how many pixels landed in the ambiguous middle of the
-  matte, and by coverage — produced exactly **two** usable skies. Hence two cumulus forms
-  across seven sprites, mirrored and horizontally stretched, arranged so no two neighbours
-  share a form and a mirror never sits beside its original; at band size, half-cropped by
-  the screen edge and overlapping, a stretch reads as a different cloud far better than
-  another crop of the same one.
-
-  **The base of each sprite is faded, not cut.** Trimming a cut-out to its cloud and then
-  seating it on the bottom of its box gave all seven the same ruler-straight underside, on
-  one line across the screen — Victor, 2026-09-19: *"norii par taiati in partea lor
-  inferioara"*. A cumulus base **is** flat, but it is flat and soft: it goes to rain haze,
-  it does not stop. So the last 16 % of each cloud's own vertical extent is ramped to
-  transparent and the sprite is seated with a tenth of the box left empty underneath.
-  `cloudWidthFraction` went from 0.28 to 0.34 in the same pass and for a related reason: a
-  drawn cloud was a solid slab of alpha that butted cleanly against its neighbour, while a
-  cut-out feathers to nothing at its own edges, and two of those meeting leave a notch of
-  bright desktop unless they overlap much harder.
+  From 2026-09-19 to 2026-11-20 the clouds were **photographs** — two public-domain
+  cumulus skies keyed off the sky colour, graded down to storm-grey to sit under the gloom.
+  They looked real and they looked menacing, which on a soundboard in a training room is
+  the wrong mood; they and their `CREDITS.md` are in git history (`Resources/clouds/`).
 
   **The band is a ceiling, not seven blobs in a row.** Each cloud is 34 % of the screen
   wide and they rest every 16 % of it, so consecutive ones overlap by half their width and

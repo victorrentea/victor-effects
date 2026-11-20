@@ -1,4 +1,5 @@
 import XCTest
+import ImageIO
 @testable import VictorEffects
 
 /// ⛈️ Tile #20's geometry, checked without a screen.
@@ -358,33 +359,10 @@ final class RainStormTests: XCTestCase {
 
     // MARK: - The sprites
 
-    /// Every sprite in the band has to actually be in the bundle. A missing one
-    /// is not a crash — `cloudImage` draws instead — which is exactly why it
-    /// needs a test: the failure is a cloud that silently stops being a
-    /// photograph, and nobody would notice from one press.
-    func testEverySpriteIsInTheBundleAndIsTheAspectTheGeometryAssumes() throws {
-        for i in 0..<RainStorm.cloudCount {
-            let photo = try XCTUnwrap(RainStorm.cloudPhoto(index: i), "cloud-\(i).png is missing from the bundle")
-            let aspect = CGFloat(photo.height) / CGFloat(photo.width)
-            XCTAssertEqual(aspect, RainStorm.cloudAspect, accuracy: 0.01,
-                           "cloud-\(i).png is \(photo.width)×\(photo.height); cloudAspect says \(RainStorm.cloudAspect)")
-        }
-    }
-
-    /// The sprites are cut out, so most of each one has to be TRANSPARENT. A
-    /// fully opaque sprite means the matte failed and the cloud shipped with its
-    /// sky still attached — which on screen is a rectangle of sky, not a cloud.
-    func testTheSpritesAreCutOutAndNotJustCroppedPhotographs() throws {
-        for i in 0..<RainStorm.cloudCount {
-            let photo = try XCTUnwrap(RainStorm.cloudPhoto(index: i))
-            XCTAssertEqual(photo.alphaInfo != .none, true, "cloud-\(i).png has no alpha channel at all")
-        }
-    }
-
-    /// The drawn cloud is the fallback for a missing sprite, and it still has to
-    /// render — at exactly the size asked for, with the blur's slack on every
-    /// side, because the caller insets the layer frame by exactly that.
-    func testTheDrawnFallbackStillRendersAtTheSizeItWasAskedFor() throws {
+    /// The drawn cloud has to render at exactly the size asked for, with the
+    /// blur's slack on every side, because the caller insets the layer frame by
+    /// exactly that.
+    func testTheDrawnCloudRendersAtTheSizeItWasAskedFor() throws {
         let size = CGSize(width: 400, height: 400 * RainStorm.cloudAspect)
         let image = try XCTUnwrap(RainStorm.drawnCloud(index: 0, size: size, scale: 2))
         let pad = size.width * 2 * RainStorm.spritePadding
@@ -480,5 +458,59 @@ final class RainStormTests: XCTestCase {
         XCTAssertGreaterThan(RainStorm.dropsPerSecond / RainStorm.dropSpawnHz, 2,
                              "fewer than a couple of drops a tick and the rain arrives in visible pulses")
         XCTAssertGreaterThanOrEqual(RainStorm.dropSpawnHz, 20, "the spawn tick would be visible as a stutter")
+    }
+
+    // MARK: - Fluffy, not menacing
+
+    /// Victor, 2026-11-20: *"make the clouds fluffy… fun and joyful, not dark
+    /// and evil"*. The clouds before this were photographs graded to
+    /// storm-grey. This holds the brightness, so a later "make it more stormy"
+    /// pass has to come and change a number here on purpose. It also leaves
+    /// `storm-clouds.png` (the band over a gloomed grey desktop) in `$TMPDIR`.
+    func testTheCloudsAreBrightWhiteAndPastelNotGrey() throws {
+        var sumR = 0.0, sumG = 0.0, sumB = 0.0, weight = 0.0
+        for i in 0..<RainStorm.cloudCount {
+            let size = CGSize(width: 400, height: 400 * RainStorm.cloudAspect)
+            let image = try XCTUnwrap(RainStorm.drawnCloud(index: i, size: size, scale: 1))
+            let w = image.width, h = image.height
+            var px = [UInt8](repeating: 0, count: w * h * 4)
+            let ctx = try XCTUnwrap(CGContext(data: &px, width: w, height: h, bitsPerComponent: 8,
+                                              bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            for p in stride(from: 0, to: px.count, by: 4) where px[p + 3] > 250 {
+                let a = Double(px[p + 3])
+                sumR += Double(px[p]) / a; sumG += Double(px[p + 1]) / a; sumB += Double(px[p + 2]) / a
+                weight += 1
+            }
+        }
+        XCTAssertGreaterThan(weight, 0)
+        let r = sumR / weight, g = sumG / weight, b = sumB / weight
+        let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        XCTAssertGreaterThan(luma, 0.85, "a cloud this dim is a storm cloud again")
+        XCTAssertGreaterThanOrEqual(b, r, "the shade is sky-blue; warmer than that reads as smog")
+        try writeBandPreview()
+    }
+
+    private func writeBandPreview() throws {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: Int(screen.width), height: Int(screen.height),
+                                          bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1))
+        ctx.fill(screen)
+        ctx.setFillColor(CGColor(gray: 0, alpha: CGFloat(RainStorm.darkenOpacity)))
+        ctx.fill(screen)
+        for (i, a) in RainStorm.arrivals(in: screen).enumerated() {
+            guard let img = RainStorm.cloudImage(index: i, size: a.rest.size, scale: 1) else { continue }
+            let pad = a.rest.width * RainStorm.spritePadding
+            ctx.draw(img, in: a.rest.insetBy(dx: -pad, dy: -pad))
+        }
+        let out = try XCTUnwrap(ctx.makeImage())
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("storm-clouds.png")
+        let dest = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil))
+        CGImageDestinationAddImage(dest, out, nil)
+        CGImageDestinationFinalize(dest)
     }
 }
