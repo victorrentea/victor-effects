@@ -1063,9 +1063,14 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   geometry, and can be asserted in a test that never opens a window — `testADropActually
   FallsToTheFloor` and `testTheDropLeansLeftAndOnlyALittle` are that bug written down.
 
-  Drops are born on the **lowest** cloud base (`rainLineY`) so none is ever born in clear
-  sky above a cloud that is still covering it, and spent just past the bottom edge, so
-  neither end of a streak is ever seen appearing or stopping. One number — `depth` 0…1 —
+  Drops are born **inside the cloud mass**, wholly `dropBirthInset` (0.16 of a cloud's
+  width) above the **lowest** cloud base (`rainLineY`), and spent just past the bottom
+  edge, so neither end of a drop is ever seen appearing or stopping. Born on the base
+  itself (until 2026-11-21) they popped into clear sky under the higher-hanging clouds
+  and between the front-row bumps. The drop layer's **model position is its END**: left
+  at the start, each drop snapped back under the clouds for the one frame between its
+  fall finishing and the completion block removing it — 60 a second, which read as the
+  rain "resetting" at the top (Victor, 2026-11-21). One number — `depth` 0…1 —
   carries size, speed and opacity together, the
   same trick the snow uses, so a drop can never read as a contradiction. Each leans **6 %
   of its own fall to the left** (about 3.4°, Victor: *"perhaps slightly diagonally to left

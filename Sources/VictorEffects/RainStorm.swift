@@ -479,6 +479,13 @@ enum RainStorm {
         return image
     }
 
+    /// How far above the lowest cloud base a drop's TAIL is born, as a fraction
+    /// of a cloud's width. The base is scalloped (front-row bumps end 0.01–0.06
+    /// of the width above it) and the clouds hang up to 0.06 of the width higher
+    /// than the lowest one (`cloudDip`); 0.16 clears both, into the solid
+    /// middle puffs, so every drop slides out from behind a cloud.
+    static let dropBirthInset: CGFloat = 0.16
+
     /// The sprite's own size in points; every drop is this aspect.
     static let dropSpriteSize = CGSize(width: 20, height: 30)
 
@@ -530,9 +537,13 @@ enum RainStorm {
         let length = width * dropSpriteSize.height / dropSpriteSize.width
         let speed = dropSpeedFar + depth * (dropSpeedNear - dropSpeedFar)
 
-        // Born just inside the cloud base and spent just past the bottom edge,
-        // so neither end of the streak is ever seen appearing or stopping.
-        let startY = lineY + length
+        // Born WHOLLY inside the cloud mass — [dropBirthInset] of a cloud's
+        // width above the lowest base, plus half the drop — and spent just past
+        // the bottom edge, so neither end is ever seen appearing or stopping.
+        // Born on the lowest base itself, a drop under a higher-hanging cloud or
+        // between two front-row bumps popped into being in clear sky below it.
+        let cloudWidth = bounds.width * cloudWidthFraction
+        let startY = lineY + cloudWidth * dropBirthInset + length / 2
         let endY = -length
         let fall = startY - endY
         let drift = fall * dropLean

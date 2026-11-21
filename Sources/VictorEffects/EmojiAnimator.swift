@@ -10103,7 +10103,12 @@ class EmojiAnimator {
         let drop = RainStorm.randomDrop(in: bounds)
         let layer = CALayer()
         layer.bounds = CGRect(origin: .zero, size: drop.size)
-        layer.position = drop.start
+        // The MODEL position is where the drop ENDS, past the bottom edge. Left
+        // at `drop.start`, every drop snapped back under the clouds for the frame
+        // between its animation finishing and the completion block removing it —
+        // 60 a second, a flicker of drops "restarting" up at the cloud base
+        // (Victor, 2026-11-21: "se resetează cumva").
+        layer.position = drop.end
         layer.contents = image
         layer.contentsScale = scale
         layer.opacity = drop.opacity
