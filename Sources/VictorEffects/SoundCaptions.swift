@@ -85,6 +85,7 @@ enum SoundCaptions {
         "60_sfx_100.mp3":             "[dramatic singing]",
         "61_hallelujah.mp3":          "Hallelujah",
         "62_lionel_richie.mp3":       "Hello, is it me you're looking for?",
+        "62b_are_you_the_one.mp3":    "Are you the one",
         "64_fbi.mp3":                 "FBI! Open up!",
         "65_school_bell.mp3":         "[bell ringing]",
         "66_toilet.mp3":              "[toilet flushing]",
@@ -178,6 +179,10 @@ enum SoundCaptions {
                                    (8.5, "Hal\u{AD}le\u{AD}lu\u{AD}jah! Hal\u{AD}le\u{AD}lu\u{AD}jah!")],
         "62_lionel_richie.mp3":   [(0, "Hello…"),
                                    (4.4, "Is it me you're looking for?")],
+        // Scorpions, "Are You the One" (2026-11-21, layer B under #62): the
+        // chorus from 1:08, its two lines heard by Whisper on the clip itself.
+        "62b_are_you_the_one.mp3": [(0, "Are you the one that got it made for me?"),
+                                    (6.9, "Are you the one?")],
         // Spoken three times, with only music between them and after (2026-11-04,
         // on the voice): the second and third lines were never in the table.
         "67_sfx_109.mp3":         [(0, "Eww, brother, eww!"),
