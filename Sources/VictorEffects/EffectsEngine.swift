@@ -437,6 +437,8 @@ final class EffectsEngine {
         case "opus/stop":     animator.stopOpus()
         case "fable":         animator.showFable()
         case "fable/stop":    animator.stopFable()
+        case "inarius":       animator.showInarius()
+        case "inarius/stop":  animator.stopInarius()
         case "grilled":       animator.showGrilled()
         case "grilled/stop":  animator.stopGrilled()
         case "power":         animator.showPower()

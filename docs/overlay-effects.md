@@ -663,7 +663,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
-  **Every other press it is 😇 Inarius** (2026-11-24, Victor's Gemini clips, after the game
+- **😇 Inarius** (⌘⌃5 in `victor-mac` → `inarius` / `inarius/stop`, `showInarius`; 2026-11-24, Victor's Gemini clips, after the game
   sprite of Tyrael was tried and dropped the same afternoon as ugly): a hooded angel in dark
   armour with wings of golden light. The first clip had him beating his wings in place over
   black and was retimed into a slowdown (BirefNet matte + glow key); the same evening Victor
@@ -679,10 +679,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   with ffmpeg's `overlay` shows lime that is not in the file (it blends in YUV): composite the
   decoded RGBA in RGB to judge colours. The clip's own sound at -14 LUFS, in
   `assetsDir/inarius.mov` (the black-background version kept beside it as
-  `inarius.pre-greenscreen.mov`); same player, fill, fades. The turn lives in `UserDefaults`
-  (`FableTurn`, key `Fable.inariusNext`, like the Santa hat's: restarts would otherwise reset
-  it); the first press after he shipped is his, and without `inarius.mov` every press is Fable
-  and his turn waits.
+  `inarius.pre-greenscreen.mov`); Fable's player, fill, fades. For one afternoon he took every
+  other press of ⌘⌃0 (a turn kept in `UserDefaults`); Victor then gave him his own key, ⌘⌃5,
+  and ⌘⌃0 is Fable alone again. Without the video: a log line. `/test/inarius`,
+  `/test/inarius/stop`, `/effect/inarius`.
 - **🪲 Bug walk** (⌘⌃9 in `victor-mac` → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
   2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.
   He dragged three boxes on a 3456×2234 capture (*"walk from somewhere here, somewhere here, to

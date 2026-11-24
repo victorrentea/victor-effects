@@ -3117,18 +3117,9 @@ class EmojiAnimator {
     /// In `assetsDir`; without it, a log line.
     static let fableVideoName = "fable-descent.mov"
 
-    /// Every other press, Inarius instead (2026-11-24): Victor's second Gemini
-    /// clip, a hooded angel in dark armour with wings of golden light. He does
-    /// not come down: he beats his wings in place, the beat slows, and he stays,
-    /// wings open — `tools/make-inarius.py` retimes and keys it, sound inside.
-    /// In `assetsDir`; without it, every press is Fable.
-    static let inariusVideoName = "inarius.mov"
-
     func showFable() {
         if cancelIfRunning("fable") { silenceFable(); return }
-        let inariusThere = EffectsConfig.shared.assetURL(Self.inariusVideoName) != nil
-        let file = FableTurn.take(otherPresent: inariusThere) ? Self.inariusVideoName : Self.fableVideoName
-        playAlphaClip(effect: "fable", file: file, fadeIn: 0.3, fadeOut: 0.8)
+        playAlphaClip(effect: "fable", file: Self.fableVideoName, fadeIn: 0.3, fadeOut: 0.8)
     }
 
     /// Explicit exit; `showFable` already scheduled its own end.
@@ -3139,6 +3130,29 @@ class EmojiAnimator {
 
     /// Silences the clip's own audio now (re-press, `/stop`, stop-all).
     func silenceFable() { silenceAlphaClip("fable") }
+
+    // MARK: - 😇 Inarius (⌃⌘5, 2026-11-24)
+
+    /// A hooded angel in dark armour comes down from above the top edge, opens
+    /// his wings of golden light, beats them and ends with them open. Victor's
+    /// Gemini clip on a green screen, keyed by `tools/make-inarius.py`, sound
+    /// inside; same player, fill and fades as Fable, whose every other press he
+    /// took for one afternoon. In `assetsDir`; without it, a log line.
+    static let inariusVideoName = "inarius.mov"
+
+    func showInarius() {
+        if cancelIfRunning("inarius") { silenceInarius(); return }
+        playAlphaClip(effect: "inarius", file: Self.inariusVideoName, fadeIn: 0.3, fadeOut: 0.8)
+    }
+
+    /// Explicit exit; `showInarius` already scheduled its own end.
+    func stopInarius() {
+        _ = cancelIfRunning("inarius")
+        silenceInarius()
+    }
+
+    /// Silences the clip's own audio now (re-press, `/stop`, stop-all).
+    func silenceInarius() { silenceAlphaClip("inarius") }
 
     // MARK: - 🔥 Grilled (⌃⌘8, 2026-11-19)
 
@@ -15312,6 +15326,8 @@ class EmojiAnimator {
             SoundManager.shared.stopOverlapping("phoenix.mp3", fade: SoundManager.interruptFade)
         case "fable":
             silenceFable()
+        case "inarius":
+            silenceInarius()
         case "grilled":
             silenceGrilled()
         case "power":
