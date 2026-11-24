@@ -5,7 +5,8 @@ import Foundation
 /// over it (Victor, 2026-09-30: "în surdină, nu prea tare").
 ///
 /// Two clips, because the pot tells a story (Victor, 2026-09-30): the FIRST
-/// cup is brewed — an espresso machine; once the break timer is open the pot
+/// cup is brewed — an espresso machine; once the break timer is open (or, since
+/// 2026-11-24, the ☕ countdown to it runs in the menu bar) the pot
 /// is already full of coffee and each further cup is just poured — liquid into
 /// a mug, no machine. `potIsFull` picks between them, and is read only when a
 /// pour STARTS: a clip never swaps under a pour that is already running.
@@ -42,7 +43,8 @@ final class CoffeePourSound {
     static let fadeIn: TimeInterval = 0.25
     static let fadeOut: TimeInterval = 0.4
 
-    /// True while the break timer is open: the coffee is already made, so a
+    /// True while the break timer is open or the ☕ countdown to it runs in the
+    /// menu bar: the coffee is already made, so a
     /// pour is only a pour. Set by the owner (`EmojiAnimator`) from the addons
     /// app's answer and from its own payouts.
     var potIsFull = false
@@ -102,8 +104,9 @@ final class CoffeePourSound {
     }
 }
 
-/// Is the break timer open? It lives in the addons app, so this asks it —
-/// `GET /test/break/state` → `{"showing":true,…}` — without ever waiting: the
+/// Is the coffee already made — the break timer open, or the ☕ countdown to it
+/// running in the menu bar? Both live in the addons app, so this asks it —
+/// `GET /test/break/state` → `{"showing":…,"untilBreak":…}` — without ever waiting: the
 /// answer lands in `completion` on the main thread, and a failed call (addons
 /// down) answers nothing, leaving whatever the caller already believed.
 enum BreakTimerProbe {
@@ -122,7 +125,12 @@ enum BreakTimerProbe {
                   let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let showing = json["showing"] as? Bool else { return }
-            DispatchQueue.main.async { completion(showing) }
+            // The ☕ countdown in the menu bar (`untilBreak`) counts too: the
+            // first cup started it, so the coffee is brewed and the rest are
+            // only poured (2026-11-24, Victor: "deja am râșnit cafeaua, dar
+            // eu torn"). Absent on an older addons build → false.
+            let untilBreak = json["untilBreak"] as? Bool ?? false
+            DispatchQueue.main.async { completion(showing || untilBreak) }
         }.resume()
     }
 }

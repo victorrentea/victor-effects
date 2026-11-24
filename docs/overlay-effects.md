@@ -2894,6 +2894,7 @@ flood of coffee cups"*. The rules:
    pop**: one `coffee-popped` webhook (below), queued by the burst and sent on
    the next tick — so the timer / −1 always comes *after* the explosion, never
    at the touch.
+   **Since 2026-11-24 the ☕ countdown in the addons menu bar counts as "made" too**: `BreakTimerProbe` reads `untilBreak` beside `showing` from `/test/break/state` — the countdown to the break replaced the UNTIL BREAK watch the day before, `showing` stayed false under it, and every cup after the first was brewed again (Victor: *"deja am râșnit cafeaua, dar eu torn"*).
 3. **Escalation = explosions, unlocked by a WON break** (2026-10-02). Until the
    ☕ watch is at zero every cup is a vote: it fills, pops and pays its −1,
    however many arrive at once. The addons app is the one that sees the watch,
