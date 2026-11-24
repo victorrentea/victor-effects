@@ -663,6 +663,20 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
+  **Every other press it is 😇 Inarius** (2026-11-24, Victor's second Gemini clip, after the game
+  sprite of Tyrael was tried and dropped the same afternoon as ugly): a hooded angel in dark
+  armour with wings of golden light, beating them **in place** over black — he does not come down.
+  Victor wanted him *seen in flight, then slowing until he stays, wings open*, so
+  `tools/make-inarius.py` **retimes** the clip instead of cutting it: the source at its own speed
+  to 4.38 s, then `s = T1 + D(1 − e^−(t−T1)/D)` (D = 1.2 s) closing on source frame 134 (5.58 s),
+  the top of an upbeat — wings raised in an open V, tips under the top edge, a turning point so
+  the last motion is already the cycle's slowest. In-between frames are mixed (premultiplied,
+  after the key) so the slowdown glides instead of stuttering. Keyed like 🔥 Grilled
+  (`max(BirefNet matte, glow key)`): the luminance key alone left his dark armour a see-through
+  ghost. 10 s, the clip's own sound at -14 LUFS, in `assetsDir/inarius.mov`; same player, fill,
+  fades. The turn lives in `UserDefaults` (`FableTurn`, key `Fable.inariusNext`, like the Santa
+  hat's: restarts would otherwise reset it); the first press after he shipped is his, and without
+  `inarius.mov` every press is Fable and his turn waits.
 - **🪲 Bug walk** (⌘⌃9 in `victor-mac` → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
   2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.
   He dragged three boxes on a 3456×2234 capture (*"walk from somewhere here, somewhere here, to
