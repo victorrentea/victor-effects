@@ -663,20 +663,6 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
-  **Every other press it is Tyrael** (2026-11-24, Victor: *"exactly the one from the game"*): the
-  archangel of Diablo II, the game's own Act IV sprite (15 frames, 0.1 s each, 600×240 on black,
-  `assetsDir/tyrael-d2.gif` from the Diablo wiki), built into `assetsDir/tyrael.mov` by
-  `tools/make-tyrael.py` as Fable's twin: same 9.2 s, **same sound** (the track of
-  `fable-descent.mov`, copied), same beats — he comes down from above the top edge to the middle
-  (1.0 → 3.9 s, wings beating), brightens as a halo gathers, and the bang at 4.0 s is his burst
-  (white flash, golden rays, a blue ring running out), then he hovers in a pulsing halo shedding
-  sparks until everything fades from 8.4 s. 1920×1080, 2.2× the sprite (the wings span ~⅔ of the
-  screen). The light is keyed like Fable's; the sprite with a steeper curve so the brown armour stays
-  solid, and its colour is left UNclamped to alpha, so the wings' dim grey fringes add light instead of
-  outlining the wings in grey on a light desktop. The turn lives in `UserDefaults` (`FableTurn`, like
-  the Santa hat's: restarts would otherwise reset it); the first press after he shipped is his, and
-  without `tyrael.mov` every press is Fable and his turn waits. Both files are Blizzard's: in the
-  private copyright ledger, never in this repo.
 - **🪲 Bug walk** (⌘⌃9 in `victor-mac` → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
   2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.
   He dragged three boxes on a 3456×2234 capture (*"walk from somewhere here, somewhere here, to

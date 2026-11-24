@@ -3117,17 +3117,9 @@ class EmojiAnimator {
     /// In `assetsDir`; without it, a log line.
     static let fableVideoName = "fable-descent.mov"
 
-    /// Every other press, Tyrael instead (2026-11-24): the archangel of Diablo II,
-    /// the game's own 15-frame sprite, coming down to the same music and bursting
-    /// on the same bang — `tools/make-tyrael.py` builds it as Fable's twin. In
-    /// `assetsDir` (Blizzard's art); without it, every press is Fable.
-    static let tyraelVideoName = "tyrael.mov"
-
     func showFable() {
         if cancelIfRunning("fable") { silenceFable(); return }
-        let tyraelThere = EffectsConfig.shared.assetURL(Self.tyraelVideoName) != nil
-        let file = FableTurn.take(tyraelPresent: tyraelThere) ? Self.tyraelVideoName : Self.fableVideoName
-        playAlphaClip(effect: "fable", file: file, fadeIn: 0.3, fadeOut: 0.8)
+        playAlphaClip(effect: "fable", file: Self.fableVideoName, fadeIn: 0.3, fadeOut: 0.8)
     }
 
     /// Explicit exit; `showFable` already scheduled its own end.
