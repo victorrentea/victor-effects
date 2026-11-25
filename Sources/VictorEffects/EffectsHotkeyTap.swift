@@ -50,11 +50,39 @@ final class EffectsHotkeyTap {
         case swallowToggleMode
         /// ⌃⇧W — the next mode (🔥 whip ⇄ 🫰 snap), eaten as well.
         case swallowNextMode
+        /// ⌘⌃<key> — draw `/effect/<name>` and **eat the key**. Moved here from
+        /// Victor Mac on 2026-11-25: the pictures were already drawn here, only the
+        /// keys still lived over there, one HTTP hop away (`desktopEffectKeys`).
+        case swallowEffect(String)
         /// Crack the whip, and let the event continue on its way.
         case crack
         /// Not ours.
         case pass
     }
+
+    /// ⌘⌃ + key → the desktop effect it draws. Victor Mac's ⌘⌃ cheat-sheet
+    /// (`CommandControlShortcuts.labels` over there) still shows every one of
+    /// these: it answers "what does this combination do on this Mac", whichever
+    /// process serves it.
+    ///
+    /// - Q 🤖 the Claude mark waves in (`claude-peek`). NB it shadows macOS's own
+    ///   ⌃⌘Q Lock Screen, as it did in Victor Mac — and with this app quit the
+    ///   Mac locks on it again.
+    /// - U 🐘 elephant, I 🐼 panda (the twins, one hand position), O 🤖 Opus head.
+    /// - 0 ✨ Fable, 9 🪲 beetle, 8 🔥 grilled, 7 👁️ Eye of the Tower,
+    ///   6 ⚡ unlimited power, 5 😇 Inarius.
+    static let desktopEffectKeys: [CGKeyCode: String] = [
+        12: "claude-peek",  // Q
+        32: "elephant",     // U
+        34: "panda",        // I
+        31: "opus",         // O
+        29: "fable",        // 0
+        25: "bug",          // 9
+        28: "grilled",      // 8
+        26: "eye",          // 7
+        22: "power",        // 6
+        23: "inarius",      // 5
+    ]
 
     /// The whole hotkey contract in one function.
     ///
@@ -74,6 +102,11 @@ final class EffectsHotkeyTap {
 
         if keyCode == VK_W && hasCtrl && !hasCmd && !hasOpt {
             return hasShift ? .swallowNextMode : .swallowToggleMode
+        }
+        // ⌘⌃ + key, ⌥ excluded (⌘⌃⌥ is somebody else's) — the same rule the
+        // keys had in Victor Mac, ⇧ not inspected, so nothing changed under the hand.
+        if hasCmd && hasCtrl && !hasOpt, let effect = desktopEffectKeys[keyCode] {
+            return .swallowEffect(effect)
         }
         if whipShowing && (keyCode == VK_RETURN || keyCode == VK_KEYPAD_ENTER) {
             return .crack
@@ -172,6 +205,8 @@ final class EffectsHotkeyTap {
     var onToggleMode: (() -> Void)?
     var onNextMode: (() -> Void)?
     var onCrack: (() -> Void)?
+    /// ⌘⌃<key> → the effect's name (`desktopEffectKeys`). Called on main.
+    var onEffectKey: ((String) -> Void)?
     var whipShowing: () -> Bool = { false }
 
     /// Right-⌘ held down / released, for the thumbnail panel (WI-4).
@@ -231,7 +266,7 @@ final class EffectsHotkeyTap {
         }
         thread.name = "EffectsHotkeyTap"
         thread.start()
-        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, ⌃⇧W next mode, Return/buttons 6-7 crack, right ⌘ panel, right ⌘+⇧ videos)")
+        effectsInfo("⌨️ Hotkey tap installed (⌃W whip, ⌃⇧W next mode, ⌘⌃Q/U/I/O/0/9/8/7/6/5 effects, Return/buttons 6-7 crack, right ⌘ panel, right ⌘+⇧ videos)")
         return true
     }
 
@@ -293,6 +328,12 @@ final class EffectsHotkeyTap {
                 return nil
             case .swallowNextMode:
                 DispatchQueue.main.async { [weak self] in self?.onNextMode?() }
+                return nil
+            case .swallowEffect(let name):
+                // Key repeat would re-press, and a re-press takes the effect
+                // away again — one held key must be one effect.
+                if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 { return nil }
+                DispatchQueue.main.async { [weak self] in self?.onEffectKey?(name) }
                 return nil
             case .crack:
                 DispatchQueue.main.async { [weak self] in self?.onCrack?() }

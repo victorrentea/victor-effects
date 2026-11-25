@@ -763,6 +763,7 @@ class SoundManager {
             guard let self else { return }
             self.tabletVolume = max(0.0, min(1.0, volume))
             for clip in self.tabletClips { clip.player.volume = clip.volume(at: self.tabletVolume) }
+            CeilingVideoPlayers.reapplyAll()      // ✨ Fable & co.: the wedge is their maximum too
             self.playOverlapping("click.wav", volume: self.tabletVolume)
         }
     }

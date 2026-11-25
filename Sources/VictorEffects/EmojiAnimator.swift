@@ -3117,6 +3117,10 @@ class EmojiAnimator {
     /// In `assetsDir`; without it, a log line.
     static let fableVideoName = "fable-descent.mov"
 
+    /// Every clip `playAlphaClip` plays with its own sound: measured for the
+    /// voice ceiling with the soundboard's files (`RecommendedVolumes.ceilingFiles`).
+    static let alphaClipVideoNames = [fableVideoName, inariusVideoName, grilledVideoName, powerVideoName]
+
     func showFable() {
         if cancelIfRunning("fable") { silenceFable(); return }
         playAlphaClip(effect: "fable", file: Self.fableVideoName, fadeIn: 0.3, fadeOut: 0.8)
@@ -3240,7 +3244,9 @@ class EmojiAnimator {
             item.audioMix = mix
         }
         let player = AVPlayer(playerItem: item)
-        player.volume = SoundManager.shared.currentTabletVolume
+        // The tablet's wedge as the maximum, held under Victor's voice while he
+        // screen-shares, both live — the soundboard's own rule (`CeilingVideoPlayers`).
+        CeilingVideoPlayers.register(player, url: url)
         player.actionAtItemEnd = .pause
         let video = AVPlayerLayer(player: player)
         // FILLS the display (16:9 on 16:10 loses a sliver of each side): a fitted
@@ -3514,7 +3520,9 @@ class EmojiAnimator {
         eyeTowerPlayer = nil
         if let url = EffectsResources.url(EyeTower.musicName, "mp3"),
            let player = try? SoundManager.player(contentsOf: url) {
-            player.volume = EyeTower.musicVolume
+            // Under the tablet's wedge like every other effect sound (the
+            // CeilingPlayer then holds it under the voice while sharing).
+            player.volume = EyeTower.musicVolume * SoundManager.shared.currentTabletVolume
             player.play()
             eyeTowerPlayer = player
         }

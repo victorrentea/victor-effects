@@ -87,6 +87,7 @@ enum VoiceCeiling {
                 + (on ? String(format: " (voice %.1f LUFS %@, offset %+.1f dB)", voiceRef ?? .nan, refSource,
                                 EffectsConfig.shared.voiceCeilingOffsetDb) : ""))
             CeilingPlayer.reapplyAll()
+            CeilingVideoPlayers.reapplyAll(shareEdge: true)
         }
     }
 
@@ -235,7 +236,7 @@ final class CeilingPlayer: AVAudioPlayer {
         let rows = live.allObjects.filter(\.isPlaying).map { p in
             String(format: "{\"file\":\"%@\",\"asked\":%.3f,\"volume\":%.3f}",
                    p.url?.lastPathComponent ?? "?", p.asked, p.volume)
-        }
+        } + CeilingVideoPlayers.rowsJSON
         return "{\"sharing\":\(VoiceCeiling.active),\"players\":[\(rows.joined(separator: ","))]}"
     }
 
@@ -244,6 +245,65 @@ final class CeilingPlayer: AVAudioPlayer {
         for p in live.allObjects where p.isPlaying {
             p.logged = false
             p.volume = p.asked
+        }
+    }
+}
+
+/// 🎚️ The desktop effects whose sound is **the video's own track**, played by an
+/// `AVPlayer` (✨ Fable, 😇 Inarius, 🔥 Grilled, ⚡ Power — `playAlphaClip`), so they
+/// cannot be a `CeilingPlayer`. Same algorithm, held here instead (2026-11-25,
+/// when their keys moved over from Victor Mac):
+///
+///     volume = VoiceCeiling.clamp(tablet wedge × gain, the .mov)
+///
+/// - the tablet's blue wedge is the **maximum**, and it is followed live: a drag
+///   mid-clip moves the clip (`SoundManager.setTabletVolume` → `reapplyAll`);
+/// - while Victor screen-shares, the clip is held under his voice by the .mov's
+///   own loudest 3 s (measured with every other file: `RecommendedVolumes.ceilingFiles`
+///   lists `EmojiAnimator.alphaClipVideoNames`), re-levelled on a share edge.
+///
+/// The audio-mix fade-out at the clip's end multiplies under this, untouched.
+enum CeilingVideoPlayers {
+    private final class Entry {
+        weak var player: AVPlayer?
+        let url: URL
+        let gain: Float
+        var logged = false
+        init(player: AVPlayer, url: URL, gain: Float) { self.player = player; self.url = url; self.gain = gain }
+    }
+    private static var entries: [Entry] = []
+
+    /// Levels `player` now and keeps it levelled until it is released. Main thread.
+    static func register(_ player: AVPlayer, url: URL, gain: Float = 1) {
+        entries.removeAll { $0.player == nil || $0.player === player }
+        let e = Entry(player: player, url: url, gain: gain)
+        entries.append(e)
+        level(e)
+    }
+
+    /// The wedge moved or a share started/ended: every live clip again. Main thread.
+    static func reapplyAll(shareEdge: Bool = false) {
+        entries.removeAll { $0.player == nil }
+        for e in entries {
+            if shareEdge { e.logged = false }
+            level(e)
+        }
+    }
+
+    private static func level(_ e: Entry) {
+        guard let player = e.player else { return }
+        let asked = min(1, SoundManager.shared.currentTabletVolume * e.gain)
+        let log = !e.logged && VoiceCeiling.active && asked > 0
+        if log { e.logged = true }
+        player.volume = VoiceCeiling.clamp(asked, url: e.url, log: log)
+    }
+
+    /// `GET /test/voice/players` — the clips, next to the soundboard's players.
+    static var rowsJSON: [String] {
+        entries.compactMap { e in
+            guard let p = e.player, p.rate != 0 else { return nil }
+            return String(format: "{\"file\":\"%@\",\"asked\":%.3f,\"volume\":%.3f}",
+                          e.url.lastPathComponent, min(1, SoundManager.shared.currentTabletVolume * e.gain), p.volume)
         }
     }
 }

@@ -118,6 +118,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tap.onToggleMode = { [weak self] in self?.engine.toggleSelectedMode() }
         tap.onNextMode = { [weak self] in self?.engine.nextMode() }
         tap.onCrack = { [weak self] in self?.engine.whip?.forceCrack() }
+        // ⌘⌃Q/U/I/O/0/9/8/7/6/5: the same route the HTTP request from Victor
+        // Mac took until 2026-11-25, minus the hop.
+        tap.onEffectKey = { [weak self] name in
+            self?.router.dispatch("/effect/\(name)", source: .other)
+        }
         // The panel is a listener on this tap, never an owner: `onRightCommand`
         // fires on the way past and the event continues to the front app.
         tap.onRightCommand = { [weak self] down in self?.panelController.rightCommand(down: down) }

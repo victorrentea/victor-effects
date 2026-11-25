@@ -40,6 +40,33 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
                                      whipShowing: false), .pass)
     }
 
+    func testCommandControlEffectKeysAreSwallowedHere() {
+        // Moved from Victor Mac on 2026-11-25; Victor Mac's ⌘⌃ sheet still shows them.
+        let expected: [CGKeyCode: String] = [12: "claude-peek", 32: "elephant", 34: "panda", 31: "opus",
+                                             29: "fable", 25: "bug", 28: "grilled", 26: "eye",
+                                             22: "power", 23: "inarius"]
+        XCTAssertEqual(Tap.desktopEffectKeys, expected)
+        for (code, name) in expected {
+            XCTAssertEqual(Tap.decideKey(keyCode: code, flags: [.maskCommand, .maskControl], whipShowing: false),
+                           .swallowEffect(name))
+            // ⌥ on top is somebody else's chord; one modifier alone is typing.
+            XCTAssertEqual(Tap.decideKey(keyCode: code, flags: [.maskCommand, .maskControl, .maskAlternate],
+                                         whipShowing: false), .pass)
+            XCTAssertEqual(Tap.decideKey(keyCode: code, flags: [.maskControl], whipShowing: false), .pass)
+            XCTAssertEqual(Tap.decideKey(keyCode: code, flags: [.maskCommand], whipShowing: false), .pass)
+        }
+        // Every key names a case of the engine's effect switch (read from the source,
+        // like SoundEffectMapDriftTests: a renamed effect fails here, not in front of a room).
+        let engine = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("Sources/VictorEffects/EffectsEngine.swift")
+        let swift = (try? String(contentsOf: engine, encoding: .utf8)) ?? ""
+        for name in expected.values {
+            XCTAssertTrue(swift.contains("case \"\(name)\":"), "no `case \"\(name)\":` in EffectsEngine.fireEffect")
+        }
+        // A ⌘⌃ key with no effect behind it is not ours.
+        XCTAssertEqual(Tap.decideKey(keyCode: VK_A, flags: [.maskCommand, .maskControl], whipShowing: false), .pass)
+    }
+
     func testTheModesCycleWhipSnap() {
         XCTAssertEqual(PointerMode.whip.next, .snap)
         XCTAssertEqual(PointerMode.snap.next, .whip)

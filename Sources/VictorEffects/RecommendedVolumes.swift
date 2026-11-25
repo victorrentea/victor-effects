@@ -272,6 +272,11 @@ enum RecommendedVolumes {
             }
         }
         for url in renders where seen.insert(VoiceCeiling.key(url)).inserted { out.append(url) }
+        // The desktop effects whose sound is their video's own track (`CeilingVideoPlayers`).
+        for name in EmojiAnimator.alphaClipVideoNames {
+            let url = EffectsConfig.shared.assetsDir.appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: url.path), seen.insert(VoiceCeiling.key(url)).inserted { out.append(url) }
+        }
         return out
     }
 

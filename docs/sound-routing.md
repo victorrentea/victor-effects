@@ -465,7 +465,15 @@ go through `VoiceCeiling.clamp` — every path (the routed press, the panel, the
 paths in `EmojiAnimator`, a live wedge or tile-bar drag, a fade-in) without a call site
 that could forget it. The two `AVAudioEngine` sounds (minigun, chainsaw) are clamped at
 construction. A share that starts or ends mid-clip re-levels the players still sounding
-from what they were asked (`CeilingPlayer.reapplyAll`). Videos are played by addons, which
+from what they were asked (`CeilingPlayer.reapplyAll`). **The video effects with their own sound** —
+✨ Fable, 😇 Inarius, 🔥 Grilled, ⚡ Power, played by `playAlphaClip`'s `AVPlayer`, which
+cannot be a `CeilingPlayer` — go through `CeilingVideoPlayers` (2026-11-25): asked =
+the tablet's wedge (their **maximum**, followed live when it is dragged mid-clip),
+clamped by the `.mov`'s own loudest 3 s (listed in `ceilingFiles` via
+`EmojiAnimator.alphaClipVideoNames`), re-levelled on a share edge; they show in
+`/test/voice/players` beside the soundboard's. Until then they started at the wedge and
+were never held under the voice. 👁️ the Eye's music (a `CeilingPlayer`) is now
+`musicVolume × wedge` as well. Videos are played by addons, which
 asks `GET /voice/ceiling?key=video:<id>&volume=<v>` at play time (0.4 s timeout; no answer
 = its own level, logged) and keeps a live drag of the clip's bar under the same cap.
 

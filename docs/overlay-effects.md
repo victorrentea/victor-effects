@@ -20,6 +20,13 @@ switch (`EffectsEngine.fireEffect`):
   `GET /sound/stopped/<file>` by bare filename, and *the Mac* decides which
   visual goes with it (`SoundEffectMap`). Changing a pairing is a Mac-side
   edit; no client is redeployed.
+- **⌘⌃ + key** (2026-11-25, moved here from Victor Mac, where they were one HTTP
+  hop away): Q `claude-peek`, U `elephant`, I `panda`, O `opus`, 0 `fable`,
+  9 `bug`, 8 `grilled`, 7 `eye`, 6 `power`, 5 `inarius` — `EffectsHotkeyTap.desktopEffectKeys`,
+  swallowed, ⌥ excluded, key repeat ignored (a repeat would be a re-press, which
+  takes the effect away), dispatched as `/effect/<name>` with source `other`.
+  Victor Mac's ⌘⌃ cheat-sheet still shows them. A new ⌘⌃ effect = a row in
+  that map + a label in Victor Mac's `CommandControlShortcuts.labels`.
 
 **There is no longer a fourth door through the menu.** The ⭐ menu used to carry
 a 39-row ⭐️ Effects submenu, fired through an `EffectsEngine.menuEffect` of its
@@ -650,7 +657,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   full-screen wash. The layer's anchor is its **top edge** (`anchorPoint.y = 1`),
   so the shrink comes off the bottom and the band stays glued to the top of the
   screen — the same anchor the 1.5 s vertical-scale reveal grows down from.
-- **✨ Fable descends** (⌘⌃0 in `victor-mac` → `fable` / `fable/stop`, `showFable`,
+- **✨ Fable descends** (⌘⌃0 → `fable` / `fable/stop`, `showFable`,
   2026-11-12, Victor's Gemini clip): a figure of light descends down the middle of the screen and
   bursts, the whole display going bright around it. Light on black, keyed by **luminance** (alpha
   0.035 → 0.60, γ 0.85 — gentler than the phoenix on purpose: the faint glow stays translucent, so
@@ -663,7 +670,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
-- **😇 Inarius** (⌘⌃5 in `victor-mac` → `inarius` / `inarius/stop`, `showInarius`; 2026-11-24, Victor's Gemini clips, after the game
+- **😇 Inarius** (⌘⌃5 → `inarius` / `inarius/stop`, `showInarius`; 2026-11-24, Victor's Gemini clips, after the game
   sprite of Tyrael was tried and dropped the same afternoon as ugly): a hooded angel in dark
   armour with wings of golden light. The first clip had him beating his wings in place over
   black and was retimed into a slowdown (BirefNet matte + glow key); the same evening Victor
@@ -683,7 +690,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   other press of ⌘⌃0 (a turn kept in `UserDefaults`); Victor then gave him his own key, ⌘⌃5,
   and ⌘⌃0 is Fable alone again. Without the video: a log line. `/test/inarius`,
   `/test/inarius/stop`, `/effect/inarius`.
-- **🪲 Bug walk** (⌘⌃9 in `victor-mac` → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
+- **🪲 Bug walk** (⌘⌃9 → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
   2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.
   He dragged three boxes on a 3456×2234 capture (*"walk from somewhere here, somewhere here, to
   somewhere here"*): it **starts** in a random point of the small box low on the right, **ends** in
@@ -698,7 +705,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   up-left) so its head leads. 170 pt/s, clamped to 2.5–9 s; 0.25 s fade in, 0.9 s standing still at
   the end, 0.6 s fade out. Silent. A re-press while it walks takes it away. Without the strip: a log
   line. `/test/bug`, `/test/bug/stop`, `/effect/bug`.
-- **👁️ Eye of the Tower** (⌘⌃7 in `victor-mac` → `eye` / `eye/stop`, `EyeTower` + `showEyeTower`,
+- **👁️ Eye of the Tower** (⌘⌃7 → `eye` / `eye/stop`, `EyeTower` + `showEyeTower`,
   2026-11-20): *"the eye of the tower of Mordor … no sound, just some light falling on the ground and
   looking for stuff"*. A dark tower rises out of the bottom edge of the Retina on the left (Victor's box,
   x 282…706 / y 232…2172 on a 3456×2234 capture, top kept, bottom running off the screen — *"no fade
@@ -718,7 +725,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   picked the upload, "The one ring theme", YouTube Dw6BCAZqkaQ): `assetsDir/eye-tower.mp3`, its first 20 s
   (the eye's whole life), faded and normalised to -18 LUFS — film music, never committed, silent without it; it fades out in 0.8 s when the
   eye goes early. A re-press, `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
-- **🔥 Grilled** (⌘⌃8 in `victor-mac` → `grilled` / `grilled/stop`, `showGrilled`,
+- **🔥 Grilled** (⌘⌃8 → `grilled` / `grilled/stop`, `showGrilled`,
   2026-11-19, Victor's Gemini clip): two men in suits are grilled over a red barbecue — flames,
   a storm of question marks, a golden "?" burst, then smoke while they straighten their ties.
   The clip's first second (a cartoon grill on WHITE fading to black) is cut: from 1.0 s on it is
@@ -731,7 +738,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   fills the display, 0.3 s fade in, 0.6 s out (sound ramped with it), life = the clip's length;
   a re-press, `/stop` or stop-all end it and pause its player. Without the video: a log line.
   `/test/grilled`, `/test/grilled/stop`, `/effect/grilled`.
-- **⚡ Unlimited power** (⌘⌃6 in `victor-mac` → `power` / `power/stop`, `showPower`,
+- **⚡ Unlimited power** (⌘⌃6 → `power` / `power/stop`, `showPower`,
   2026-11-20, Victor's Gemini clip; *"two hands rising from the bottom of the screen … then a bunch
   of blue lightnings going all over the screen, filling it up — to represent the power"*). Two old
   hands in dark robe sleeves rise from the bottom edge (0–1.3 s), sparks crawl between their

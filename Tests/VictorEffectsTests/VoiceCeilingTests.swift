@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import VictorEffects
 
@@ -61,6 +62,28 @@ final class VoiceCeilingTests: XCTestCase {
         VoiceCeiling.receive(sharing: false, ref: nil, source: "")
         XCTAssertFalse(VoiceCeiling.active)
         XCTAssertEqual(VoiceCeiling.clamp(0.9, url: url, log: false), 0.9)
+    }
+
+    /// ✨ Fable & co. play their sound through an AVPlayer: the wedge is their
+    /// maximum and a share edge holds them under the voice — live, mid-clip.
+    func testVideoClipsFollowTheWedgeAndTheShare() {
+        let url = URL(fileURLWithPath: "/tmp/voice-ceiling-test/fable-descent.mov")
+        VoiceCeiling.fileLoudness = [VoiceCeiling.key(url): -8.0]
+        let wedge = SoundManager.shared.currentTabletVolume
+        let player = AVPlayer()
+        CeilingVideoPlayers.register(player, url: url)
+        XCTAssertEqual(player.volume, wedge, accuracy: 0.0001)               // no share: the wedge
+        VoiceCeiling.receive(sharing: true, ref: -24, source: "test")         // share edge → re-levelled
+        let offset = EffectsConfig.shared.voiceCeilingOffsetDb
+        let expected = min(Double(wedge), pow(10, (-24 + offset + 8 - VoiceCeiling.systemDb()) / 20))
+        XCTAssertEqual(Double(player.volume), expected, accuracy: 0.0001)
+        VoiceCeiling.receive(sharing: false, ref: nil, source: "")            // and back
+        XCTAssertEqual(player.volume, wedge, accuracy: 0.0001)
+    }
+
+    func testAlphaClipsAreMeasuredForTheCeiling() {
+        XCTAssertEqual(Set(EmojiAnimator.alphaClipVideoNames),
+                       ["fable-descent.mov", "inarius.mov", "grilled.mov", "power.mov"])
     }
 
     func testRoutesParse() {
