@@ -3137,7 +3137,7 @@ class EmojiAnimator {
     /// Silences the clip's own audio now (re-press, `/stop`, stop-all).
     func silenceFable() { silenceAlphaClip("fable") }
 
-    // MARK: - 😇 Inarius (⌃⌘5, 2026-11-24)
+    // MARK: - 😇 Inarius (⌃⌘-, 2026-11-24; ⌃⌘5 until 2026-11-27)
 
     /// A hooded angel in dark armour comes down from above the top edge, opens
     /// his wings of golden light, beats them and ends with them open. Victor's

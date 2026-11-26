@@ -670,7 +670,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   so only black is cropped. 0.3 s fade in, 0.8 s out, life = the clip's length; a re-press, `/stop` or
   stop-all end it and pause its player (`silenceFable`, called from both stops). Without the
   video: a log line. `/test/fable`, `/test/fable/stop`, `/effect/fable`.
-- **😇 Inarius** (⌘⌃5 → `inarius` / `inarius/stop`, `showInarius`; 2026-11-24, Victor's Gemini clips, after the game
+- **😇 Inarius** (⌘⌃- → `inarius` / `inarius/stop`, `showInarius`; 2026-11-24, Victor's Gemini clips, after the game
   sprite of Tyrael was tried and dropped the same afternoon as ugly): a hooded angel in dark
   armour with wings of golden light. The first clip had him beating his wings in place over
   black and was retimed into a slowdown (BirefNet matte + glow key); the same evening Victor
@@ -688,7 +688,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `assetsDir/inarius.mov` (the black-background version kept beside it as
   `inarius.pre-greenscreen.mov`); Fable's player, fill, fades. For one afternoon he took every
   other press of ⌘⌃0 (a turn kept in `UserDefaults`); Victor then gave him his own key, ⌘⌃5,
-  and ⌘⌃0 is Fable alone again. Without the video: a log line. `/test/inarius`,
+  and ⌘⌃0 is Fable alone again. On 2026-11-27 he moved to **⌘⌃-** and got a new clip from
+  Victor: same green screen and descent, now with a **flaming sword** in his right hand, and the
+  last second fades into the green, so he dissolves by himself; keyed by the same
+  `make-inarius.py` unchanged (the previous version kept as `inarius.pre-sword.mov`). Without the video: a log line. `/test/inarius`,
   `/test/inarius/stop`, `/effect/inarius`.
 - **🪲 Bug walk** (⌘⌃9 → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
   2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.

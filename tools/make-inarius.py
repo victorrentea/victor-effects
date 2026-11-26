@@ -23,6 +23,9 @@ screen's green (median of the frame's border), every pixel is read as  I = C·a 
 His dark armour has no green excess -> a = 1; the bare screen -> a = 0; a glow pixel gets the
 alpha of how much the green under it is washed out, and its colour without the green.
 
+2026-11-27: Victor's next clip (same size, rate and length, same green screen) adds a flaming
+sword in his right hand and fades into the green over the last second; keyed unchanged.
+
 Sound: the clip's own track, -14 LUFS, muxed in the SAME ffmpeg run (re-muxing an HEVC-alpha
 stream with -c:v copy breaks it for AVFoundation).
 """
