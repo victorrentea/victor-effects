@@ -279,6 +279,8 @@ class EmojiAnimator {
     // and cuts only while the left button is held. The tap takes the clicks
     // and the Escape; the engine noise is the animator's own.
     private var _chainsawInputTap: CFMachPort?
+    private var _eyeTowerEscTap: CFMachPort?
+    private var _eyeTowerEscTapSource: CFRunLoopSource?
     private var _chainsawInputTapSource: CFRunLoopSource?
     private var _chainsawSwallowingPress = false      // the press in progress is ours, down to its release
     private var _chainsawCutting = false
@@ -3365,7 +3367,7 @@ class EmojiAnimator {
     /// A burning eye opens on its tower at the left of the screen, the screen
     /// goes dark around it, and its light falls on the strip along the bottom
     /// and searches it — or follows the pointer while it moves below the eye
-    /// (`EyeTower`). Silent. A re-press while it looks takes it away.
+    /// (`EyeTower`). A re-press or Escape while it looks takes it away.
     func showEyeTower() {
         if cancelIfRunning(EyeTower.effectName) { return }
         let bounds = hostLayer.bounds
@@ -3538,8 +3540,10 @@ class EmojiAnimator {
         let timer = Timer(timeInterval: EyeTower.tickSeconds, repeats: true) { [weak self] timer in
             guard let self, self.activeEffects[EyeTower.effectName] === container else {
                 timer.invalidate()
-                // Gone — by its own end, a re-press or stop-all: the music goes with it.
+                // Gone — by its own end, Escape, a re-press or stop-all: the
+                // music and the Escape tap go with it.
                 self?.fadeOutEyeTowerMusic()
+                self?.stopEyeTowerEscCapture()
                 return
             }
             let now = CACurrentMediaTime()
@@ -3577,6 +3581,7 @@ class EmojiAnimator {
             CATransaction.commit()
         }
         RunLoop.main.add(timer, forMode: .common)
+        startEyeTowerEscCapture()
     }
 
     /// Explicit exit; `showEyeTower` already scheduled its own end.
@@ -3592,6 +3597,54 @@ class EmojiAnimator {
         eyeTowerPlayer = nil
         player.setVolume(0, fadeDuration: EyeTower.musicFadeOut)
         DispatchQueue.main.asyncAfter(deadline: .now() + EyeTower.musicFadeOut + 0.1) { player.stop() }
+    }
+
+    /// Escape closes the eye (Victor, 2026-11-26). Taken, not observed: an
+    /// Escape that also closed his dialog would make calling it off cost
+    /// something. Keys only — the mouse stays his, the light just watches it.
+    /// Released by the eye's own tick the moment the eye is gone, whoever
+    /// ended it; and the callback checks for the eye itself, love hands'
+    /// lesson: a tap that outlives its effect eats every Escape on the Mac.
+    private func startEyeTowerEscCapture() {
+        stopEyeTowerEscCapture()
+        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let animator = Unmanaged<EmojiAnimator>.fromOpaque(refcon).takeUnretainedValue()
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = animator._eyeTowerEscTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
+            guard type == .keyDown,
+                  CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 else {   // Esc
+                return Unmanaged.passUnretained(event)
+            }
+            guard animator.activeEffects[EyeTower.effectName] != nil else {
+                DispatchQueue.main.async { animator.stopEyeTowerEscCapture() }
+                return Unmanaged.passUnretained(event)
+            }
+            DispatchQueue.main.async { animator.stopEyeTower() }
+            return nil   // consume — he is closing the eye, not his app's dialog
+        }
+        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
+                                          options: .defaultTap, eventsOfInterest: mask,
+                                          callback: callback, userInfo: refcon) else {
+            overlayError("👁️ could not install the Escape tap (Accessibility?) — ⌘⌃7 again closes the eye")
+            return
+        }
+        let src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        _eyeTowerEscTap = tap
+        _eyeTowerEscTapSource = src
+    }
+
+    private func stopEyeTowerEscCapture() {
+        if let tap = _eyeTowerEscTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+        if let src = _eyeTowerEscTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
+        _eyeTowerEscTap = nil
+        _eyeTowerEscTapSource = nil
     }
 
     // MARK: - Small dog (tile #44 `44_small_dog.mp3` — Basti barks and jumps)

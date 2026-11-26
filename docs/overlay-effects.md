@@ -724,7 +724,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   in code. 20 s, under the Ring's theme (*"the one playing when the ring of power was in sight"*; Victor then
   picked the upload, "The one ring theme", YouTube Dw6BCAZqkaQ): `assetsDir/eye-tower.mp3`, its first 20 s
   (the eye's whole life), faded and normalised to -18 LUFS — film music, never committed, silent without it; it fades out in 0.8 s when the
-  eye goes early. A re-press, `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
+  eye goes early. A re-press, **Escape** (a keys-only tap, taken from the app below, released by the eye's own tick once it is gone — 2026-11-26), `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
 - **🔥 Grilled** (⌘⌃8 → `grilled` / `grilled/stop`, `showGrilled`,
   2026-11-19, Victor's Gemini clip): two men in suits are grilled over a red barbecue — flames,
   a storm of question marks, a golden "?" burst, then smoke while they straighten their ties.
