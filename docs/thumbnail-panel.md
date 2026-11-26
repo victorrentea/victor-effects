@@ -214,11 +214,11 @@ to the slice's right edge. At rest it is the identity, frame for frame.
 `/test/thumbnail-panel` reports `zoomScale` (1 at rest, 0.5 at 2×). Tiles look
 softer zoomed — they are rendered at 1/factor and blown up, as the caption is.
 
-**The cursor over the panel is an arrow and never changes shape** (`PanelCursor`,
+**The cursor over the panel is a pointing hand and never borrows a shape** (`PanelCursor`,
 pinned from `ThumbnailGridView`, `TileView` and `PanelContentView`): being the
 window on top does not win the pointer's shape, so with no answer from us the
-window *underneath* answered — an I-beam over a terminal, a pointing hand over a
-browser link, a pointer reacting to a window the user cannot see. The option that
+window *underneath* answered — an I-beam over a terminal, a resize arrow over a
+split, a pointer reacting to a window the user cannot see. The option that
 buys it is **`.cursorUpdate`** on the tracking area (plus `.activeAlways`, since
 this app is never the active one); all three views carry it because the topmost
 tracking area under the pointer is the one AppKit asks. It is set imperatively
@@ -237,26 +237,47 @@ guard: it parses these three files with their comments stripped, so deleting
 `.cursorUpdate` from one options array fails the build instead of silently going
 back to borrowing the cursor.
 
-**A pointing hand was tried on 2026-09-14 and could not be delivered — do not
-spend another afternoon on it.** Every cell is a button, so the hand is what it
-*should* be. But this is an accessory app and the panel deliberately never becomes
-key, so the **active** application owns the pointer's shape and re-asserts its own
-between our events. The failure is invisible for as long as our answer is
-`NSCursor.arrow`, because losing the fight and the default look identical — ask for
-a hand and the loss is suddenly on screen. `NSCursor.current` cheerfully reported
-the hand while the glass showed the shape of whatever was underneath;
-`GET /test/thumbnail-panel/cursor` is what proved it (`appActive:false`,
-`currentIsWanted:true`, wrong cursor on screen), and it is still there for the next
-person. Repeating the `set()` on a 50 ms timer did not help: an inactive app does
-not win, however often it asks.
+**The hand needs `SetsCursorInBackground`** (2026-11-26). It was first tried on
+2026-09-14 and could not be delivered: this is an accessory app whose panel never
+becomes key, and the window server ignores an inactive app's `NSCursor.set()` —
+`NSCursor.current` reported the hand while the glass showed the shape of whatever
+was underneath (`GET /test/thumbnail-panel/cursor`: `appActive:false`,
+`currentIsWanted:true`). The board settled for a pinned arrow. The missing piece
+was a connection property: `PanelCursor.allowBackgroundCursor()` sets
+`SetsCursorInBackground` on our window-server connection (private CoreGraphics,
+looked up with `dlsym`, logged once as `panel cursor: SetsCursorInBackground → on`)
+before the first pin, and from then on our `set()` reaches the glass with the
+app still inactive and the caret still in the demonstrated app. If a macOS release
+drops the symbol the log says so and the board keeps working with a borrowed
+shape. The pin also runs from the event tap on every move over the board
+(`onPointerOverPanel`), since the tracking areas only hear the moves the window
+server routes here. `testTheBoardShowsAHandItIsAllowedToSet` asserts the shape
+and the switch together — the shape without the switch is the 14 Sep failure.
 
-The two ways to actually get it both cost more than the hand is worth, and Victor
-chose the arrow over both: let the panel become key (it is `.nonactivatingPanel`,
-so this works without activating the app — but the caret leaves the app being
-demonstrated while the key is held, which is the whole reason `canBecomeKey` is
-`false`), or hide the real cursor and draw our own inside the panel. The pin stays
-regardless, because the point was never "arrow" — it is **our** answer instead of
-the window underneath's.
+## Clicks come through the event tap
+
+**The window server does not deliver clicks to the panel** (found 2026-11-26, on
+a two-screen desk, page 2 on the external screen). With the board up,
+`NSWindow.windowNumber(at:)` named the panel as the window under the pointer and
+the click event even carried the panel's window number — yet it went to the
+*front* app's connection: a global monitor here saw every click (it only sees
+events for other apps), and the panel's `sendEvent` never ran. Lowering the window
+level back under `maximumWindow` changed nothing, and nor did letting go of ⌘⇧.
+The cause was not pinned down; the dependency was removed instead.
+
+`EffectsHotkeyTap` now also listens to left-button down/up/dragged and
+`mouseMoved`. `PanelHitBox` holds the board's frame on the glass in Quartz
+coordinates, published on every frame change and cleared the moment the panel
+starts to leave; it is one lock and one rectangle, because the tap asks it on its
+own thread for every click and every move. A left-button down inside it is
+**swallowed** and handed to `ThumbnailPanel.deliverTapClick`, which hit-tests the
+content view and calls that view's own `mouseDown`/`mouseUp` — so layer B's
+corner, the red press mark and the re-press that stops all mean what they always
+meant. The release and every drag belong to the press that started on the board,
+wherever the pointer ends up; nothing of it reaches the window hidden underneath.
+This is the only place the tap takes a mouse button, and only over a visible
+board. `testTheHitBoxSpeaksTheTapsCoordinates` pins the Cocoa ↔ Quartz flip on the
+layout that lost the clicks.
 
 ## The grid (page 1)
 

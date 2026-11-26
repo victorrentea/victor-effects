@@ -138,6 +138,45 @@ final class ThumbnailPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// The view a tap-routed press went down on, so its release goes back to it
+    /// wherever the pointer ends up — the same contract AppKit keeps for a real
+    /// click, and what lets a tile cancel a press dragged off it.
+    private var tapDownView: NSView?
+
+    /// A left click that `EffectsHotkeyTap` took off the board (see
+    /// `PanelHitBox`), handed to the view under it as if the window server had
+    /// delivered it. The tile views' own `mouseDown`/`mouseUp` still decide what
+    /// it means — layer B's corner, the red press mark, the re-press that stops.
+    ///
+    /// **Why clicks come this way.** The window server does not deliver them:
+    /// with the board up, `NSWindow.windowNumber(at:)` names this panel as the
+    /// window under the pointer, yet every click went to the FRONT app's
+    /// connection (a global monitor here saw each one, and that only sees events
+    /// for other apps) and `sendEvent` never ran — on the second screen, with
+    /// any window level, with or without ⌘⇧ held (2026-11-26). The tap sees the
+    /// click before any routing, so the board no longer depends on who the
+    /// window server thinks should have it.
+    func deliverTapClick(down: Bool, at cocoaPoint: NSPoint) {
+        let inWindow = convertPoint(fromScreen: cocoaPoint)
+        let view: NSView?
+        if down {
+            guard isVisible, let content = contentView else { return }
+            view = content.hitTest(content.superview?.convert(inWindow, from: nil) ?? inWindow)
+            tapDownView = view
+        } else {
+            view = tapDownView
+            tapDownView = nil
+        }
+        guard let view,
+              let event = NSEvent.mouseEvent(with: down ? .leftMouseDown : .leftMouseUp,
+                                             location: inWindow, modifierFlags: [],
+                                             timestamp: ProcessInfo.processInfo.systemUptime,
+                                             windowNumber: windowNumber, context: nil,
+                                             eventNumber: 0, clickCount: 1,
+                                             pressure: down ? 1 : 0) else { return }
+        if down { view.mouseDown(with: event) } else { view.mouseUp(with: event) }
+    }
+
     /// Show at `frame`, sliding in from `offscreenX` (the screen's right edge).
     ///
     /// The window is parked off to the right **at its final size** and only its
@@ -172,6 +211,7 @@ final class ThumbnailPanel: NSPanel {
         let parked = glassFrame(NSRect(x: offscreenX, y: frame.minY,
                                        width: frame.width, height: frame.height), slice)
         ZoomedPanel.apply(self, frame: parked, designSize: frame.size, display: false)
+        PanelHitBox.shared.publish(target)
         let visible: NSView = page == .effects ? grid : videoGrid
         visible.frame = contentView?.bounds ?? NSRect(origin: .zero, size: frame.size)
         visible.needsLayout = true
@@ -211,7 +251,9 @@ final class ThumbnailPanel: NSPanel {
         designFrame = frame
         let slice = currentVisible(design: frame)
         appliedVisible = slice
-        ZoomedPanel.apply(self, frame: glassFrame(frame, slice), designSize: frame.size)
+        let glass = glassFrame(frame, slice)
+        ZoomedPanel.apply(self, frame: glass, designSize: frame.size)
+        PanelHitBox.shared.publish(glass)
         fitPagesToContent()
         syncHoverToMouse()
     }
@@ -223,6 +265,8 @@ final class ThumbnailPanel: NSPanel {
     /// visually is, not from the frame it was aiming at.
     func slideOut(to offscreenX: CGFloat) {
         guard isVisible else { hideNow(); return }
+        PanelHitBox.shared.publish(nil)
+        tapDownView = nil
         slideGeneration += 1
         let generation = slideGeneration
         stopZoomPin()
@@ -274,6 +318,8 @@ final class ThumbnailPanel: NSPanel {
     /// Instant, un-animated. The panic path: the feature was switched off, or
     /// the app is going away.
     func hideNow() {
+        PanelHitBox.shared.publish(nil)
+        tapDownView = nil
         slideGeneration += 1
         stopZoomPin()
         orderOut(nil)
@@ -336,7 +382,9 @@ extension ThumbnailPanel {
         let slice = currentVisible(design: designFrame)
         guard slice != appliedVisible else { return }
         appliedVisible = slice
-        ZoomedPanel.apply(self, frame: glassFrame(designFrame, slice), designSize: designFrame.size)
+        let glass = glassFrame(designFrame, slice)
+        ZoomedPanel.apply(self, frame: glass, designSize: designFrame.size)
+        PanelHitBox.shared.publish(glass)
         fitPagesToContent()
         syncHoverToMouse()
     }
@@ -363,7 +411,44 @@ final class PanelContentView: NSView {
     /// The panel never becomes key, so every click on it is a "first mouse".
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseEntered(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func mouseMoved(with event: NSEvent) { PanelCursor.pinArrow() }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func mouseEntered(with event: NSEvent) { PanelCursor.pinHand() }
+    override func mouseMoved(with event: NSEvent) { PanelCursor.pinHand() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
+}
+
+/// Where the board is on the glass, readable from the event tap's own thread.
+///
+/// `EffectsHotkeyTap` asks it about every left click and every pointer move, so
+/// it is one lock and one rectangle — never a call into AppKit. Published in
+/// **Quartz** global coordinates (origin at the top-left of the primary display),
+/// the space `CGEvent.location` is in, by every frame change of the panel, and
+/// cleared the moment the panel starts to leave: a click on a board that is
+/// sliding out belongs to whatever is underneath it.
+final class PanelHitBox {
+    static let shared = PanelHitBox()
+    private let lock = NSLock()
+    private var rect: CGRect?
+
+    /// `frame` in Cocoa global points (main thread), or nil when hidden.
+    /// `primaryHeight` is the primary display's, read live unless a test pins it.
+    func publish(_ frame: NSRect?, primaryHeight: CGFloat? = nil) {
+        let height = primaryHeight ?? NSScreen.screens.first?.frame.height ?? 0
+        let quartz = frame.map { Self.quartz($0, primaryHeight: height) }
+        lock.lock(); rect = quartz; lock.unlock()
+    }
+
+    func contains(_ point: CGPoint) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return rect?.contains(point) ?? false
+    }
+
+    /// Cocoa (bottom-left origin, y up) → Quartz (top-left origin, y down).
+    static func quartz(_ frame: NSRect, primaryHeight: CGFloat) -> CGRect {
+        CGRect(x: frame.minX, y: primaryHeight - frame.maxY, width: frame.width, height: frame.height)
+    }
+
+    /// Quartz point → Cocoa point.
+    static func cocoa(_ point: CGPoint, primaryHeight: CGFloat) -> NSPoint {
+        NSPoint(x: point.x, y: primaryHeight - point.y)
+    }
 }

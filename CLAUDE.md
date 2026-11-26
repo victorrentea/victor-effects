@@ -103,7 +103,7 @@ this one only routes.
 - **One event tap, `EffectsHotkeyTap`.** ⌃W / ⌃⇧W (swallowed; toggle the selected mode / pick the next), the ⌘⌃ desktop-effect keys Q U I O 0 9 8 7 6 5 (swallowed; from Victor Mac on 2026-11-25, still drawn on its ⌘⌃ sheet — `docs/overlay-effects.md`), the Return/buttons-6-7
   crack and the right-⌘ panel hold (plus its right-⇧ video page) all live in it. A second tap would mean a
   second re-enable path for the same fragile resource and a second Accessibility
-  failure to explain. Only ⌃W, ⌃⇧W and the ⌘⌃ effect keys ever return `nil`; everything else passes through.
+  failure to explain. Only ⌃W, ⌃⇧W, the ⌘⌃ effect keys and **a left click on the visible thumbnail panel** ever return `nil` — the window server does not deliver clicks to the panel, so the tap does (`PanelHitBox`, `docs/thumbnail-panel.md`); everything else passes through.
 - **The ⭐ menu is not a second surface.** Eight rows: `✨ Effects` (Right ⌘),
   `🎦 Videos` (Right ⌘⇧), `🔥 Whip` (⌃W), `🫰 Snap` (⌃⇧W), `✓/x BT Keepalive` (the Bluetooth
   keep-alive's switch — `docs/sound-routing.md`), `✓/x Subtitles` (soundboard

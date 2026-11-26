@@ -324,6 +324,22 @@ final class ThumbnailPanelController {
         } ?? placement.frame
     }
 
+    /// A left click `EffectsHotkeyTap` took off the board, at a Quartz point —
+    /// see `ThumbnailPanel.deliverTapClick` for why clicks arrive this way.
+    func tapClick(down: Bool, at quartz: CGPoint) {
+        guard let panel else { return }
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        panel.deliverTapClick(down: down, at: PanelHitBox.cocoa(quartz, primaryHeight: primaryHeight))
+    }
+
+    /// The pointer moved over the board: the hand, again. The tracking areas
+    /// ask for it too, but they only hear the moves the window server routes to
+    /// this app — the same routing that lost the clicks.
+    func pointerOverPanel() {
+        guard panel?.isVisible == true else { return }
+        PanelCursor.pinHand()
+    }
+
     /// Flip the page of a panel that is already up. **No slide, no re-show** —
     /// the key is still held and the board must read as changing its mind, not
     /// as leaving and coming back. The frame still moves, because the two pages

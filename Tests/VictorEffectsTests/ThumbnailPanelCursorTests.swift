@@ -122,24 +122,39 @@ final class ThumbnailPanelCursorTests: XCTestCase {
         }
     }
 
-    /// **A pointing hand was tried on 14 Sep 2026 and could not be delivered.**
-    /// An accessory app whose panel never becomes key does not own the pointer's
-    /// shape: `NSCursor.current` reported our hand while the screen showed the
-    /// window underneath's, and repeating the `set()` on a timer did not change
-    /// that. Getting it would cost either the caret leaving the demonstrated app
-    /// (letting the panel become key) or a hand-drawn fake cursor; Victor chose
-    /// the arrow over both. The pin stays, because the point was never "arrow"
-    /// but "our answer rather than the window underneath's".
-    func testTheBoardShowsAnArrow() throws {
+    /// **The hand, second attempt (2026-11-26).** On 14 Sep it could not reach
+    /// the glass: an inactive app's `set()` is ignored by the window server. The
+    /// connection now asks for `SetsCursorInBackground` before the first pin, and
+    /// the shape is the hand. Both halves are asserted, because the shape without
+    /// the switch is exactly the 14 Sep failure: a hand in `NSCursor.current` and
+    /// the window underneath's cursor on screen.
+    func testTheBoardShowsAHandItIsAllowedToSet() throws {
         let swift = try code("Sources/VictorEffects/ThumbnailGridView.swift")
-        XCTAssertTrue(
-            swift.contains("static var cursor: NSCursor { .arrow }"),
-            """
-            PanelCursor's shape changed. A shape other than the arrow cannot \
-            actually reach the screen from this app — see the note on \
-            PanelCursor and /test/thumbnail-panel/cursor before trying again.
-            """
-        )
+        XCTAssertTrue(swift.contains("static var cursor: NSCursor { .pointingHand }"),
+                      "PanelCursor's shape changed — the board's cells are buttons, the hand says so.")
+        XCTAssertTrue(swift.contains("\"SetsCursorInBackground\""),
+                      "The hand needs SetsCursorInBackground, or an inactive app's set() never reaches the glass.")
+        XCTAssertTrue(swift.contains("static func pinHand() {\n        allowBackgroundCursor()"),
+                      "pinHand must ask for the background cursor before its first set().")
+    }
+
+    /// The tap reads `CGEvent.location` (Quartz: top-left origin, y down) and the
+    /// panel lives in Cocoa (bottom-left, y up). On the desk that lost the clicks
+    /// — a 1728×1117 retina with a 1920×1080 screen to its right, bottoms aligned
+    /// — the board's Cocoa frame (1728, 37) is Quartz (1728, 0).
+    func testTheHitBoxSpeaksTheTapsCoordinates() {
+        let board = NSRect(x: 1728, y: 37, width: 1920, height: 1080)
+        let quartz = PanelHitBox.quartz(board, primaryHeight: 1117)
+        XCTAssertEqual(quartz, CGRect(x: 1728, y: 0, width: 1920, height: 1080))
+        // Tile #1's centre, as clicked: Quartz (1902, 240) is Cocoa (1902, 877).
+        XCTAssertEqual(PanelHitBox.cocoa(CGPoint(x: 1902, y: 240), primaryHeight: 1117),
+                       NSPoint(x: 1902, y: 877))
+        let box = PanelHitBox()
+        box.publish(board, primaryHeight: 1117)
+        XCTAssertTrue(box.contains(CGPoint(x: 1902, y: 240)))
+        XCTAssertFalse(box.contains(CGPoint(x: 1700, y: 240)), "the retina beside it is not the board")
+        box.publish(nil)
+        XCTAssertFalse(box.contains(CGPoint(x: 1902, y: 240)), "a hidden board takes no clicks")
     }
 
     func testEveryViewUnderThePointerAnswersTheCursorQuestion() throws {
@@ -168,7 +183,7 @@ final class ThumbnailPanelCursorTests: XCTestCase {
                 "\(path) takes `.cursorUpdate` events and never implements cursorUpdate(with:)"
             )
             XCTAssertTrue(
-                swift.contains("PanelCursor.pinArrow()"),
+                swift.contains("PanelCursor.pinHand()"),
                 "\(path) should pin the cursor through PanelCursor, so there is one cursor policy and one log"
             )
         }

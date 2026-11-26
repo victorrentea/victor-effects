@@ -232,7 +232,7 @@ final class ThumbnailGridView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseEntered(with event: NSEvent) {
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
         hover(at: convert(event.locationInWindow, from: nil))
     }
     /// Re-asserted on every move: the panel appearing *under* a stationary mouse
@@ -241,10 +241,10 @@ final class ThumbnailGridView: NSView {
     /// pointer's position on every move, which is the only reading that cannot
     /// go stale.
     override func mouseMoved(with event: NSEvent) {
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
         hover(at: convert(event.locationInWindow, from: nil))
     }
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
     override func mouseExited(with event: NSEvent) {
         releaseCursor()
         clearHover()
@@ -284,29 +284,49 @@ final class ThumbnailGridView: NSView {
 /// window the user cannot even see. That part of the policy is unchanged: we
 /// must answer, every time, or somebody else does.
 ///
-/// **A pointing hand was tried on 14 Sep 2026 and could not be delivered.**
-/// Every cell is a button, so the hand is what it should be — but this app is an
-/// accessory and the panel deliberately never becomes key, so the ACTIVE
-/// application owns the pointer's shape and re-asserts its own between our
-/// events. `NSCursor.current` reported our hand while the screen showed the
-/// shape of whatever was underneath; `/test/thumbnail-panel/cursor` is what
-/// proved it (`appActive:false`, `currentIsWanted:true`, and the wrong cursor on
-/// the glass). Repeating the `set()` on a timer did not help — an inactive app
-/// simply does not win.
+/// **The hand, and why it took two attempts.** On 14 Sep 2026 it could not be
+/// delivered: this app is an accessory, the panel never becomes key, and the
+/// window server only lets the ACTIVE application change the pointer's shape.
+/// `NSCursor.current` reported our hand while the glass showed whatever was
+/// underneath (`/test/thumbnail-panel/cursor`: `appActive:false`,
+/// `currentIsWanted:true`), so the board settled for a pinned arrow.
 ///
-/// The two ways to actually get it both cost more than they are worth: let the
-/// panel become key (it is `.nonactivatingPanel`, so that works — but the caret
-/// leaves the app being demonstrated while the key is held), or hide the real
-/// cursor and draw our own. Victor chose the arrow over both.
+/// Since 2026-11-26 the connection asks for **`SetsCursorInBackground`**
+/// (`allowBackgroundCursor()`, once, before the first pin) — the window server's
+/// own switch for exactly this, the one cursor utilities use. With it an
+/// inactive app's `set()` reaches the glass, and the hand is back without
+/// either of the costly alternatives (making the panel key, which takes the
+/// caret from the demonstrated app; or drawing a fake cursor).
+/// It is a private CoreGraphics call looked up with `dlsym`: if a macOS release
+/// drops it, the lookup fails, we log it once and the board still works — only
+/// the shape is the old borrowed one again.
 ///
-/// So the shape is the arrow — and the pinning still matters, because the point
-/// was never "arrow" but "OUR answer, not the window underneath's".
+/// The pinning still matters for the same reason it did with the arrow: the
+/// point is OUR answer, not the window underneath's.
 enum PanelCursor {
     /// The one shape the board shows. Named once so the pin, the release and
     /// the test all mean the same cursor.
-    static var cursor: NSCursor { .arrow }
+    static var cursor: NSCursor { .pointingHand }
 
-    /// True when the last `pinArrow()` found our shape already in place, i.e.
+    /// Asks the window server to honour this (inactive) app's cursor changes.
+    /// Idempotent; the first pin calls it.
+    static func allowBackgroundCursor() {
+        guard !backgroundCursorAsked else { return }
+        backgroundCursorAsked = true
+        typealias DefaultConnection = @convention(c) () -> Int32
+        typealias SetProperty = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+        guard let connSym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_CGSDefaultConnection"),
+              let setSym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGSSetConnectionProperty") else {
+            effectsError("panel cursor: SetsCursorInBackground not available — the hand will not show")
+            return
+        }
+        let conn = unsafeBitCast(connSym, to: DefaultConnection.self)()
+        let err = unsafeBitCast(setSym, to: SetProperty.self)(conn, conn, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
+        effectsInfo("panel cursor: SetsCursorInBackground → \(err == 0 ? "on" : "error \(err)")")
+    }
+    private static var backgroundCursorAsked = false
+
+    /// True when the last `pinHand()` found our shape already in place, i.e.
     /// nothing underneath had taken the cursor. Read by the test hook and
     /// reported by `/test/thumbnail-panel`, because this is the one fact about
     /// the cursor a headless check can actually observe.
@@ -335,7 +355,8 @@ enum PanelCursor {
 
     /// Idempotent, and called on every move — so it logs the corrections, not
     /// the confirmations, or a single hover would fill the log.
-    static func pinArrow() {
+    static func pinHand() {
+        allowBackgroundCursor()
         let wasWanted = NSCursor.current == cursor
         lastFoundWanted = wasWanted
         if !wasWanted {

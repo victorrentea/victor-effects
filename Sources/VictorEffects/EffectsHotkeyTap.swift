@@ -225,6 +225,22 @@ final class EffectsHotkeyTap {
     /// the right hand keep reaching the front app.
     var onRightShift: ((Bool) -> Void)?
 
+    /// A left button went down (`true`) / up (`false`) on the thumbnail panel,
+    /// at this Quartz point. Called on main. **These clicks ARE swallowed** —
+    /// the one exception to "this tap never takes a mouse button", and a narrow
+    /// one: only while `PanelHitBox` says the board is on the glass under the
+    /// pointer, and the release goes with the press that started it. The window
+    /// server does not deliver those clicks to the panel itself
+    /// (`ThumbnailPanel.deliverTapClick`), and a click on the board must not
+    /// fall through to the window hidden under it either.
+    var onPanelClick: ((Bool, CGPoint) -> Void)?
+    /// The pointer moved over the board — the moment to (re)pin its hand.
+    /// Called on main; the move itself passes through.
+    var onPointerOverPanel: (() -> Void)?
+    /// Tap thread only: the press in progress started on the board, so its
+    /// drags and its release are the board's too, wherever they happen.
+    private var panelClickOwned = false
+
     private var tapPort: CFMachPort?
     private var rightCommandHeld = false
     private var rightShiftHeld = false
@@ -244,7 +260,11 @@ final class EffectsHotkeyTap {
         let eventsOfInterest: CGEventMask =
             CGEventMask(1 << CGEventType.keyDown.rawValue) |
             CGEventMask(1 << CGEventType.flagsChanged.rawValue) |
-            CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
+            CGEventMask(1 << CGEventType.otherMouseDown.rawValue) |
+            CGEventMask(1 << CGEventType.leftMouseDown.rawValue) |
+            CGEventMask(1 << CGEventType.leftMouseUp.rawValue) |
+            CGEventMask(1 << CGEventType.leftMouseDragged.rawValue) |
+            CGEventMask(1 << CGEventType.mouseMoved.rawValue)
 
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -282,6 +302,29 @@ final class EffectsHotkeyTap {
         let passThrough = Unmanaged.passUnretained(event)
 
         switch type {
+        case .leftMouseDown:
+            guard PanelHitBox.shared.contains(event.location) else { return passThrough }
+            panelClickOwned = true
+            let point = event.location
+            DispatchQueue.main.async { [weak self] in self?.onPanelClick?(true, point) }
+            return nil
+
+        case .leftMouseUp:
+            guard panelClickOwned else { return passThrough }
+            panelClickOwned = false
+            let point = event.location
+            DispatchQueue.main.async { [weak self] in self?.onPanelClick?(false, point) }
+            return nil
+
+        case .leftMouseDragged:
+            return panelClickOwned ? nil : passThrough
+
+        case .mouseMoved:
+            if PanelHitBox.shared.contains(event.location) {
+                DispatchQueue.main.async { [weak self] in self?.onPointerOverPanel?() }
+            }
+            return passThrough
+
         case .flagsChanged:
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
             switch Self.decideModifier(keyCode: keyCode,

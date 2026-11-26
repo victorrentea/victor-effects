@@ -128,6 +128,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tap.onRightCommand = { [weak self] down in self?.panelController.rightCommand(down: down) }
         tap.onRightShift = { [weak self] down in self?.panelController.rightShift(down: down) }
         tap.onKeyWhileRightCommand = { [weak self] in self?.panelController.keyWhileRightCommand() }
+        // The board's clicks come from this tap too — the window server does not
+        // deliver them to the panel (`ThumbnailPanel.deliverTapClick`).
+        tap.onPanelClick = { [weak self] down, point in self?.panelController.tapClick(down: down, at: point) }
+        tap.onPointerOverPanel = { [weak self] in self?.panelController.pointerOverPanel() }
 
         if tap.start() {
             menuBar.setAccessibilityTrusted(true)

@@ -650,14 +650,14 @@ final class TileView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         setHovered(true)
-        PanelCursor.pinArrow()
+        PanelCursor.pinHand()
     }
 
     override func mouseExited(with event: NSEvent) { setHovered(false) }
 
     /// AppKit asking "what is the cursor here?" — the one moment it is polite to
     /// answer, and the answer is always the pointing hand. See `PanelCursor`.
-    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinArrow() }
+    override func cursorUpdate(with event: NSEvent) { PanelCursor.pinHand() }
 
     /// **Not private, and not only called from `mouseEntered`.** A tracking area
     /// that appears UNDER a pointer which never moved is not entered, and the
