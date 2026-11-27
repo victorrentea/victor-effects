@@ -3974,7 +3974,9 @@ class EmojiAnimator {
             flame.color = CGColor(red: 1, green: 0.85, blue: 0.6, alpha: 0.8)
             flame.greenSpeed = -1.2
             flame.blueSpeed = -1.0
-            var cells = [flame]
+            // Over the clip the lower rim's tongues showed through its thin
+            // lower edge as a row of beads: there, only the upper rim burns.
+            var cells = sparse && rim.outward < 0 ? [] : [flame]
             if i % 3 == 0 {
                 let ember = CAEmitterCell()
                 ember.contents = spark

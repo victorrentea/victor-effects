@@ -34,7 +34,7 @@ from PIL import Image, ImageFilter, ImageSequence
 CROP = (55, 10, 265, 160)          # left, top, right, bottom in the 320x180 frame
 COLS = 12
 SLIT_HALF = (24, 60)               # half-width, half-height of the box the slit lives in, px
-SLIT_DARK = 0.30                   # brightest channel below this, inside that box = slit
+SLIT_DARK = 0.42                   # brightest channel below this, inside that box = slit
 FILL_DARKEN = 1.05
 BORROW = 36                        # px sideways the patch takes its flame texture from
 
@@ -56,8 +56,8 @@ def process(frame):
     cy, cx = h / 2, w / 2 + 3
     box = (np.abs(xx - cx) < SLIT_HALF[0]) & (np.abs(yy - cy) < SLIT_HALF[1])
     slit = box & (peak < SLIT_DARK)
-    # Grow the slit a touch so its dark rim goes too.
-    slit = np.asarray(Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5))) > 0
+    # Grow the slit so its dark-red rim goes too: left, it drew a ghost slit beside the app's pupil.
+    slit = np.asarray(Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(9))) > 0
     slit &= box
     keep = (~slit).astype(np.float32)[:, :, None]
     num = blur(rgb * keep, 14)
@@ -68,7 +68,7 @@ def process(frame):
     grain = 0.5 * (np.roll(rgb, BORROW, axis=1) + np.roll(rgb, -BORROW, axis=1))
     fill = (0.45 * smooth + 0.55 * grain) * FILL_DARKEN
     # Feather the patch into its surroundings.
-    soft = np.asarray(Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.GaussianBlur(2)),
+    soft = np.asarray(Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.GaussianBlur(4)),
                       dtype=np.float32)[:, :, None] / 255
     rgb = rgb * (1 - soft) + fill * soft
 
