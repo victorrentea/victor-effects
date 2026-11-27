@@ -76,6 +76,9 @@ BiRefNet-matted and re-timed to bark on the clip, `docs/overlay-effects.md`),
 Images, cut out by `tools/make-bug-walk.py`, licence unknown — no beetle without it),
 `eye-tower.mp3` (👁️ ⌘⌃7, 2026-11-20: the first 20 s of the YouTube upload "The one ring theme"
 (Dw6BCAZqkaQ, Victor's pick), Howard Shore's film score, faded and loudness-normalised — a silent eye without it),
+`eye-fire.png` + `eye-fire.json` (👁️ ⌘⌃7, 2026-11-27: makeagif.com's "The Eye of Sauron (Free Stock
+Footage)" GIF, Victor's pick off Google Images, licence unknown, keyed and packed into a sprite sheet by
+`tools/make-eye-fire.py` — the eye is drawn in code without it),
 `grilled.mov` (🔥 ⌘⌃8, 2026-11-19: keyed by `tools/make-grilled.py` out of a clip Victor
 generated with Gemini, sound inside — no grill without it),
 `power.mov` (⚡ ⌘⌃6, 2026-11-20: keyed by `tools/make-power.py` out of a clip generated with

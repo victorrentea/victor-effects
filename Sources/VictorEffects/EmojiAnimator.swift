@@ -281,6 +281,22 @@ class EmojiAnimator {
     private var _chainsawInputTap: CFMachPort?
     private var _eyeTowerEscTap: CFMachPort?
     private var _eyeTowerEscTapSource: CFRunLoopSource?
+    /// The press in progress hit the tower: its release is ours too.
+    private var _eyeTowerClickOwned = false
+    /// What the fall needs from the standing eye (`collapseEyeTower`).
+    private final class EyeTowerScene {
+        let container: CALayer
+        let towerHolder: CALayer
+        let eyeHolder: CALayer
+        let bounds: CGRect
+        var tower: CGImage?
+        var pupilOffset = CGPoint.zero
+        init(container: CALayer, towerHolder: CALayer, eyeHolder: CALayer, bounds: CGRect) {
+            self.container = container; self.towerHolder = towerHolder
+            self.eyeHolder = eyeHolder; self.bounds = bounds
+        }
+    }
+    private var eyeTowerScene: EyeTowerScene?
     private var _chainsawInputTapSource: CFRunLoopSource?
     private var _chainsawSwallowingPress = false      // the press in progress is ours, down to its release
     private var _chainsawCutting = false
@@ -3369,7 +3385,7 @@ class EmojiAnimator {
     /// and searches it — or follows the pointer while it moves below the eye
     /// (`EyeTower`). A re-press or Escape while it looks takes it away.
     func showEyeTower() {
-        if cancelIfRunning(EyeTower.effectName) { return }
+        if activeEffects[EyeTower.effectName] != nil { stopEyeTower(); return }
         let bounds = hostLayer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
 
@@ -3428,9 +3444,11 @@ class EmojiAnimator {
         let towerHolder = CALayer()
         towerHolder.frame = bounds
         container.addSublayer(towerHolder)
+        var towerImage: CGImage?
         if let url = EffectsResources.url("eye-tower", "png"),
            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
            let image = CGImageSourceCreateImageAtIndex(source, 0, nil) {
+            towerImage = image
             let tower = CALayer()
             tower.frame = EyeTower.towerFrame(in: bounds)
             tower.contents = image
@@ -3464,34 +3482,55 @@ class EmojiAnimator {
         container.addSublayer(spot)
         lightFade(spot, to: 1)
 
-        // 5. The eye's halo, the eye and its pupil.
+        // 5. The eye's halo, the eye and its pupil — over the beam: the cone
+        // starts at the eye's centre, and drawn on top it washed the lower half
+        // of the slit see-through whenever the eye looked down (2026-11-27).
+        let eyeHolder = CALayer()
+        eyeHolder.frame = bounds
+        container.addSublayer(eyeHolder)
         let halo = CALayer()
         halo.bounds = CGRect(x: 0, y: 0, width: eyeSize.width * 3.2, height: eyeSize.width * 2.2)
         halo.position = eye
         halo.contents = EyeTower.glowSprite("halo", r: 1, g: 0.4, b: 0.05, core: 0.6, mid: 0.22)
         halo.contentsGravity = .resize
-        towerHolder.addSublayer(halo)
+        eyeHolder.addSublayer(halo)
         flicker(halo, depth: 0.06, period: 1.6)
 
         let lid = CALayer()   // what opens and closes: the eye and its pupil
         lid.bounds = CGRect(x: 0, y: 0, width: eyeSize.width / EyeTower.eyeSpriteLensShare.width,
                             height: eyeSize.height / EyeTower.eyeSpriteLensShare.height)
         lid.position = eye
-        towerHolder.addSublayer(lid)
-        let eyeLayer = CALayer()
-        eyeLayer.frame = lid.bounds
-        eyeLayer.contents = EyeTower.eyeSprite()
-        eyeLayer.contentsGravity = .resize
+        eyeHolder.addSublayer(lid)
+        let lensRect = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
+                              width: eyeSize.width, height: eyeSize.height)
+        let (eyeLayer, rimRect) = Self.eyeBodyLayer(in: lid, lens: lensRect)
+        Self.addEyeFire(to: lid, lens: rimRect, sparse: EyeTower.fireSheet() != nil)
         lid.addSublayer(eyeLayer)
         flicker(eyeLayer, depth: 0.025, period: 0.9)
 
+        // The pupil lives inside the almond: sized to it where it stands, and
+        // clipped by it so no flicker or rounding can push it over the rim.
+        let lens = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
+                          width: eyeSize.width, height: eyeSize.height)
+        let iris = CALayer()
+        iris.frame = lid.bounds
+        let irisMask = CAShapeLayer()
+        irisMask.frame = lid.bounds
+        irisMask.path = EyeTower.almond(in: lens)
+        iris.mask = irisMask
+        lid.addSublayer(iris)
         let pupil = CALayer()
-        pupil.bounds = CGRect(x: 0, y: 0, width: eyeSize.height * 0.30, height: eyeSize.height * 1.05)
+        let pupilWidth = eyeSize.height * 0.30
         let mid = CGPoint(x: lid.bounds.midX, y: lid.bounds.midY)
-        pupil.position = mid
+        func placePupil(_ o: CGPoint) {
+            let h = EyeTower.pupilHeight(eyeSize: eyeSize, offset: o, pupilWidth: pupilWidth)
+            pupil.bounds = CGRect(x: 0, y: 0, width: pupilWidth, height: h)
+            pupil.position = CGPoint(x: mid.x + o.x, y: mid.y + o.y)
+        }
+        placePupil(EyeTower.pupilOffset(eye: eye, eyeSize: eyeSize, spot: start, in: bounds))
         pupil.contents = EyeTower.pupilSprite()
         pupil.contentsGravity = .resize
-        lid.addSublayer(pupil)
+        iris.addSublayer(pupil)
 
         // The lid: opens from a slit, stays open, closes to a slit at the end.
         let open = CAKeyframeAnimation(keyPath: "transform.scale.y")
@@ -3511,10 +3550,14 @@ class EmojiAnimator {
         show.fillMode = .forwards
         show.isRemovedOnCompletion = false
         towerHolder.add(show, forKey: "eyeShow")
+        eyeHolder.add(show, forKey: "eyeShow")
 
         stageLayer.addSublayer(container)
         CATransaction.commit()
         trackEffect(EyeTower.effectName, layer: container, duration: life)
+        let scene = EyeTowerScene(container: container, towerHolder: towerHolder, eyeHolder: eyeHolder, bounds: bounds)
+        scene.tower = towerImage
+        eyeTowerScene = scene
 
         // The Ring's theme under it, if the clip is in assetsDir (it is film
         // music, so it never ships: silent without it).
@@ -3543,7 +3586,9 @@ class EmojiAnimator {
                 // Gone — by its own end, Escape, a re-press or stop-all: the
                 // music and the Escape tap go with it.
                 self?.fadeOutEyeTowerMusic()
-                self?.stopEyeTowerEscCapture()
+                // A click that brought it down still owes its release to the
+                // tap: the release takes the tap down instead.
+                if self?._eyeTowerClickOwned != true { self?.stopEyeTowerEscCapture() }
                 return
             }
             let now = CACurrentMediaTime()
@@ -3577,17 +3622,434 @@ class EmojiAnimator {
             dark.position = position
             aim(position)
             let o = EyeTower.pupilOffset(eye: eye, eyeSize: eyeSize, spot: position, in: bounds)
-            pupil.position = CGPoint(x: mid.x + o.x, y: mid.y + o.y)
+            placePupil(o)
+            scene.pupilOffset = o
             CATransaction.commit()
         }
         RunLoop.main.add(timer, forMode: .common)
         startEyeTowerEscCapture()
     }
 
-    /// Explicit exit; `showEyeTower` already scheduled its own end.
+    /// Explicit exit (Escape, a re-press, `/eye/stop`): it fades out, nothing
+    /// more (Victor, 2026-11-27: *"if I escape, it just fades out … in terms of
+    /// opacity"*). Stop-all still takes it at once. `showEyeTower` already
+    /// scheduled its own end.
     func stopEyeTower() {
-        _ = cancelIfRunning(EyeTower.effectName)
         fadeOutEyeTowerMusic()
+        eyeTowerScene = nil
+        guard let container = activeEffects.removeValue(forKey: EyeTower.effectName) else { return }
+        fadeAway(container, seconds: EyeTower.escapeFadeSeconds)
+    }
+
+    /// Fade a layer from wherever it is now to nothing, then drop it.
+    private func fadeAway(_ layer: CALayer, seconds: Double) {
+        let from = layer.presentation()?.opacity ?? layer.opacity
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.opacity = 0
+        CATransaction.commit()
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = from
+        fade.toValue = 0
+        fade.duration = seconds
+        layer.add(fade, forKey: "fadeAway")
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak layer] in layer?.removeFromSuperlayer() }
+    }
+
+    /// Is this Quartz point (a click) on the standing tower? Main thread.
+    private func eyeTowerHit(quartz q: CGPoint) -> Bool {
+        guard let scene = eyeTowerScene, activeEffects[EyeTower.effectName] === scene.container,
+              let screen = Screens.overlayScreen(), let primary = NSScreen.screens.first else { return false }
+        let cocoa = CGPoint(x: q.x, y: primary.frame.height - q.y)
+        let f = screen.frame, b = scene.bounds
+        guard f.contains(cocoa), f.width > 0, f.height > 0 else { return false }
+        let p = CGPoint(x: (cocoa.x - f.minX) / f.width * b.width, y: (cocoa.y - f.minY) / f.height * b.height)
+        return EyeTower.towerHitRect(in: b).contains(p)
+    }
+
+    /// 💥 A click on the tower: the eye goes out, the tower shudders, leans
+    /// right, comes apart and falls, and fire and dust burst from its foot
+    /// (`EyeTower`'s fall timeline). Built fresh in its own container under
+    /// its own key, so the standing eye's own end (its 20 s timer) cannot
+    /// take the fall with it.
+    func collapseEyeTower() {
+        guard let scene = eyeTowerScene, activeEffects[EyeTower.effectName] === scene.container else { return }
+        eyeTowerScene = nil
+        activeEffects.removeValue(forKey: EyeTower.effectName)   // its tick sees this and stops
+        fadeOutEyeTowerMusic()
+        let b = scene.bounds
+        let towerFrame = EyeTower.towerFrame(in: b)
+        let eyeSize = EyeTower.eyeSize(in: b)
+        let total = EyeTower.collapseSeconds
+        func at(_ t: Double) -> NSNumber { NSNumber(value: min(1, max(0, t / total))) }
+        func keep(_ a: CAAnimation) { a.duration = total; a.fillMode = .forwards; a.isRemovedOnCompletion = false }
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // The standing scene: the tower and the eye are swapped for the copies
+        // below in this same frame; the light dies on its own.
+        scene.towerHolder.isHidden = true
+        scene.eyeHolder.isHidden = true
+        fadeAway(scene.container, seconds: EyeTower.lightOutSeconds)
+
+        let c = CALayer()
+        c.frame = b
+
+        // The tower, hinged at its foot so it leans from there.
+        let group = CALayer()
+        group.anchorPoint = CGPoint(x: 0.5, y: 0)
+        group.bounds = CGRect(origin: .zero, size: towerFrame.size)
+        group.position = CGPoint(x: towerFrame.midX, y: towerFrame.minY)
+        c.addSublayer(group)
+        let whole = CALayer()
+        whole.frame = group.bounds
+        whole.contents = scene.tower
+        whole.contentsGravity = .resize
+        group.addSublayer(whole)
+
+        // The eye, frozen where it was looking, rides on top of it.
+        let eyeAt = CGPoint(x: towerFrame.width * EyeTower.towerEyeAnchor.x,
+                            y: towerFrame.height * EyeTower.towerEyeAnchor.y)
+        let flare = CALayer()
+        flare.bounds = CGRect(x: 0, y: 0, width: eyeSize.width * 3.2, height: eyeSize.width * 2.2)
+        flare.position = eyeAt
+        flare.contents = EyeTower.glowSprite("halo", r: 1, g: 0.4, b: 0.05, core: 0.6, mid: 0.22)
+        flare.contentsGravity = .resize
+        group.addSublayer(flare)
+        let lid = CALayer()
+        lid.bounds = CGRect(x: 0, y: 0, width: eyeSize.width / EyeTower.eyeSpriteLensShare.width,
+                            height: eyeSize.height / EyeTower.eyeSpriteLensShare.height)
+        lid.position = eyeAt
+        group.addSublayer(lid)
+        let lensRect = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
+                              width: eyeSize.width, height: eyeSize.height)
+        let (eyeLayer, rimRect) = Self.eyeBodyLayer(in: lid, lens: lensRect)
+        Self.addEyeFire(to: lid, lens: rimRect, sparse: EyeTower.fireSheet() != nil)
+        lid.addSublayer(eyeLayer)
+        let lens = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
+                          width: eyeSize.width, height: eyeSize.height)
+        let iris = CALayer()
+        iris.frame = lid.bounds
+        let mask = CAShapeLayer()
+        mask.frame = lid.bounds
+        mask.path = EyeTower.almond(in: lens)
+        iris.mask = mask
+        lid.addSublayer(iris)
+        let pupil = CALayer()
+        let o = scene.pupilOffset
+        let pw = eyeSize.height * 0.30
+        pupil.bounds = CGRect(x: 0, y: 0, width: pw, height: EyeTower.pupilHeight(eyeSize: eyeSize, offset: o, pupilWidth: pw))
+        pupil.position = CGPoint(x: lid.bounds.midX + o.x, y: lid.bounds.midY + o.y)
+        pupil.contents = EyeTower.pupilSprite()
+        pupil.contentsGravity = .resize
+        iris.addSublayer(pupil)
+
+        // The eye: a flare as it is struck, then it closes and goes out.
+        let out = EyeTower.eyeOutSeconds
+        let pop = CAKeyframeAnimation(keyPath: "transform.scale")
+        pop.values = [1, 1.3, 1.1]
+        pop.keyTimes = [0, at(0.18), at(out)]
+        keep(pop)
+        lid.add(pop, forKey: "pop")
+        let shut = CAKeyframeAnimation(keyPath: "transform.scale.y")
+        shut.values = [1, 1, 0.03]
+        shut.keyTimes = [0, at(out * 0.35), at(out)]
+        keep(shut)
+        eyeLayer.add(shut, forKey: "shut")
+        iris.add(shut, forKey: "shut")
+        let dim = CAKeyframeAnimation(keyPath: "opacity")
+        dim.values = [1, 1, 0]
+        dim.keyTimes = [0, at(out * 0.6), at(out)]
+        keep(dim)
+        lid.add(dim, forKey: "dim")
+        let burst = CAKeyframeAnimation(keyPath: "transform.scale")
+        burst.values = [1, 1.9, 0.4]
+        burst.keyTimes = [0, at(0.25), at(out + 0.2)]
+        keep(burst)
+        flare.add(burst, forKey: "burst")
+        let flareOut = CAKeyframeAnimation(keyPath: "opacity")
+        flareOut.values = [1, 1, 0]
+        flareOut.keyTimes = [0, at(0.3), at(out + 0.2)]
+        keep(flareOut)
+        flare.add(flareOut, forKey: "out")
+
+        // The tower: a shudder that grows, a lean to the right.
+        var r = SplitMix(seed: UInt64.random(in: 1...UInt64.max))
+        let n = 40
+        let shake = CAKeyframeAnimation(keyPath: "position.x")
+        shake.isAdditive = true
+        var vals: [CGFloat] = [0], times: [NSNumber] = [0, at(EyeTower.shudderStart)]
+        vals.append(0)
+        for i in 1...n {
+            let t = EyeTower.shudderStart + (EyeTower.breakAt - EyeTower.shudderStart) * Double(i) / Double(n)
+            let grow = CGFloat(t / EyeTower.breakAt)
+            vals.append(CGFloat(r.unit() * 2 - 1) * towerFrame.width * 0.018 * grow)
+            times.append(at(t))
+        }
+        shake.values = vals
+        shake.keyTimes = times
+        keep(shake)
+        group.add(shake, forKey: "shake")
+        let lean = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+        lean.values = [0, 0, EyeTower.bendAngle * 0.35, EyeTower.bendAngle]
+        lean.keyTimes = [0, at(EyeTower.bendStart), at(EyeTower.bendStart + (EyeTower.breakAt - EyeTower.bendStart) * 0.6), at(EyeTower.breakAt)]
+        lean.timingFunctions = [CAMediaTimingFunction(name: .linear), CAMediaTimingFunction(name: .easeIn), CAMediaTimingFunction(name: .easeIn)]
+        keep(lean)
+        group.add(lean, forKey: "lean")
+
+        // Smoke and fire over everything at the end fade with the rest.
+        let fadeAll = CAKeyframeAnimation(keyPath: "opacity")
+        fadeAll.values = [1, 1, 0]
+        fadeAll.keyTimes = [0, at(total - EyeTower.collapseFadeSeconds), 1]
+        keep(fadeAll)
+        c.add(fadeAll, forKey: "fadeAll")
+
+        stageLayer.addSublayer(c)
+        CATransaction.commit()
+        trackEffect(EyeTower.collapseEffectName, layer: c, duration: total)
+        _ = SoundManager.shared.playOverlappingTabletSound(EyeTower.explosionSound, after: EyeTower.boomAt)
+
+        // The break: the whole drawing gives way to its blocks, which fall.
+        let towerImage = scene.tower
+        DispatchQueue.main.asyncAfter(deadline: .now() + EyeTower.breakAt) { [weak self, weak c] in
+            guard let self, let c, self.activeEffects[EyeTower.collapseEffectName] === c, let img = towerImage else { return }
+            var rng = SystemRandomNumberGenerator()
+            let pieces = EyeTower.pieces(cols: 6, rows: 16, coverage: EyeTower.alphaCoverage(img), using: &rng)
+            let size = towerFrame.size
+            let left = total - EyeTower.breakAt
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            whole.isHidden = true
+            for piece in pieces {
+                let block = CALayer()
+                let frame = CGRect(x: piece.unit.minX * size.width, y: piece.unit.minY * size.height,
+                                   width: piece.unit.width * size.width, height: piece.unit.height * size.height)
+                block.frame = frame
+                block.contents = img
+                block.contentsRect = piece.unit
+                block.contentsGravity = .resize
+                group.addSublayer(block)
+                let start = CGPoint(x: frame.midX, y: frame.midY)
+                let steps = 30
+                let fall = CAKeyframeAnimation(keyPath: "position")
+                fall.values = (0...steps).map { i -> NSValue in
+                    let t = left * Double(i) / Double(steps) - piece.delay
+                    return NSValue(point: EyeTower.fallen(start, piece: piece, towerHeight: size.height, t: t))
+                }
+                fall.duration = left
+                fall.fillMode = .forwards
+                fall.isRemovedOnCompletion = false
+                block.add(fall, forKey: "fall")
+                let spin = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+                spin.values = (0...steps).map { i -> CGFloat in
+                    piece.spin * CGFloat(max(0, left * Double(i) / Double(steps) - piece.delay))
+                }
+                spin.duration = left
+                spin.fillMode = .forwards
+                spin.isRemovedOnCompletion = false
+                block.add(spin, forKey: "spin")
+            }
+            // Dust shaken out of the stone as it parts, all the way up.
+            let crumble = CAEmitterLayer()
+            crumble.emitterShape = .rectangle
+            crumble.emitterMode = .volume
+            crumble.emitterPosition = CGPoint(x: towerFrame.midX, y: towerFrame.midY)
+            crumble.emitterSize = CGSize(width: towerFrame.width * 0.5, height: towerFrame.height)
+            crumble.emitterCells = [Self.eyeDustCell(scale: b.height * 0.07 / 256, birthRate: 45,
+                                                     speed: b.height * 0.05, life: 2.4)]
+            c.addSublayer(crumble)
+            CATransaction.commit()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { crumble.birthRate = 0 }
+        }
+
+        // The burst at its foot: fire, embers, a flash, a cloud of dust.
+        DispatchQueue.main.asyncAfter(deadline: .now() + EyeTower.boomAt) { [weak self, weak c] in
+            guard let self, let c, self.activeEffects[EyeTower.collapseEffectName] === c else { return }
+            let foot = CGPoint(x: towerFrame.midX + towerFrame.width * 0.12, y: b.minY + b.height * 0.04)
+            let h = b.height
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            let flash = CALayer()
+            flash.bounds = CGRect(x: 0, y: 0, width: h * 0.75, height: h * 0.5)
+            flash.position = foot
+            flash.contents = EyeTower.glowSprite("boom", r: 1, g: 0.55, b: 0.12, core: 0.95, mid: 0.5)
+            flash.contentsGravity = .resize
+            flash.opacity = 0
+            c.addSublayer(flash)
+            let flashA = CAKeyframeAnimation(keyPath: "opacity")
+            flashA.values = [0, 1, 0]
+            flashA.keyTimes = [0, 0.12, 1]
+            flashA.duration = 1.1
+            flash.add(flashA, forKey: "flash")
+            let flashS = CABasicAnimation(keyPath: "transform.scale")
+            flashS.fromValue = 0.3
+            flashS.toValue = 1.3
+            flashS.duration = 1.1
+            flash.add(flashS, forKey: "grow")
+
+            let dust = CAEmitterLayer()
+            dust.emitterShape = .line
+            dust.emitterPosition = foot
+            dust.emitterSize = CGSize(width: towerFrame.width * 0.9, height: 1)
+            dust.emitterCells = [Self.eyeDustCell(scale: h * 0.13 / 256, birthRate: 45,
+                                                  speed: h * 0.2, life: 3.2)]
+            c.addSublayer(dust)
+
+            let fire = CAEmitterLayer()
+            fire.emitterShape = .line
+            fire.emitterPosition = foot
+            fire.emitterSize = CGSize(width: towerFrame.width * 0.6, height: 1)
+            fire.renderMode = .additive
+            let flame = CAEmitterCell()
+            flame.contents = EyeTower.flameSprite()
+            flame.birthRate = 110
+            flame.lifetime = 1.0
+            flame.lifetimeRange = 0.4
+            flame.velocity = h * 0.38
+            flame.velocityRange = h * 0.2
+            flame.emissionLongitude = .pi / 2
+            flame.emissionRange = 0.75
+            flame.yAcceleration = -h * 0.15
+            flame.scale = h * 0.16 / 128
+            flame.scaleRange = h * 0.07 / 128
+            flame.scaleSpeed = -h * 0.06 / 128
+            flame.alphaSpeed = -0.9
+            flame.color = CGColor(red: 1, green: 0.8, blue: 0.5, alpha: 0.85)
+            flame.greenSpeed = -0.35
+            flame.blueSpeed = -0.2
+            let ember = CAEmitterCell()
+            ember.contents = EyeTower.glowSprite("ember", r: 1, g: 0.75, b: 0.3, core: 1, mid: 0.6)
+            ember.birthRate = 90
+            ember.lifetime = 2.4
+            ember.lifetimeRange = 0.8
+            ember.velocity = h * 0.75
+            ember.velocityRange = h * 0.35
+            ember.emissionLongitude = .pi / 2
+            ember.emissionRange = 1.0
+            ember.yAcceleration = -h * 0.7
+            ember.scale = h * 0.012 / 256 * 2
+            ember.scaleRange = h * 0.006 / 256 * 2
+            ember.alphaSpeed = -0.35
+            fire.emitterCells = [flame, ember]
+            c.addSublayer(fire)
+            CATransaction.commit()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { fire.birthRate = 0 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { dust.birthRate = 0 }
+        }
+    }
+
+    /// 🔥 The eye burns: a dozen little emitters round its rim throw tongues
+    /// of fire outward that rise as they go (fire goes up whichever way it was
+    /// thrown), going from yellow to deep red as they die, and a few sparks
+    /// fly off. Added under the eye sprite in `layer` (the lid), so they open,
+    /// shut and fall with it.
+    private static func addEyeFire(to layer: CALayer, lens: CGRect, sparse: Bool = false) {
+        let h = lens.height
+        let tongue = EyeTower.flameSprite()
+        let spark = EyeTower.glowSprite("ember", r: 1, g: 0.75, b: 0.3, core: 1, mid: 0.6)
+        // Over the living clip, which burns on its own, only stray tongues and
+        // the sparks: the bits of fire spreading off it.
+        for (i, rim) in EyeTower.rimEmitters(lens: lens, count: sparse ? 18 : 26).enumerated() {
+            let e = CAEmitterLayer()
+            e.frame = layer.bounds
+            e.emitterPosition = rim.point
+            e.emitterShape = .point
+            e.renderMode = .additive
+            // Fire goes up: thrown outward, it bends upward at once; the lower
+            // rim's tongues mostly lick up into the lens and hide behind it.
+            let flame = CAEmitterCell()
+            flame.contents = tongue
+            flame.birthRate = sparse ? 5 : 16
+            flame.lifetime = 0.5
+            flame.lifetimeRange = 0.22
+            flame.velocity = h * 0.35
+            flame.velocityRange = h * 0.25
+            flame.emissionLongitude = rim.outward
+            flame.emissionRange = 0.5
+            flame.yAcceleration = h * 3.2
+            flame.scale = h / 128 * 0.42
+            flame.scaleRange = h / 128 * 0.18
+            flame.scaleSpeed = -h / 128 * 0.5
+            flame.alphaSpeed = -1.6
+            flame.color = CGColor(red: 1, green: 0.85, blue: 0.6, alpha: 0.8)
+            flame.greenSpeed = -1.2
+            flame.blueSpeed = -1.0
+            var cells = [flame]
+            if i % 3 == 0 {
+                let ember = CAEmitterCell()
+                ember.contents = spark
+                ember.birthRate = sparse ? 6 : 4
+                ember.lifetime = 1.4
+                ember.lifetimeRange = 0.5
+                ember.velocity = h * 1.0
+                ember.velocityRange = h * 0.6
+                ember.emissionLongitude = rim.outward
+                ember.emissionRange = 0.9
+                ember.yAcceleration = h * 1.4
+                ember.scale = h / 256 * 0.08
+                ember.scaleRange = h / 256 * 0.04
+                ember.alphaSpeed = -0.7
+                ember.color = CGColor(red: 1, green: 0.85, blue: 0.5, alpha: 1)
+                ember.greenSpeed = -0.5
+                cells.append(ember)
+            }
+            e.emitterCells = cells
+            layer.addSublayer(e)
+        }
+    }
+
+    /// The eye itself, filling `lid`: the living fire clip when it is in
+    /// assetsDir (looping its sheet through `contentsRect`), else the drawn
+    /// almond. Returns the layer and the rect its flames fill, for the fire
+    /// thrown off its rim.
+    private static func eyeBodyLayer(in lid: CALayer, lens: CGRect) -> (layer: CALayer, rim: CGRect) {
+        let body = CALayer()
+        guard let sheet = EyeTower.fireSheet() else {
+            body.frame = lid.bounds
+            body.contents = EyeTower.eyeSprite()
+            body.contentsGravity = .resize
+            return (body, lens)
+        }
+        let frame = EyeTower.fireFrame(lens: lens)
+        body.frame = frame
+        body.contents = sheet.image
+        body.contentsGravity = .resize
+        body.contentsRect = sheet.rect(0)
+        let play = CAKeyframeAnimation(keyPath: "contentsRect")
+        play.values = (0..<sheet.frames).map { NSValue(rect: sheet.rect($0)) }
+        play.calculationMode = .discrete
+        play.duration = sheet.seconds
+        play.repeatCount = .greatestFiniteMagnitude
+        play.timeOffset = Double.random(in: 0..<sheet.seconds)
+        body.add(play, forKey: "fire")
+        let rim = CGRect(x: lens.midX - lens.width * EyeTower.fireBodyOverLens.width * 0.42,
+                         y: lens.midY - lens.height * EyeTower.fireBodyOverLens.height * 0.42,
+                         width: lens.width * EyeTower.fireBodyOverLens.width * 0.84,
+                         height: lens.height * EyeTower.fireBodyOverLens.height * 0.84)
+        return (body, rim)
+    }
+
+    /// A billow of dust: puffs that rise, swell and thin out.
+    private static func eyeDustCell(scale: CGFloat, birthRate: Float, speed: CGFloat, life: Float) -> CAEmitterCell {
+        let cell = CAEmitterCell()
+        cell.contents = EyeTower.dustSprite()
+        cell.birthRate = birthRate
+        cell.lifetime = life
+        cell.lifetimeRange = life * 0.3
+        cell.velocity = speed
+        cell.velocityRange = speed * 0.6
+        cell.emissionLongitude = .pi / 2
+        cell.emissionRange = .pi * 0.55
+        cell.yAcceleration = speed * 0.1
+        cell.scale = scale
+        cell.scaleRange = scale * 0.4
+        cell.scaleSpeed = scale * 0.6
+        cell.spin = 0
+        cell.spinRange = 0.8
+        cell.color = CGColor(red: 1, green: 1, blue: 1, alpha: 0.6)
+        cell.alphaRange = 0.2
+        cell.alphaSpeed = -0.6 / life
+        return cell
     }
 
     private var eyeTowerPlayer: AVAudioPlayer?
@@ -3608,6 +4070,8 @@ class EmojiAnimator {
     private func startEyeTowerEscCapture() {
         stopEyeTowerEscCapture()
         let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+            | CGEventMask(1 << CGEventType.leftMouseUp.rawValue)
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             guard let refcon else { return Unmanaged.passUnretained(event) }
@@ -3615,6 +4079,23 @@ class EmojiAnimator {
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
                 if let tap = animator._eyeTowerEscTap { CGEvent.tapEnable(tap: tap, enable: true) }
                 return Unmanaged.passUnretained(event)
+            }
+            // 💥 A click on the tower brings it down (2026-11-27); a click
+            // anywhere else is his. The source runs on the main run loop, so
+            // this callback is on main and may read the scene directly.
+            if type == .leftMouseDown {
+                guard animator.eyeTowerHit(quartz: event.location) else { return Unmanaged.passUnretained(event) }
+                animator._eyeTowerClickOwned = true
+                DispatchQueue.main.async { animator.collapseEyeTower() }
+                return nil
+            }
+            if type == .leftMouseUp {
+                guard animator._eyeTowerClickOwned else { return Unmanaged.passUnretained(event) }
+                animator._eyeTowerClickOwned = false
+                if animator.activeEffects[EyeTower.effectName] == nil {
+                    DispatchQueue.main.async { animator.stopEyeTowerEscCapture() }
+                }
+                return nil
             }
             guard type == .keyDown,
                   CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == 53 else {   // Esc

@@ -727,7 +727,35 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   in code. 20 s, under the Ring's theme (*"the one playing when the ring of power was in sight"*; Victor then
   picked the upload, "The one ring theme", YouTube Dw6BCAZqkaQ): `assetsDir/eye-tower.mp3`, its first 20 s
   (the eye's whole life), faded and normalised to -18 LUFS — film music, never committed, silent without it; it fades out in 0.8 s when the
-  eye goes early. A re-press, **Escape** (a keys-only tap, taken from the app below, released by the eye's own tick once it is gone — 2026-11-26), `/stop` or stop-all end it. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
+  eye goes early. A re-press, **Escape** (taken from the app below by the eye's own tap, released by the eye's own tick once it is gone — 2026-11-26), or `/stop` **fade it out** over 0.9 s (2026-11-27: *"if I escape, it just fades out … in terms of opacity"*); stop-all still takes it at once. `/test/eye`, `/test/eye/stop`, `/effect/eye`.
+  - **2026-11-27, after a recording:** the spot is **21%** of the screen wide (was 14%, *"1.5x bigger"*); the
+    slit **stays inside the almond** — its height is the almond's at the slit's outer edge (`1 − 4u²`, the
+    arcs are quadratics) less twice its vertical offset, × 0.92, and an almond `CAShapeLayer` masks it on
+    top (it had been 1.05 × the almond's height and stuck out above and below whenever it looked aside);
+    and the eye is drawn **over** the beam (the cone starts at the eye's centre and washed the slit's lower
+    half see-through). Searching on its own the light stays on the strip; it only goes higher to follow a
+    moving pointer.
+  - **The eye burns.** When `assetsDir/eye-fire.png` + `.json` are there it is a **living clip**: Victor's
+    pick from an image search, makeagif's "The Eye of Sauron (Free Stock Footage)" (320×180, 151 frames, 15 fps,
+    on black, licence not ours — never committed; `eye-fire-source.gif` beside it), cropped off its
+    watermark, glow-keyed, its fixed slit filled with fire borrowed from either side (the app's own pupil
+    moves over it) and packed into a 12-column sheet by `tools/make-eye-fire.py`, played as a discrete
+    `contentsRect` loop at a random phase. Its round body is laid 1.15 × the almond wide and 1.9 × tall.
+    Without it the drawn almond stays. Either way 18–26 little emitters round the rim (`rimEmitters`, the
+    almond's outward normals) throw upright flame tongues (`flameSprite`) that rise as they go, yellow to
+    red, plus sparks — sparse over the clip, which burns on its own.
+  - **💥 A click on the tower brings it down** (*"as at the end of the movie … under its own weight … the
+    tower bends a bit to the right, and then the whole thing collapses in a big explosion of dust and
+    fire. That only happens if I click the tower"*). The eye's tap also takes a left click inside
+    `towerHitRect` (the masonry's middle half plus the eye) and its release; any other click is his. The
+    fall is built fresh under its own key `eye-collapse` (6.8 s) so the standing eye's 20 s timer cannot
+    take it along: the light dies in 0.5 s, the eye flares and shuts (0.9 s), the tower shudders harder and
+    harder, leans 10° right from 0.55 s and at 1.75 s comes apart into masonry — 6 × 16 blocks, every
+    other row offset, only blocks with stone in them (`alphaCoverage`, RGBA: an alpha-only bitmap with a
+    colour space is silently nil, and the first cut fell as nothing) — that fall under gravity, foot first,
+    drifting right and tumbling; at 2.0 s fire, embers, a flash and a dust cloud burst from its foot, sized
+    to the screen's height (sized to the tower they swallowed the whole screen), with `03_explosion.mp3`
+    from the tablet's sounds. The rest fades over the last 1.6 s. `/test/eye/collapse`, `/effect/eye/collapse`.
 - **🔥 Grilled** (⌘⌃8 → `grilled` / `grilled/stop`, `showGrilled`,
   2026-11-19, Victor's Gemini clip): two men in suits are grilled over a red barbecue — flames,
   a storm of question marks, a golden "?" burst, then smoke while they straighten their ties.

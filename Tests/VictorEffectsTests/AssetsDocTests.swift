@@ -8,7 +8,7 @@ enum AssetsDoc {
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("docs/assets-and-licences.md")
         let text = try String(contentsOf: doc, encoding: .utf8)
-        let regex = try NSRegularExpression(pattern: "`([A-Za-z0-9_.-]+\\.(?:png|gif|mp3|mov))`")
+        let regex = try NSRegularExpression(pattern: "`([A-Za-z0-9_.-]+\\.(?:png|gif|mp3|mov|json))`")
         let range = NSRange(text.startIndex..., in: text)
         return Set(regex.matches(in: text, range: range).compactMap {
             Range($0.range(at: 1), in: text).map { String(text[$0]) }

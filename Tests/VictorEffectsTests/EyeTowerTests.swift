@@ -100,10 +100,61 @@ final class EyeTowerTests: XCTestCase {
         }
     }
 
+    /// 2026-11-27: the slit was taller than the almond and poked out above and
+    /// below it whenever it looked aside, where the almond is thinner.
+    func testTheSlitFitsTheAlmondWhereverItLooks() {
+        let eye = EyeTower.eyeCenter(in: retina)
+        let size = EyeTower.eyeSize(in: retina)
+        let w = size.height * 0.30
+        let almond = EyeTower.almond(in: CGRect(x: -size.width / 2, y: -size.height / 2,
+                                                width: size.width, height: size.height))
+        for spot in [CGPoint(x: 0, y: 0), CGPoint(x: retina.maxX, y: 0), CGPoint(x: eye.x, y: 0),
+                     CGPoint(x: retina.maxX, y: eye.y - 200), CGPoint(x: 0, y: eye.y - 200)] {
+            let o = EyeTower.pupilOffset(eye: eye, eyeSize: size, spot: spot, in: retina)
+            let h = EyeTower.pupilHeight(eyeSize: size, offset: o, pupilWidth: w)
+            XCTAssertGreaterThan(h, size.height * 0.35, "the slit all but vanished looking at \(spot)")
+            for dx in [-w / 4, 0, w / 4] {
+                for dy in [-h / 2, h / 2] {
+                    let p = CGPoint(x: o.x + dx, y: o.y + dy)
+                    XCTAssertTrue(almond.contains(p), "the slit pokes out at \(p) looking at \(spot)")
+                }
+            }
+        }
+    }
+
+    /// 2026-11-27: the first coverage reader asked for an alpha-only bitmap
+    /// with a colour space, got nil, read every block as empty — and the
+    /// tower fell as nothing.
+    func testTheRealTowerBreaksIntoMasonry() throws {
+        let url = try XCTUnwrap(EffectsResources.url("eye-tower", "png"))
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let img = try XCTUnwrap(CGImageSourceCreateImageAtIndex(src, 0, nil))
+        let coverage = EyeTower.alphaCoverage(img)
+        XCTAssertGreaterThan(coverage(CGRect(x: 0.3, y: 0, width: 0.4, height: 0.2)), 0.5, "the foot is solid stone")
+        XCTAssertLessThan(coverage(CGRect(x: 0, y: 0.9, width: 0.1, height: 0.1)), 0.1, "the sky beside the horns is empty")
+        var rng = SystemRandomNumberGenerator()
+        let pieces = EyeTower.pieces(cols: 6, rows: 16, coverage: coverage, using: &rng)
+        XCTAssertGreaterThan(pieces.count, 40)
+        XCTAssertLessThan(pieces.count, 6 * 16 + 16)
+        // The foot gives first, the top follows.
+        let low = pieces.filter { $0.unit.midY < 0.2 }.map { $0.delay }.max() ?? 0
+        let high = pieces.filter { $0.unit.midY > 0.8 }.map { $0.delay }.min() ?? 0
+        XCTAssertLessThan(low, high)
+    }
+
+    func testAClickCountsOnTheTowerAndNotBesideIt() {
+        let hit = EyeTower.towerHitRect(in: retina)
+        let t = EyeTower.towerFrame(in: retina)
+        XCTAssertTrue(hit.contains(CGPoint(x: t.midX, y: t.minY + t.height * 0.3)))
+        XCTAssertTrue(hit.contains(EyeTower.eyeCenter(in: retina)))
+        XCTAssertFalse(hit.contains(CGPoint(x: retina.midX, y: retina.midY)))
+    }
+
     func testTheSpritesDrawAndTheTowerShips() {
         XCTAssertNotNil(EyeTower.eyeSprite())
         XCTAssertNotNil(EyeTower.pupilSprite())
         XCTAssertNotNil(EyeTower.beamSprite())
+        XCTAssertNotNil(EyeTower.flameSprite())
         XCTAssertNotNil(EyeTower.darknessSprite(k: EyeTower.darknessScale(in: retina)))
         XCTAssertNotNil(EffectsResources.url("eye-tower", "png"))
     }
