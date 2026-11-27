@@ -457,8 +457,9 @@ enum EyeTower {
     /// Stretched sideways on 2026-11-27 evening (1.15 → 1.4 wide) — Victor:
     /// *"stretch it a bit towards the left-right 'insertion' points into the
     /// tower"* — then the whole of it ×0.8, *"un pic mai mic să încapă între
-    /// marginile turnului"*.
-    static let fireBodyOverLens = CGSize(width: 1.12, height: 1.52)
+    /// marginile turnului"*, and once it stood in his own drawing's horns,
+    /// ×1.1 back (*"poți mări ochiul cu 10%"*).
+    static let fireBodyOverLens = CGSize(width: 1.232, height: 1.672)
 
     // MARK: - The gaze in the fire (2026-11-27, evening)
 

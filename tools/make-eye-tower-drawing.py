@@ -40,7 +40,10 @@ PAPER = np.array([46, 30, 24], np.float32)
 # (the app's eye takes its place), and the box the horns' inner edges are measured in.
 BODY_SEED = (285, 300)
 EYE = (283, 47)
-EYE_ERASE = (31, 24)        # half-width, half-height of the ellipse the drawn eye is erased in
+# The drawn eye is erased inside this polygon (photo px): it follows the horns' inner edges, because
+# the eye's flecks reach right up to them — an ellipse left them stuck on (Victor: *"nu ai șters
+# bine vechiul ochi"*), and the left horn thickens below y 62, so the polygon steps in there.
+EYE_ERASE = [(245, 20), (313, 20), (313, 52), (310, 57), (309, 78), (250, 78), (250, 64), (245, 62)]
 
 
 def main():
@@ -53,9 +56,9 @@ def main():
     g = np.asarray(im).astype(np.float32)
     paper = np.asarray(im.filter(ImageFilter.GaussianBlur(30 * UP))).astype(np.float32)
     ink = np.clip((paper * 0.82 - g) / (paper * 0.45), 0, 1)          # 0 paper .. 1 solid ink
-    yy, xx = np.mgrid[0:ink.shape[0], 0:ink.shape[1]]
-    drawn_eye = ((xx / UP - EYE[0]) / EYE_ERASE[0]) ** 2 + ((yy / UP - EYE[1]) / EYE_ERASE[1]) ** 2 < 1
-    ink[drawn_eye] = 0
+    erase = Image.new("L", (ink.shape[1], ink.shape[0]), 0)
+    ImageDraw.Draw(erase).polygon([(x * UP, y * UP) for x, y in EYE_ERASE], fill=255)
+    ink[np.asarray(erase) > 0] = 0
     line = ((ink > 0.25) * 255).astype(np.uint8)
 
     # The outside: flood the paper from the borders, through ink thickened so it cannot slip in.
