@@ -71,9 +71,45 @@ enum EyeTower {
     /// `eye-tower.png`: 506 × 1145 (the top 56% of the drawing — *"less of the
     /// mountain, more of the tower"*); the horns' bowl spans x 182…284 and the
     /// eye's centre sits at y ≈ 50 from the top (`tools/make-eye-tower.py` output).
-    static let towerAspect: CGFloat = 506.0 / 1145
-    static let towerEyeAnchor = CGPoint(x: 233.0 / 506, y: 1 - 50.0 / 1145)
-    static let towerHornShare: CGFloat = 102.0 / 506
+    /// The eye is 1.5 × that bowl wide on this drawing.
+    static let bundledTower = TowerArt(name: "eye-tower", aspect: 506.0 / 1145,
+                                       eyeAnchor: CGPoint(x: 233.0 / 506, y: 1 - 50.0 / 1145),
+                                       eyeWidthShare: 102.0 / 506 * 1.5)
+
+    /// Which drawing the tower is, and where its eye goes on it (unit
+    /// coordinates, y UP).
+    struct TowerArt: Equatable {
+        let name: String
+        let aspect: CGFloat
+        let eyeAnchor: CGPoint
+        /// The eye's (the almond's) width as a share of the drawing's width.
+        let eyeWidthShare: CGFloat
+    }
+
+    /// Victor's pick, 2026-11-27 (*"use this tower draw"*): a fan's ink drawing,
+    /// licence not ours, so an `assetsDir` drop-in (`eye-tower-drawing.png` +
+    /// `.json`, made by `tools/make-eye-tower-drawing.py`, which measures the gap
+    /// between its horns so the eye fits in it). Without it, the bundled
+    /// Wikimedia drawing.
+    static var tower: TowerArt {
+        if let cached = towerCache { return cached }
+        var art = bundledTower
+        if EffectsResources.url("eye-tower-drawing", "png") != nil,
+           let json = EffectsResources.url("eye-tower-drawing", "json"),
+           let data = try? Data(contentsOf: json),
+           let meta = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+           let w = (meta["width"] as? NSNumber)?.doubleValue, let h = (meta["height"] as? NSNumber)?.doubleValue,
+           let x = (meta["eyeX"] as? NSNumber)?.doubleValue, let y = (meta["eyeY"] as? NSNumber)?.doubleValue,
+           let ew = (meta["eyeWidth"] as? NSNumber)?.doubleValue, w > 0, h > 0, ew > 0 {
+            art = TowerArt(name: "eye-tower-drawing", aspect: CGFloat(w / h),
+                           eyeAnchor: CGPoint(x: x, y: 1 - y), eyeWidthShare: CGFloat(ew))
+        }
+        towerCache = art
+        return art
+    }
+    private static var towerCache: TowerArt?
+    static var towerAspect: CGFloat { tower.aspect }
+    static var towerEyeAnchor: CGPoint { tower.eyeAnchor }
 
     /// The tower's top is the box's top, centred on it; it rises out of the
     /// screen's bottom edge, cut there (Victor, after a version that faded out
@@ -89,9 +125,10 @@ enum EyeTower {
         let t = towerFrame(in: b)
         return CGPoint(x: t.minX + t.width * towerEyeAnchor.x, y: t.minY + t.height * towerEyeAnchor.y)
     }
-    /// A little wider than the bowl between the horns, so it burns out of it.
+    /// The bundled drawing: a little wider than the bowl between its horns, so
+    /// it burns out of it; Victor's drawing: the gap between the horns.
     static func eyeSize(in b: CGRect) -> CGSize {
-        let w = towerFrame(in: b).width * towerHornShare * 1.5
+        let w = towerFrame(in: b).width * tower.eyeWidthShare
         return CGSize(width: w, height: w * 0.46)
     }
     /// 21% of the screen wide (14% until 2026-11-27 — Victor: *"make the light
@@ -417,9 +454,11 @@ enum EyeTower {
     static let fireBodyShare = CGSize(width: 155.0 / 210, height: 135.0 / 150)
     /// The clip's eye is rounder than the drawn almond; laid over it, its
     /// body is this much of the almond's width wide and of its height tall.
-    /// 1.4 wide since 2026-11-27 evening (was 1.15) — Victor: *"stretch it a bit
-    /// towards the left-right 'insertion' points into the tower"*.
-    static let fireBodyOverLens = CGSize(width: 1.4, height: 1.9)
+    /// Stretched sideways on 2026-11-27 evening (1.15 → 1.4 wide) — Victor:
+    /// *"stretch it a bit towards the left-right 'insertion' points into the
+    /// tower"* — then the whole of it ×0.8, *"un pic mai mic să încapă între
+    /// marginile turnului"*.
+    static let fireBodyOverLens = CGSize(width: 1.12, height: 1.52)
 
     // MARK: - The gaze in the fire (2026-11-27, evening)
 

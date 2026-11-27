@@ -3447,7 +3447,7 @@ class EmojiAnimator {
         towerHolder.frame = bounds
         container.addSublayer(towerHolder)
         var towerImage: CGImage?
-        if let url = EffectsResources.url("eye-tower", "png"),
+        if let url = EffectsResources.url(EyeTower.tower.name, "png"),
            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
            let image = CGImageSourceCreateImageAtIndex(source, 0, nil) {
             towerImage = image
@@ -3506,7 +3506,9 @@ class EmojiAnimator {
         let lensRect = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
                               width: eyeSize.width, height: eyeSize.height)
         let (eyeLayer, rimRect, gaze) = Self.eyeBodyLayer(in: lid, lens: lensRect)
-        Self.addEyeFire(to: lid, lens: rimRect, sparse: gaze != nil)
+        // The clip burns on its own: the drawn flames thrown off its rim went
+        // (Victor, 2026-11-27: *"renunță la focul de deasupra ochiului"*).
+        if gaze == nil { Self.addEyeFire(to: lid, lens: rimRect) }
         lid.addSublayer(eyeLayer)
         flicker(eyeLayer, depth: 0.025, period: 0.9)
         gaze?(EyeTower.gazeShift(eye: eye, spot: start, in: bounds))
@@ -3734,7 +3736,9 @@ class EmojiAnimator {
         let lensRect = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
                               width: eyeSize.width, height: eyeSize.height)
         let (eyeLayer, rimRect, gaze) = Self.eyeBodyLayer(in: lid, lens: lensRect)
-        Self.addEyeFire(to: lid, lens: rimRect, sparse: gaze != nil)
+        // The clip burns on its own: the drawn flames thrown off its rim went
+        // (Victor, 2026-11-27: *"renunță la focul de deasupra ochiului"*).
+        if gaze == nil { Self.addEyeFire(to: lid, lens: rimRect) }
         lid.addSublayer(eyeLayer)
         gaze?(scene.gazeShift)       // it goes out looking where it looked
         let lens = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,

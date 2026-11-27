@@ -742,7 +742,19 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     the black around the eye still keys out) and packed into a 12-column sheet by `tools/make-eye-fire.py`,
     played as a discrete `contentsRect` loop at a random phase. Its body is laid **1.4** × the almond wide
     (1.15 until the evening of 2026-11-27 — *"stretch it a bit towards the left-right 'insertion' points
-    into the tower"*) and 1.9 × tall.
+    into the tower"*) and 1.9 × tall, then all of it × 0.8 (**1.12 × 1.52**, *"un pic mai mic să încapă
+    între marginile turnului"*). With the clip, **no drawn flames fly off the rim** any more (*"renunță la
+    focul de deasupra ochiului"*): the clip burns on its own; the drawn-eye fallback keeps them.
+  - **Victor's tower drawing** (same evening, *"use this tower draw"*): a fan's signed ink drawing of
+    Barad-dûr, licence unknown, so an `assetsDir` drop-in — `eye-tower-drawing.png` + `.json`, made by
+    `tools/make-eye-tower-drawing.py` out of the photo (kept beside them as `eye-tower-drawing-source.png`):
+    ink found by an adaptive threshold (the paper runs grey to white), the drawn eye between the horns
+    **erased** first (it touches the horns and closed the bowl, which the flood then filled black), the
+    outside flooded from the borders, only the piece holding the tower's body kept, painted **as drawn,
+    only dark** (ink near-black, paper a dim warm stone), cut at 80% of its height (the rocks and the
+    signature go), ×3 for the Retina. The `.json` carries where the eye goes and how wide — the gap between
+    the horns at the eye's height — so `EyeTower.tower` (a `TowerArt`) gives the layout either drawing's
+    numbers; without the drop-in the bundled Wikimedia tower and its constants stand.
   - **The clip's slit IS the pupil** (same evening: *"when the eye has to move, stretch it slightly
     towards that direction, so that the black centre moves gently towards where the gaze points"*). No
     pupil is drawn over the clip any more (earlier that day the slit was painted over with fire and a

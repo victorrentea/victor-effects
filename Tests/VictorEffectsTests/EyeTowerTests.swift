@@ -14,7 +14,9 @@ final class EyeTowerTests: XCTestCase {
         XCTAssertEqual(t.maxY, box.maxY, accuracy: 0.5)
         XCTAssertTrue(retina.contains(t))
         let eye = EyeTower.eyeCenter(in: retina)
-        XCTAssertGreaterThan(eye.y, box.maxY - box.height * 0.05)
+        // Within the top tenth: Victor's drawing has longer horns than the bundled
+        // one, its eye 7.8% down the tower (4.4% on the bundled).
+        XCTAssertGreaterThan(eye.y, box.maxY - box.height * 0.10)
         XCTAssertLessThan(eye.y, retina.maxY)
         XCTAssertGreaterThan(eye.x, box.minX)
         XCTAssertLessThan(eye.x, box.maxX)
@@ -152,7 +154,27 @@ final class EyeTowerTests: XCTestCase {
     /// with a colour space, got nil, read every block as empty — and the
     /// tower fell as nothing.
     func testTheRealTowerBreaksIntoMasonry() throws {
-        let url = try XCTUnwrap(EffectsResources.url("eye-tower", "png"))
+        try towerBreaksIntoMasonry("eye-tower")
+        // Victor's drawing, where this Mac has it in assetsDir (it never ships).
+        if EffectsResources.url("eye-tower-drawing", "png") != nil { try towerBreaksIntoMasonry("eye-tower-drawing") }
+    }
+
+    /// The drawing's eye sits between its horns, with stone on both sides of it.
+    func testTheEyeSitsBetweenTheHornsOfVictorsDrawing() throws {
+        guard let url = EffectsResources.url("eye-tower-drawing", "png") else { throw XCTSkip("no drawing in assetsDir") }
+        XCTAssertEqual(EyeTower.tower.name, "eye-tower-drawing")
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let img = try XCTUnwrap(CGImageSourceCreateImageAtIndex(src, 0, nil))
+        let coverage = EyeTower.alphaCoverage(img)
+        let a = EyeTower.tower.eyeAnchor, half = EyeTower.tower.eyeWidthShare / 2
+        XCTAssertLessThan(coverage(CGRect(x: a.x - half * 0.6, y: a.y - 0.01, width: half * 1.2, height: 0.02)), 0.1,
+                          "the eye's place is open sky between the horns")
+        XCTAssertGreaterThan(coverage(CGRect(x: a.x - half - 0.03, y: a.y - 0.01, width: 0.03, height: 0.02)), 0.3, "left horn")
+        XCTAssertGreaterThan(coverage(CGRect(x: a.x + half, y: a.y - 0.01, width: 0.03, height: 0.02)), 0.3, "right horn")
+    }
+
+    private func towerBreaksIntoMasonry(_ name: String) throws {
+        let url = try XCTUnwrap(EffectsResources.url(name, "png"))
         let src = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
         let img = try XCTUnwrap(CGImageSourceCreateImageAtIndex(src, 0, nil))
         let coverage = EyeTower.alphaCoverage(img)
