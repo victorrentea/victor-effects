@@ -3178,6 +3178,64 @@ class EmojiAnimator {
     /// Silences the clip's own audio now (re-press, `/stop`, stop-all).
     func silenceInarius() { silenceAlphaClip("inarius") }
 
+    // MARK: - 🐧 Penguin (⌃⌘5, 2026-11-27)
+
+    /// A penguin chick on a patch of grass waves a pink flag — cheering the room
+    /// on. A sticker GIF off the internet, its "加油!!" caption cropped away; the
+    /// background is the GIF's own transparency. Sits flush in the bottom-left
+    /// corner of the display at HALF its height and plays its 1 s loop four
+    /// times (the GIF's own loop count), then fades. Silent. Not ours to publish,
+    /// so it lives only in `assetsDir/penguin-flag.gif`; without it, a log line.
+    static let penguinGifName = "penguin-flag"
+    static let penguinLoops = 4
+
+    func showPenguin() {
+        if cancelIfRunning("penguin") { return }
+        guard let url = EffectsResources.url(Self.penguinGifName, "gif"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            overlayError("\(Self.penguinGifName).gif not in \(EffectsConfig.shared.assetsDir.path)")
+            return
+        }
+        var images: [CGImage] = []
+        var loop: Double = 0
+        for i in 0..<CGImageSourceGetCount(source) {
+            guard let cg = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
+            images.append(cg)
+            let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [String: Any]
+            let gif = props?[kCGImagePropertyGIFDictionary as String] as? [String: Any]
+            loop += gif?[kCGImagePropertyGIFDelayTime as String] as? Double ?? 0.1
+        }
+        guard let first = images.first, loop > 0 else { return }
+
+        let bounds = hostLayer.bounds
+        let h = bounds.height * 0.5
+        let w = h * CGFloat(first.width) / CGFloat(first.height)
+        let layer = CALayer()
+        layer.frame = CGRect(x: 0, y: 0, width: w, height: h)
+        layer.contentsGravity = .resizeAspect
+        layer.contents = first
+        stageLayer.addSublayer(layer)
+
+        let frames = CAKeyframeAnimation(keyPath: "contents")
+        frames.values = images
+        frames.calculationMode = .discrete
+        frames.duration = loop
+        frames.repeatCount = .infinity
+        layer.add(frames, forKey: "penguinFrames")
+
+        let life = loop * Double(Self.penguinLoops)
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = [0, 1, 1, 0]
+        fade.keyTimes = [0, NSNumber(value: 0.2 / life), NSNumber(value: (life - 0.4) / life), 1]
+        fade.duration = life
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        layer.add(fade, forKey: "penguinFade")
+        trackEffect("penguin", layer: layer, duration: life)
+    }
+
+    func stopPenguin() { _ = cancelIfRunning("penguin") }
+
     // MARK: - 🔥 Grilled (⌃⌘8, 2026-11-19)
 
     /// Two men in suits are grilled over a barbecue: flames, a storm of question

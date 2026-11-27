@@ -70,7 +70,8 @@ final class EffectsHotkeyTap {
     ///   Mac locks on it again.
     /// - U 🐘 elephant, I 🐼 panda (the twins, one hand position), O 🤖 Opus head.
     /// - 0 ✨ Fable, 9 🪲 beetle, 8 🔥 grilled, 7 👁️ Eye of the Tower,
-    ///   6 ⚡ unlimited power, - 😇 Inarius (on 5 until 2026-11-27).
+    ///   6 ⚡ unlimited power, 5 🐧 penguin waving a flag (2026-11-27),
+    ///   - 😇 Inarius (on 5 until 2026-11-27).
     static let desktopEffectKeys: [CGKeyCode: String] = [
         12: "claude-peek",  // Q
         32: "elephant",     // U
@@ -81,6 +82,7 @@ final class EffectsHotkeyTap {
         28: "grilled",      // 8
         26: "eye",          // 7
         22: "power",        // 6
+        23: "penguin",      // 5
         27: "inarius",      // -  (⌘⌃5 until 2026-11-27)
     ]
 

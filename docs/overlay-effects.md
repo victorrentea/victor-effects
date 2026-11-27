@@ -22,7 +22,7 @@ switch (`EffectsEngine.fireEffect`):
   edit; no client is redeployed.
 - **⌘⌃ + key** (2026-11-25, moved here from Victor Mac, where they were one HTTP
   hop away): Q `claude-peek`, U `elephant`, I `panda`, O `opus`, 0 `fable`,
-  9 `bug`, 8 `grilled`, 7 `eye`, 6 `power`, 5 `inarius` — `EffectsHotkeyTap.desktopEffectKeys`,
+  9 `bug`, 8 `grilled`, 7 `eye`, 6 `power`, 5 `penguin`, - `inarius` — `EffectsHotkeyTap.desktopEffectKeys`,
   swallowed, ⌥ excluded, key repeat ignored (a repeat would be a re-press, which
   takes the effect away), dispatched as `/effect/<name>` with source `other`.
   Victor Mac's ⌘⌃ cheat-sheet still shows them. A new ⌘⌃ effect = a row in
@@ -693,6 +693,15 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   last second fades into the green, so he dissolves by himself; keyed by the same
   `make-inarius.py` unchanged (the previous version kept as `inarius.pre-sword.mov`). Without the video: a log line. `/test/inarius`,
   `/test/inarius/stop`, `/effect/inarius`.
+- **🐧 Penguin** (⌘⌃5 → `penguin` / `penguin/stop`, `showPenguin`; 2026-11-27): a penguin chick
+  on a patch of grass waves a pink flag, flush in the **bottom-left corner** of the display at
+  **half its height**, over a transparent background. A sticker GIF off the internet, its
+  "加油!!" caption cropped off (rows 0–87 of the 370×292 original; the flag never reaches them),
+  the canvas trimmed to the animation's bounds (324×187, 10 frames × 100 ms); the GIF's own
+  1-bit transparency, no keying. Plays its 1 s loop 4 times (the GIF's loop count), 0.2 s fade
+  in, 0.4 s out; silent; a re-press takes it away. No licence, so only in
+  `assetsDir/penguin-flag.gif`; without it, a log line. `/test/penguin`, `/test/penguin/stop`,
+  `/effect/penguin`.
 - **🪲 Bug walk** (⌘⌃9 → `bug` / `bug/stop`, `BugWalk` + `showBugWalk`,
   2026-11-19): a beetle walks across the Retina with its legs going and stops where Victor pointed.
   He dragged three boxes on a 3456×2234 capture (*"walk from somewhere here, somewhere here, to

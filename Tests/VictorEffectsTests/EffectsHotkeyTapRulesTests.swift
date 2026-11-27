@@ -44,7 +44,7 @@ final class EffectsHotkeyTapRulesTests: XCTestCase {
         // Moved from Victor Mac on 2026-11-25; Victor Mac's ⌘⌃ sheet still shows them.
         let expected: [CGKeyCode: String] = [12: "claude-peek", 32: "elephant", 34: "panda", 31: "opus",
                                              29: "fable", 25: "bug", 28: "grilled", 26: "eye",
-                                             22: "power", 27: "inarius"]
+                                             22: "power", 23: "penguin", 27: "inarius"]
         XCTAssertEqual(Tap.desktopEffectKeys, expected)
         for (code, name) in expected {
             XCTAssertEqual(Tap.decideKey(keyCode: code, flags: [.maskCommand, .maskControl], whipShowing: false),
