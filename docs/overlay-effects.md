@@ -695,7 +695,7 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   `/test/inarius/stop`, `/effect/inarius`.
 - **🐧 Penguin** (⌘⌃5 → `penguin` / `penguin/stop`, `showPenguin`; 2026-11-27): a penguin chick
   on a patch of grass waves a pink flag, flush in the **bottom-left corner** of the display at
-  **half its height**, over a transparent background. A sticker GIF off the internet, its
+  **35% of its height** (half at first, 70% of that the same evening), over a transparent background. A sticker GIF off the internet, its
   "加油!!" caption cropped off (rows 0–87 of the 370×292 original; the flag never reaches them),
   the canvas trimmed to the animation's bounds (324×187, 10 frames × 100 ms); the GIF's own
   1-bit transparency, no keying. Plays its 1 s loop 4 times (the GIF's loop count), 0.2 s fade

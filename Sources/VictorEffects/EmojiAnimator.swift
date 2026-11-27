@@ -3183,7 +3183,8 @@ class EmojiAnimator {
     /// A penguin chick on a patch of grass waves a pink flag — cheering the room
     /// on. A sticker GIF off the internet, its "加油!!" caption cropped away; the
     /// background is the GIF's own transparency. Sits flush in the bottom-left
-    /// corner of the display at HALF its height and plays its 1 s loop four
+    /// corner of the display at 35% of its height (70% of the first cut's half,
+    /// Victor the same evening) and plays its 1 s loop four
     /// times (the GIF's own loop count), then fades. Silent. Not ours to publish,
     /// so it lives only in `assetsDir/penguin-flag.gif`; without it, a log line.
     static let penguinGifName = "penguin-flag"
@@ -3208,7 +3209,7 @@ class EmojiAnimator {
         guard let first = images.first, loop > 0 else { return }
 
         let bounds = hostLayer.bounds
-        let h = bounds.height * 0.5
+        let h = bounds.height * 0.35
         let w = h * CGFloat(first.width) / CGFloat(first.height)
         let layer = CALayer()
         layer.frame = CGRect(x: 0, y: 0, width: w, height: h)
