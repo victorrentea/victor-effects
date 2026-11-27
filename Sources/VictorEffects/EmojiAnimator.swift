@@ -4034,7 +4034,8 @@ class EmojiAnimator {
         let frame = EyeTower.fireFrame(lens: lens)
         body.frame = frame
         let (nx, ny) = EyeTower.gazeTiles
-        let phase = Double.random(in: 0..<sheet.seconds)
+        let order = sheet.pingPong
+        let phase = Double.random(in: 0..<sheet.pingPongSeconds)
         /// A tile's span of the clip, unit coordinates. No overlap: where two
         /// tiles overlapped, the see-through halo was drawn twice and showed a
         /// red grid (2026-11-27). Neighbours share their edge coordinate
@@ -4059,9 +4060,9 @@ class EmojiAnimator {
                 tile.edgeAntialiasingMask = []
                 tile.contentsRect = cut(sheet.rect(0))
                 let play = CAKeyframeAnimation(keyPath: "contentsRect")
-                play.values = (0..<sheet.frames).map { NSValue(rect: cut(sheet.rect($0))) }
+                play.values = order.map { NSValue(rect: cut(sheet.rect($0))) }
                 play.calculationMode = .discrete
-                play.duration = sheet.seconds
+                play.duration = sheet.pingPongSeconds
                 play.repeatCount = .greatestFiniteMagnitude
                 play.timeOffset = phase          // one phase for all: they play in step
                 tile.add(play, forKey: "fire")

@@ -441,6 +441,14 @@ enum EyeTower {
         let frames: Int
         let seconds: Double
 
+        /// The order the frames play in: forward, then back, never repeating an
+        /// end — a loop that only ran forward jumped from the last frame to the
+        /// first (Victor, 2026-11-27: *"du-te, vino … să nu se vadă nicio
+        /// întrerupere"*). 0…n-1, n-2…1, then the loop starts again at 0.
+        var pingPong: [Int] { frames < 3 ? Array(0..<frames) : Array(0..<frames) + Array((1..<frames - 1).reversed()) }
+        /// How long one ping-pong takes, at the clip's own frame rate.
+        var pingPongSeconds: Double { seconds * Double(pingPong.count) / Double(frames) }
+
         /// Frame `i`'s rect in the sheet, unit coordinates, y UP (a CALayer's
         /// contentsRect on the Mac): the sheet's top row is the highest.
         func rect(_ i: Int) -> CGRect {

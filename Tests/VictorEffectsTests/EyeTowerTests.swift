@@ -150,6 +150,16 @@ final class EyeTowerTests: XCTestCase {
         }
     }
 
+    /// The fire loops forward and back, so no frame ever jumps to a far one.
+    func testTheFireLoopsForwardAndBackWithoutAJump() throws {
+        let img = try XCTUnwrap(EyeTower.flameSprite())
+        let sheet = EyeTower.FireSheet(image: img, cols: 12, rows: 13, frames: 151, seconds: 10.07)
+        let o = sheet.pingPong
+        XCTAssertEqual(o.count, 300)
+        for (a, b) in zip(o, o.dropFirst() + [o[0]]) { XCTAssertEqual(abs(a - b), 1, "\(a) -> \(b)") }
+        XCTAssertEqual(sheet.pingPongSeconds, 10.07 * 300 / 151, accuracy: 1e-9)
+    }
+
     /// 2026-11-27: the first coverage reader asked for an alpha-only bitmap
     /// with a colour space, got nil, read every block as empty — and the
     /// tower fell as nothing.

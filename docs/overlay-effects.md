@@ -742,7 +742,8 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     line — *"pare tăiată inferior"*; the watermark is now covered by the eye's other side, mirrored, and
     the top and bottom 12 px fade out), glow-keyed (its own black slit kept **opaque**, found by a flood fill from the middle so
     the black around the eye still keys out) and packed into a 12-column sheet by `tools/make-eye-fire.py`,
-    played as a discrete `contentsRect` loop at a random phase. Its body is laid **1.4** × the almond wide
+    played as a discrete `contentsRect` loop at a random phase — **forward then back** (0…150, 149…1), so
+    the loop never jumps from the last frame to the first (*"du-te, vino … să nu se vadă nicio întrerupere"*). Its body is laid **1.4** × the almond wide
     (1.15 until the evening of 2026-11-27 — *"stretch it a bit towards the left-right 'insertion' points
     into the tower"*) and 1.9 × tall, then all of it × 0.8 (1.12 × 1.52, *"un pic mai mic să încapă
     între marginile turnului"*), then × 1.1 in his drawing's horns (**1.232 × 1.672**). With the clip, **no drawn flames fly off the rim** any more (*"renunță la
