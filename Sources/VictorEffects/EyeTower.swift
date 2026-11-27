@@ -417,7 +417,40 @@ enum EyeTower {
     static let fireBodyShare = CGSize(width: 155.0 / 210, height: 135.0 / 150)
     /// The clip's eye is rounder than the drawn almond; laid over it, its
     /// body is this much of the almond's width wide and of its height tall.
-    static let fireBodyOverLens = CGSize(width: 1.15, height: 1.9)
+    /// 1.4 wide since 2026-11-27 evening (was 1.15) — Victor: *"stretch it a bit
+    /// towards the left-right 'insertion' points into the tower"*.
+    static let fireBodyOverLens = CGSize(width: 1.4, height: 1.9)
+
+    // MARK: - The gaze in the fire (2026-11-27, evening)
+
+    /// Victor, over the clip with a pupil drawn on it: *"when the eye has to
+    /// move, stretch it slightly towards that direction, so that the black
+    /// centre moves gently towards where the gaze points"*. The clip's own slit
+    /// is the pupil now; the fire is WARPED so its middle slides toward the
+    /// light while its edges stay where they are (the tips stay at the horns):
+    /// each axis maps `u → u + s·sin(πu)`, `s` a share of the body. Separable,
+    /// so a grid of tiles cut from the frame stays a grid of rectangles —
+    /// Core Animation can draw it with `contentsRect`s, no mesh needed.
+    static let gazeShiftMax = CGSize(width: 0.11, height: 0.04)
+    /// The light is always below the eye, so the slit looks down a little more
+    /// than up; far to the side it has gone as far as it goes.
+    static func gazeShift(eye: CGPoint, spot: CGPoint, in b: CGRect) -> CGPoint {
+        guard b.width > 0, b.height > 0 else { return .zero }
+        let dx = max(-1, min(1, (spot.x - eye.x) / (b.width * 0.6)))
+        let dy = max(-1, min(0.3, (spot.y - eye.y) / b.height))
+        return CGPoint(x: dx * gazeShiftMax.width, y: dy * gazeShiftMax.height)
+    }
+    /// Where unit coordinate `u` of the clip lands in the body. Monotonic (no
+    /// fold) while `|s| < 1/π`, which `gazeShiftMax` stays well under.
+    static func warp(_ u: CGFloat, shift s: CGFloat) -> CGFloat {
+        u + s * sin(.pi * u)
+    }
+    /// The grid the body is cut into: enough that the piecewise-linear warp
+    /// reads as a curve.
+    static let gazeTiles = (cols: 12, rows: 6)
+    /// How far each tile reaches into its neighbours, in the clip's unit
+    /// coordinates, so a rounded edge never opens a hairline through the fire.
+    static let gazeTileOverlap: CGFloat = 0.004
 
     static func fireFrame(lens: CGRect) -> CGRect {
         let w = lens.width * fireBodyOverLens.width / fireBodyShare.width

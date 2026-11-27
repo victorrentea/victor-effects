@@ -738,9 +738,20 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
   - **The eye burns.** When `assetsDir/eye-fire.png` + `.json` are there it is a **living clip**: Victor's
     pick from an image search, makeagif's "The Eye of Sauron (Free Stock Footage)" (320×180, 151 frames, 15 fps,
     on black, licence not ours — never committed; `eye-fire-source.gif` beside it), cropped off its
-    watermark, glow-keyed, its fixed slit filled with fire borrowed from either side (the app's own pupil
-    moves over it) and packed into a 12-column sheet by `tools/make-eye-fire.py`, played as a discrete
-    `contentsRect` loop at a random phase. Its round body is laid 1.15 × the almond wide and 1.9 × tall.
+    watermark, glow-keyed (its own black slit kept **opaque**, found by a flood fill from the middle so
+    the black around the eye still keys out) and packed into a 12-column sheet by `tools/make-eye-fire.py`,
+    played as a discrete `contentsRect` loop at a random phase. Its body is laid **1.4** × the almond wide
+    (1.15 until the evening of 2026-11-27 — *"stretch it a bit towards the left-right 'insertion' points
+    into the tower"*) and 1.9 × tall.
+  - **The clip's slit IS the pupil** (same evening: *"when the eye has to move, stretch it slightly
+    towards that direction, so that the black centre moves gently towards where the gaze points"*). No
+    pupil is drawn over the clip any more (earlier that day the slit was painted over with fire and a
+    drawn pupil moved on top). Instead the fire is **warped**: each axis maps `u → u + s·sin(πu)`, so
+    the tips stay at the horns and the middle — the slit — slides by `s`, at most **11%** of the body
+    sideways and 4% down (`EyeTower.gazeShift`, from where the light is). The warp is separable, so the
+    body is a 12 × 6 grid of tiles, each playing its cut of every frame in step (one `timeOffset`), and a
+    gaze only moves the tiles' edges; tiles overlap their neighbours by 0.4% of the clip so a rounded
+    edge never opens a hairline. The drawn-eye fallback keeps its moving pupil.
     Without it the drawn almond stays. Either way 18–26 little emitters round the rim (`rimEmitters`, the
     almond's outward normals) throw upright flame tongues (`flameSprite`) that rise as they go, yellow to
     red, plus sparks — sparse over the clip, which burns on its own.

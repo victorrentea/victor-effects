@@ -122,6 +122,32 @@ final class EyeTowerTests: XCTestCase {
         }
     }
 
+    /// 2026-11-27 evening: the clip's own slit is the pupil, moved by warping
+    /// the fire. The tips must stay put (they sit at the horns), the middle
+    /// must slide toward the light, gently, and the warp must never fold —
+    /// a fold would draw a tile mirrored over its neighbour.
+    func testTheGazeSlidesTheMiddleAndKeepsTheTips() {
+        let eye = EyeTower.eyeCenter(in: retina)
+        let right = EyeTower.gazeShift(eye: eye, spot: CGPoint(x: retina.maxX, y: 100), in: retina)
+        let left = EyeTower.gazeShift(eye: eye, spot: CGPoint(x: 0, y: 100), in: retina)
+        XCTAssertGreaterThan(right.x, 0.05)
+        XCTAssertLessThan(left.x, 0)
+        XCTAssertLessThan(right.y, 0, "the light is below: the slit looks down")
+        for s in [right, left] {
+            XCTAssertLessThanOrEqual(abs(s.x), EyeTower.gazeShiftMax.width + 1e-9)
+            XCTAssertLessThan(abs(s.x), 1 / .pi, "the warp would fold")
+            XCTAssertEqual(EyeTower.warp(0, shift: s.x), 0, accuracy: 1e-9)
+            XCTAssertEqual(EyeTower.warp(1, shift: s.x), 1, accuracy: 1e-9)
+            XCTAssertEqual(EyeTower.warp(0.5, shift: s.x), 0.5 + s.x, accuracy: 1e-9)
+            var last = -CGFloat.infinity
+            for i in 0...100 {
+                let x = EyeTower.warp(CGFloat(i) / 100, shift: s.x)
+                XCTAssertGreaterThan(x, last)
+                last = x
+            }
+        }
+    }
+
     /// 2026-11-27: the first coverage reader asked for an alpha-only bitmap
     /// with a colour space, got nil, read every block as empty — and the
     /// tower fell as nothing.

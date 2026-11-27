@@ -14,10 +14,11 @@ What this does, per frame:
 
   - **crop** to the eye (x 55..265, y 10..160 of the 320x180 frame), which also leaves the
     watermark (x >= 230, y >= 162) out;
-  - **fill the slit**: the clip's pupil is fixed in the middle and the app draws its own, which
-    looks where the light is — two pupils would be one too many. The dark pixels of the slit are
-    replaced by the fire around them (half a normalised blur of everything that is not slit, half
-    the flames BORROW px to either side, for texture), solid, so the middle is an iris for the app's own pupil to sit on;
+  - **keep the slit, solid**: until 2026-11-27 evening the clip's pupil was painted over with fire and
+    the app drew a pupil of its own; Victor then asked for the clip's own black centre, moved by
+    stretching the fire toward where the eye looks (`EyeTower.gazeWarp`). The slit is the dark region
+    connected to the middle of the frame (a flood fill, so the black OUTSIDE the eye stays black);
+    it is made opaque, so the glow key does not turn the pupil into a hole the tower shows through;
   - **key the black**: alpha from the brightest channel (a glow key — black is nothing, the flames'
     yellow core is solid, their red fringe half), colour un-premultiplied so it composites back to
     the source over black.
@@ -29,52 +30,39 @@ import json, sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageFilter, ImageSequence
+from PIL import Image, ImageDraw, ImageFilter, ImageSequence
 
 CROP = (55, 10, 265, 160)          # left, top, right, bottom in the 320x180 frame
 COLS = 12
 SLIT_HALF = (24, 60)               # half-width, half-height of the box the slit lives in, px
 SLIT_DARK = 0.42                   # brightest channel below this, inside that box = slit
-FILL_DARKEN = 1.05
-BORROW = 36                        # px sideways the patch takes its flame texture from
 
 
-def blur(a, r):
-    """Gaussian blur of an HxWx3 float image, channel by channel, through PIL's 8-bit "L"."""
-    out = np.empty_like(a)
-    for c in range(a.shape[2]):
-        ch = Image.fromarray((np.clip(a[:, :, c], 0, 1) * 255).round().astype(np.uint8), mode="L")
-        out[:, :, c] = np.asarray(ch.filter(ImageFilter.GaussianBlur(r)), dtype=np.float32) / 255
-    return out
+def slit_mask(peak):
+    """The dark region connected to the frame's middle, inside the box the slit lives in."""
+    h, w = peak.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    cy, cx = h / 2, w / 2 + 3
+    box = (np.abs(xx - cx) < SLIT_HALF[0]) & (np.abs(yy - cy) < SLIT_HALF[1])
+    # .copy(): fromarray shares a read-only buffer, and floodfill then changes nothing, silently.
+    dark = Image.fromarray(((box & (peak < SLIT_DARK)) * 255).astype(np.uint8)).copy()
+    seeds = [(int(cx) + dx, int(cy) + dy) for dy in range(-20, 21, 4) for dx in range(-4, 5, 2)]
+    for sx, sy in seeds:
+        if dark.getpixel((sx, sy)) == 255:
+            ImageDraw.floodfill(dark, (sx, sy), 128)
+    return np.asarray(dark) == 128
 
 
 def process(frame):
     rgb = np.asarray(frame.convert("RGB").crop(CROP), dtype=np.float32) / 255
-    h, w, _ = rgb.shape
     peak = rgb.max(axis=2)
-    yy, xx = np.mgrid[0:h, 0:w]
-    cy, cx = h / 2, w / 2 + 3
-    box = (np.abs(xx - cx) < SLIT_HALF[0]) & (np.abs(yy - cy) < SLIT_HALF[1])
-    slit = box & (peak < SLIT_DARK)
-    # Grow the slit so its dark-red rim goes too: left, it drew a ghost slit beside the app's pupil.
-    slit = np.asarray(Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(9))) > 0
-    slit &= box
-    keep = (~slit).astype(np.float32)[:, :, None]
-    num = blur(rgb * keep, 14)
-    den = blur(np.repeat(keep, 3, axis=2), 14)
-    smooth = num / np.maximum(den, 1e-3)
-    # Texture: the flames from either side of the slit, borrowed across it, so
-    # the patch flickers like what is around it instead of glowing flat.
-    grain = 0.5 * (np.roll(rgb, BORROW, axis=1) + np.roll(rgb, -BORROW, axis=1))
-    fill = (0.45 * smooth + 0.55 * grain) * FILL_DARKEN
-    # Feather the patch into its surroundings.
-    soft = np.asarray(Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.GaussianBlur(4)),
-                      dtype=np.float32)[:, :, None] / 255
-    rgb = rgb * (1 - soft) + fill * soft
+    slit = slit_mask(peak)
+    # Its dark-red rim joins it, so the pupil's edge is the clip's and not a cut-out.
+    grown = Image.fromarray(slit.astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5))
+    solid = np.asarray(grown.filter(ImageFilter.GaussianBlur(1.5)), dtype=np.float32) / 255
 
-    peak = rgb.max(axis=2)
     alpha = np.clip((peak - 0.04) * 1.9, 0, 1)
-    alpha = np.maximum(alpha, soft[:, :, 0])       # the patch is fire, solid like what surrounds it
+    alpha = np.maximum(alpha, solid)                # the slit is black, not see-through
     straight = np.where(alpha[:, :, None] > 1e-3, rgb / np.maximum(alpha[:, :, None], 1e-3), 0)
     out = np.dstack([np.clip(straight, 0, 1), alpha])
     return Image.fromarray((out * 255).round().astype(np.uint8), mode="RGBA")

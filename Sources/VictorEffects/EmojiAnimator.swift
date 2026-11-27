@@ -291,6 +291,8 @@ class EmojiAnimator {
         let bounds: CGRect
         var tower: CGImage?
         var pupilOffset = CGPoint.zero
+        /// The clip's gaze (`EyeTower.gazeShift`), when the eye is the clip.
+        var gazeShift = CGPoint.zero
         init(container: CALayer, towerHolder: CALayer, eyeHolder: CALayer, bounds: CGRect) {
             self.container = container; self.towerHolder = towerHolder
             self.eyeHolder = eyeHolder; self.bounds = bounds
@@ -3503,12 +3505,14 @@ class EmojiAnimator {
         eyeHolder.addSublayer(lid)
         let lensRect = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
                               width: eyeSize.width, height: eyeSize.height)
-        let (eyeLayer, rimRect) = Self.eyeBodyLayer(in: lid, lens: lensRect)
-        Self.addEyeFire(to: lid, lens: rimRect, sparse: EyeTower.fireSheet() != nil)
+        let (eyeLayer, rimRect, gaze) = Self.eyeBodyLayer(in: lid, lens: lensRect)
+        Self.addEyeFire(to: lid, lens: rimRect, sparse: gaze != nil)
         lid.addSublayer(eyeLayer)
         flicker(eyeLayer, depth: 0.025, period: 0.9)
+        gaze?(EyeTower.gazeShift(eye: eye, spot: start, in: bounds))
 
-        // The pupil lives inside the almond: sized to it where it stands, and
+        // The drawn eye's pupil (the clip brings its own slit and turns it by
+        // `gaze`, so with the clip this layer is never shown) lives inside the almond: sized to it where it stands, and
         // clipped by it so no flicker or rounding can push it over the rim.
         let lens = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
                           width: eyeSize.width, height: eyeSize.height)
@@ -3518,7 +3522,7 @@ class EmojiAnimator {
         irisMask.frame = lid.bounds
         irisMask.path = EyeTower.almond(in: lens)
         iris.mask = irisMask
-        lid.addSublayer(iris)
+        if gaze == nil { lid.addSublayer(iris) }
         let pupil = CALayer()
         let pupilWidth = eyeSize.height * 0.30
         let mid = CGPoint(x: lid.bounds.midX, y: lid.bounds.midY)
@@ -3621,9 +3625,15 @@ class EmojiAnimator {
             spot.position = position
             dark.position = position
             aim(position)
-            let o = EyeTower.pupilOffset(eye: eye, eyeSize: eyeSize, spot: position, in: bounds)
-            placePupil(o)
-            scene.pupilOffset = o
+            if let gaze {
+                let s = EyeTower.gazeShift(eye: eye, spot: position, in: bounds)
+                gaze(s)
+                scene.gazeShift = s
+            } else {
+                let o = EyeTower.pupilOffset(eye: eye, eyeSize: eyeSize, spot: position, in: bounds)
+                placePupil(o)
+                scene.pupilOffset = o
+            }
             CATransaction.commit()
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -3723,9 +3733,10 @@ class EmojiAnimator {
         group.addSublayer(lid)
         let lensRect = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
                               width: eyeSize.width, height: eyeSize.height)
-        let (eyeLayer, rimRect) = Self.eyeBodyLayer(in: lid, lens: lensRect)
-        Self.addEyeFire(to: lid, lens: rimRect, sparse: EyeTower.fireSheet() != nil)
+        let (eyeLayer, rimRect, gaze) = Self.eyeBodyLayer(in: lid, lens: lensRect)
+        Self.addEyeFire(to: lid, lens: rimRect, sparse: gaze != nil)
         lid.addSublayer(eyeLayer)
+        gaze?(scene.gazeShift)       // it goes out looking where it looked
         let lens = CGRect(x: lid.bounds.midX - eyeSize.width / 2, y: lid.bounds.midY - eyeSize.height / 2,
                           width: eyeSize.width, height: eyeSize.height)
         let iris = CALayer()
@@ -3734,7 +3745,7 @@ class EmojiAnimator {
         mask.frame = lid.bounds
         mask.path = EyeTower.almond(in: lens)
         iris.mask = mask
-        lid.addSublayer(iris)
+        if gaze == nil { lid.addSublayer(iris) }
         let pupil = CALayer()
         let o = scene.pupilOffset
         let pw = eyeSize.height * 0.30
@@ -4002,33 +4013,68 @@ class EmojiAnimator {
 
     /// The eye itself, filling `lid`: the living fire clip when it is in
     /// assetsDir (looping its sheet through `contentsRect`), else the drawn
-    /// almond. Returns the layer and the rect its flames fill, for the fire
-    /// thrown off its rim.
-    private static func eyeBodyLayer(in lid: CALayer, lens: CGRect) -> (layer: CALayer, rim: CGRect) {
+    /// almond. Returns the layer, the rect its flames fill (for the fire
+    /// thrown off its rim), and — for the clip — how to turn its gaze: the clip
+    /// is cut into a grid of tiles, all playing the same frames in step, and a
+    /// gaze moves the tiles' edges (`EyeTower.warp`) so the clip's own black
+    /// slit slides toward the light. Nil for the drawn eye, whose pupil moves.
+    private static func eyeBodyLayer(in lid: CALayer, lens: CGRect)
+        -> (layer: CALayer, rim: CGRect, gaze: ((CGPoint) -> Void)?) {
         let body = CALayer()
         guard let sheet = EyeTower.fireSheet() else {
             body.frame = lid.bounds
             body.contents = EyeTower.eyeSprite()
             body.contentsGravity = .resize
-            return (body, lens)
+            return (body, lens, nil)
         }
         let frame = EyeTower.fireFrame(lens: lens)
         body.frame = frame
-        body.contents = sheet.image
-        body.contentsGravity = .resize
-        body.contentsRect = sheet.rect(0)
-        let play = CAKeyframeAnimation(keyPath: "contentsRect")
-        play.values = (0..<sheet.frames).map { NSValue(rect: sheet.rect($0)) }
-        play.calculationMode = .discrete
-        play.duration = sheet.seconds
-        play.repeatCount = .greatestFiniteMagnitude
-        play.timeOffset = Double.random(in: 0..<sheet.seconds)
-        body.add(play, forKey: "fire")
+        let (nx, ny) = EyeTower.gazeTiles
+        let pad = EyeTower.gazeTileOverlap
+        let phase = Double.random(in: 0..<sheet.seconds)
+        /// A tile's span of the clip, unit coordinates, reaching `pad` into
+        /// its neighbours on the inner sides.
+        func span(_ i: Int, of n: Int) -> (CGFloat, CGFloat) {
+            (i == 0 ? 0 : CGFloat(i) / CGFloat(n) - pad, i == n - 1 ? 1 : CGFloat(i + 1) / CGFloat(n) + pad)
+        }
+        var tiles: [(layer: CALayer, u: (CGFloat, CGFloat), v: (CGFloat, CGFloat))] = []
+        for j in 0..<ny {
+            for i in 0..<nx {
+                let u = span(i, of: nx), v = span(j, of: ny)
+                func cut(_ r: CGRect) -> CGRect {
+                    CGRect(x: r.minX + u.0 * r.width, y: r.minY + v.0 * r.height,
+                           width: (u.1 - u.0) * r.width, height: (v.1 - v.0) * r.height)
+                }
+                let tile = CALayer()
+                tile.contents = sheet.image
+                tile.contentsGravity = .resize
+                tile.contentsRect = cut(sheet.rect(0))
+                let play = CAKeyframeAnimation(keyPath: "contentsRect")
+                play.values = (0..<sheet.frames).map { NSValue(rect: cut(sheet.rect($0))) }
+                play.calculationMode = .discrete
+                play.duration = sheet.seconds
+                play.repeatCount = .greatestFiniteMagnitude
+                play.timeOffset = phase          // one phase for all: they play in step
+                tile.add(play, forKey: "fire")
+                body.addSublayer(tile)
+                tiles.append((tile, u, v))
+            }
+        }
+        let size = frame.size
+        func gaze(_ s: CGPoint) {
+            for t in tiles {
+                let x0 = EyeTower.warp(t.u.0, shift: s.x), x1 = EyeTower.warp(t.u.1, shift: s.x)
+                let y0 = EyeTower.warp(t.v.0, shift: s.y), y1 = EyeTower.warp(t.v.1, shift: s.y)
+                t.layer.frame = CGRect(x: x0 * size.width, y: y0 * size.height,
+                                       width: (x1 - x0) * size.width, height: (y1 - y0) * size.height)
+            }
+        }
+        gaze(.zero)
         let rim = CGRect(x: lens.midX - lens.width * EyeTower.fireBodyOverLens.width * 0.42,
                          y: lens.midY - lens.height * EyeTower.fireBodyOverLens.height * 0.42,
                          width: lens.width * EyeTower.fireBodyOverLens.width * 0.84,
                          height: lens.height * EyeTower.fireBodyOverLens.height * 0.84)
-        return (body, rim)
+        return (body, rim, gaze)
     }
 
     /// A billow of dust: puffs that rise, swell and thin out.
