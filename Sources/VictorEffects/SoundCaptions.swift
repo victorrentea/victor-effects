@@ -37,6 +37,7 @@ enum SoundCaptions {
         "12_cricket.mp3":             "[crickets chirping]",
         "13_heartbeat.mp3":           "[heart beating]",
         "14_universal.mp3":           "[Universal fanfare]",
+        "15b_died_in_your_arms.mp3":  "I just died in your arms tonight",
         "16_magic_wand.mp3":          "[magic sparkles]",
         "17_my_precious.mp3":         "My precious…",
         "19_fail.mp3":                "[sad trombone]",
@@ -182,6 +183,13 @@ enum SoundCaptions {
                                    (8.5, "Hal\u{AD}le\u{AD}lu\u{AD}jah! Hal\u{AD}le\u{AD}lu\u{AD}jah!")],
         "62_lionel_richie.mp3":   [(0, "Hello…"),
                                    (4.4, "Is it me you're looking for?")],
+        // Cutting Crew, "(I Just) Died in Your Arms" (2026-11-27, layer B under
+        // #15 flatline): the first chorus. Timings from a Whisper pass on the clip;
+        // the words are the song's own — Whisper turned the sung lines into
+        // "I'm just dying" and "must have learned something to say".
+        "15b_died_in_your_arms.mp3": [(0, "Oh I, I just died in your arms tonight"),
+                                      (7.4, "It must have been something you said"),
+                                      (10.4, "I just died in your arms tonight")],
         // Scorpions, "Are You the One" (2026-11-21, layer B under #62): the
         // chorus from 1:08, its two lines heard by Whisper on the clip itself.
         "62b_are_you_the_one.mp3": [(0, "Are you the one that got it made for me?"),
