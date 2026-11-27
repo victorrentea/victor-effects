@@ -450,8 +450,9 @@ enum EyeTower {
     }
 
     /// Where the flames of the clip's eye sit in one of its frames: the eye's
-    /// body spans x 30…185 of 210 and y 10…145 of 150.
-    static let fireBodyShare = CGSize(width: 155.0 / 210, height: 135.0 / 150)
+    /// body spans x 30…185 of 210 and y 20…155 of 180 (the frame's whole
+    /// height since 2026-11-27: cut at 150 rows, the flames' foot was cut off).
+    static let fireBodyShare = CGSize(width: 155.0 / 210, height: 135.0 / 180)
     /// The clip's eye is rounder than the drawn almond; laid over it, its
     /// body is this much of the almond's width wide and of its height tall.
     /// Stretched sideways on 2026-11-27 evening (1.15 → 1.4 wide) — Victor:

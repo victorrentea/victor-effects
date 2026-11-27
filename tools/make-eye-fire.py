@@ -12,8 +12,10 @@ eye is drawn in code as before (`EyeTower.eyeSprite`).
 
 What this does, per frame:
 
-  - **crop** to the eye (x 55..265, y 10..160 of the 320x180 frame), which also leaves the
-    watermark (x >= 230, y >= 162) out;
+  - **crop** to the eye, x 55..265 and the frame's whole height: cut at y 160 (to leave the
+    watermark out) the flames' foot ended on a straight line (Victor: *"animația ochiului pare tăiată
+    inferior"*). The watermark (x >= 228, y >= 158) is covered instead with the eye's other side,
+    mirrored about its centre, and the top and bottom rows fade out so no frame edge shows;
   - **keep the slit, solid**: until 2026-11-27 evening the clip's pupil was painted over with fire and
     the app drew a pupil of its own; Victor then asked for the clip's own black centre, moved by
     stretching the fire toward where the eye looks (`EyeTower.gazeWarp`). The slit is the dark region
@@ -32,7 +34,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageSequence
 
-CROP = (55, 10, 265, 160)          # left, top, right, bottom in the 320x180 frame
+CROP = (55, 0, 265, 180)           # left, top, right, bottom in the 320x180 frame
+WATERMARK = (228, 158)             # the watermark lies right of and below this, frame px
+EYE_CX = 163                       # the eye's vertical axis, frame px (the mirror for the watermark)
+EDGE_FADE = 12                     # px at the top and bottom of the frame faded to nothing
 COLS = 12
 SLIT_HALF = (24, 60)               # half-width, half-height of the box the slit lives in, px
 SLIT_DARK = 0.42                   # brightest channel below this, inside that box = slit
@@ -54,7 +59,11 @@ def slit_mask(peak):
 
 
 def process(frame):
-    rgb = np.asarray(frame.convert("RGB").crop(CROP), dtype=np.float32) / 255
+    full = np.asarray(frame.convert("RGB"), dtype=np.float32) / 255
+    wx, wy = WATERMARK
+    xs = np.arange(wx, full.shape[1])
+    full[wy:, xs] = full[wy:, np.clip(2 * EYE_CX - xs, 0, full.shape[1] - 1)]
+    rgb = full[CROP[1]:CROP[3], CROP[0]:CROP[2]]
     peak = rgb.max(axis=2)
     slit = slit_mask(peak)
     # Its dark-red rim joins it, so the pupil's edge is the clip's and not a cut-out.
@@ -63,6 +72,8 @@ def process(frame):
 
     alpha = np.clip((peak - 0.04) * 1.9, 0, 1)
     alpha = np.maximum(alpha, solid)                # the slit is black, not see-through
+    ramp = np.clip(np.minimum(np.arange(alpha.shape[0]), alpha.shape[0] - 1 - np.arange(alpha.shape[0])) / EDGE_FADE, 0, 1)
+    alpha = alpha * (ramp * ramp * (3 - 2 * ramp))[:, None]
     straight = np.where(alpha[:, :, None] > 1e-3, rgb / np.maximum(alpha[:, :, None], 1e-3), 0)
     out = np.dstack([np.clip(straight, 0, 1), alpha])
     return Image.fromarray((out * 255).round().astype(np.uint8), mode="RGBA")

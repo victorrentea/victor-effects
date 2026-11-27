@@ -737,8 +737,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     moving pointer.
   - **The eye burns.** When `assetsDir/eye-fire.png` + `.json` are there it is a **living clip**: Victor's
     pick from an image search, makeagif's "The Eye of Sauron (Free Stock Footage)" (320×180, 151 frames, 15 fps,
-    on black, licence not ours — never committed; `eye-fire-source.gif` beside it), cropped off its
-    watermark, glow-keyed (its own black slit kept **opaque**, found by a flood fill from the middle so
+    on black, licence not ours — never committed; `eye-fire-source.gif` beside it), cropped to the eye at
+    the frame's **whole height** (cut at y 160 to dodge the watermark, the flames' foot ended on a straight
+    line — *"pare tăiată inferior"*; the watermark is now covered by the eye's other side, mirrored, and
+    the top and bottom 12 px fade out), glow-keyed (its own black slit kept **opaque**, found by a flood fill from the middle so
     the black around the eye still keys out) and packed into a 12-column sheet by `tools/make-eye-fire.py`,
     played as a discrete `contentsRect` loop at a random phase. Its body is laid **1.4** × the almond wide
     (1.15 until the evening of 2026-11-27 — *"stretch it a bit towards the left-right 'insertion' points
