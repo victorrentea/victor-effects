@@ -448,9 +448,6 @@ enum EyeTower {
     /// The grid the body is cut into: enough that the piecewise-linear warp
     /// reads as a curve.
     static let gazeTiles = (cols: 12, rows: 6)
-    /// How far each tile reaches into its neighbours, in the clip's unit
-    /// coordinates, so a rounded edge never opens a hairline through the fire.
-    static let gazeTileOverlap: CGFloat = 0.004
 
     static func fireFrame(lens: CGRect) -> CGRect {
         let w = lens.width * fireBodyOverLens.width / fireBodyShare.width

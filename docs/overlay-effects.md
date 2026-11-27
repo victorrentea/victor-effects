@@ -750,8 +750,10 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     the tips stay at the horns and the middle — the slit — slides by `s`, at most **11%** of the body
     sideways and 4% down (`EyeTower.gazeShift`, from where the light is). The warp is separable, so the
     body is a 12 × 6 grid of tiles, each playing its cut of every frame in step (one `timeOffset`), and a
-    gaze only moves the tiles' edges; tiles overlap their neighbours by 0.4% of the clip so a rounded
-    edge never opens a hairline. The drawn-eye fallback keeps its moving pupil.
+    gaze only moves the tiles' edges. Tiles must **not** overlap: the first cut overlapped them by 0.4%
+    against hairlines and the see-through halo, drawn twice there, showed a red grid; neighbours share
+    each edge coordinate exactly (computed once) and draw with edge antialiasing OFF — antialiased, each
+    tile half-covered the shared pixels and the seams showed dark — so the grid has neither gap nor double. The drawn-eye fallback keeps its moving pupil.
     Without it the drawn almond stays. Either way 18–26 little emitters round the rim (`rimEmitters`, the
     almond's outward normals) throw upright flame tongues (`flameSprite`) that rise as they go, yellow to
     red, plus sparks — sparse over the clip, which burns on its own.

@@ -4030,14 +4030,15 @@ class EmojiAnimator {
         let frame = EyeTower.fireFrame(lens: lens)
         body.frame = frame
         let (nx, ny) = EyeTower.gazeTiles
-        let pad = EyeTower.gazeTileOverlap
         let phase = Double.random(in: 0..<sheet.seconds)
-        /// A tile's span of the clip, unit coordinates, reaching `pad` into
-        /// its neighbours on the inner sides.
+        /// A tile's span of the clip, unit coordinates. No overlap: where two
+        /// tiles overlapped, the see-through halo was drawn twice and showed a
+        /// red grid (2026-11-27). Neighbours share their edge coordinate
+        /// exactly instead, which the rasteriser fills once, with no gap.
         func span(_ i: Int, of n: Int) -> (CGFloat, CGFloat) {
-            (i == 0 ? 0 : CGFloat(i) / CGFloat(n) - pad, i == n - 1 ? 1 : CGFloat(i + 1) / CGFloat(n) + pad)
+            (CGFloat(i) / CGFloat(n), CGFloat(i + 1) / CGFloat(n))
         }
-        var tiles: [(layer: CALayer, u: (CGFloat, CGFloat), v: (CGFloat, CGFloat))] = []
+        var tiles: [(layer: CALayer, i: Int, j: Int)] = []
         for j in 0..<ny {
             for i in 0..<nx {
                 let u = span(i, of: nx), v = span(j, of: ny)
@@ -4048,6 +4049,10 @@ class EmojiAnimator {
                 let tile = CALayer()
                 tile.contents = sheet.image
                 tile.contentsGravity = .resize
+                // Antialiased, each tile half-covers the pixels on a shared
+                // edge and the two halves leave a dark seam (2026-11-27).
+                tile.allowsEdgeAntialiasing = false
+                tile.edgeAntialiasingMask = []
                 tile.contentsRect = cut(sheet.rect(0))
                 let play = CAKeyframeAnimation(keyPath: "contentsRect")
                 play.values = (0..<sheet.frames).map { NSValue(rect: cut(sheet.rect($0))) }
@@ -4057,16 +4062,16 @@ class EmojiAnimator {
                 play.timeOffset = phase          // one phase for all: they play in step
                 tile.add(play, forKey: "fire")
                 body.addSublayer(tile)
-                tiles.append((tile, u, v))
+                tiles.append((tile, i, j))
             }
         }
         let size = frame.size
         func gaze(_ s: CGPoint) {
+            // Each edge computed once and handed to both tiles that share it.
+            let xs = (0...nx).map { EyeTower.warp(CGFloat($0) / CGFloat(nx), shift: s.x) * size.width }
+            let ys = (0...ny).map { EyeTower.warp(CGFloat($0) / CGFloat(ny), shift: s.y) * size.height }
             for t in tiles {
-                let x0 = EyeTower.warp(t.u.0, shift: s.x), x1 = EyeTower.warp(t.u.1, shift: s.x)
-                let y0 = EyeTower.warp(t.v.0, shift: s.y), y1 = EyeTower.warp(t.v.1, shift: s.y)
-                t.layer.frame = CGRect(x: x0 * size.width, y: y0 * size.height,
-                                       width: (x1 - x0) * size.width, height: (y1 - y0) * size.height)
+                t.layer.frame = CGRect(x: xs[t.i], y: ys[t.j], width: xs[t.i + 1] - xs[t.i], height: ys[t.j + 1] - ys[t.j])
             }
         }
         gaze(.zero)
