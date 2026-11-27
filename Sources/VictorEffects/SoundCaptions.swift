@@ -87,6 +87,7 @@ enum SoundCaptions {
         "61_hallelujah.mp3":          "Hallelujah",
         "62_lionel_richie.mp3":       "Hello, is it me you're looking for?",
         "62b_are_you_the_one.mp3":    "Are you the one",
+        "63b_ship_horn.mp3":          "[ship horn]",
         "64_fbi.mp3":                 "FBI! Open up!",
         "65_school_bell.mp3":         "[bell ringing]",
         "66_toilet.mp3":              "[toilet flushing]",
