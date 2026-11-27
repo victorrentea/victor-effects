@@ -79,9 +79,11 @@ Images, cut out by `tools/make-bug-walk.py`, licence unknown — no beetle witho
 `eye-fire.png` + `eye-fire.json` (👁️ ⌘⌃7, 2026-11-27: makeagif.com's "The Eye of Sauron (Free Stock
 Footage)" GIF, Victor's pick off Google Images, licence unknown, keyed and packed into a sprite sheet by
 `tools/make-eye-fire.py` — the eye is drawn in code without it),
-`eye-tower-drawing.png` + `eye-tower-drawing.json` (👁️ ⌘⌃7, 2026-11-27: a fan's signed ink drawing of
-Barad-dûr Victor pasted in, licence unknown, cut out and darkened by `tools/make-eye-tower-drawing.py`,
-which also measures where its eye goes — the bundled Wikimedia tower stands without it),
+`eye-tower-drawing.png` + `eye-tower-drawing.json` (👁️ ⌘⌃7, 2026-11-27: Elliott Wells' shaded drawing
+of Barad-dûr off a Pinterest pin Victor picked — earlier that evening a fan's signed ink drawing, kept beside
+it as `eye-tower-drawing.ink-photo.*` — licence unknown, cut out and darkened by
+`tools/make-eye-tower-drawing.py`, which also measures where its eye goes — the bundled Wikimedia tower
+stands without it),
 `grilled.mov` (🔥 ⌘⌃8, 2026-11-19: keyed by `tools/make-grilled.py` out of a clip Victor
 generated with Gemini, sound inside — no grill without it),
 `power.mov` (⚡ ⌘⌃6, 2026-11-20: keyed by `tools/make-power.py` out of a clip generated with

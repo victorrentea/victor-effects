@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """👁️ ⌘⌃7: a pen drawing of the Tower (a photo of ink on paper) -> assetsDir/eye-tower-drawing.png + .json.
 
-    make-eye-tower-drawing.py <photo.png> <assetsDir> [keep=0.80]
+    make-eye-tower-drawing.py <image> <assetsDir> [preset=wells]   (presets: PRESETS below)
 
 Victor, 2026-11-27, with a picture: *"use this tower draw"* — a fan's ink drawing of Barad-dûr,
 570 x 760, signed bottom right, the paper photographed in uneven light, a small eye drawn between
@@ -33,32 +33,53 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-UP = 3                      # work (and ship) at 3x: the photo is small, the screen is a Retina
 INK = np.array([4, 3, 3], np.float32)
 PAPER = np.array([46, 30, 24], np.float32)
-# In the source photo's pixels: a point surely inside the tower's body, the drawn eye's centre
-# (the app's eye takes its place), and the box the horns' inner edges are measured in.
-BODY_SEED = (285, 300)
-EYE = (283, 47)
-# The drawn eye is erased inside this polygon (photo px): it follows the horns' inner edges, because
-# the eye's flecks reach right up to them — an ellipse left them stuck on (Victor: *"nu ai șters
-# bine vechiul ochi"*), and the left horn thickens below y 62, so the polygon steps in there.
-EYE_ERASE = [(245, 20), (313, 20), (313, 52), (310, 57), (309, 78), (250, 78), (250, 64), (245, 62)]
+
+# One preset per drawing Victor picked; everything in the source image's pixels.
+#   up      work (and ship) at this many times the source size
+#   paper   how the paper's brightness is found: a blur radius (uneven light) or None (the median of
+#           the top rows — a blur would read a wide, shaded tower as paper and wash it out)
+#   seed    a point surely inside the tower's body
+#   eye     where the app's eye goes; its width is the gap between the horns on that row
+#   erase   a polygon whose ink goes first (a drawn eye), or None
+#   keep    the share of the tower's height kept, from the horns' tips down
+#   light   the colour the paper's own brightness maps to; the drawing's greys run from INK to it.
+#           Through the ink threshold instead (light None), a shaded drawing goes solid black.
+PRESETS = {
+    # 2026-11-27, *"use this tower draw"*: a fan's signed ink drawing, photographed, 570 x 760.
+    # Its drawn eye is erased inside a polygon that follows the horns' inner edges, because the eye's
+    # flecks reach right up to them — an ellipse left them stuck on (Victor: *"nu ai șters bine
+    # vechiul ochi"*), and the left horn thickens below y 62, so the polygon steps in there.
+    "ink-photo": dict(up=3, paper=30, seed=(285, 300), eye=(283, 47), keep=0.80,
+                      erase=[(245, 20), (313, 20), (313, 52), (310, 57), (309, 78), (250, 78), (250, 64), (245, 62)],
+                      light=None),
+    # 2026-11-27, the same evening, a Pinterest pin (ro.pinterest.com/pin/41939840273643575): Elliott
+    # Wells' shaded drawing of Barad-dûr, 973 x 2655, grey on light paper, no eye drawn. The eye goes
+    # in the upper bowl, where the horns are still apart; cut where the rocks begin.
+    "wells": dict(up=1, paper=None, seed=(480, 1000), eye=(493, 245), keep=0.62, erase=None,
+                  light=(150, 112, 96)),
+}
 
 
 def main():
     if len(sys.argv) not in (3, 4):
         sys.exit(__doc__)
     src, assets = Path(sys.argv[1]), Path(sys.argv[2]).expanduser()
-    keep = float(sys.argv[3]) if len(sys.argv) > 3 else 0.80
+    P = PRESETS[sys.argv[3] if len(sys.argv) > 3 else "wells"]
+    UP, BODY_SEED, EYE, keep = P["up"], P["seed"], P["eye"], P["keep"]
     im = Image.open(src).convert("L")
     im = im.resize((im.width * UP, im.height * UP), Image.BICUBIC)
     g = np.asarray(im).astype(np.float32)
-    paper = np.asarray(im.filter(ImageFilter.GaussianBlur(30 * UP))).astype(np.float32)
+    if P["paper"]:
+        paper = np.asarray(im.filter(ImageFilter.GaussianBlur(P["paper"] * UP))).astype(np.float32)
+    else:
+        paper = np.full_like(g, np.median(g[: max(8, g.shape[0] // 40)]))
     ink = np.clip((paper * 0.82 - g) / (paper * 0.45), 0, 1)          # 0 paper .. 1 solid ink
-    erase = Image.new("L", (ink.shape[1], ink.shape[0]), 0)
-    ImageDraw.Draw(erase).polygon([(x * UP, y * UP) for x, y in EYE_ERASE], fill=255)
-    ink[np.asarray(erase) > 0] = 0
+    if P["erase"]:
+        erase = Image.new("L", (ink.shape[1], ink.shape[0]), 0)
+        ImageDraw.Draw(erase).polygon([(x * UP, y * UP) for x, y in P["erase"]], fill=255)
+        ink[np.asarray(erase) > 0] = 0
     line = ((ink > 0.25) * 255).astype(np.uint8)
 
     # The outside: flood the paper from the borders, through ink thickened so it cannot slip in.
@@ -76,10 +97,18 @@ def main():
     inside = Image.fromarray(((~outside) * 255).astype(np.uint8)).copy()
     ImageDraw.floodfill(inside, (BODY_SEED[0] * UP, BODY_SEED[1] * UP), 128)
     body = np.asarray(inside) == 128
+    if P["light"]:
+        # The outline keeps a few px of paper, which the tone map turns into its lightest colour —
+        # a glowing rim round the silhouette. Pull the edge in past it.
+        body = np.asarray(Image.fromarray(body.astype(np.uint8) * 255).filter(ImageFilter.MinFilter(7))) > 0
 
     alpha = np.asarray(Image.fromarray(body.astype(np.uint8) * 255).filter(ImageFilter.GaussianBlur(0.8 * UP)),
                        dtype=np.float32)
-    rgb = PAPER * (1 - ink[..., None]) + INK * ink[..., None]
+    if P["light"]:
+        v = np.clip(g / paper, 0, 1)[..., None] ** 1.2          # the drawing's own tone, 0 ink .. 1 paper
+        rgb = INK * (1 - v) + np.array(P["light"], np.float32) * v
+    else:
+        rgb = PAPER * (1 - ink[..., None]) + INK * ink[..., None]
     rgba = np.dstack([rgb, alpha]).astype(np.uint8)
 
     ys, xs = np.where(alpha > 8)

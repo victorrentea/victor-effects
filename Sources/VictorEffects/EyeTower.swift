@@ -86,8 +86,8 @@ enum EyeTower {
         let eyeWidthShare: CGFloat
     }
 
-    /// Victor's pick, 2026-11-27 (*"use this tower draw"*): a fan's ink drawing,
-    /// licence not ours, so an `assetsDir` drop-in (`eye-tower-drawing.png` +
+    /// Victor's pick, 2026-11-27 (*"use this tower draw"*, then a Pinterest
+    /// pin of Elliott Wells' shaded drawing), licence not ours, so an `assetsDir` drop-in (`eye-tower-drawing.png` +
     /// `.json`, made by `tools/make-eye-tower-drawing.py`, which measures the gap
     /// between its horns so the eye fits in it). Without it, the bundled
     /// Wikimedia drawing.

@@ -747,7 +747,13 @@ chainsaw, the ECG pulse, the ☕ pot) only get the `▶️ effect` line.
     into the tower"*) and 1.9 × tall, then all of it × 0.8 (1.12 × 1.52, *"un pic mai mic să încapă
     între marginile turnului"*), then × 1.1 in his drawing's horns (**1.232 × 1.672**). With the clip, **no drawn flames fly off the rim** any more (*"renunță la
     focul de deasupra ochiului"*): the clip burns on its own; the drawn-eye fallback keeps them.
-  - **Victor's tower drawing** (same evening, *"use this tower draw"*): a fan's signed ink drawing of
+  - **Victor's tower drawing**: since the end of that evening **Elliott Wells' shaded Barad-dûr** off a
+    Pinterest pin Victor sent (973 × 2655, grey on light paper, no eye drawn) — preset `wells` of
+    `tools/make-eye-tower-drawing.py`: paper level from the top rows (a blur read the wide shaded tower as
+    paper), **tone-mapped** rather than thresholded (its greys from near-black to a warm stone; through the
+    ink threshold it went solid black), the mask pulled in 3 px (the paper left on the outline glowed as a
+    light rim), cut where the rocks begin (62%), the eye in the upper bowl. Before it, the same evening
+    (preset `ink-photo`, files kept as `eye-tower-drawing.ink-photo.*`, *"use this tower draw"*): a fan's signed ink drawing of
     Barad-dûr, licence unknown, so an `assetsDir` drop-in — `eye-tower-drawing.png` + `.json`, made by
     `tools/make-eye-tower-drawing.py` out of the photo (kept beside them as `eye-tower-drawing-source.png`):
     ink found by an adaptive threshold (the paper runs grey to white), the drawn eye between the horns
