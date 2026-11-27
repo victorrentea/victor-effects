@@ -121,10 +121,14 @@ final class WhipController {
     /// first, then whoever is listening. Both callers used to call `playCrack()`
     /// directly, and a second thing to do per crack would have had to be
     /// remembered at two sites — exactly the divergence this exists to prevent.
-    private func cracked() {
+    /// `owesPlea` is false for a crack the physics found on its own: moving the
+    /// mouse is not asking for anything (2026-11-27, Victor: *"when I just move
+    /// it, there should be no thank you words"*). Only a deliberate crack — a
+    /// click, Return, a thumb button — throws a word.
+    private func cracked(owesPlea: Bool = true) {
         playCrack()
         lastCrackMs = nowMs()
-        pleaOwed = true
+        if owesPlea { pleaOwed = true }
         onCrack?()
     }
 
@@ -166,13 +170,19 @@ final class WhipController {
         guard let view, let handle = physics?.points.first, let tip = physics?.points.last else { return }
         let from = lash.map { ($0.handle, $0.tip, $0.heading) }
             ?? (CGPoint(x: handle.x, y: handle.y), CGPoint(x: tip.x, y: tip.y), heading)
-        var plea = WhipView.Plea(
-            text: pleaBag.next(), at: WhipPleas.launchPoint(handle: from.0, tip: from.1, heading: from.2),
-            bornMs: now)
+        let text = pleaBag.next()
+        let launch = WhipPleas.launchPoint(handle: from.0, tip: from.1, heading: from.2)
+        // Never on top of a word still flying (2026-11-27, Victor: *"the labels
+        // should never overlap each other as they show up"*): the nearest spot
+        // whose whole flight stays clear of what the others have left of theirs.
+        let taken = view.pleas.map { WhipPleas.track(of: $0, now: now, in: view.bounds) }
+        let at = WhipPleas.freeSpot(
+            near: launch, footprint: WhipPleas.footprint(text, explained: sayOwedPlea),
+            avoiding: taken, in: view.bounds)
+        var plea = WhipView.Plea(text: text, at: at, bornMs: now)
         if sayOwedPlea {
             sayOwedPlea = false
             plea.explainedMs = now
-            let text = plea.text
             let wait = max(0, lastCrackMs + Self.sayAfterCrackMs - now) / 1000
             DispatchQueue.main.asyncAfter(deadline: .now() + wait) { WhipVoice.speak(text) }
         }
@@ -206,8 +216,7 @@ final class WhipController {
         let p = WhipPanel(screenFrame: screenFrame)
         let v = WhipView(frame: NSRect(origin: .zero, size: screenFrame.size))
         v.pleas = carried
-        v.onMouseDown = { [weak self] in self?.handleClick() }
-        v.onRightMouseDown = { [weak self] in self?.crackAndSay() }
+        v.onMouseDown = { [weak self] in self?.crackAndSay() }
         p.contentView = v
         // Before the first pointer read: the spawn below converts the pointer
         // with the slice this places the panel on.
@@ -338,7 +347,7 @@ final class WhipController {
         // Announce the natural crack — but not during a scripted flick, whose
         // own forceCrack already announced one (avoid doubling).
         if didCrack && now > suppressNaturalCrackUntilMs {
-            cracked()
+            cracked(owesPlea: false)
         }
         if pleaOwed, let handle = physics.points.first, let tip = physics.points.last {
             let speed = ((tip.x - tip.px) * (tip.x - tip.px) + (tip.y - tip.py) * (tip.y - tip.py)).squareRoot()
@@ -374,22 +383,14 @@ final class WhipController {
 
     // MARK: - Input
 
-    /// A click cracks the whip, and that is all: nothing is typed into the
-    /// focused app any more (2026-11-11, Victor: *"să plesnească biciul dar să
-    /// nu mai introducă faster… în text"*). Same path as Return / the thumb
-    /// buttons, so it also throws a thank-you.
-    private func handleClick() {
-        forceCrack()
-    }
-
-    /// Right-click: cracks the whip like a left click, and the word that crack
-    /// throws is said out loud in its own language — after the crack, never
-    /// over it — with its country under it, held long enough to be read
-    /// (`WhipPleas.explainHoldMs`). (2026-11-17, Victor: *"să dea și bici și să
-    /// și pronunțe cuvântul după ce plesnește biciul"*; until then a
-    /// right-click only re-said the last word, without a crack.)
-    /// Only while the whip is up: put away, the panel lets clicks through, and a
-    /// right-click everywhere else stays the app's own context menu.
+    /// A LEFT click cracks the whip, then the word that crack throws is said
+    /// out loud in its own language — after the crack, never over it — with its
+    /// country under it, held long enough to be read (`WhipPleas.explainHoldMs`).
+    /// Nothing is typed into the focused app (2026-11-11). This was the
+    /// right-click's job from 2026-11-17; since 2026-11-27 the left click does
+    /// it and the right click does nothing (Victor: *"there should be no right
+    /// mouse click, just left … Display the label and speak out the label"*).
+    /// Only while the whip is up: put away, the panel lets clicks through.
     private func crackAndSay() {
         guard isShowing else { return }
         sayOwedPlea = true
@@ -501,7 +502,6 @@ private final class WhipView: NSView {
 
     var points: [WhipPhysics.Point] = []
     var onMouseDown: (() -> Void)?
-    var onRightMouseDown: (() -> Void)?
 
     /// A polite word thrown off the tip on a crack (`WhipPleas`), in view
     /// coords. Each one dies on its own clock — `tick` prunes it at `lifeMs`.
@@ -522,7 +522,6 @@ private final class WhipView: NSView {
     // Deliver the click even though the panel isn't the active window.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) { onMouseDown?() }
-    override func rightMouseDown(with event: NSEvent) { onRightMouseDown?() }
 
     private func p(_ i: Int) -> CGPoint { CGPoint(x: points[i].x, y: points[i].y) }
 
@@ -945,6 +944,60 @@ enum WhipPleas {
             if queue.count > 1, queue.first == last { queue.swapAt(0, 1) }
             return queue.removeFirst()
         }
+    }
+
+    // MARK: - Not on top of each other
+
+    /// The breathing room kept between two words in flight.
+    static let gap: CGFloat = 8
+
+    /// The box a plea draws in, relative to its centre, at its biggest (the
+    /// pop's 115%), its country line included when it is explained.
+    static func footprint(_ text: String, explained: Bool) -> CGRect {
+        let font = NSFont.systemFont(ofSize: fontSize * 1.15, weight: .heavy)
+        let size = attributed(text, font: font, [:]).size()
+        var width = size.width, below: CGFloat = 0
+        if explained, let country = WhipVoice.countryName(of: text) {
+            let small = NSFont.systemFont(ofSize: fontSize * countryScale, weight: .heavy)
+            let c = NSAttributedString(string: country, attributes: [.font: small]).size()
+            width = max(width, c.width)
+            below = c.height
+        }
+        return CGRect(x: -width / 2, y: -size.height / 2, width: width, height: size.height + below)
+    }
+
+    /// Everything a word centred at `at` still sweeps from progress `t` to
+    /// the end of its rise, clamped the way `drawPlea` clamps it.
+    static func track(center at: CGPoint, footprint: CGRect, from t: CGFloat, in bounds: CGRect) -> CGRect {
+        func box(_ t: CGFloat) -> CGRect {
+            clamp(footprint.offsetBy(dx: at.x, dy: at.y - riseDistance * t), into: bounds)
+        }
+        return box(t).union(box(1))
+    }
+
+    /// What is left of a live plea's flight, `now`.
+    static func track(of plea: Plea, now: Double, in bounds: CGRect) -> CGRect {
+        track(center: plea.at, footprint: footprint(plea.text, explained: plea.explainedMs != nil),
+              from: CGFloat(progress(plea, now: now)), in: bounds)
+    }
+
+    /// The point nearest `p` where a new word's whole flight touches none of
+    /// `taken` — `p` itself when it is clear. Searched on a grid of half a word
+    /// across and 30 pt up/down; a screen so full nothing fits gives `p` back.
+    static func freeSpot(near p: CGPoint, footprint: CGRect, avoiding taken: [CGRect],
+                         in bounds: CGRect) -> CGPoint {
+        func clear(_ c: CGPoint) -> Bool {
+            let r = track(center: c, footprint: footprint, from: 0, in: bounds).insetBy(dx: -gap, dy: -gap)
+            return !taken.contains { $0.intersects(r) }
+        }
+        if clear(p) { return p }
+        let stepX = max(20, footprint.width / 2), stepY: CGFloat = 30
+        var candidates: [CGPoint] = []
+        for i in -12...12 { for j in -12...12 where i != 0 || j != 0 {
+            candidates.append(CGPoint(x: p.x + CGFloat(i) * stepX, y: p.y + CGFloat(j) * stepY))
+        } }
+        candidates.sort { hypot($0.x - p.x, $0.y - p.y) < hypot($1.x - p.x, $1.y - p.y) }
+        return candidates.first(where: clear) ?? p
     }
 
     /// Slide `rect` inside `bounds` — cracks happen at the screen's edges too,

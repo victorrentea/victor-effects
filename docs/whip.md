@@ -11,7 +11,7 @@ Three files, one overlay:
 |---|---|
 | `WhipPhysics.swift` | the simulation: 28 Verlet segments, gravity, constraint iterations, the flick detector. Pure — no AppKit, no time source of its own |
 | `WhipOverlay.swift` | `WhipController` + `WhipPanel` + `WhipView`: the window, the per-frame draw, the cursor poll, the crack sounds |
-| `WhipVoice.swift` | the right-click's voice: the word it cracks out, said in its language (Google TTS, cached), and its country |
+| `WhipVoice.swift` | the left click's voice: the word it cracks out, said in its language (Google TTS, cached), and its country |
 | `WhipMacro.swift` | what a click USED to type into the focused app (unused since 2026-11-11) |
 
 **Under ⌥-scroll zoom the rope keeps its size** (2026-10-16): the panel is
@@ -66,10 +66,13 @@ fallback *and* the place the shortcut is taught.)
 
 ## Cracking it
 
-Three ways, all landing on the same crack:
+Four ways, all landing on the same crack:
 
 1. **A real flick** — sweep the mouse fast enough sideways and the physics
-   cracks on its own.
+   cracks on its own. **This one throws no word** (2026-11-27, Victor: *"when I
+   just move it, there should be no thank you words … if I just move the whip,
+   or pause with my mouse, no label should appear"*): `cracked(owesPlea: false)`.
+   Only a deliberate crack owes the room a word.
 2. **Return / keypad Enter**, while the overlay is up — `decideKey` returns
    `.crack` and **passes the key through**. This matters: the key that cracks
    the whip is usually the same key submitting the prompt, and swallowing it
@@ -78,6 +81,8 @@ Three ways, all landing on the same crack:
    the whip too.
 3. **Mouse buttons 6 or 7** (`otherMouseDown`, button numbers 5 and 6) — same
    rule, also passed through (`decideMouse`).
+4. **A left click** on the panel — crack, then the word shown and said (below).
+   The right click does nothing (since 2026-11-27).
 
 A keyboard/button crack is a **scripted flick**: `forceCrack` queues
 `flickProfile` handle positions (~8 frames ≈ 130 ms, out and back) that the
@@ -105,7 +110,7 @@ compensation delay would only make it late.
 
 ## It says thank you — a "merci" where it cracks
 
-**Every crack throws one thank-you off the tip** (2026-10-19 it threw
+**Every deliberate crack (click, Return, thumb button, `/effect/whip/crack`) throws one word off the tip** — a crack from just moving the mouse throws none (2026-11-27) (2026-10-19 it threw
 *please*es, Victor: *"make my whip throw please statements … whenever where it
 cracks"*; since 2026-10-22 only thanks, never an apology — Victor: *"nu vreau
 să îți cer scuze … vreau să spui mulțumesc în cât mai amuzante moduri
@@ -181,10 +186,12 @@ group abroad while Victor sits in Bucharest) wins over the Mac's timezone for
 that day — `WhipPleas.hereISO` reads it, `testTodaysManualPickInAddonsBeatsTheMacsZone`
 holds it.
 
-**Right-click cracks, then says the word out loud** (2026-11-17, Victor: *"să
-dea și bici și să și pronunțe cuvântul după ce plesnește biciul"*). While the
-whip is up, a right-click anywhere on its panel cracks it exactly like a left
-click (`forceCrack`: scripted flick, crack, a new word thrown), and the word that
+**A left click cracks, then says the word out loud** (a right-click from
+2026-11-17, Victor: *"să dea și bici și să și pronunțe cuvântul după ce plesnește
+biciul"*; moved to the left click on 2026-11-27, Victor: *"there should be no
+right mouse click, just left … Display the label and speak out the label"* —
+the right click now does nothing). While the whip is up, a left click anywhere on
+its panel cracks it (`forceCrack`: scripted flick, crack, a new word thrown), and the word that
 crack throws is the one spoken — `sayAfterCrackMs` (0.4 s) after the crack, so
 the room hears the crack first and the word after, never on top of each other
 (`WhipOverlay.crackAndSay` → `throwPlea`). The word gets its country (English,
@@ -203,8 +210,18 @@ the network; none of it is committed. The language is the flag's
 (`languageByCountry`) unless the words say otherwise (`languageByWords`: Catalan
 and Basque under 🇪🇸, French in 🇨🇭). Where Google has no voice (Maltese answers
 400) or the Mac is offline, macOS's own voice for that language reads it. Only
-while the whip is up: put away, the panel lets clicks through and a right-click
-is the focused app's own again.
+while the whip is up: put away, the panel lets clicks through. Return and the
+thumb buttons still throw a word, silently, without its country.
+
+**Words never land on top of each other** (2026-11-27, Victor: *"the labels
+should never overlap each other as they show up"*). Fast clicks throw word after
+word at the same spot, and an explained one holds there 3.5 s. `throwPlea` asks
+`WhipPleas.freeSpot` for the point nearest the launch point whose whole flight —
+the word at its 115% pop, its country line, the 70 pt rise, clamped like
+`drawPlea` clamps it (`track`) — stays `gap` (8 pt) clear of what every live word
+has left of its own; the search walks a grid of half a word across and 30 pt
+up/down. All words rise, so two flights that do not touch now never will.
+`WhipPleaSpacingTests` throws ten 170 ms apart on one spot and in a corner.
 in heavy pink, 41 pt with a **black** outline drawn UNDER the fill, round-joined
 (one-pass fill+stroke cut seams through e, a, k, E; 34 pt and white until
 2026-10-20), popping to 115% and floating 70 pt up over 1.95 s before it fades (1.3 s until 2026-10-21,
